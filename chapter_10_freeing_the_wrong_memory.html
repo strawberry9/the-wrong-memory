@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chapter 10 Freeing The Wrong Memory</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #d1d5db; /* Soft light gray text */
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 0 20px;
+            background-color: #1f2937; /* Dark charcoal/slate background */
+        }
+        h1, h2 {
+            color: #f3f4f6; /* Bright white-gray for headers */
+            border-bottom: 1px solid #374151;
+            padding-bottom: 0.3em;
+        }
+        pre {
+            background-color: #111827; /* Darker background for code blocks */
+            border: 1px solid #374151;
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+            font-size: 85%;
+            line-height: 1.45;
+            color: #e5e7eb;
+        }
+        code {
+            font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+        }
+        hr {
+            border: 0;
+            height: 1px;
+            background: #374151;
+            margin: 40px 0;
+        }
+        p {
+            margin-bottom: 16px;
+        }
+    </style>
+
+    <style>
+        .book-navigation {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #374151;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        .nav-btn {
+            background-color: #374151;
+            color: #f3f4f6;
+            padding: 8px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        .nav-btn:hover {
+            background-color: #4b5563;
+        }
+        .nav-info {
+            color: #9ca3af;
+            font-size: 14px;
+        }
+    </style>
+    
+</head>
+<body>
+<p> PART III</p>
+<h1>Chapter 10 - Freeing the Wrong Memory</h1>
+<p>Allocation creates memory.</p>
+<p>Freeing ends its lifetime.</p>
+<p>The apparent simplicity of:</p>
+<pre><code>free(p);</code></pre>
+<p>hides an important requirement:</p>
+<pre><code>p</code></pre>
+<p>must identify the allocation that the program is entitled to release.</p>
+<p>Unlike `memcpy`, `free` does not take an explicit size.</p>
+<p>The allocator already has to know the allocation&#x27;s size.</p>
+<p>This makes the correctness question different.</p>
+<p>The central question is:</p>
+<p>&gt; Does this pointer identify a currently allocated object that may be released here?</p>
+<hr>
+<h2>1. Freeing is about ownership</h2>
+<p>Suppose:</p>
+<pre><code>p = malloc(100);</code></pre>
+<p>The program now has an allocation.</p>
+<p>Eventually:</p>
+<pre><code>free(p);</code></pre>
+<p>may release it.</p>
+<p>But not every function that receives `p` necessarily owns the right to release it.</p>
+<p>Consider:</p>
+<pre><code>void process(char *p)
+{
+    ...
+}</code></pre>
+<p>The interface does not tell us whether `process` should:</p>
+<pre><code>use p</code></pre>
+<p>or:</p>
+<pre><code>free p</code></pre>
+<p>or:</p>
+<pre><code>retain p</code></pre>
+<p>or:</p>
+<pre><code>return ownership elsewhere.</code></pre>
+<p>Ownership has to be established by the program&#x27;s contract.</p>
+<hr>
+<h2>2. Freeing an interior pointer</h2>
+<p>Consider:</p>
+<pre><code>p = malloc(100);
+
+q = p + 20;
+
+free(q);</code></pre>
+<p>The pointer `q` identifies an interior location.</p>
+<p>It does not identify the original allocation in the form required for releasing it.</p>
+<p>The fact that `q` points into allocated storage does not make it a valid argument to `free`.</p>
+<p>This is a useful distinction:</p>
+<pre><code>pointer into allocation</code></pre>
+<p>versus:</p>
+<pre><code>pointer returned by the allocation operation.</code></pre>
+<p>The latter is what the allocator expects for releasing the allocation.</p>
+<hr>
+<h2>3. Freeing a stack object</h2>
+<p>Consider:</p>
+<pre><code>char buffer[100];
+
+free(buffer);</code></pre>
+<p>The object was not obtained from the corresponding allocation mechanism.</p>
+<p>Its lifetime is governed by automatic storage duration.</p>
+<p>It must not be passed to `free`.</p>
+<p>This is another example of why an address alone does not determine what operation is valid.</p>
+<p>The storage&#x27;s origin matters.</p>
+<hr>
+<h2>4. Freeing static storage</h2>
+<p>Similarly:</p>
+<pre><code>static char buffer[100];</code></pre>
+<p>cannot be released with:</p>
+<pre><code>free(buffer);</code></pre>
+<p>The object has static storage duration.</p>
+<p>There is no matching dynamic allocation to release.</p>
+<p>The general principle is:</p>
+<p>&gt; Free the object according to the mechanism that created its lifetime.</p>
+<hr>
+<h2>5. Freeing the same object twice</h2>
+<p>Consider:</p>
+<pre><code>p = malloc(100);
+
+free(p);
+free(p);</code></pre>
+<p>The second operation attempts to release an object whose lifetime has already ended.</p>
+<p>This is a double free.</p>
+<p>The first `free` is valid.</p>
+<p>The second is not.</p>
+<p>Double free is therefore closely related to use-after-free.</p>
+<p>Both involve a program continuing to treat an ended allocation as though it were still available.</p>
+<hr>
+<h2>6. Why double free can be dangerous</h2>
+<p>Modern allocators contain defenses against many forms of double free.</p>
+<p>But the underlying bug is still dangerous because the allocator&#x27;s internal state may be affected.</p>
+<p>Historically, heap-management attacks often attempted to turn allocator metadata corruption into control over later allocations.</p>
+<p>Modern implementations have made many classic techniques harder.</p>
+<p>That does not make double free harmless.</p>
+<p>It remains a memory-management violation whose security consequences depend on allocator behavior, program structure, and available attacker control.</p>
+<hr>
+<h2>7. Freeing through multiple owners</h2>
+<p>Consider:</p>
+<pre><code>p = malloc(100);
+
+a-&gt;data = p;
+b-&gt;data = p;</code></pre>
+<p>If both `a` and `b` believe they own `data`, either one may eventually execute:</p>
+<pre><code>free(data);</code></pre>
+<p>The second owner can then attempt to free the same allocation again.</p>
+<p>The problem is not necessarily in either `free` call individually.</p>
+<p>The problem is that ownership was duplicated.</p>
+<p>A pointer value can be copied freely.</p>
+<p>Ownership cannot safely be duplicated without a corresponding lifetime protocol.</p>
+<hr>
+<h2>8. Shallow copies create ownership problems</h2>
+<p>Consider:</p>
+<pre><code>struct object {
+    char *data;
+};</code></pre>
+<p>Then:</p>
+<pre><code>copy = original;</code></pre>
+<p>makes:</p>
+<pre><code>copy.data == original.data</code></pre>
+<p>Both structures now contain the same pointer.</p>
+<p>If both structures later execute:</p>
+<pre><code>free(data);</code></pre>
+<p>the allocation may be freed twice.</p>
+<p>Alternatively, one may free it while the other continues using it.</p>
+<p>The original copy operation was valid at the byte level.</p>
+<p>The resulting ownership model was not.</p>
+<p>This is a recurring pattern in C:</p>
+<pre><code>representation copying</code></pre>
+<p>does not automatically imply:</p>
+<pre><code>ownership copying.</code></pre>
+<hr>
+<h2>9. Ownership transfer</h2>
+<p>Sometimes copying a pointer is intentional because ownership is being transferred.</p>
+<p>For example:</p>
+<pre><code>new_owner-&gt;data = old_owner-&gt;data;
+old_owner-&gt;data = NULL;</code></pre>
+<p>The exact details vary, but the principle is:</p>
+<pre><code>one owner stops being responsible
+while another becomes responsible.</code></pre>
+<p>The important invariant is that there should be one clear authority responsible for eventually releasing the allocation.</p>
+<p>Ownership transfer is a protocol.</p>
+<p>It should not be left implicit.</p>
+<hr>
+<h2>10. Freeing too early</h2>
+<p>Suppose:</p>
+<pre><code>owner-&gt;data = malloc(100);</code></pre>
+<p>A function receives:</p>
+<pre><code>owner-&gt;data</code></pre>
+<p>and decides to free it.</p>
+<p>If the owner still expects the object to exist, the program has created a dangling pointer.</p>
+<p>The problem is therefore not necessarily an invalid `free` argument.</p>
+<p>The `free` itself may have been valid.</p>
+<p>The error is that the object was released before all users were finished with it.</p>
+<p>This distinction is crucial:</p>
+<pre><code>invalid free</code></pre>
+<p>versus:</p>
+<pre><code>premature free.</code></pre>
+<hr>
+<h2>11. Freeing too late</h2>
+<p>The opposite problem is a memory leak.</p>
+<p>Suppose an allocation is no longer reachable by the program, but is never released.</p>
+<p>The memory remains allocated even though no useful owner can access it.</p>
+<p>A leak is not usually an immediate memory-corruption vulnerability.</p>
+<p>But repeated leaks can exhaust resources.</p>
+<p>In long-running or remotely accessible programs, resource exhaustion can become a denial-of-service problem.</p>
+<p>Thus lifetime has two failure directions:</p>
+<pre><code>too early</code></pre>
+<p>and:</p>
+<pre><code>too late.</code></pre>
+<hr>
+<h2>12. The wrong allocator</h2>
+<p>Some programs use multiple allocation systems.</p>
+<p>For example:</p>
+<pre><code>malloc/free</code></pre>
+<p>and:</p>
+<pre><code>another_allocator/another_free</code></pre>
+<p>may have different ownership and metadata requirements.</p>
+<p>A pointer allocated by one mechanism generally cannot simply be released through an unrelated mechanism.</p>
+<p>The important question is:</p>
+<pre><code>Which allocator created this object?</code></pre>
+<p>The answer determines which release operation is appropriate.</p>
+<hr>
+<h2>13. Custom allocators</h2>
+<p>Large programs often implement:</p>
+<pre><code>arenas
+pools
+slabs
+object caches
+region allocators.</code></pre>
+<p>In such systems, `free` may not be the operation that ends an object&#x27;s lifetime.</p>
+<p>For example, an object might be released by:</p>
+<pre><code>pool_release(object);</code></pre>
+<p>or:</p>
+<pre><code>arena_destroy(arena);</code></pre>
+<p>The memory-safety reasoning remains the same.</p>
+<p>The program needs to know:</p>
+<pre><code>who owns the object
+
+what operation ends its lifetime
+
+when that operation may occur.</code></pre>
+<hr>
+<h2>14. Freeing the wrong allocation</h2>
+<p>Suppose a function manages several related allocations:</p>
+<pre><code>header
+payload
+metadata</code></pre>
+<p>and accidentally frees:</p>
+<pre><code>metadata</code></pre>
+<p>when it intended:</p>
+<pre><code>payload.</code></pre>
+<p>The pointer may be perfectly valid.</p>
+<p>The allocation may be live.</p>
+<p>The `free` operation may satisfy the allocator.</p>
+<p>Yet the program has destroyed the wrong object.</p>
+<p>The subsequent failure may occur when code later uses the freed payload.</p>
+<p>This is a wrong-location error expressed through lifetime management.</p>
+<hr>
+<h2>15. Freeing based on corrupted pointers</h2>
+<p>Consider:</p>
+<pre><code>free(object-&gt;data);</code></pre>
+<p>If an earlier memory corruption changed:</p>
+<pre><code>object-&gt;data</code></pre>
+<p>the `free` operation may receive a pointer that no longer identifies the intended allocation.</p>
+<p>Thus a memory corruption can become a second memory-management bug.</p>
+<p>The chain may look like:</p>
+<pre><code>out-of-bounds write
+    -&gt;
+pointer corruption
+    -&gt;
+invalid free
+    -&gt;
+allocator corruption
+    -&gt;
+later memory corruption.</code></pre>
+<p>This is why memory bugs can amplify one another.</p>
+<hr>
+<h2>16. Null is safe for `free`</h2>
+<p>One useful property of C&#x27;s standard allocation interface is that:</p>
+<pre><code>free(NULL);</code></pre>
+<p>has no effect.</p>
+<p>This makes a common cleanup pattern possible:</p>
+<pre><code>free(p);
+p = NULL;</code></pre>
+<p>and allows cleanup code to call `free` on a pointer that may already be NULL.</p>
+<p>But NULL safety does not solve ownership problems.</p>
+<p>If:</p>
+<pre><code>p</code></pre>
+<p>is non-NULL and stale, `free(p)` remains problematic.</p>
+<p>The useful invariant is:</p>
+<pre><code>p is either NULL
+or identifies the allocation that this code owns.</code></pre>
+<hr>
+<h2>17. Cleanup paths are particularly dangerous</h2>
+<p>Complex functions often have multiple exits:</p>
+<pre><code>success
+failure
+timeout
+cancellation
+validation failure</code></pre>
+<p>Each path may perform cleanup.</p>
+<p>This creates opportunities for:</p>
+<pre><code>double free
+
+missing free
+
+premature free
+
+freeing the wrong object
+
+using an object after cleanup.</code></pre>
+<p>A common way to reason about such code is to identify the ownership state at every exit.</p>
+<p>For each allocation, ask:</p>
+<pre><code>Who owns it here?
+
+Has it already been released?
+
+Will another cleanup path release it?</code></pre>
+<hr>
+<h2>18. Error handling changes lifetime</h2>
+<p>Consider:</p>
+<pre><code>p = malloc(...);
+
+if (step1() &lt; 0)
+    goto cleanup;
+
+if (step2() &lt; 0)
+    goto cleanup;
+
+...</code></pre>
+<p>cleanup:<br>
+free(p);</p>
+<p>This pattern can be robust if ownership is clear.</p>
+<p>But if some step transfers ownership:</p>
+<pre><code>consumer_take(p);</code></pre>
+<p>then the cleanup path may no longer be allowed to free it.</p>
+<p>The ownership state has changed.</p>
+<p>A cleanup label does not magically know that.</p>
+<p>The code must preserve the ownership invariant.</p>
+<hr>
+<h2>19. Freeing is not erasing</h2>
+<p>Consider:</p>
+<pre><code>free(p);</code></pre>
+<p>The call ends the allocation&#x27;s lifetime.</p>
+<p>It does not guarantee that the old bytes are immediately erased.</p>
+<p>It does not guarantee that the memory is immediately unmapped.</p>
+<p>It does not guarantee that stale copies of the pointer disappear.</p>
+<p>This matters because:</p>
+<pre><code>free</code></pre>
+<p>is fundamentally a lifetime operation.</p>
+<p>It is not a secure erasure primitive.</p>
+<p>If sensitive data needs explicit clearing, that is a separate requirement.</p>
+<hr>
+<h2>20. The allocator may retain the bytes</h2>
+<p>After:</p>
+<pre><code>free(p);</code></pre>
+<p>the old contents may remain physically present for some time.</p>
+<p>A later allocation may reuse the same memory.</p>
+<p>Therefore:</p>
+<pre><code>free</code></pre>
+<p>does not mean:</p>
+<pre><code>the old bytes instantly ceased to exist physically.</code></pre>
+<p>It means the program no longer has the right to treat the old allocation as a live object.</p>
+<p>This distinction helps explain why use-after-free and stale-data problems are possible.</p>
+<hr>
+<h2>21. The review method</h2>
+<p>For every release operation, ask:</p>
+<pre><code>Who allocated this object?
+
+Which mechanism allocated it?
+
+Who owns it now?
+
+Is the object still live?
+
+Is this the original allocation pointer?
+
+Has it already been released?
+
+Does any other live pointer still depend on it?
+
+Does any other cleanup path also release it?</code></pre>
+<p>These questions reveal most ownership and lifetime mistakes.</p>
+<hr>
+<h2>22. The central lesson</h2>
+<p>`free` is not simply:</p>
+<pre><code>give this address back to the allocator.</code></pre>
+<p>It is:</p>
+<pre><code>end the lifetime of this particular allocation.</code></pre>
+<p>That operation is valid only when the pointer, allocation mechanism, ownership, and lifetime all agree.</p>
+<p>The dangerous cases include:</p>
+<pre><code>freeing an interior pointer
+
+freeing non-dynamic storage
+
+freeing twice
+
+freeing too early
+
+freeing the wrong object
+
+freeing through the wrong allocator
+
+freeing an allocation whose ownership has already moved.</code></pre>
+<p>The deeper lesson is that allocation and release are a matched pair.</p>
+<p>The program needs to preserve the relationship:</p>
+<pre><code>allocation
+    -&gt;
+ownership
+    -&gt;
+use
+    -&gt;
+ownership transfer, if any
+    -&gt;
+release
+    -&gt;
+no further use.</code></pre>
+<p>Breaking that sequence creates dangling pointers, double frees, leaks, and corrupted allocator state.</p>
+<hr>
+
+    <div class="book-navigation">
+        <a href="chapter_9_using_memory_after_its_lifetime.html" class="nav-btn">&larr; Previous</a> <span class="nav-info">12 of 13</span> <a href="chapter_11_the_complete_memory_operation.html" class="nav-btn">Next &rarr;</a>
+    </div>
+    
+</body>
+</html>

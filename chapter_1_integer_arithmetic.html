@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chapter 1 Integer Arithmetic</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #d1d5db; /* Soft light gray text */
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 0 20px;
+            background-color: #1f2937; /* Dark charcoal/slate background */
+        }
+        h1, h2 {
+            color: #f3f4f6; /* Bright white-gray for headers */
+            border-bottom: 1px solid #374151;
+            padding-bottom: 0.3em;
+        }
+        pre {
+            background-color: #111827; /* Darker background for code blocks */
+            border: 1px solid #374151;
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+            font-size: 85%;
+            line-height: 1.45;
+            color: #e5e7eb;
+        }
+        code {
+            font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+        }
+        hr {
+            border: 0;
+            height: 1px;
+            background: #374151;
+            margin: 40px 0;
+        }
+        p {
+            margin-bottom: 16px;
+        }
+    </style>
+
+    <style>
+        .book-navigation {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #374151;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        .nav-btn {
+            background-color: #374151;
+            color: #f3f4f6;
+            padding: 8px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        .nav-btn:hover {
+            background-color: #4b5563;
+        }
+        .nav-info {
+            color: #9ca3af;
+            font-size: 14px;
+        }
+    </style>
+    
+</head>
+<body>
+<p> PART I</p>
+<h1>Chapter 1 - Integer Arithmetic</h1>
+<h1>From Integer Arithmetic to Memory Corruption</h1>
+<p>A large class of C vulnerabilities follows a surprisingly predictable chain:</p>
+<pre><code>integer arithmetic
+    -&gt;
+allocation size
+    -&gt;
+pointer arithmetic
+    -&gt;
+bounds
+    -&gt;
+memory corruption</code></pre>
+<p>The individual operations are usually ordinary. There is nothing inherently suspicious about multiplying a count by a structure size, allocating the resulting number of bytes, advancing a pointer through the allocation, and writing objects into it.</p>
+<p>The danger appears when an assumption made at one stage is carried into the next stage without being checked.</p>
+<p>A value that is numerically wrong can therefore become a size that is too small, which becomes a pointer into the wrong location, which becomes an invalid bounds assumption, which finally becomes a memory corruption primitive.</p>
+<p>The important skill is not memorizing five classes of bugs. It is learning to follow the value through the entire chain.</p>
+<h2>1. Start with the arithmetic</h2>
+<p>Consider a function that receives a number of records:</p>
+<pre><code>void process(size_t count)
+{
+    struct record *p;
+
+    p = malloc(count * sizeof(struct record));
+    ...
+}</code></pre>
+<p>At first glance this is straightforward:</p>
+<pre><code>number of records (count) * size of one record (sizeof(struct record)) = number of bytes</code></pre>
+<p>But the multiplication is an arithmetic operation performed in a finite integer type.</p>
+<p>In C, size_t is an unsigned integer type. If count is very large (e.g., on a 32-bit system where size_t maxes out at 4,294,967,295), multiplying it by sizeof(struct record) can exceed the maximum possible value of size_t.</p>
+<p>In the case of unsigned arithmetic, malloc receives the wrapped-around small value (e.g., 32 bytes) and successfully allocates a small chunk of memory. Writing 4,294,967,328 bytes worth of data into a 32-byte buffer causes a severe heap buffer overflow, leading to a very common and dangerous vulnerability known as an integer overflow leading to a heap buffer overflow.</p>
+<p>This type of memory corruption can cause the program to crash, or perhaps even result in a remote code execution vulnerability.</p>
+<p>The important point is that the allocation routine does not know what the programmer intended.</p>
+<p>That gives us the first transition:</p>
+<pre><code>arithmetic error
+    -&gt;
+incorrect allocation size</code></pre>
+<p>This is why arithmetic involving memory sizes deserves more scrutiny than ordinary arithmetic.</p>
+<p>The most important expressions to recognize are things like:</p>
+<pre><code>count * sizeof(T)
+count * element_size
+header_size + payload_size
+offset + length
+width * height * bytes_per_pixel
+entries * sizeof(pointer)
+base + index * stride</code></pre>
+<p>These are not merely calculations. They determine the amount of memory that subsequent code believes exists.</p>
+<h2>2. The allocation preserves the error</h2>
+<p>Suppose the intended allocation is:</p>
+<pre><code>size = count * sizeof(struct record);</code></pre>
+<p>but `size` has wrapped to a much smaller value.</p>
+<p>The allocation can succeed perfectly.</p>
+<p>That is an important property of this bug class.</p>
+<p>There does not have to be an allocation failure.</p>
+<p>In fact, an allocation failure would often make the problem easier to detect.</p>
+<p>Instead, the program may receive a valid pointer to a valid allocation:</p>
+<pre><code>p = malloc(size);</code></pre>
+<p>The pointer is legitimate.</p>
+<p>The allocation is legitimate.</p>
+<p>The size is legitimate according to the allocator.</p>
+<p>Only the programmer&#x27;s assumption about the size is wrong.</p>
+<p>That distinction is crucial when investigating memory corruption. A corrupted pointer is not required. A valid pointer to an undersized allocation is sufficient.</p>
+<p>Consider:</p>
+<pre><code>size_t bytes;
+
+if (count &gt; SOME_LIMIT)
+    return ERROR;
+
+bytes = count * sizeof(struct record);
+
+p = malloc(bytes);</code></pre>
+<p>The upper-bound check may look reassuring, but it only helps if the limit was chosen with the multiplication in mind.</p>
+<p>For example, checking:</p>
+<pre><code>count &lt;= 1000000</code></pre>
+<p>does not prove that:</p>
+<pre><code>count * sizeof(struct record)</code></pre>
+<p>fits in the type used for `bytes`.</p>
+<p>The useful question is not:</p>
+<pre><code>&quot;Did we validate count?&quot;</code></pre>
+<p>It is:</p>
+<pre><code>&quot;Did we prove that every arithmetic operation used to derive the allocation size is safe?&quot;</code></pre>
+<p>That is a much stronger condition.</p>
+<h2>3. The safe direction of an overflow check</h2>
+<p>When calculating:</p>
+<pre><code>count * element_size</code></pre>
+<p>a common pattern is to check the multiplication before performing it.</p>
+<p>Conceptually:</p>
+<pre><code>if (count &gt; SIZE_MAX / element_size)
+    return ERROR;
+
+bytes = count * element_size;</code></pre>
+<p>The division is safe because it is performed before the multiplication that might overflow.</p>
+<p>Likewise, for:</p>
+<pre><code>header + payload</code></pre>
+<p>the corresponding reasoning is:</p>
+<pre><code>if (payload &gt; SIZE_MAX - header)
+    return ERROR;
+
+total = header + payload;</code></pre>
+<p>The general pattern is:</p>
+<pre><code>Before addition:
+    prove that the result fits.
+
+Before multiplication:
+    prove that the result fits.</code></pre>
+<p>This is more reliable than calculating first and trying to determine afterward whether the result was reasonable.</p>
+<h2>4. The dangerous transition: size becomes structure</h2>
+<p>Now suppose the allocation succeeds:</p>
+<pre><code>p = malloc(bytes);</code></pre>
+<p>The program may then treat the allocation as an array:</p>
+<pre><code>for (i = 0; i &lt; count; ++i)
+    p[i] = records[i];</code></pre>
+<p>This is where the arithmetic mistake becomes a pointer-arithmetic problem.</p>
+<p>The expression:</p>
+<pre><code>p[i]</code></pre>
+<p>is conceptually based on:</p>
+<pre><code>address of p + i * sizeof(*p)</code></pre>
+<p>The programmer is therefore making a second assumption:</p>
+<pre><code>the allocation contains at least count objects of type *p</code></pre>
+<p>But that assumption came from the earlier multiplication.</p>
+<p>If the multiplication used to calculate `bytes` was wrong, the pointer arithmetic can now walk beyond the allocation.</p>
+<p>The chain is becoming:</p>
+<pre><code>bad arithmetic
+    -&gt;
+undersized allocation
+    -&gt;
+pointer arithmetic assumes a larger allocation
+    -&gt;
+pointer leaves the allocated object</code></pre>
+<p>This is the point at which the vulnerability becomes much more concrete.</p>
+<h2>5. Pointer arithmetic does not create memory</h2>
+<p>A common mental mistake is to think of pointer arithmetic as simply producing addresses.</p>
+<p>In C, pointer arithmetic has a relationship to an actual object or array.</p>
+<p>If:</p>
+<pre><code>struct record *p;</code></pre>
+<p>points to the first element of an array of `n` records, then expressions such as:</p>
+<pre><code>p + i</code></pre>
+<p>are meaningful within the appropriate range associated with that array.</p>
+<p>But if only two records were allocated, this does not become safe merely because `p + 100` can be represented as an address.</p>
+<p>The machine may be capable of calculating that address.</p>
+<p>That does not mean the program owns the object located there.</p>
+<p>This distinction is fundamental:</p>
+<pre><code>address calculation != ownership</code></pre>
+<p>and:</p>
+<pre><code>address exists != object exists</code></pre>
+<p>Security vulnerabilities frequently arise when code silently changes from reasoning about allocated objects to reasoning about addresses.</p>
+<h2>6. Bounds are a property of the allocation, not the index alone</h2>
+<p>Suppose we have:</p>
+<pre><code>p = malloc(count * sizeof(*p));</code></pre>
+<p>and later:</p>
+<pre><code>for (i = 0; i &lt; count; ++i)
+    p[i] = value;</code></pre>
+<p>The loop appears correctly bounded.</p>
+<p>The condition:</p>
+<pre><code>i &lt; count</code></pre>
+<p>may be completely correct.</p>
+<p>Yet the program can still write out of bounds.</p>
+<p>Why?</p>
+<p>Because the loop bound and the allocation bound were derived through different assumptions.</p>
+<p>The real safety condition is:</p>
+<pre><code>i &lt; number_of_objects_actually_allocated</code></pre>
+<p>not merely:</p>
+<pre><code>i &lt; number_of_objects_intended</code></pre>
+<p>If the allocation size was calculated incorrectly, `count` may no longer describe the memory that exists.</p>
+<p>This is one of the most useful ways to think about C memory safety:</p>
+<pre><code>A bounds check is only as good as the quantity being used as the bound.</code></pre>
+<p>A variable named `count`, `length`, `size`, `capacity`, or `width` carries no authority merely because of its name.</p>
+<p>You need to know where its value came from and whether it still describes the object being accessed.</p>
+<h2>7. A complete example</h2>
+<p>Consider a packet containing a number of entries:</p>
+<pre><code>
+// Define a structure to hold an entry containing a type and a value
+struct entry
+{
+    uint32_t type;
+    uint32_t value;
+};
+
+// Allocate and read a specified number of entries, vulnerable to integer overflow
+struct entry *read_entries(size_t count)
+{
+    struct entry *entries;
+    size_t bytes;
+
+    // Calculate total bytes needed; vulnerable to integer overflow if count is too large
+    bytes = count * sizeof(*entries);
+
+    // Allocate memory for the entries
+    entries = malloc(bytes);
+
+    // Check if the allocation failed and return NULL if so
+    if (entries == NULL)
+        return NULL;
+
+    // Read data into each entry in the allocated array
+    for (size_t i = 0; i < count; ++i)
+        read_entry(&entries[i]);
+
+    // Return the populated array of entries
+    return entries;
+}
+</code></pre>
+<p>The code has a clear data flow:</p>
+<pre><code>count
+  |
+  v
+count * sizeof(*entries)
+  |
+  v
+malloc(bytes)
+  |
+  v
+entries
+  |
+  v
+entries[i]
+  |
+  v
+memory write</code></pre>
+<p>That diagram is more useful for security analysis than looking at each statement independently.</p>
+<p>The vulnerability question is:</p>
+<pre><code>Can an attacker influence count?</code></pre>
+<p>If yes, next ask:</p>
+<pre><code>Can count * sizeof(*entries) overflow?</code></pre>
+<p>If yes, next ask:</p>
+<pre><code>Can malloc return a smaller allocation than the loop assumes?</code></pre>
+<p>If yes, next ask:</p>
+<pre><code>Can entries[i] reach outside that allocation?</code></pre>
+<p>If yes, next ask:</p>
+<pre><code>What does read_entry write?</code></pre>
+<p>If it writes through the supplied pointer, the final consequence can be an out-of-bounds write.</p>
+<p>The vulnerability is not simply &quot;integer overflow.&quot;</p>
+<p>It is:</p>
+<pre><code>attacker-controlled count
+    -&gt;
+integer overflow
+    -&gt;
+undersized allocation
+    -&gt;
+apparently valid pointer
+    -&gt;
+incorrect pointer range
+    -&gt;
+out-of-bounds write
+    -&gt;
+memory corruption</code></pre>
+<p>That is the chain you should learn to recognize.</p>
+<h2>8. The same chain without an obvious multiplication</h2>
+<p>The initial arithmetic error does not have to be a multiplication.</p>
+<p>Consider:</p>
+<pre><code>
+// Calculate buffer size by adding header and payload sizes (vulnerable to integer overflow)
+total = header_size + payload_size;
+
+// Allocate memory for the combined header and payload buffer
+buffer = malloc(total);
+
+// Copy the input payload into the buffer immediately following the header area
+memcpy(buffer + header_size, input, payload_size);
+</code></pre>
+<p>There are now several arithmetic relationships:</p>
+<pre><code>total = header_size + payload_size</code></pre>
+<p>and:</p>
+<pre><code>destination = buffer + header_size</code></pre>
+<p>and:</p>
+<pre><code>destination range = [header_size, header_size + payload_size)</code></pre>
+<p>If `total` wraps because the addition overflowed, the allocation may be smaller than the region described by the later `memcpy`.</p>
+<p>The code might therefore have:</p>
+<pre><code>correct-looking allocation
+    -&gt;
+correct-looking pointer arithmetic
+    -&gt;
+correct-looking copy length</code></pre>
+<p>while the combination is invalid.</p>
+<p>This is why security analysis should follow related values rather than isolated statements.</p>
+<h2>9. Integer conversion can break the chain too</h2>
+<p>The arithmetic does not necessarily overflow in the original type.</p>
+<p>Conversions can introduce the problem.</p>
+<p>For example:</p>
+<pre><code>
+// Store the user-supplied length in a size_t variable
+size_t len = user_supplied_length;
+
+// Cast/convert the size_t length into a signed integer
+// (vulnerable to integer truncation/sign extension bugs)
+int n = len;
+
+// Check if the signed integer is less than the maximum allowed size
+if (n < MAX_SIZE)
+    ...
+
+// Allocate memory using the signed integer n
+// (if a large user-supplied value wrapped around to negative,
+// malloc receives a massive size_t value due to implicit conversion)
+buffer = malloc(n);
+</code></pre>
+<p>If `len` is larger than the range of `int`, the conversion can change its value.</p>
+<p>Now the validation is operating on `n`, not on the original quantity.</p>
+<p>A similar problem can occur when signed and unsigned values interact:</p>
+<pre><code>
+// Declare a signed integer to hold a length (vulnerable to negative values)
+int length;
+
+// Declare an unsigned size_t variable to hold the final allocation size
+size_t allocation;
+
+// Check if length is less than MAX (if length is negative, this check is bypassed)
+if (length < MAX)
+    // Assign the signed length to the unsigned size_t variable 
+    // (if length is negative, implicit conversion turns it into a massive positive value)
+    allocation = length;
+</code></pre>
+<p>The comparison and conversion rules can produce results that differ from what a programmer expects, particularly when negative values are possible.</p>
+<p>The broader lesson is:</p>
+<pre><code>Track the value and its type through every conversion.</code></pre>
+<p>Do not stop the analysis at the first apparently reasonable bounds check.</p>
+<h2>10. Pointer arithmetic can introduce a second arithmetic bug</h2>
+<p>Even if the allocation size was calculated correctly, an offset can overflow or otherwise become invalid.</p>
+<p>Consider:</p>
+<pre><code>
+// Allocate a buffer of the specified size in bytes
+char *p = malloc(size);
+
+// Calculate a new pointer by adding an offset
+// (vulnerable if offset is out of bounds or mishandled)
+char *q = p + offset;
+
+// Copy input data into the destination buffer starting at q 
+// (vulnerable to a buffer overflow if offset + length exceeds the allocated size)
+memcpy(q, input, length);
+</code></pre>
+<p>The relevant condition is not simply:</p>
+<pre><code>offset &lt; size</code></pre>
+<p>It is the combined relationship:</p>
+<pre><code>offset + length &lt;= size</code></pre>
+<p>Otherwise the starting pointer can be inside the allocation while the copied region extends beyond it.</p>
+<p>This produces another common chain:</p>
+<pre><code>offset
+    +
+length
+    -&gt;
+required range
+    -&gt;
+bounds check
+    -&gt;
+memory access</code></pre>
+<p>The arithmetic and the bounds check are inseparable.</p>
+<p>A check of only the starting position is not sufficient.</p>
+<h2>11. The "one bad quantity" pattern</h2>
+<p>Many real vulnerabilities reduce to one quantity that is trusted too far.</p>
+<p>For example:</p>
+<pre><code>count
+length
+size
+offset
+capacity
+stride
+width
+height
+index</code></pre>
+<p>The quantity may be introduced at an input boundary:</p>
+<pre><code>network packet
+file
+image
+archive
+IPC message
+configuration
+command line
+database</code></pre>
+<p>It then passes through several transformations:</p>
+<pre><code>external value
+    -&gt;
+parsed integer
+    -&gt;
+converted integer
+    -&gt;
+arithmetic
+    -&gt;
+allocation size
+    -&gt;
+pointer offset
+    -&gt;
+loop bound
+    -&gt;
+memory access</code></pre>
+<p>At each stage, the program may assume that the value still means what it originally meant.</p>
+<p>That assumption is often where the vulnerability lives.</p>
+<h2>12. Allocation size and logical size are not automatically the same</h2>
+<p>A particularly subtle version occurs when the program maintains both a physical capacity and a logical length:</p>
+<pre><code>capacity = 1024;
+length = 900;</code></pre>
+<p>The allocation represents:</p>
+<pre><code>capacity</code></pre>
+<p>while the data currently in use represents:</p>
+<pre><code>length</code></pre>
+<p>Both are legitimate numbers, but they answer different questions.</p>
+<p>A common mistake is to use one where the other is required.</p>
+<p>For example:</p>
+<pre><code>
+// Check if the index is within the valid bounds of the buffer
+// (vulnerable to sign extension/comparison issues if types differ)
+if (index < length)
+    // Assign the value to the buffer at the specified index
+    buffer[index] = value;
+</code></pre>
+<p>might be correct for reading existing elements but wrong if the operation is intended to append up to `capacity`.</p>
+<p>Conversely:</p>
+<pre><code>
+// Check if the index is within the valid capacity
+// of the buffer to prevent out-of-bounds access
+if (index < capacity)
+    // Process the element located at the validated index in the buffer
+    process(buffer[index]);
+</code></pre>
+<p>may read uninitialized or logically invalid data.</p>
+<p>The security lesson is broader than &quot;check bounds&quot;:</p>
+<pre><code>Know what each bound means.</code></pre>
+<p>A bound should have a precise relationship to the object being accessed.</p>
+<h2>13. Why integer overflow is especially dangerous in C</h2>
+<p>In a memory-safe language, an integer overflow might result in an exception or another controlled failure.</p>
+<p>In C, arithmetic frequently sits directly on the boundary between data and memory.</p>
+<p>A calculated integer can become:</p>
+<pre><code>an allocation size
+
+an array index
+
+a pointer offset
+
+a copy length
+
+a loop bound
+
+a structure count
+
+a buffer capacity</code></pre>
+<p>The integer therefore controls the shape of the program&#x27;s memory access.</p>
+<p>That makes arithmetic errors disproportionately important.</p>
+<p>The security significance is not:</p>
+<pre><code>&quot;integer overflow is bad&quot;</code></pre>
+<p>but:</p>
+<pre><code>&quot;integer overflow can change the program&#x27;s model of how much memory exists.&quot;</code></pre>
+<p>Once that model is wrong, subsequent code may remain internally consistent while operating outside the actual allocation.</p>
+<h2>14. Memory corruption is usually the final symptom</h2>
+<p>It is useful to distinguish the first mistake from the eventual security consequence.</p>
+<p>For example:</p>
+<pre><code>count * sizeof(*p)</code></pre>
+<p>might overflow.</p>
+<p>That is the arithmetic defect.</p>
+<p>The allocation might then be too small.</p>
+<p>That is the allocation defect.</p>
+<p>The loop might then calculate:</p>
+<pre><code>p + i</code></pre>
+<p>outside the allocation.</p>
+<p>That is the pointer/bounds defect.</p>
+<p>The program might then execute:</p>
+<pre><code>p[i] = value;</code></pre>
+<p>That is the invalid memory access.</p>
+<p>The resulting overwrite might corrupt:</p>
+<pre><code>another heap object
+allocator metadata
+a function pointer
+an object containing security state
+a return address
+a vtable
+application data</code></pre>
+<p>The CVE may ultimately be described as:</p>
+<pre><code>heap buffer overflow
+out-of-bounds write
+memory corruption</code></pre>
+<p>rather than &quot;integer arithmetic error.&quot;</p>
+<p>This is why looking only for the final CWE category can miss the beginning of the chain.</p>
+<h2>15. A useful review technique: follow the size</h2>
+<p>When reviewing C code for this class of vulnerability, pick a quantity that controls memory and follow it forward.</p>
+<p>For example:</p>
+<pre><code>user_length</code></pre>
+<p>Ask:</p>
+<pre><code>Where did it come from?</code></pre>
+<p>Then:</p>
+<pre><code>What type is it?</code></pre>
+<p>Then:</p>
+<pre><code>Has it been converted?</code></pre>
+<p>Then:</p>
+<pre><code>Is it added to anything?</code></pre>
+<p>Then:</p>
+<pre><code>Is it multiplied?</code></pre>
+<p>Then:</p>
+<pre><code>Is the result used as an allocation size?</code></pre>
+<p>Then:</p>
+<pre><code>What object does the resulting pointer refer to?</code></pre>
+<p>Then:</p>
+<pre><code>How are offsets calculated?</code></pre>
+<p>Then:</p>
+<pre><code>What establishes the access bounds?</code></pre>
+<p>Then:</p>
+<pre><code>Does the final operation stay within those bounds?</code></pre>
+<p>This is often more effective than searching for suspicious functions such as `malloc` or `memcpy` in isolation.</p>
+<h2>16. The allocator is not a security boundary</h2>
+<p>One recurring misconception is:</p>
+<pre><code>&quot;malloc succeeded, therefore the pointer is safe.&quot;</code></pre>
+<p>No.</p>
+<p>`malloc` answers a narrow question:</p>
+<pre><code>Can the allocator provide this many bytes?</code></pre>
+<p>It does not answer:</p>
+<pre><code>Is this the number of bytes the program actually needs?</code></pre>
+<p>Nor:</p>
+<pre><code>Will later pointer arithmetic remain within those bytes?</code></pre>
+<p>Nor:</p>
+<pre><code>Is the caller using the allocation consistently?</code></pre>
+<p>For example:</p>
+<pre><code>
+// Assign an attacker-controlled value directly to the size variable
+size = attacker_controlled_value;
+
+// Allocate memory using the untrusted size
+// (vulnerable to integer overflows, out-of-memory denial of service,
+// or zero-size allocations)
+p = malloc(size);
+</code></pre>
+<p>may be perfectly valid code.</p>
+<p>The security problem can occur later:</p>
+<pre><code>
+// Loop through each element up to the expected count 
+// (vulnerable to a buffer overflow if expected_count
+// exceeds the actual allocated capacity of pointer p)
+for (i = 0; i < expected_count; ++i)
+    // Assign a value to the buffer element at index i
+    p[i] = ...;
+</code></pre>
+<p>The allocator has done exactly what it was asked to do.</p>
+<p>The caller asked for the wrong amount.</p>
+<h2>17. A disciplined way to break the chain</h2>
+<p>The best defense is not one magic check. It is preventing an invalid assumption from propagating.</p>
+<p>At the arithmetic stage:</p>
+<pre><code>prove that calculations cannot overflow.</code></pre>
+<p>At the allocation stage:</p>
+<pre><code>ensure the allocated size represents the actual required object.</code></pre>
+<p>At the pointer stage:</p>
+<pre><code>keep offsets associated with the object they are allowed to address.</code></pre>
+<p>At the bounds stage:</p>
+<pre><code>validate the complete accessed range, not merely its starting point.</code></pre>
+<p>At the memory-access stage:</p>
+<pre><code>ensure the operation&#x27;s size agrees with the validated range.</code></pre>
+<p>In other words:</p>
+<pre><code>arithmetic
+    -&gt;
+size
+    -&gt;
+object
+    -&gt;
+range
+    -&gt;
+access</code></pre>
+<p>Each arrow is a place where an invariant should be preserved.</p>
+<h2>18. The most important invariant</h2>
+<p>A useful invariant for an allocated array is:</p>
+<pre><code>allocated_bytes &gt;= element_count * sizeof(element)</code></pre>
+<p>and, for an access:</p>
+<pre><code>offset + access_size &lt;= allocated_bytes</code></pre>
+<p>These equations capture much of the problem.</p>
+<p>The first says:</p>
+<pre><code>the allocation is large enough for the logical object.</code></pre>
+<p>The second says:</p>
+<pre><code>the particular operation stays within that object.</code></pre>
+<p>Notice that both equations contain arithmetic.</p>
+<p>That is why bounds checking cannot be separated from integer-safety checking.</p>
+<p>A bounds check built on an overflowed quantity may simply prove the wrong thing.</p>
+<h2>19. A safer allocation pattern</h2>
+<p>For an array allocation, prefer a checked relationship between the count and element size:</p>
+<pre><code>
+// Check if multiplying count by the size of the element
+// would overflow SIZE_MAX to prevent integer overflow
+if (count > SIZE_MAX / sizeof(*p))
+    // Return an error if an overflow would occur
+    return ERROR;
+
+// Safely allocate memory for the array since the
+// multiplication is now guaranteed not to overflow
+p = malloc(count * sizeof(*p));
+</code></pre>
+<p>For a buffer consisting of a header and payload:</p>
+<pre><code>
+// Check if adding payload_size and header_size would
+// exceed SIZE_MAX to prevent integer overflow
+if (payload_size > SIZE_MAX - header_size)
+    // Return an error if the addition would overflow
+    return ERROR;
+
+// Safely calculate the total size since the addition
+// is now guaranteed not to overflow
+total_size = header_size + payload_size;
+
+// Allocate memory for the buffer using the validated total size
+buffer = malloc(total_size);
+</code></pre>
+<p>The exact error handling will depend on the program, but the important property is that the potentially overflowing operation occurs only after its safety has been established.</p>
+<p>For more complicated calculations, it can be useful to make the calculation itself a separate operation with an explicit success/failure result. This makes it harder for an unchecked intermediate value to escape into an allocator or pointer calculation.</p>
+<h2>20. Do not validate one representation and use another</h2>
+<p>Consider:</p>
+<pre><code>
+// Parse the input size into an unsigned size_t variable
+size_t input_size = parse_size(input);
+
+// Convert or truncate the size_t value into an unsigned int 
+// (vulnerable to truncation on 64-bit systems where size_t
+// is larger than unsigned int)
+unsigned int n = input_size;
+
+// Check if the unsigned int is less than or equal to the
+// maximum allowed entries
+if (n <= MAX_ENTRIES)
+    // Process the validated count (vulnerable if truncation
+    // bypassed bounds or caused a mismatch)
+    process(n);
+</code></pre>
+<p>The validation is now about `n`, while the original input was represented by `input_size`.</p>
+<p>A more robust approach is to establish the range in the type that will carry the value through the relevant computation.</p>
+<p>Likewise, if a length is eventually used as a `size_t`, make sure the conversion to `size_t` has the intended meaning before relying on it for a memory operation.</p>
+<p>The general rule is:</p>
+<pre><code>Validate the value you are actually going to use.</code></pre>
+<h2>21. The chain can run in reverse during debugging</h2>
+<p>The same model is useful when starting from a crash.</p>
+<p>Suppose a crash occurs at:</p>
+<pre><code>memcpy(dst, src, len);</code></pre>
+<p>Do not stop at:</p>
+<pre><code>&quot;memcpy crashed.&quot;</code></pre>
+<p>Work backward:</p>
+<pre><code>Why is dst invalid?</code></pre>
+<p>Then:</p>
+<pre><code>How was dst calculated?</code></pre>
+<p>Then:</p>
+<pre><code>Where did its offset come from?</code></pre>
+<p>Then:</p>
+<pre><code>How was the allocation size calculated?</code></pre>
+<p>Then:</p>
+<pre><code>Which values determined that size?</code></pre>
+<p>Then:</p>
+<pre><code>Where did those values originate?</code></pre>
+<p>You may eventually arrive at:</p>
+<pre><code>attacker-controlled packet field
+    -&gt;
+integer conversion
+    -&gt;
+overflowing multiplication
+    -&gt;
+undersized allocation
+    -&gt;
+incorrect offset
+    -&gt;
+out-of-bounds memcpy</code></pre>
+<p>The crash site is the end of the chain, not necessarily the beginning of the bug.</p>
+<h2>22. Why this matters for vulnerability research</h2>
+<p>The most valuable security bugs are often not obvious calls to dangerous functions.</p>
+<p>A program may contain:</p>
+<pre><code>
+// Read an unsigned 32-bit integer from the network packet
+// to determine the item count
+n = read_u32(packet);
+
+// Calculate the total allocation size by multiplying
+// count by the item struct size 
+// (vulnerable to an integer overflow if n is large,
+// leading to a wrapped, overly small byte count)
+bytes = n * sizeof(struct item);
+
+// Allocate memory for the items using the potentially
+// wrapped 'bytes' value
+items = malloc(bytes);
+
+// Loop n times to parse each item 
+// (vulnerable to a severe heap buffer overflow because the loop
+// runs for the full 'n' iterations while malloc only allocated
+// a fraction of the required memory due to the integer overflow)
+for (i = 0; i < n; ++i)
+    parse_item(&items[i], packet);
+</code></pre>
+<p>all of which look individually reasonable (not withstanding the comments).</p>
+<p>The vulnerability emerges from their relationship.</p>
+<p>For example:</p>
+<pre><code>n = read_u32(packet);
+
+bytes = n * sizeof(struct item);
+
+items = malloc(bytes);
+
+for (i = 0; i &lt; n; ++i)
+    parse_item(&amp;items[i], packet);</code></pre>
+<p>There is no obviously malicious operation.</p>
+<p>Yet the entire security question can be summarized as:</p>
+<pre><code>Can n cause bytes to be smaller than the number of items
+subsequently addressed by the loop?</code></pre>
+<p>If the answer is yes, the program has crossed the boundary from an arithmetic bug into a memory-safety vulnerability.</p>
+<h2>23. The mental model to retain</h2>
+<p>When you see C code manipulating memory, mentally draw this chain:</p>
+<pre><code>VALUE
+  |
+  v
+ARITHMETIC
+  |
+  v
+SIZE
+  |
+  v
+ALLOCATION
+  |
+  v
+POINTER
+  |
+  v
+OFFSET
+  |
+  v
+BOUND
+  |
+  v
+MEMORY ACCESS</code></pre>
+<p>Then ask one question at every transition:</p>
+<pre><code>&quot;What proves that this value is still valid for the next operation?&quot;</code></pre>
+<p>For example:</p>
+<pre><code>count
+  |
+  | What proves the multiplication cannot overflow?
+  v
+allocation_size
+  |
+  | What proves this represents the required object?
+  v
+allocation
+  |
+  | What proves this offset belongs to that object?
+  v
+pointer
+  |
+  | What proves the entire access fits?
+  v
+memory access</code></pre>
+<p>This is the core lesson.</p>
+<p>A memory corruption vulnerability often does not begin with a bad pointer.</p>
+<p>It begins much earlier, with a number.</p>
+<p>That number is used to calculate a size.</p>
+<p>The size determines what memory exists.</p>
+<p>The program then performs pointer arithmetic based on that assumption.</p>
+<p>A bounds check may validate the wrong quantity.</p>
+<p>And only at the final memory access does the original mistake become visible as memory corruption.</p>
+<p>So the security-relevant chain is:</p>
+<pre><code>integer arithmetic
+    -&gt;
+allocation size
+    -&gt;
+pointer arithmetic
+    -&gt;
+bounds
+    -&gt;
+memory corruption</code></pre>
+<p>Once you learn to trace that chain forward and backward, a large class of apparently unrelated C vulnerabilities becomes much easier to recognize.</p>
+<hr>
+
+    <div class="book-navigation">
+        <a href="01_introduction.html" class="nav-btn">&larr; Previous</a> <span class="nav-info">3 of 13</span> <a href="chapter_2_allocation_size.html" class="nav-btn">Next &rarr;</a>
+    </div>
+    
+</body>
+</html>

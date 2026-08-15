@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chapter 6 Reading The Wrong Amount</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #d1d5db; /* Soft light gray text */
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 0 20px;
+            background-color: #1f2937; /* Dark charcoal/slate background */
+        }
+        h1, h2 {
+            color: #f3f4f6; /* Bright white-gray for headers */
+            border-bottom: 1px solid #374151;
+            padding-bottom: 0.3em;
+        }
+        pre {
+            background-color: #111827; /* Darker background for code blocks */
+            border: 1px solid #374151;
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+            font-size: 85%;
+            line-height: 1.45;
+            color: #e5e7eb;
+        }
+        code {
+            font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+        }
+        hr {
+            border: 0;
+            height: 1px;
+            background: #374151;
+            margin: 40px 0;
+        }
+        p {
+            margin-bottom: 16px;
+        }
+    </style>
+
+    <style>
+        .book-navigation {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #374151;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        .nav-btn {
+            background-color: #374151;
+            color: #f3f4f6;
+            padding: 8px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        .nav-btn:hover {
+            background-color: #4b5563;
+        }
+        .nav-info {
+            color: #9ca3af;
+            font-size: 14px;
+        }
+    </style>
+    
+</head>
+<body>
+<p> PART II</p>
+<h1>Chapter 6 - Reading the Wrong Amount</h1>
+<p>Reading memory is often treated as the harmless side of memory safety.</p>
+<p>A write can corrupt something.</p>
+<p>A read merely observes it.</p>
+<p>That distinction is useful, but it can also be misleading.</p>
+<p>A read still has to identify a valid range of memory. If the program reads beyond the intended object, it has violated the boundary of that object even if no byte is modified.</p>
+<p>The immediate result may be a crash.</p>
+<p>It may also be a value that the program was never supposed to see.</p>
+<p>In security-sensitive programs, that second possibility can be especially important.</p>
+<p>The central question is:</p>
+<pre><code>How many bytes does this operation read,
+and why is that many bytes available?</code></pre>
+<hr>
+<h2>1. A read is a range operation</h2>
+<p>Consider:</p>
+<pre><code>value = buffer[index];</code></pre>
+<p>The operation is not simply:</p>
+<pre><code>read buffer</code></pre>
+<p>It is:</p>
+<pre><code>locate buffer[index]
+read the object stored there</code></pre>
+<p>For an array of `count` elements, the basic condition is:</p>
+<pre><code>index &lt; count</code></pre>
+<p>For a byte range:</p>
+<pre><code>offset &lt; size</code></pre>
+<p>For a multi-byte access:</p>
+<pre><code>offset + access_size &lt;= size</code></pre>
+<p>The exact expression varies with the object.</p>
+<p>The principle does not.</p>
+<p>A valid starting address is not enough.</p>
+<p>The complete range being read must be valid.</p>
+<hr>
+<h2>2. Out-of-bounds reads</h2>
+<p>Suppose:</p>
+<pre><code>char buffer[16];</code></pre>
+<p>and:</p>
+<pre><code>value = buffer[16];</code></pre>
+<p>The index is one past the last element.</p>
+<p>There are 16 valid byte positions:</p>
+<pre><code>0 through 15</code></pre>
+<p>The access attempts to read position:</p>
+<pre><code>16</code></pre>
+<p>The problem is not that the number 16 is inherently invalid.</p>
+<p>It is invalid relative to this particular object.</p>
+<p>This distinction is important throughout C:</p>
+<p>&gt; Bounds belong to objects, not to integers.</p>
+<hr>
+<h2>3. Reading past the end can look harmless</h2>
+<p>Consider:</p>
+<pre><code>int value = array[index];</code></pre>
+<p>If `index` is out of bounds, the program may appear to continue normally.</p>
+<p>It might read:</p>
+<pre><code>zero</code></pre>
+<p>or:</p>
+<pre><code>some plausible integer</code></pre>
+<p>or:</p>
+<pre><code>data belonging to another object.</code></pre>
+<p>Nothing about the resulting value tells you whether the access was valid.</p>
+<p>This makes out-of-bounds reads particularly easy to miss.</p>
+<p>The program can produce a perfectly ordinary value from an invalid memory access.</p>
+<hr>
+<h2>4. The adjacent object problem</h2>
+<p>Imagine memory conceptually arranged as:</p>
+<pre><code>+----------------+
+| object A       |
++----------------+
+| object B       |
++----------------+</code></pre>
+<p>If code reads one byte beyond object A, the address may fall inside object B.</p>
+<p>The CPU does not necessarily know that the program intended to remain inside A.</p>
+<p>The address is simply an address.</p>
+<p>This is one reason memory safety cannot be reduced to:</p>
+<pre><code>&quot;Does this address point to mapped memory?&quot;</code></pre>
+<p>The stronger question is:</p>
+<pre><code>&quot;Does this access belong to the object the program intended to access?&quot;</code></pre>
+<p>A readable address can still be the wrong address.</p>
+<hr>
+<h2>5. Information disclosure</h2>
+<p>An out-of-bounds read can expose data that should not have been included in the result.</p>
+<p>Depending on the surrounding program, that data might include:</p>
+<pre><code>pointers
+object metadata
+configuration data
+authentication state
+previously processed input
+cryptographic material
+memory addresses</code></pre>
+<p>The exact consequence depends on what happens to be adjacent to the accessed object.</p>
+<p>This is why an out-of-bounds read should not be dismissed merely because it does not overwrite memory.</p>
+<p>The program may be giving an attacker information about memory that was never intended to be observable.</p>
+<hr>
+<h2>6. A read can become a write later</h2>
+<p>Consider:</p>
+<pre><code>value = buffer[index];</code></pre>
+<p>The immediate operation is a read.</p>
+<p>But suppose `value` is then used as:</p>
+<pre><code>length</code></pre>
+<p>or:</p>
+<pre><code>index</code></pre>
+<p>or:</p>
+<pre><code>pointer offset</code></pre>
+<p>or:</p>
+<pre><code>allocation size.</code></pre>
+<p>The invalid read can therefore influence subsequent memory operations.</p>
+<p>A useful chain is:</p>
+<pre><code>out-of-bounds read
+    -&gt;
+attacker-controlled or unintended value
+    -&gt;
+derived calculation
+    -&gt;
+later memory operation</code></pre>
+<p>This is another reason to follow data flow rather than classifying bugs solely by the instruction that first went wrong.</p>
+<hr>
+<h2>7. Length fields are especially important</h2>
+<p>Consider a packet containing:</p>
+<pre><code>length
+data</code></pre>
+<p>A parser might do:</p>
+<pre><code>length = packet-&gt;length;
+value = packet-&gt;data[length - 1];</code></pre>
+<p>The programmer may believe that the length field establishes the boundary.</p>
+<p>It does not.</p>
+<p>The length field is merely a value stored somewhere.</p>
+<p>The program still needs to establish that the complete packet actually contains that many bytes.</p>
+<p>A malicious or corrupted length can therefore cause the program to read beyond the received data.</p>
+<p>The general distinction is:</p>
+<pre><code>claimed size</code></pre>
+<p>versus:</p>
+<pre><code>available size.</code></pre>
+<p>The second must be established independently.</p>
+<hr>
+<h2>8. `strlen` is an unbounded search</h2>
+<p>Consider:</p>
+<pre><code>n = strlen(buffer);</code></pre>
+<p>`strlen` does not receive the size of the buffer.</p>
+<p>It searches for a null byte.</p>
+<p>That means the caller is effectively asserting:</p>
+<pre><code>A null byte exists within readable memory reachable from buffer.</code></pre>
+<p>If that assumption is false, `strlen` can read beyond the intended object.</p>
+<p>This makes functions that search for terminators particularly important during review.</p>
+<p>The hidden length of the operation does not make the operation bounded.</p>
+<hr>
+<h2>9. The terminator is part of the contract</h2>
+<p>For a valid C string, the terminating null byte must be accessible.</p>
+<p>Suppose:</p>
+<pre><code>char buffer[8];</code></pre>
+<p>contains seven characters but no null terminator.</p>
+<p>The buffer may contain seven meaningful bytes.</p>
+<p>It is not necessarily a valid C string.</p>
+<p>Calling:</p>
+<pre><code>strlen(buffer);</code></pre>
+<p>asks the function to continue reading until a null byte is found.</p>
+<p>If the null byte is outside the object, the search has already crossed the boundary.</p>
+<p>The problem is therefore not `strlen` itself.</p>
+<p>The problem is that the caller supplied a pointer without establishing the precondition required by the operation.</p>
+<hr>
+<h2>10. Bounded functions are not automatically safe</h2>
+<p>Consider:</p>
+<pre><code>strncpy(dst, src, n);</code></pre>
+<p>The presence of `n` makes the operation bounded in a particular sense.</p>
+<p>But the programmer still needs to reason about:</p>
+<pre><code>n</code></pre>
+<p>the source range, and the destination range.</p>
+<p>If `n` exceeds the destination capacity, the destination can still be overrun.</p>
+<p>If `src` does not contain enough readable bytes, the operation still has to be understood in terms of the function&#x27;s actual semantics.</p>
+<p>The general lesson is:</p>
+<p>&gt; A bound supplied to an API is useful only if it is a bound on the resource the API actually needs to access.</p>
+<hr>
+<h2>11. Multi-byte reads</h2>
+<p>Consider:</p>
+<pre><code>uint32_t value = *(uint32_t *)(buffer + offset);</code></pre>
+<p>The program does not merely read one byte at `offset`.</p>
+<p>It reads an object of the relevant type.</p>
+<p>Therefore the available range must be large enough for the complete access.</p>
+<p>Conceptually:</p>
+<pre><code>offset + sizeof(uint32_t) &lt;= buffer_size</code></pre>
+<p>A check that establishes only:</p>
+<pre><code>offset &lt; buffer_size</code></pre>
+<p>is insufficient.</p>
+<p>There may be enough memory for the first byte but not enough for the complete object.</p>
+<p>This distinction becomes especially important when reading structured binary data.</p>
+<hr>
+<h2>12. Parsing fields from a buffer</h2>
+<p>Suppose a parser does:</p>
+<pre><code>type = read_u32(buffer + offset);
+offset += 4;</code></pre>
+<p>The parser has to maintain an invariant such as:</p>
+<pre><code>offset + 4 &lt;= buffer_size</code></pre>
+<p>before the read.</p>
+<p>After the read, the new offset must still describe a position within the input.</p>
+<p>The parser is therefore maintaining a moving boundary.</p>
+<p>Every field consumes part of the available range.</p>
+<p>A single incorrect length can desynchronize the entire parser.</p>
+<hr>
+<h2>13. One bad length can move every later read</h2>
+<p>Suppose a message contains:</p>
+<pre><code>header
+length
+payload
+next field</code></pre>
+<p>The parser reads the length and advances:</p>
+<pre><code>offset += length;</code></pre>
+<p>If `length` is too large, the parser may skip over the intended payload and interpret later bytes incorrectly.</p>
+<p>If `length` is too small, it may interpret payload bytes as the next field.</p>
+<p>The immediate result may not be an out-of-bounds read.</p>
+<p>Instead, the parser&#x27;s model of where it is in the input becomes wrong.</p>
+<p>That can cause later reads to access the wrong locations.</p>
+<p>Thus a size error can eventually become a location error.</p>
+<hr>
+<h2>14. Unsigned values do not guarantee safe lengths</h2>
+<p>A common mistake is to assume that using `size_t` or another unsigned type makes a length safe.</p>
+<p>It does not.</p>
+<p>For example:</p>
+<pre><code>length = user_value;</code></pre>
+<p>If `user_value` represents an invalid negative value before conversion, converting it to an unsigned type can produce a very large positive value.</p>
+<p>The type is appropriate for representing sizes.</p>
+<p>That does not mean every value of that type is a valid size.</p>
+<p>The boundary still has to be established.</p>
+<hr>
+<h2>15. Subtraction creates another class of errors</h2>
+<p>Consider:</p>
+<pre><code>remaining = size - offset;</code></pre>
+<p>The expression assumes:</p>
+<pre><code>offset &lt;= size</code></pre>
+<p>If that relationship is false and the type is unsigned, the result can wrap to a very large value.</p>
+<p>Code might then use:</p>
+<pre><code>remaining</code></pre>
+<p>as a read length.</p>
+<p>The original problem was an invalid relationship between two positions.</p>
+<p>The visible failure becomes an enormous length.</p>
+<p>Again:</p>
+<pre><code>bounds
+    -&gt;
+arithmetic
+    -&gt;
+memory operation.</code></pre>
+<p>The categories overlap because the underlying reasoning is connected.</p>
+<hr>
+<h2>16. Reading an object is not the same as reading its representation</h2>
+<p>Suppose:</p>
+<pre><code>struct header *h;</code></pre>
+<p>and code reads:</p>
+<pre><code>h-&gt;length</code></pre>
+<p>The program is not merely reading some bytes.</p>
+<p>It is treating the memory as a valid `struct header` object.</p>
+<p>That requires the relevant memory to be available and appropriately represented for that access.</p>
+<p>This becomes particularly important when interpreting raw input as structures.</p>
+<p>A buffer containing enough bytes does not automatically mean that every possible typed access into it is appropriate.</p>
+<hr>
+<h2>17. Reading beyond an array is different from reading uninitialized data</h2>
+<p>These problems are often confused.</p>
+<p>An out-of-bounds read accesses memory outside the object&#x27;s permitted range.</p>
+<p>An uninitialized read accesses an object or bytes whose value has not been properly initialized.</p>
+<p>Both can produce unintended values.</p>
+<p>They are conceptually different failures.</p>
+<p>For this book, the important distinction is:</p>
+<pre><code>Is the range wrong?</code></pre>
+<p>or:</p>
+<pre><code>Is the value within the range not properly established?</code></pre>
+<p>The two can also combine.</p>
+<hr>
+<h2>18. Why out-of-bounds reads matter in exploits</h2>
+<p>A read primitive can be valuable because it can reveal information needed for a later attack.</p>
+<p>For example, a program may contain randomized addresses.</p>
+<p>If an attacker can obtain an unintended pointer value from memory, that information may reduce the uncertainty surrounding the process layout.</p>
+<p>The important security property is not merely:</p>
+<pre><code>&quot;the program read one extra byte.&quot;</code></pre>
+<p>It is:</p>
+<pre><code>&quot;the attacker gained information that the program was not supposed to disclose.&quot;</code></pre>
+<p>The severity therefore depends heavily on what can be read and how the result can be controlled or observed.</p>
+<hr>
+<h2>19. The review question</h2>
+<p>When reviewing a read, ask:</p>
+<pre><code>What object is being read?
+
+Where does the read begin?
+
+How many bytes does it consume?
+
+What establishes the available range?
+
+Is that range physical or merely logical?
+
+Can the size calculation overflow or underflow?
+
+Can the starting offset be attacker-controlled?
+
+What happens to the value after it is read?</code></pre>
+<p>These questions turn a seemingly harmless read into a concrete range analysis.</p>
+<hr>
+<h2>20. The central lesson</h2>
+<p>A read is not safe merely because:</p>
+<pre><code>the pointer is non-NULL</code></pre>
+<p>or:</p>
+<pre><code>the address is mapped</code></pre>
+<p>or:</p>
+<pre><code>the program does not crash.</code></pre>
+<p>The relevant question is:</p>
+<p>&gt; Does the complete range being read belong to the intended live object?</p>
+<p>That is the boundary between an ordinary read and an out-of-bounds read.</p>
+<p>And when the answer is no, the next question is:</p>
+<pre><code>What did the program learn from memory it was not entitled to read?</code></pre>
+<p>That leads naturally to the other side of the operation.</p>
+<p>Writing memory has the same range problem, but the consequences can be more direct.</p>
+<hr>
+
+    <div class="book-navigation">
+        <a href="chapter_5_copying_the_wrong_amount.html" class="nav-btn">&larr; Previous</a> <span class="nav-info">8 of 13</span> <a href="chapter_7_writing_the_wrong_amount.html" class="nav-btn">Next &rarr;</a>
+    </div>
+    
+</body>
+</html>

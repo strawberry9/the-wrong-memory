@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chapter 7 Writing The Wrong Amount</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #d1d5db; /* Soft light gray text */
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 0 20px;
+            background-color: #1f2937; /* Dark charcoal/slate background */
+        }
+        h1, h2 {
+            color: #f3f4f6; /* Bright white-gray for headers */
+            border-bottom: 1px solid #374151;
+            padding-bottom: 0.3em;
+        }
+        pre {
+            background-color: #111827; /* Darker background for code blocks */
+            border: 1px solid #374151;
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+            font-size: 85%;
+            line-height: 1.45;
+            color: #e5e7eb;
+        }
+        code {
+            font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+        }
+        hr {
+            border: 0;
+            height: 1px;
+            background: #374151;
+            margin: 40px 0;
+        }
+        p {
+            margin-bottom: 16px;
+        }
+    </style>
+
+    <style>
+        .book-navigation {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #374151;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        .nav-btn {
+            background-color: #374151;
+            color: #f3f4f6;
+            padding: 8px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        .nav-btn:hover {
+            background-color: #4b5563;
+        }
+        .nav-info {
+            color: #9ca3af;
+            font-size: 14px;
+        }
+    </style>
+    
+</head>
+<body>
+<p> PART II</p>
+<h1>Chapter 7 - Writing the Wrong Amount</h1>
+<p>A write changes memory.</p>
+<p>That makes a size error particularly dangerous.</p>
+<p>A program that writes too little may leave an object incomplete.</p>
+<p>A program that writes too much may modify bytes belonging to another object.</p>
+<p>The resulting corruption can alter data, metadata, pointers, control information, or program state.</p>
+<p>The basic operation is:</p>
+<pre><code>write length bytes
+starting at destination</code></pre>
+<p>The central question is:</p>
+<p>&gt; Does the complete destination range belong to the object the program intends to modify?</p>
+<hr>
+<h2>1. The destination defines the boundary</h2>
+<p>Consider:</p>
+<pre><code>memcpy(dst, src, length);</code></pre>
+<p>For the write side, the important range is:</p>
+<pre><code>[dst, dst + length)</code></pre>
+<p>If the destination object has:</p>
+<pre><code>capacity</code></pre>
+<p>bytes, the fundamental requirement is:</p>
+<pre><code>length &lt;= capacity</code></pre>
+<p>If the destination begins at an offset:</p>
+<pre><code>dst + offset</code></pre>
+<p>then the requirement becomes:</p>
+<pre><code>offset &lt;= capacity
+length &lt;= capacity - offset</code></pre>
+<p>The physical destination boundary is what matters.</p>
+<hr>
+<h2>2. The classic buffer overflow</h2>
+<p>Suppose:</p>
+<pre><code>char buffer[16];</code></pre>
+<p>and:</p>
+<pre><code>memcpy(buffer, input, 32);</code></pre>
+<p>The source may contain 32 readable bytes.</p>
+<p>The destination does not contain 32 writable bytes.</p>
+<p>The copy therefore writes beyond the destination object.</p>
+<p>This is the classic buffer overflow.</p>
+<p>But the interesting part is not the name.</p>
+<p>The interesting part is the violated relationship:</p>
+<pre><code>bytes_written &gt; bytes_available_at_destination</code></pre>
+<p>That formulation applies equally to:</p>
+<pre><code>memcpy
+
+memmove
+
+strcpy
+
+manual loops
+
+formatted output
+
+serialization routines</code></pre>
+<p>and many other operations.</p>
+<hr>
+<h2>3. The destination may be an interior location</h2>
+<p>Consider:</p>
+<pre><code>memcpy(buffer + offset, input, length);</code></pre>
+<p>The total buffer capacity might be:</p>
+<pre><code>100</code></pre>
+<p>and the offset might be:</p>
+<pre><code>80</code></pre>
+<p>That does not leave 100 bytes available.</p>
+<p>It leaves:</p>
+<pre><code>20</code></pre>
+<p>The correct condition is therefore:</p>
+<pre><code>length &lt;= 100 - 80</code></pre>
+<p>not:</p>
+<pre><code>length &lt;= 100.</code></pre>
+<p>This is one of the most common patterns in real code.</p>
+<p>A programmer knows the buffer is large enough for the complete operation in some abstract sense, but forgets that the operation begins partway through it.</p>
+<hr>
+<h2>4. Off-by-one errors</h2>
+<p>Suppose:</p>
+<pre><code>char buffer[16];</code></pre>
+<p>and the program wants to write a string of at most 15 characters plus a terminator.</p>
+<p>The available capacity is:</p>
+<pre><code>16</code></pre>
+<p>If the program calculates the required size as:</p>
+<pre><code>length</code></pre>
+<p>instead of:</p>
+<pre><code>length + 1</code></pre>
+<p>the terminator has nowhere to go.</p>
+<p>Conversely, a loop such as:</p>
+<pre><code>for (i = 0; i &lt;= length; ++i)
+    dst[i] = src[i];</code></pre>
+<p>may perform one more iteration than intended.</p>
+<p>The difference between:</p>
+<pre><code>&lt;</code></pre>
+<p>and:</p>
+<pre><code>&lt;=</code></pre>
+<p>can therefore determine whether the last write is inside or outside the object.</p>
+<hr>
+<h2>5. The last byte matters</h2>
+<p>For a buffer of size `n`, the valid byte indexes are:</p>
+<pre><code>0 through n - 1</code></pre>
+<p>The address:</p>
+<pre><code>buffer + n</code></pre>
+<p>can be used as a one-past-the-end pointer for certain purposes, but it cannot be dereferenced.</p>
+<p>This distinction is easy to state and important to preserve.</p>
+<p>There is a difference between:</p>
+<pre><code>forming an endpoint</code></pre>
+<p>and:</p>
+<pre><code>accessing the endpoint.</code></pre>
+<p>A range can be represented using:</p>
+<pre><code>[begin, end)</code></pre>
+<p>where `end` identifies the position immediately after the final element.</p>
+<p>The write range must still end no later than that endpoint.</p>
+<hr>
+<h2>6. Writing one byte too many</h2>
+<p>Consider:</p>
+<pre><code>char buffer[8];</code></pre>
+<p>and:</p>
+<pre><code>for (i = 0; i &lt;= 8; ++i)
+    buffer[i] = 0;</code></pre>
+<p>The loop performs nine writes.</p>
+<p>The valid range contains eight bytes.</p>
+<p>The ninth write crosses the boundary.</p>
+<p>This is a small error in source code.</p>
+<p>Its consequences depend on what lies beyond the buffer.</p>
+<p>That might be irrelevant padding.</p>
+<p>It might be another variable.</p>
+<p>It might be an object containing important state.</p>
+<p>It might be memory whose corruption affects later control flow.</p>
+<p>The size of the mistake does not determine its importance.</p>
+<hr>
+<h2>7. Corrupting another object</h2>
+<p>Conceptually:</p>
+<pre><code>+----------------+
+| buffer         |
++----------------+
+| object B       |
++----------------+</code></pre>
+<p>An oversized write to `buffer` may continue into object B.</p>
+<p>The program may therefore appear to have a bug involving:</p>
+<pre><code>buffer</code></pre>
+<p>while the security consequence involves:</p>
+<pre><code>object B.</code></pre>
+<p>This is a useful distinction.</p>
+<p>The object that is too small is not necessarily the object that becomes interesting to an attacker.</p>
+<hr>
+<h2>8. Data corruption versus control corruption</h2>
+<p>A write beyond its intended boundary might overwrite:</p>
+<pre><code>ordinary data</code></pre>
+<p>or:</p>
+<pre><code>length fields</code></pre>
+<p>or:</p>
+<pre><code>pointers</code></pre>
+<p>or:</p>
+<pre><code>function pointers</code></pre>
+<p>or:</p>
+<pre><code>object state</code></pre>
+<p>or:</p>
+<pre><code>control-flow-related data.</code></pre>
+<p>The same underlying spatial error can therefore have very different consequences.</p>
+<p>A write is not automatically a code-execution vulnerability.</p>
+<p>But an attacker-controlled write to an important target can be substantially more powerful than an accidental overwrite of an unused field.</p>
+<p>The exploitability depends on what can be written, where it can be written, and how precisely the attacker controls the write.</p>
+<hr>
+<h2>9. Partial overwrites</h2>
+<p>A corruption does not need to replace an entire object.</p>
+<p>Suppose a pointer occupies several bytes and a bug overwrites only part of it.</p>
+<p>The resulting value may still be:</p>
+<pre><code>valid-looking</code></pre>
+<p>but point somewhere unintended.</p>
+<p>Similarly, a length field might be changed by only one byte.</p>
+<p>A flag might be changed from:</p>
+<pre><code>0</code></pre>
+<p>to:</p>
+<pre><code>1.</code></pre>
+<p>A small out-of-bounds write can therefore have a disproportionate effect if it lands on a sensitive field.</p>
+<p>The relevant question is not simply:</p>
+<pre><code>How many bytes were corrupted?</code></pre>
+<p>It is:</p>
+<pre><code>Which bytes were corrupted?</code></pre>
+<hr>
+<h2>10. Metadata corruption</h2>
+<p>Consider an object containing:</p>
+<pre><code>pointer
+length
+capacity</code></pre>
+<p>An out-of-bounds write into that object might corrupt the metadata rather than the data itself.</p>
+<p>The immediate write is one memory-safety violation.</p>
+<p>The corrupted metadata can then cause later code to perform additional invalid operations.</p>
+<p>For example:</p>
+<pre><code>corrupted length
+    -&gt;
+oversized copy
+    -&gt;
+further corruption</code></pre>
+<p>or:</p>
+<pre><code>corrupted pointer
+    -&gt;
+write to unintended location
+    -&gt;
+further corruption.</code></pre>
+<p>This is one way a single memory bug can become a chain of memory bugs.</p>
+<hr>
+<h2>11. The write can corrupt its own future bounds</h2>
+<p>A particularly dangerous pattern occurs when the data being overwritten controls the size or location of later operations.</p>
+<p>Suppose:</p>
+<pre><code>object-&gt;length</code></pre>
+<p>controls how much data will later be copied.</p>
+<p>If an out-of-bounds write changes:</p>
+<pre><code>object-&gt;length</code></pre>
+<p>the next operation may use a corrupted boundary.</p>
+<p>This produces a feedback loop:</p>
+<pre><code>memory corruption
+    -&gt;
+corrupted metadata
+    -&gt;
+incorrect bounds
+    -&gt;
+further memory corruption.</code></pre>
+<p>Once metadata is corrupted, reasoning about later operations becomes much harder.</p>
+<hr>
+<h2>12. Allocation size and write size must agree</h2>
+<p>Suppose:</p>
+<pre><code>size = calculate_size(count);
+buffer = malloc(size);</code></pre>
+<p>Later:</p>
+<pre><code>length = calculate_length(count);
+memcpy(buffer, src, length);</code></pre>
+<p>The critical relationship is:</p>
+<pre><code>length &lt;= size</code></pre>
+<p>If the two calculations are intended to represent the same logical object, they may ideally derive from the same validated quantity.</p>
+<p>The danger is greatest when the allocation and write use different interpretations.</p>
+<p>For example:</p>
+<pre><code>allocation = count * sizeof(struct item);</code></pre>
+<p>while:</p>
+<pre><code>copy = count * sizeof(struct larger_item);</code></pre>
+<p>Both expressions may look plausible.</p>
+<p>Only the relationship between them reveals the problem.</p>
+<hr>
+<h2>13. String output is still a write</h2>
+<p>Consider:</p>
+<pre><code>sprintf(buffer, &quot;%s&quot;, input);</code></pre>
+<p>The operation writes characters into `buffer`.</p>
+<p>The amount is determined by the formatted result.</p>
+<p>The destination therefore needs enough capacity for the complete output.</p>
+<p>A formatting function may hide the length calculation, but the memory-safety question remains:</p>
+<pre><code>How many bytes will be written?</code></pre>
+<p>and:</p>
+<pre><code>How much space is available?</code></pre>
+<p>The same principle applies to serialization functions, encoding routines, and custom output functions.</p>
+<hr>
+<h2>14. `snprintf` changes the problem, not the need for reasoning</h2>
+<p>A bounded formatting function is generally preferable to an unbounded one.</p>
+<p>But even with:</p>
+<pre><code>snprintf(buffer, capacity, ...);</code></pre>
+<p>the programmer still needs to understand:</p>
+<pre><code>what `capacity` means</code></pre>
+<p>and:</p>
+<pre><code>what the return value means</code></pre>
+<p>and:</p>
+<pre><code>whether truncation is acceptable.</code></pre>
+<p>A bounded operation may prevent a physical overflow while still producing an incomplete logical object.</p>
+<p>That may be safe.</p>
+<p>It may also create a different bug if the program assumes the complete output was produced.</p>
+<p>Again:</p>
+<pre><code>physical correctness</code></pre>
+<p>and:</p>
+<pre><code>logical correctness</code></pre>
+<p>are related but distinct.</p>
+<hr>
+<h2>15. Array element size matters</h2>
+<p>Consider:</p>
+<pre><code>int *dst;
+char *src;</code></pre>
+<p>A programmer may calculate:</p>
+<pre><code>count</code></pre>
+<p>and then write:</p>
+<pre><code>for (i = 0; i &lt; count; ++i)
+    dst[i] = src[i];</code></pre>
+<p>This is not equivalent to copying `count` bytes.</p>
+<p>Each `dst[i]` occupies the size of an `int`.</p>
+<p>Each `src[i]` is one byte.</p>
+<p>The loop&#x27;s write amount is therefore:</p>
+<pre><code>count * sizeof(int)</code></pre>
+<p>while its source consumption is:</p>
+<pre><code>count</code></pre>
+<p>bytes.</p>
+<p>The two sides may not describe the same amount of data.</p>
+<p>The unit of the index matters.</p>
+<hr>
+<h2>16. The write destination can move</h2>
+<p>Consider:</p>
+<pre><code>dst += count;
+memcpy(dst, src, length);</code></pre>
+<p>The correctness of the later copy depends on the earlier pointer arithmetic.</p>
+<p>The program must know that the new `dst` still identifies the intended object and that enough capacity remains there.</p>
+<p>This illustrates why pointer arithmetic belongs in the same chain as bounds and copying.</p>
+<p>A copy can be perfectly written while receiving a destination pointer that was calculated incorrectly several statements earlier.</p>
+<hr>
+<h2>17. Repeated writes</h2>
+<p>Many programs append data repeatedly:</p>
+<pre><code>memcpy(buffer + used, data, length);
+used += length;</code></pre>
+<p>The intended invariant is:</p>
+<pre><code>used &lt;= capacity</code></pre>
+<p>before the append.</p>
+<p>And for the individual copy:</p>
+<pre><code>length &lt;= capacity - used</code></pre>
+<p>Afterward:</p>
+<pre><code>used_new = used + length</code></pre>
+<p>must still represent the actual amount of data stored.</p>
+<p>This pattern is extremely common in:</p>
+<pre><code>dynamic buffers
+packet construction
+encoders
+logging
+protocol implementations
+parsers
+file builders.</code></pre>
+<p>A bug in one update to `used` can therefore corrupt every subsequent append.</p>
+<hr>
+<h2>18. The danger of checking after addition</h2>
+<p>Suppose code does:</p>
+<pre><code>new_used = used + length;
+
+if (new_used &gt; capacity)
+    return;</code></pre>
+<p>The arithmetic itself can overflow before the comparison.</p>
+<p>If the type is unsigned, `new_used` can wrap to a small value.</p>
+<p>The check may then incorrectly succeed.</p>
+<p>A safer conceptual check is:</p>
+<pre><code>if (used &gt; capacity)
+    fail;
+
+if (length &gt; capacity - used)
+    fail;</code></pre>
+<p>Only after establishing the relationship should the addition be performed.</p>
+<p>This is another example of the central theme:</p>
+<pre><code>the check itself manipulates the same numbers
+that determine the memory boundary.</code></pre>
+<hr>
+<h2>19. Write length versus logical length</h2>
+<p>Suppose a buffer contains:</p>
+<pre><code>used</code></pre>
+<p>bytes of meaningful data.</p>
+<p>A function might need to write:</p>
+<pre><code>required</code></pre>
+<p>bytes.</p>
+<p>The physical capacity condition is:</p>
+<pre><code>required &lt;= capacity - used</code></pre>
+<p>But the logical condition might be different.</p>
+<p>Perhaps only:</p>
+<pre><code>remaining_payload</code></pre>
+<p>bytes are allowed by the protocol.</p>
+<p>Perhaps a terminator must be added.</p>
+<p>Perhaps the object has a maximum logical size smaller than its physical allocation.</p>
+<p>A safe operation therefore sometimes needs several bounds:</p>
+<pre><code>physical capacity
+logical capacity
+protocol limit
+object-specific limit.</code></pre>
+<p>The smallest applicable boundary wins.</p>
+<hr>
+<h2>20. The write primitive</h2>
+<p>From a security perspective, an attacker-controlled out-of-bounds write can be especially powerful when the attacker controls:</p>
+<pre><code>where the write occurs
+
+how many bytes are written
+
+what values are written.</code></pre>
+<p>These dimensions are often called the location, size, and contents of a write primitive.</p>
+<p>They determine what kinds of corruption are possible.</p>
+<p>A write of a fixed value to a fixed nearby location is different from a write whose location and contents can both be influenced.</p>
+<p>This distinction becomes important in Chapter 24 and beyond.</p>
+<hr>
+<h2>21. Not every overflow is exploitable</h2>
+<p>Suppose a write crosses the end of a buffer by one byte.</p>
+<p>That is a memory-safety bug.</p>
+<p>It does not automatically mean:</p>
+<pre><code>arbitrary code execution.</code></pre>
+<p>The corrupted byte might land in:</p>
+<pre><code>unused padding</code></pre>
+<p>or:</p>
+<pre><code>harmless data</code></pre>
+<p>or:</p>
+<pre><code>memory that causes an immediate crash.</code></pre>
+<p>Alternatively, it might alter something security-critical.</p>
+<p>The vulnerability analysis therefore comes after establishing the memory-safety violation.</p>
+<p>First establish:</p>
+<pre><code>what was written</code></pre>
+<p>and:</p>
+<pre><code>where.</code></pre>
+<p>Then determine:</p>
+<pre><code>what that corruption can affect.</code></pre>
+<hr>
+<h2>22. Review the complete destination range</h2>
+<p>When reviewing a write, write down:</p>
+<pre><code>destination object
+destination start
+destination capacity
+write length</code></pre>
+<p>Then determine:</p>
+<pre><code>[destination, destination + length)</code></pre>
+<p>and compare it with the object&#x27;s valid range.</p>
+<p>For an offset destination:</p>
+<pre><code>[buffer + offset,
+ buffer + offset + length)</code></pre>
+<p>This simple representation removes much of the ambiguity from pointer-heavy code.</p>
+<hr>
+<h2>23. The central lesson</h2>
+<p>A write is safe only when the complete destination range belongs to the intended writable object.</p>
+<p>The most useful questions are:</p>
+<pre><code>Where does the write begin?
+
+How many bytes does it write?
+
+Which object owns that range?
+
+How much capacity remains there?
+
+How was that capacity calculated?
+
+Can the size arithmetic overflow?
+
+Can the destination pointer be corrupted or miscalculated?
+
+What lies immediately beyond the intended object?</code></pre>
+<p>The final question matters for exploitability.</p>
+<p>The earlier questions determine whether the write is valid at all.</p>
+<p>The next chapter turns to a related but distinct problem.</p>
+<p>Sometimes the amount is completely correct.</p>
+<p>The program still accesses the wrong place.</p>
+<hr>
+
+    <div class="book-navigation">
+        <a href="chapter_6_reading_the_wrong_amount.html" class="nav-btn">&larr; Previous</a> <span class="nav-info">9 of 13</span> <a href="chapter_8_addressing_the_wrong_location.html" class="nav-btn">Next &rarr;</a>
+    </div>
+    
+</body>
+</html>

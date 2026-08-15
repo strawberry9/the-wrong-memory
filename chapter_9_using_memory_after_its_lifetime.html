@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chapter 9 Using Memory After Its Lifetime</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #d1d5db; /* Soft light gray text */
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 0 20px;
+            background-color: #1f2937; /* Dark charcoal/slate background */
+        }
+        h1, h2 {
+            color: #f3f4f6; /* Bright white-gray for headers */
+            border-bottom: 1px solid #374151;
+            padding-bottom: 0.3em;
+        }
+        pre {
+            background-color: #111827; /* Darker background for code blocks */
+            border: 1px solid #374151;
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+            font-size: 85%;
+            line-height: 1.45;
+            color: #e5e7eb;
+        }
+        code {
+            font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+        }
+        hr {
+            border: 0;
+            height: 1px;
+            background: #374151;
+            margin: 40px 0;
+        }
+        p {
+            margin-bottom: 16px;
+        }
+    </style>
+
+    <style>
+        .book-navigation {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #374151;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        .nav-btn {
+            background-color: #374151;
+            color: #f3f4f6;
+            padding: 8px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        .nav-btn:hover {
+            background-color: #4b5563;
+        }
+        .nav-info {
+            color: #9ca3af;
+            font-size: 14px;
+        }
+    </style>
+    
+</head>
+<body>
+<p> PART III</p>
+<h1>Chapter 9 - Using Memory After Its Lifetime</h1>
+<p>So far, we have treated memory as something with a location and a size.</p>
+<p>There is another property that matters just as much:</p>
+<pre><code>lifetime.</code></pre>
+<p>A pointer can have the right address.</p>
+<p>The access can have the right size.</p>
+<p>The arithmetic can be correct.</p>
+<p>And the access can still be invalid because the object no longer exists.</p>
+<p>This gives us another dimension of the problem:</p>
+<pre><code>Where is the memory?
+How much memory is there?
+Does the object still exist?</code></pre>
+<p>A memory object has to satisfy all three.</p>
+<hr>
+<h2>1. Allocation creates an object</h2>
+<p>Consider:</p>
+<pre><code>p = malloc(size);</code></pre>
+<p>The important result is not merely an address.</p>
+<p>The program has obtained storage that can be used for an object, subject to the relevant rules.</p>
+<p>Conceptually:</p>
+<pre><code>allocation
+    -&gt;
+object exists
+    -&gt;
+pointer identifies object
+    -&gt;
+accesses are possible</code></pre>
+<p>The object&#x27;s lifetime begins as part of this process.</p>
+<p>The program must then eventually stop using the object and release its storage.</p>
+<p>That creates a temporal boundary in addition to the spatial boundary.</p>
+<hr>
+<h2>2. Freeing ends the lifetime</h2>
+<p>Consider:</p>
+<pre><code>p = malloc(size);
+
+...
+
+free(p);</code></pre>
+<p>After the `free`, the program cannot continue to use `p` as though the allocated object still existed.</p>
+<p>The pointer value may still be stored in the variable.</p>
+<p>That does not mean the object still exists.</p>
+<p>This distinction is fundamental:</p>
+<pre><code>pointer value</code></pre>
+<p>is not the same thing as:</p>
+<pre><code>live object.</code></pre>
+<p>A pointer can remain in memory after the object it once identified has ceased to exist.</p>
+<hr>
+<h2>3. The stale pointer</h2>
+<p>Consider:</p>
+<pre><code>p = malloc(100);
+
+...
+
+free(p);
+
+...
+
+memcpy(dst, p, 10);</code></pre>
+<p>The copy length is only 10 bytes.</p>
+<p>The address was originally valid.</p>
+<p>The allocation was originally large enough.</p>
+<p>But the object has been freed.</p>
+<p>The problem is therefore not:</p>
+<pre><code>wrong amount</code></pre>
+<p>or:</p>
+<pre><code>wrong address.</code></pre>
+<p>It is:</p>
+<pre><code>wrong lifetime.</code></pre>
+<p>The pointer identifies storage that is no longer a live object available for the intended access.</p>
+<hr>
+<h2>4. Why this bug is called use-after-free</h2>
+<p>The pattern is:</p>
+<pre><code>use
+-&gt;
+free
+-&gt;
+use again</code></pre>
+<p>The second use occurs after the lifetime has ended.</p>
+<p>The operation might be:</p>
+<pre><code>read
+write
+pointer dereference
+function call through a stored function pointer
+structure member access
+copy
+comparison
+size calculation based on object contents.</code></pre>
+<p>The exact operation does not matter.</p>
+<p>The key property is that the program relies on an object after its lifetime has ended.</p>
+<hr>
+<h2>5. A use-after-free is not necessarily an immediate crash</h2>
+<p>After:</p>
+<pre><code>free(p);</code></pre>
+<p>the allocator may leave the bytes unchanged for some time.</p>
+<p>A later access through `p` might therefore appear to work.</p>
+<p>This is one reason use-after-free bugs can be intermittent.</p>
+<p>The memory may contain:</p>
+<pre><code>old contents</code></pre>
+<p>or:</p>
+<pre><code>allocator metadata</code></pre>
+<p>or:</p>
+<pre><code>contents belonging to a new allocation.</code></pre>
+<p>The program has lost the guarantee that the memory represents the original object.</p>
+<hr>
+<h2>6. Reuse makes the problem more interesting</h2>
+<p>Suppose:</p>
+<pre><code>p = malloc(100);
+free(p);</code></pre>
+<p>Then:</p>
+<pre><code>q = malloc(100);</code></pre>
+<p>The allocator may return the same region for `q`.</p>
+<p>Now:</p>
+<pre><code>p</code></pre>
+<p>and:</p>
+<pre><code>q</code></pre>
+<p>may have the same numerical address.</p>
+<p>But they do not represent the same logical object.</p>
+<p>The old object has ended.</p>
+<p>A new object now occupies the storage.</p>
+<p>Using `p` as though it still referred to the old object can therefore affect the new object.</p>
+<p>This is one of the reasons use-after-free bugs can become security vulnerabilities.</p>
+<hr>
+<h2>7. The stale pointer can become a write primitive</h2>
+<p>Consider:</p>
+<pre><code>p = malloc(100);
+
+...
+
+free(p);
+
+q = malloc(100);
+
+...
+
+p[0] = attacker_value;</code></pre>
+<p>If the allocator reused the same storage for `q`, the write through `p` may modify `q`.</p>
+<p>The attacker has effectively gained a way to modify an object that the program did not intend to expose through `p`.</p>
+<p>The exact result depends on allocator behavior and object layout.</p>
+<p>But the general pattern is important:</p>
+<pre><code>expired pointer
+    -&gt;
+reused storage
+    -&gt;
+access to a different object.</code></pre>
+<hr>
+<h2>8. The stale pointer can become an information leak</h2>
+<p>The same idea works for reads.</p>
+<p>Suppose:</p>
+<pre><code>p = malloc(100);
+
+...
+
+free(p);
+
+q = malloc(100);
+
+...
+
+send_to_user(p, 100);</code></pre>
+<p>If the storage has been reused, the read may expose data belonging to `q`.</p>
+<p>The original pointer still has a plausible address.</p>
+<p>The size is still exactly 100.</p>
+<p>The problem is that the memory no longer belongs to the object the program believes it is reading.</p>
+<p>This is another example of why location and lifetime cannot be considered independently.</p>
+<hr>
+<h2>9. Setting the pointer to NULL</h2>
+<p>A common defensive technique is:</p>
+<pre><code>free(p);
+p = NULL;</code></pre>
+<p>This is useful because an accidental later dereference is more likely to fail obviously rather than access a reused allocation.</p>
+<p>But this technique does not solve the general problem.</p>
+<p>Suppose there are two pointers:</p>
+<pre><code>p
+q</code></pre>
+<p>both referring to the same allocation.</p>
+<p>Then:</p>
+<pre><code>free(p);
+p = NULL;</code></pre>
+<p>does not change `q`.</p>
+<p>The object is still freed.</p>
+<p>`q` is now stale.</p>
+<p>This is why ownership and aliasing matter.</p>
+<hr>
+<h2>10. Aliasing makes lifetime difficult</h2>
+<p>Consider:</p>
+<pre><code>p = malloc(100);
+q = p;</code></pre>
+<p>Now there are two pointer variables.</p>
+<p>There is still only one allocation.</p>
+<p>If code does:</p>
+<pre><code>free(p);</code></pre>
+<p>then:</p>
+<pre><code>q</code></pre>
+<p>does not automatically become NULL.</p>
+<p>It still contains the old pointer value.</p>
+<p>The program therefore has to know that `q` is an alias of the object whose lifetime has ended.</p>
+<p>This is one reason ownership discipline is so valuable in C.</p>
+<p>Without it, the question:</p>
+<pre><code>&quot;Who may free this object?&quot;</code></pre>
+<p>can become surprisingly difficult.</p>
+<hr>
+<h2>11. Ownership</h2>
+<p>A useful design concept is ownership.</p>
+<p>An owner is the part of the program responsible for determining:</p>
+<pre><code>who creates the object
+
+who may release it
+
+how long it remains available
+
+which other code may temporarily reference it.</code></pre>
+<p>C does not enforce ownership in the type system.</p>
+<p>The program has to establish it by convention and design.</p>
+<p>Many lifetime bugs are really failures of ownership reasoning.</p>
+<hr>
+<h2>12. Borrowing</h2>
+<p>A function may receive a pointer without becoming responsible for freeing it.</p>
+<p>For example:</p>
+<pre><code>void process(struct object *p);</code></pre>
+<p>The caller might retain ownership.</p>
+<p>The function may temporarily use:</p>
+<pre><code>p</code></pre>
+<p>but must not assume that it can:</p>
+<pre><code>free(p);</code></pre>
+<p>unless the interface explicitly establishes that responsibility.</p>
+<p>Conversely, if the caller frees the object while the function still intends to use it, the function can suffer a use-after-free.</p>
+<p>The lifetime contract needs to be clear.</p>
+<hr>
+<h2>13. Returning pointers to dead objects</h2>
+<p>Consider:</p>
+<pre><code>char *get_name(void)
+{
+    char buffer[32];
+
+    ...
+    return buffer;
+}</code></pre>
+<p>The pointer returned by the function refers to an object whose lifetime ends when the function returns.</p>
+<p>The returned address may still look perfectly plausible.</p>
+<p>But the object no longer exists.</p>
+<p>This is a lifetime error without `free`.</p>
+<p>The lesson is important:</p>
+<p>&gt; Lifetime is not synonymous with heap allocation.</p>
+<p>Automatic objects also have lifetimes.</p>
+<hr>
+<h2>14. Stack lifetime</h2>
+<p>Consider:</p>
+<pre><code>struct item *get_item(void)
+{
+    struct item item;
+
+    ...
+    return &amp;item;
+}</code></pre>
+<p>The address can be formed correctly.</p>
+<p>The object can be accessed correctly while the function is executing.</p>
+<p>After the function returns, the object&#x27;s lifetime has ended.</p>
+<p>The pointer is therefore invalid for later use.</p>
+<p>This is often called a dangling pointer.</p>
+<p>The same concept applies to other objects whose lifetimes have ended.</p>
+<hr>
+<h2>15. Static storage is different</h2>
+<p>Objects with static storage duration have a much longer lifetime.</p>
+<p>For example:</p>
+<pre><code>static struct object object;</code></pre>
+<p>A pointer to such an object does not become invalid merely because the function that produced the pointer returned.</p>
+<p>This illustrates why the lifetime question must be answered from the object&#x27;s storage duration and ownership model.</p>
+<p>The pointer itself does not tell us enough.</p>
+<hr>
+<h2>16. Lifetime and bounds interact</h2>
+<p>Suppose:</p>
+<pre><code>p = malloc(100);
+
+free(p);
+
+q = malloc(20);
+
+memcpy(p, src, 20);</code></pre>
+<p>The copy length is:</p>
+<pre><code>20</code></pre>
+<p>The old allocation had:</p>
+<pre><code>100</code></pre>
+<p>bytes.</p>
+<p>But that is no longer relevant.</p>
+<p>The old object&#x27;s lifetime has ended.</p>
+<p>The fact that the new allocation contains only 20 bytes may introduce another issue, but the first problem is already sufficient:</p>
+<pre><code>p is stale.</code></pre>
+<p>This illustrates an important ordering principle.</p>
+<p>A range can be:</p>
+<pre><code>correctly sized</code></pre>
+<p>and:</p>
+<pre><code>correctly located</code></pre>
+<p>relative to an object that no longer exists.</p>
+<p>The access is still invalid.</p>
+<hr>
+<h2>17. Lifetime and pointer arithmetic interact</h2>
+<p>Suppose:</p>
+<pre><code>p = malloc(100);
+
+q = p + 50;
+
+free(p);</code></pre>
+<p>The pointer:</p>
+<pre><code>q</code></pre>
+<p>was derived from the allocation.</p>
+<p>After the allocation is freed, `q` cannot be treated as a pointer into a still-live 100-byte object.</p>
+<p>The lifetime ended for the allocation as a whole.</p>
+<p>This is why a pointer into the middle of an object is not independent of the lifetime of the object containing it.</p>
+<hr>
+<h2>18. Lifetime and copies interact</h2>
+<p>Consider:</p>
+<pre><code>struct object {
+    char *data;
+    size_t length;
+};</code></pre>
+<p>A shallow copy:</p>
+<pre><code>copy = *original;</code></pre>
+<p>copies the pointer.</p>
+<p>It does not create a new lifetime for the data.</p>
+<p>If:</p>
+<pre><code>free(original.data);</code></pre>
+<p>then:</p>
+<pre><code>copy.data</code></pre>
+<p>may now be stale as well.</p>
+<p>This is one reason copying structures containing pointers requires understanding ownership.</p>
+<p>The bytes of the structure may have been copied correctly.</p>
+<p>The resources represented by those bytes have not necessarily been duplicated.</p>
+<hr>
+<h2>19. Reference counting</h2>
+<p>Some programs solve shared lifetime problems with reference counting.</p>
+<p>Conceptually:</p>
+<pre><code>acquire reference
+    -&gt;
+reference count increases
+
+release reference
+    -&gt;
+reference count decreases
+
+count reaches zero
+    -&gt;
+object is freed</code></pre>
+<p>The important invariant is:</p>
+<pre><code>object remains alive while references that may use it remain outstanding.</code></pre>
+<p>Reference counting is not automatically correct.</p>
+<p>It can fail through:</p>
+<pre><code>missing increments
+
+missing decrements
+
+duplicate decrements
+
+reference cycles
+
+races.</code></pre>
+<p>But the underlying purpose is clear:</p>
+<pre><code>make lifetime explicit.</code></pre>
+<hr>
+<h2>20. Lifetime bugs are temporal bounds violations</h2>
+<p>Spatial memory safety asks:</p>
+<pre><code>Is this address inside the object?</code></pre>
+<p>Lifetime safety asks:</p>
+<pre><code>Does the object still exist?</code></pre>
+<p>These are related forms of boundary checking.</p>
+<p>A spatial boundary looks like:</p>
+<pre><code>beginning -------- end</code></pre>
+<p>A temporal boundary looks like:</p>
+<pre><code>creation -------- destruction</code></pre>
+<p>A valid access must fall inside both.</p>
+<p>Conceptually:</p>
+<pre><code>correct location
++
+correct size
++
+live object
+=
+valid memory access.</code></pre>
+<hr>
+<h2>21. The review method</h2>
+<p>For any pointer, ask:</p>
+<pre><code>What object does it identify?
+
+Who owns that object?
+
+When was it created?
+
+When can it be destroyed?
+
+Can this code execute after destruction?
+
+Are there aliases?
+
+Can another operation free or replace the object?</code></pre>
+<p>These questions are often more productive than searching for `free()` calls in isolation.</p>
+<p>The dangerous operation may be many functions away from the code that actually destroys the object.</p>
+<hr>
+<h2>22. The central lesson</h2>
+<p>Memory is not simply:</p>
+<pre><code>address + size.</code></pre>
+<p>It is:</p>
+<pre><code>object
++
+location
++
+size
++
+lifetime.</code></pre>
+<p>A pointer becomes dangerous when the program forgets one of those dimensions.</p>
+<p>A stale pointer may still contain the correct address.</p>
+<p>The allocation may once have been large enough.</p>
+<p>The access may still use the correct length.</p>
+<p>None of that restores the object&#x27;s lifetime.</p>
+<p>Once an object has ceased to exist, the program must stop treating its old pointers as references to that object.</p>
+<p>That brings us to the other half of lifetime management:</p>
+<pre><code>freeing memory correctly.</code></pre>
+
+    <div class="book-navigation">
+        <a href="chapter_8_addressing_the_wrong_location.html" class="nav-btn">&larr; Previous</a> <span class="nav-info">11 of 13</span> <a href="chapter_10_freeing_the_wrong_memory.html" class="nav-btn">Next &rarr;</a>
+    </div>
+    
+</body>
+</html>

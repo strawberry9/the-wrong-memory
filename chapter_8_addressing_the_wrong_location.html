@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chapter 8 Addressing The Wrong Location</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #d1d5db; /* Soft light gray text */
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 0 20px;
+            background-color: #1f2937; /* Dark charcoal/slate background */
+        }
+        h1, h2 {
+            color: #f3f4f6; /* Bright white-gray for headers */
+            border-bottom: 1px solid #374151;
+            padding-bottom: 0.3em;
+        }
+        pre {
+            background-color: #111827; /* Darker background for code blocks */
+            border: 1px solid #374151;
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+            font-size: 85%;
+            line-height: 1.45;
+            color: #e5e7eb;
+        }
+        code {
+            font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+        }
+        hr {
+            border: 0;
+            height: 1px;
+            background: #374151;
+            margin: 40px 0;
+        }
+        p {
+            margin-bottom: 16px;
+        }
+    </style>
+
+    <style>
+        .book-navigation {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #374151;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        .nav-btn {
+            background-color: #374151;
+            color: #f3f4f6;
+            padding: 8px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        .nav-btn:hover {
+            background-color: #4b5563;
+        }
+        .nav-info {
+            color: #9ca3af;
+            font-size: 14px;
+        }
+    </style>
+    
+</head>
+<body>
+<p> PART II</p>
+<h1>Chapter 8 - Addressing the Wrong Location</h1>
+<p>Memory safety is often described in terms of size:</p>
+<pre><code>too many bytes
+
+too little space
+
+out-of-bounds access</code></pre>
+<p>But an operation can use exactly the right number of bytes and still access the wrong memory.</p>
+<p>Consider:</p>
+<pre><code>memcpy(dst, src, 16);</code></pre>
+<p>Suppose 16 bytes are valid at both addresses.</p>
+<p>The operation can still be wrong if:</p>
+<pre><code>dst</code></pre>
+<p>does not point to the intended object.</p>
+<p>This chapter is therefore about location.</p>
+<p>The central question is:</p>
+<p>&gt; Does this address identify the object the program thinks it identifies?</p>
+<hr>
+<h2>1. Size can be correct while location is wrong</h2>
+<p>Suppose a program intends to update:</p>
+<pre><code>object_a</code></pre>
+<p>but a pointer calculation produces:</p>
+<pre><code>object_b</code></pre>
+<p>and the operation writes exactly:</p>
+<pre><code>sizeof(object_a)</code></pre>
+<p>bytes.</p>
+<p>The size is correct.</p>
+<p>The location is not.</p>
+<p>The result may be memory corruption even though every length calculation is perfectly reasonable.</p>
+<p>This is why memory-safety analysis needs two separate questions:</p>
+<pre><code>How much?</code></pre>
+<p>and:</p>
+<pre><code>Where?</code></pre>
+<hr>
+<h2>2. Pointer arithmetic is object-relative</h2>
+<p>Consider:</p>
+<pre><code>p + offset</code></pre>
+<p>The result is not simply an arbitrary numerical address.</p>
+<p>It is a pointer derived from:</p>
+<pre><code>p</code></pre>
+<p>and:</p>
+<pre><code>offset.</code></pre>
+<p>The intended meaning is generally:</p>
+<pre><code>move within the object associated with p.</code></pre>
+<p>If `offset` is wrong, the resulting location may no longer identify the intended element or subobject.</p>
+<p>This makes pointer arithmetic part of the memory boundary calculation.</p>
+<hr>
+<h2>3. Indexing hides pointer arithmetic</h2>
+<p>These expressions are closely related:</p>
+<pre><code>array[index]</code></pre>
+<p>and:</p>
+<pre><code>*(array + index)</code></pre>
+<p>The index determines the location.</p>
+<p>If:</p>
+<pre><code>index</code></pre>
+<p>is wrong, the resulting access is wrong.</p>
+<p>This is why array indexing should be reviewed in the same way as explicit pointer arithmetic.</p>
+<p>Ask:</p>
+<pre><code>What object does array refer to?
+
+What does index mean?
+
+What is the valid range of index?
+
+How was index calculated?</code></pre>
+<hr>
+<h2>4. Index versus byte offset</h2>
+<p>One of the most common location errors is confusing:</p>
+<pre><code>element index</code></pre>
+<p>with:</p>
+<pre><code>byte offset.</code></pre>
+<p>Suppose:</p>
+<pre><code>int array[100];</code></pre>
+<p>If:</p>
+<pre><code>index = 10;</code></pre>
+<p>then:</p>
+<pre><code>array + index</code></pre>
+<p>points to the eleventh `int`.</p>
+<p>But:</p>
+<pre><code>(char *)array + index</code></pre>
+<p>moves only:</p>
+<pre><code>10 bytes.</code></pre>
+<p>Those are different locations.</p>
+<p>The type of the pointer determines the unit of pointer arithmetic.</p>
+<p>This is powerful, but it also means that changing pointer types can change the meaning of an offset.</p>
+<hr>
+<h2>5. Scaling happens automatically</h2>
+<p>For:</p>
+<pre><code>p + i</code></pre>
+<p>where `p` points to an object of size `S`, the conceptual address displacement is:</p>
+<pre><code>i * S</code></pre>
+<p>This is why:</p>
+<pre><code>int *p;
+p + 3;</code></pre>
+<p>does not mean:</p>
+<pre><code>three bytes later.</code></pre>
+<p>It means:</p>
+<pre><code>three int objects later.</code></pre>
+<p>A programmer who calculates an offset in bytes and then applies it to a typed pointer can therefore land at the wrong location.</p>
+<p>The number may be correct.</p>
+<p>The unit is wrong.</p>
+<hr>
+<h2>6. Converting pointers changes the unit</h2>
+<p>Consider:</p>
+<pre><code>char *bytes = (char *)items;</code></pre>
+<p>Now:</p>
+<pre><code>bytes + offset</code></pre>
+<p>moves by:</p>
+<pre><code>offset bytes.</code></pre>
+<p>Whereas:</p>
+<pre><code>items + offset</code></pre>
+<p>moves by:</p>
+<pre><code>offset elements.</code></pre>
+<p>Both expressions use the same integer.</p>
+<p>They do not identify the same location.</p>
+<p>This is an important review technique:</p>
+<p>&gt; Whenever a pointer changes type, reconsider the units of every offset used with it.</p>
+<hr>
+<h2>7. Two-dimensional indexing</h2>
+<p>Consider:</p>
+<pre><code>matrix[row][column]</code></pre>
+<p>The location depends on two values.</p>
+<p>For a row-major array, the conceptual calculation includes something like:</p>
+<pre><code>row * row_width + column</code></pre>
+<p>If either value is wrong, the final location is wrong.</p>
+<p>The same pattern appears in:</p>
+<pre><code>images
+packet tables
+multidimensional buffers
+flattened arrays
+grids
+matrix calculations.</code></pre>
+<p>The arithmetic may look like ordinary indexing.</p>
+<p>It is really address calculation.</p>
+<hr>
+<h2>8. Flattened structures</h2>
+<p>Suppose an image has:</p>
+<pre><code>width
+height
+channels</code></pre>
+<p>and pixels are stored in one linear buffer.</p>
+<p>A location might be calculated from:</p>
+<pre><code>y * width * channels
+    +
+x * channels
+    +
+channel</code></pre>
+<p>Every number has a unit.</p>
+<p>The result must identify the intended byte or element.</p>
+<p>An error in any multiplication or addition can produce the wrong location.</p>
+<p>This connects pointer arithmetic directly back to Chapter 1.</p>
+<p>The arithmetic is not separate from the pointer.</p>
+<p>It is how the pointer is created.</p>
+<hr>
+<h2>9. The location calculation can overflow</h2>
+<p>Suppose:</p>
+<pre><code>offset = row * width * element_size;</code></pre>
+<p>The programmer may correctly validate:</p>
+<pre><code>row &lt; height</code></pre>
+<p>and:</p>
+<pre><code>column &lt; width</code></pre>
+<p>yet still have a problem if the multiplication used to calculate the byte offset overflows.</p>
+<p>The logical coordinates may be valid.</p>
+<p>The resulting address calculation may not represent the intended location.</p>
+<p>This is a crucial distinction:</p>
+<pre><code>valid coordinates</code></pre>
+<p>do not automatically imply:</p>
+<pre><code>valid address calculation.</code></pre>
+<p>The arithmetic connecting them must also be valid.</p>
+<hr>
+<h2>10. The classic offset pattern</h2>
+<p>Consider:</p>
+<pre><code>p = buffer + header_size + index * element_size;</code></pre>
+<p>This single expression contains several opportunities for error.</p>
+<pre><code>header_size</code></pre>
+<p>might be wrong.</p>
+<pre><code>index</code></pre>
+<p>might be out of range.</p>
+<pre><code>element_size</code></pre>
+<p>might be wrong.</p>
+<p>The multiplication might overflow.</p>
+<p>The addition might overflow.</p>
+<p>The resulting pointer might not identify the intended element.</p>
+<p>The expression is therefore best understood as a chain of calculations rather than one line of pointer syntax.</p>
+<hr>
+<h2>11. The wrong object</h2>
+<p>A pointer can be valid while referring to the wrong object.</p>
+<p>Suppose:</p>
+<pre><code>p</code></pre>
+<p>points to a valid structure.</p>
+<p>But the program intended:</p>
+<pre><code>q</code></pre>
+<p>which points to another structure.</p>
+<p>An operation through `p` can therefore be entirely within valid memory and still violate the program&#x27;s logical memory model.</p>
+<p>This matters especially in programs with:</p>
+<pre><code>linked lists
+trees
+object pools
+arenas
+custom allocators
+shared buffers
+multiple related structures.</code></pre>
+<p>The address may be valid.</p>
+<p>The object identity is wrong.</p>
+<hr>
+<h2>12. Interior pointers</h2>
+<p>Suppose:</p>
+<pre><code>buffer</code></pre>
+<p>points to an allocation.</p>
+<p>Then:</p>
+<pre><code>buffer + 20</code></pre>
+<p>may point to an interior location.</p>
+<p>That can be useful.</p>
+<p>But the program must know what that location represents.</p>
+<p>An interior pointer might identify:</p>
+<pre><code>an array element
+
+a structure member
+
+a serialized field
+
+the beginning of a subobject</code></pre>
+<p>or:</p>
+<pre><code>nothing meaningful at all.</code></pre>
+<p>The fact that the pointer is inside the allocation does not establish that it is the correct location for the intended operation.</p>
+<hr>
+<h2>13. Pointer provenance and object identity</h2>
+<p>C pointer semantics are more subtle than simply treating pointers as integers.</p>
+<p>For memory-safety reasoning, it is useful to retain the identity of the object from which a pointer was derived.</p>
+<p>Think of:</p>
+<pre><code>p</code></pre>
+<p>as meaning not merely:</p>
+<pre><code>address X</code></pre>
+<p>but:</p>
+<pre><code>a location within object O.</code></pre>
+<p>Then pointer arithmetic means:</p>
+<pre><code>move to another location associated with O.</code></pre>
+<p>This mental model prevents a common mistake:</p>
+<pre><code>&quot;The numeric address happens to be inside another allocation,
+ so the pointer must be usable there.&quot;</code></pre>
+<p>The fact that two objects happen to occupy nearby addresses does not make them interchangeable.</p>
+<hr>
+<h2>14. The wrong base pointer</h2>
+<p>Consider:</p>
+<pre><code>dst = buffer + offset;</code></pre>
+<p>Suppose the programmer intended `buffer` to point to the beginning of an object.</p>
+<p>But it actually points to:</p>
+<pre><code>the beginning of a subobject</code></pre>
+<p>or:</p>
+<pre><code>an unrelated field</code></pre>
+<p>or:</p>
+<pre><code>an already advanced position.</code></pre>
+<p>The offset can be perfectly correct relative to the intended base and still produce the wrong final address.</p>
+<p>When debugging a bad pointer, do not inspect only the final offset.</p>
+<p>Trace the pointer back to its base.</p>
+<hr>
+<h2>15. Double offsets</h2>
+<p>A particularly common mistake occurs when a pointer has already been advanced:</p>
+<pre><code>p = buffer + offset;</code></pre>
+<p>and later code does:</p>
+<pre><code>p += offset;</code></pre>
+<p>The final pointer is:</p>
+<pre><code>buffer + 2 * offset</code></pre>
+<p>rather than:</p>
+<pre><code>buffer + offset.</code></pre>
+<p>Both operations may look individually reasonable.</p>
+<p>The problem is that the same logical displacement was applied twice.</p>
+<p>This kind of bug is especially common in layered parsing and buffer-processing code.</p>
+<hr>
+<h2>16. Stale pointers</h2>
+<p>A pointer can also identify the wrong location because the object it originally referred to has moved or ceased to exist.</p>
+<p>For example:</p>
+<pre><code>p = buffer;</code></pre>
+<p>followed by:</p>
+<pre><code>buffer = realloc(buffer, new_size);</code></pre>
+<p>If the allocation moves, `p` no longer identifies the current allocation.</p>
+<p>The numerical address stored in `p` has not changed.</p>
+<p>The object&#x27;s location has.</p>
+<p>This is therefore a location problem intertwined with lifetime.</p>
+<p>The pointer has become stale.</p>
+<hr>
+<h2>17. Reallocation changes the map</h2>
+<p>Before:</p>
+<pre><code>buffer -&gt; allocation A</code></pre>
+<p>After a successful reallocation, the program may have:</p>
+<pre><code>buffer -&gt; allocation B</code></pre>
+<p>A stale pointer may still contain:</p>
+<pre><code>allocation A&#x27;s old address</code></pre>
+<p>The old address might now be:</p>
+<pre><code>unmapped</code></pre>
+<p>or:</p>
+<pre><code>reused for another object.</code></pre>
+<p>The stale pointer therefore no longer represents the intended object.</p>
+<p>This is why pointer validity is temporal as well as spatial.</p>
+<hr>
+<h2>18. NULL is a special wrong location</h2>
+<p>A NULL pointer is not merely a small address.</p>
+<p>Dereferencing it is invalid because it does not identify an appropriate object.</p>
+<p>For example:</p>
+<pre><code>p = get_object();
+
+p-&gt;field = value;</code></pre>
+<p>If `get_object()` returns NULL, the destination is wrong before the write begins.</p>
+<p>The important point is that a pointer can fail because it identifies:</p>
+<pre><code>no object</code></pre>
+<p>rather than:</p>
+<pre><code>an object with insufficient capacity.</code></pre>
+<p>These are different failure modes.</p>
+<hr>
+<h2>19. Near-NULL is not meaningfully better</h2>
+<p>A corrupted pointer may become a small non-NULL value.</p>
+<p>The program may then attempt to access:</p>
+<pre><code>address 0x10</code></pre>
+<p>or:</p>
+<pre><code>address 0x100</code></pre>
+<p>The fact that the value is not zero does not make it a valid object location.</p>
+<p>Again, pointer validity is not a simple numeric property.</p>
+<p>The address must identify an appropriate accessible object.</p>
+<hr>
+<h2>20. Wrong source, not just wrong destination</h2>
+<p>Location errors affect reads too.</p>
+<p>Consider:</p>
+<pre><code>memcpy(dst, src + offset, length);</code></pre>
+<p>The destination may be perfect.</p>
+<p>The source may be wrong.</p>
+<p>The program could therefore read:</p>
+<pre><code>the wrong field
+
+the wrong record
+
+the wrong packet
+
+another object
+
+freed memory
+
+unrelated data.</code></pre>
+<p>This can lead to information disclosure without any destination overflow.</p>
+<p>The same amount of data can be copied correctly from the wrong place.</p>
+<hr>
+<h2>21. Correct size, wrong object</h2>
+<p>Imagine:</p>
+<pre><code>struct credentials a;
+struct credentials b;</code></pre>
+<p>and:</p>
+<pre><code>memcpy(&amp;a, &amp;b, sizeof(a));</code></pre>
+<p>The size is correct.</p>
+<p>The source and destination are valid.</p>
+<p>But suppose the programmer intended to copy from:</p>
+<pre><code>c</code></pre>
+<p>instead of:</p>
+<pre><code>b.</code></pre>
+<p>There is no spatial memory violation in the operation.</p>
+<p>It is nevertheless a logical memory error.</p>
+<p>This distinction matters when diagnosing bugs.</p>
+<p>Not every wrong-location bug is necessarily an out-of-bounds access.</p>
+<p>Some are valid accesses to the wrong object.</p>
+<p>Security consequences depend on what the wrong object contains and what the operation does with it.</p>
+<hr>
+<h2>22. Pointer calculations from attacker-controlled values</h2>
+<p>A common vulnerability pattern is:</p>
+<pre><code>p = base + user_offset;</code></pre>
+<p>followed by:</p>
+<pre><code>access(p);</code></pre>
+<p>The attacker may control:</p>
+<pre><code>user_offset.</code></pre>
+<p>The security question becomes:</p>
+<pre><code>What locations can the attacker make p identify?</code></pre>
+<p>If the bounds are weak, the resulting pointer may reach memory outside the intended object.</p>
+<p>The important property is not simply that the offset is untrusted.</p>
+<p>It is that the offset controls an address calculation whose valid range has not been adequately established.</p>
+<hr>
+<h2>23. A pointer is not a capability by itself</h2>
+<p>It is tempting to think:</p>
+<pre><code>&quot;I have a pointer, therefore I have access to the object.&quot;</code></pre>
+<p>In C, the programmer must still reason about:</p>
+<pre><code>which object
+
+which subobject
+
+which offset
+
+which lifetime
+
+which access size.</code></pre>
+<p>A pointer value does not carry a complete proof that the intended operation is valid.</p>
+<p>The programmer has to preserve that proof through the calculations that follow.</p>
+<hr>
+<h2>24. Bounds and location are inseparable</h2>
+<p>Suppose:</p>
+<pre><code>p = buffer + offset;</code></pre>
+<p>and then:</p>
+<pre><code>memcpy(p, src, length);</code></pre>
+<p>To establish that the destination range is valid, we need both:</p>
+<pre><code>the correct base object</code></pre>
+<p>and:</p>
+<pre><code>a valid offset.</code></pre>
+<p>Then we need:</p>
+<pre><code>enough remaining capacity for length.</code></pre>
+<p>Conceptually:</p>
+<pre><code>base object
+    -&gt;
+offset
+    -&gt;
+location
+    -&gt;
+remaining capacity
+    -&gt;
+access length</code></pre>
+<p>A location cannot be validated independently from its object and its boundary.</p>
+<hr>
+<h2>25. The complete range</h2>
+<p>One of the most useful habits from the previous chapters is to stop thinking about a pointer as a single location.</p>
+<p>For:</p>
+<pre><code>p = buffer + offset;</code></pre>
+<p>followed by a write of:</p>
+<pre><code>length</code></pre>
+<p>bytes, think:</p>
+<pre><code>[buffer + offset,
+ buffer + offset + length)</code></pre>
+<p>Then ask:</p>
+<pre><code>Does this entire range belong to the intended object?</code></pre>
+<p>This immediately exposes several classes of bugs:</p>
+<pre><code>wrong base
+wrong offset
+wrong length
+wrong object
+insufficient capacity
+stale pointer.</code></pre>
+<p>The range is the thing that the operation actually uses.</p>
+<hr>
+<h2>26. Location errors can precede size errors</h2>
+<p>Consider:</p>
+<pre><code>p = buffer + attacker_offset;
+memcpy(p, src, fixed_length);</code></pre>
+<p>The length might be a constant and completely safe.</p>
+<p>The vulnerability can still exist because:</p>
+<pre><code>attacker_offset</code></pre>
+<p>moves the destination to an unintended location.</p>
+<p>The chain is:</p>
+<pre><code>attacker-controlled offset
+    -&gt;
+wrong address
+    -&gt;
+fixed-size write
+    -&gt;
+corruption.</code></pre>
+<p>The size did not need to be wrong.</p>
+<p>The location was enough.</p>
+<hr>
+<h2>27. Size errors can produce location errors</h2>
+<p>The reverse is also common.</p>
+<p>Suppose:</p>
+<pre><code>offset = index * element_size;</code></pre>
+<p>If the multiplication overflows, the resulting offset may be smaller than intended.</p>
+<p>The program may then calculate:</p>
+<pre><code>buffer + offset</code></pre>
+<p>and access the wrong location.</p>
+<p>Here the root cause is arithmetic.</p>
+<p>The visible problem is a bad address.</p>
+<p>This is why bug categories should not be treated as mutually exclusive.</p>
+<p>A single defect can move through several categories as it propagates.</p>
+<hr>
+<h2>28. A practical review method</h2>
+<p>For any pointer calculation, write down:</p>
+<pre><code>base object
+base location
+offset
+offset unit
+resulting location
+access size</code></pre>
+<p>Then ask:</p>
+<pre><code>Is the base pointer associated with the intended object?
+
+Is the offset measured in the correct unit?
+
+Can the offset calculation overflow?
+
+Is the resulting location within the intended object?
+
+Is the complete access range within the object?</code></pre>
+<p>This method is especially effective for:</p>
+<pre><code>packet parsers
+binary decoders
+image processing
+array manipulation
+custom allocators
+object pools
+serialization code.</code></pre>
+<hr>
+<h2>29. The central lesson</h2>
+<p>A memory operation can have:</p>
+<pre><code>the right size</code></pre>
+<p>and still use:</p>
+<pre><code>the wrong location.</code></pre>
+<p>The location may be wrong because:</p>
+<pre><code>the base pointer is wrong
+
+the offset is wrong
+
+the unit is wrong
+
+the index is wrong
+
+the arithmetic overflowed
+
+the pointer is stale
+
+the object was confused with another object
+
+the pointer identifies no valid object.</code></pre>
+<p>The most useful question is therefore:</p>
+<p>&gt; What object does this address belong to, and how did the program establish that this is the object it intended?</p>
+<p>Once that question is answered, the next question is naturally:</p>
+<pre><code>How much of that object is actually being accessed?</code></pre>
+<p>That brings the two dimensions back together.</p>
+<p>A memory operation is safe only when both its location and its amount are correct.</p>
+<p>The chain is now complete:</p>
+<pre><code>integer arithmetic
+    -&gt;
+allocation size
+    -&gt;
+pointer arithmetic
+    -&gt;
+bounds
+    -&gt;
+memory access</code></pre>
+<p>And once that access goes wrong, the next question is no longer merely whether the program has a bug.</p>
+<p>It is what that bug allows an attacker to do.</p>
+
+    <div class="book-navigation">
+        <a href="chapter_7_writing_the_wrong_amount.html" class="nav-btn">&larr; Previous</a> <span class="nav-info">10 of 13</span> <a href="chapter_9_using_memory_after_its_lifetime.html" class="nav-btn">Next &rarr;</a>
+    </div>
+    
+</body>
+</html>

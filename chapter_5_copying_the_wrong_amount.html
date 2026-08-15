@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chapter 5 Copying The Wrong Amount</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #d1d5db; /* Soft light gray text */
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 0 20px;
+            background-color: #1f2937; /* Dark charcoal/slate background */
+        }
+        h1, h2 {
+            color: #f3f4f6; /* Bright white-gray for headers */
+            border-bottom: 1px solid #374151;
+            padding-bottom: 0.3em;
+        }
+        pre {
+            background-color: #111827; /* Darker background for code blocks */
+            border: 1px solid #374151;
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+            font-size: 85%;
+            line-height: 1.45;
+            color: #e5e7eb;
+        }
+        code {
+            font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+        }
+        hr {
+            border: 0;
+            height: 1px;
+            background: #374151;
+            margin: 40px 0;
+        }
+        p {
+            margin-bottom: 16px;
+        }
+    </style>
+
+    <style>
+        .book-navigation {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #374151;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        .nav-btn {
+            background-color: #374151;
+            color: #f3f4f6;
+            padding: 8px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        .nav-btn:hover {
+            background-color: #4b5563;
+        }
+        .nav-info {
+            color: #9ca3af;
+            font-size: 14px;
+        }
+    </style>
+    
+</head>
+<body>
+<p> PART II</p>
+<h1>Chapter 5 - Copying the Wrong Amount</h1>
+<p>Memory copying looks simple.</p>
+<p>A source address, a destination address, and a number of bytes:</p>
+<pre><code>memcpy(destination, source, length);</code></pre>
+<p>But this small interface hides a substantial amount of reasoning.</p>
+<p>The program must know that the source is valid for `length` bytes. It must know that the destination is valid for `length` bytes. It must know that `length` means what the programmer thinks it means. And it must ensure that the regions involved satisfy the requirements of the operation.</p>
+<p>The important point is that a memory copy is not fundamentally about pointers.</p>
+<p>It is about ranges.</p>
+<p>A useful mental model is:</p>
+<pre><code>source range:
+    [source, source + length)
+
+destination range:
+    [destination, destination + length)</code></pre>
+<p>The copy is correct only if both ranges describe valid memory for the operation being performed.</p>
+<p>This makes copying an excellent example of the central theme of this book:</p>
+<p>&gt; I calculated, addressed, allocated, copied, or freed the wrong amount/location of memory.</p>
+<p>In this chapter, the focus is the amount.</p>
+<hr>
+<h2>1. The size is part of the operation</h2>
+<p>Consider:</p>
+<pre><code>memcpy(dst, src, n);</code></pre>
+<p>It is tempting to think of this as:</p>
+<pre><code>copy from src to dst</code></pre>
+<p>But that is incomplete.</p>
+<p>The actual operation is:</p>
+<pre><code>copy n bytes from src to dst</code></pre>
+<p>The value of `n` is therefore just as important as either pointer.</p>
+<p>If `src` and `dst` are correct but `n` is too large, the operation is wrong.</p>
+<p>If `n` is too small, the operation may also be wrong, even if it does not immediately cause memory corruption.</p>
+<p>For example:</p>
+<pre><code>memcpy(dst, src, sizeof(struct header));</code></pre>
+<p>may be correct if `src` and `dst` refer to complete `struct header` objects.</p>
+<p>But:</p>
+<pre><code>memcpy(dst, src, sizeof(*src));</code></pre>
+<p>is only correct if the object represented by `src` is actually the object whose size is being used.</p>
+<p>The expression that produces the size is therefore part of the safety argument.</p>
+<hr>
+<h2>2. The copy has two independent bounds</h2>
+<p>Suppose:</p>
+<pre><code>memcpy(dst, src, n);</code></pre>
+<p>There are two separate questions:</p>
+<pre><code>Is there at least n bytes available at src?</code></pre>
+<p>and:</p>
+<pre><code>Is there at least n bytes available at dst?</code></pre>
+<p>These are independent.</p>
+<p>A source can be too short while the destination is large enough.</p>
+<p>A destination can be too short while the source is large enough.</p>
+<p>Both can be too short.</p>
+<p>This matters because a common mistake is to validate only one side.</p>
+<p>For example:</p>
+<pre><code>if (n &lt;= src_size)
+    memcpy(dst, src, n);</code></pre>
+<p>The check establishes something about the source.</p>
+<p>It says nothing about `dst`.</p>
+<p>The destination requires its own bound.</p>
+<p>Conceptually:</p>
+<pre><code>n &lt;= source_available
+n &lt;= destination_available</code></pre>
+<p>Both conditions must hold.</p>
+<hr>
+<h2>3. The copy length is often derived</h2>
+<p>The simplest example is:</p>
+<pre><code>memcpy(dst, src, n);</code></pre>
+<p>where `n` comes directly from an input.</p>
+<p>Real programs more often calculate it.</p>
+<p>For example:</p>
+<pre><code>n = count * sizeof(*src);
+memcpy(dst, src, n);</code></pre>
+<p>Now the copy depends on the entire calculation chain:</p>
+<pre><code>count
+  -&gt;
+count * sizeof(*src)
+  -&gt;
+n
+  -&gt;
+memcpy</code></pre>
+<p>If `count` is wrong, `n` may be wrong.</p>
+<p>If the multiplication overflows, `n` may be wrong.</p>
+<p>If `sizeof(*src)` is not the size the programmer intended, `n` may be wrong.</p>
+<p>The copy is merely where the incorrect value is finally consumed.</p>
+<p>This is one reason that looking only at the call to `memcpy` is often insufficient.</p>
+<hr>
+<h2>4. Too large is the obvious failure</h2>
+<p>Suppose:</p>
+<pre><code>char dst[32];
+char src[32];</code></pre>
+<p>and:</p>
+<pre><code>memcpy(dst, src, 40);</code></pre>
+<p>The destination does not contain 40 writable bytes.</p>
+<p>The source does not contain 40 readable bytes.</p>
+<p>The length is wrong for both sides.</p>
+<p>The important lesson is not the particular number 40.</p>
+<p>It is that the programmer has asserted, through the call, that both ranges are at least 40 bytes long.</p>
+<p>That assertion is false.</p>
+<hr>
+<h2>5. Too small can also be a bug</h2>
+<p>An undersized copy is less dramatic.</p>
+<p>It may not corrupt memory.</p>
+<p>But it can still violate the program&#x27;s intended behavior.</p>
+<p>Consider:</p>
+<pre><code>memcpy(dst, src, sizeof(struct message));</code></pre>
+<p>Suppose the programmer intended to copy a complete message but the actual required size includes additional variable-length data.</p>
+<p>The copy may remain entirely inside valid memory while producing an incomplete object.</p>
+<p>This can cause later code to operate on partially initialized or inconsistent state.</p>
+<p>In security-sensitive code, that can matter.</p>
+<p>A memory-safety analysis should therefore not equate &quot;wrong amount&quot; exclusively with &quot;too much.&quot;</p>
+<p>The question is:</p>
+<pre><code>Is the amount correct for the operation?</code></pre>
+<p>Too much can cause an immediate spatial violation.</p>
+<p>Too little can create an incorrect object that causes a later failure.</p>
+<hr>
+<h2>6. Size and capacity are different things</h2>
+<p>A common pattern is:</p>
+<pre><code>size_t length;
+size_t capacity;</code></pre>
+<p>where:</p>
+<pre><code>length</code></pre>
+<p>describes how much meaningful data currently exists, while:</p>
+<pre><code>capacity</code></pre>
+<p>describes how much storage is available.</p>
+<p>A copy into the buffer generally needs to respect capacity.</p>
+<p>For example:</p>
+<pre><code>memcpy(buffer, data, length);</code></pre>
+<p>may be safe if:</p>
+<pre><code>length &lt;= capacity</code></pre>
+<p>But if:</p>
+<pre><code>length &gt; capacity</code></pre>
+<p>the copy is too large for the destination.</p>
+<p>The mistake often occurs because the program has confused two different concepts:</p>
+<pre><code>how much data exists</code></pre>
+<p>and:</p>
+<pre><code>how much memory exists.</code></pre>
+<p>Those values may be equal in some states.</p>
+<p>They are not interchangeable.</p>
+<hr>
+<h2>7. Remaining capacity matters</h2>
+<p>The problem becomes more interesting when the destination is not empty.</p>
+<p>Suppose:</p>
+<pre><code>buffer</code></pre>
+<p>has capacity:</p>
+<pre><code>capacity</code></pre>
+<p>and already contains:</p>
+<pre><code>used</code></pre>
+<p>bytes.</p>
+<p>A copy beginning at:</p>
+<pre><code>buffer + used</code></pre>
+<p>cannot use the entire capacity.</p>
+<p>The available space is:</p>
+<pre><code>capacity - used</code></pre>
+<p>Therefore the relevant condition is:</p>
+<pre><code>length &lt;= capacity - used</code></pre>
+<p>not merely:</p>
+<pre><code>length &lt;= capacity</code></pre>
+<p>This is a recurring pattern in memory safety.</p>
+<p>A buffer&#x27;s total size is not necessarily the amount of space available at a particular location.</p>
+<p>The location changes the remaining range.</p>
+<p>This connects copying directly to the pointer-arithmetic and bounds reasoning from earlier chapters.</p>
+<hr>
+<h2>8. Offset plus length</h2>
+<p>Consider:</p>
+<pre><code>memcpy(buffer + offset, src, length);</code></pre>
+<p>The destination is no longer simply:</p>
+<pre><code>buffer</code></pre>
+<p>It is:</p>
+<pre><code>buffer + offset</code></pre>
+<p>The relevant range is:</p>
+<pre><code>[buffer + offset, buffer + offset + length)</code></pre>
+<p>If `buffer` has `capacity` bytes, the operation is valid only if the copied range remains within those bytes.</p>
+<p>Conceptually:</p>
+<pre><code>offset + length &lt;= capacity</code></pre>
+<p>But there is a subtle issue here.</p>
+<p>Writing the check exactly this way can itself introduce an integer-overflow problem.</p>
+<p>If:</p>
+<pre><code>offset + length</code></pre>
+<p>overflows, the result may appear smaller than `capacity`.</p>
+<p>A safer conceptual form is:</p>
+<pre><code>offset &lt;= capacity
+length &lt;= capacity - offset</code></pre>
+<p>This is a useful example of how the chapters connect.</p>
+<p>A bounds check is itself an arithmetic operation.</p>
+<p>Memory safety can therefore depend on getting the arithmetic of the check right.</p>
+<hr>
+<h2>9. The source has the same problem</h2>
+<p>The same reasoning applies to the source.</p>
+<p>Consider:</p>
+<pre><code>memcpy(dst, src + offset, length);</code></pre>
+<p>If the source contains:</p>
+<pre><code>source_size</code></pre>
+<p>bytes, the relevant condition is:</p>
+<pre><code>offset &lt;= source_size
+length &lt;= source_size - offset</code></pre>
+<p>It is not enough to establish:</p>
+<pre><code>length &lt;= source_size</code></pre>
+<p>because the copy does not begin at the start of the source.</p>
+<p>The complete source range matters.</p>
+<p>This is why a useful mental transformation is:</p>
+<pre><code>pointer + offset + length</code></pre>
+<p>into:</p>
+<pre><code>starting position
++
+amount consumed</code></pre>
+<p>The operation must remain inside the object&#x27;s boundary.</p>
+<hr>
+<h2>10. Two-dimensional bounds</h2>
+<p>With a copy involving offsets on both sides:</p>
+<pre><code>memcpy(dst + dst_offset,
+       src + src_offset,
+       length);</code></pre>
+<p>there are now two range calculations.</p>
+<p>The source requires:</p>
+<pre><code>src_offset + length &lt;= src_capacity</code></pre>
+<p>The destination requires:</p>
+<pre><code>dst_offset + length &lt;= dst_capacity</code></pre>
+<p>Neither condition implies the other.</p>
+<p>The programmer has to establish both.</p>
+<p>This is one reason memory-copy code becomes difficult to review when many derived values are involved.</p>
+<p>The number of values is small, but the relationships between them are numerous.</p>
+<hr>
+<h2>11. `sizeof` is powerful, but only when the object is right</h2>
+<p>One of the safest-looking ways to specify a copy length is:</p>
+<pre><code>memcpy(dst, src, sizeof(*src));</code></pre>
+<p>This is often preferable to manually writing a type size.</p>
+<p>But `sizeof` does not know the programmer&#x27;s intent.</p>
+<p>It tells us the size of the type or expression being measured.</p>
+<p>It does not tell us whether that is the correct amount to copy.</p>
+<p>For example:</p>
+<pre><code>struct packet {
+    size_t length;
+    char data[1];
+};</code></pre>
+<p>A copy of:</p>
+<pre><code>sizeof(struct packet)</code></pre>
+<p>does not necessarily copy the entire logical packet if `data` represents a variable-length tail.</p>
+<p>Similarly, if a pointer points to only part of a larger object, `sizeof(*p)` describes the pointed-to type, not the amount of memory that happens to be available beyond `p`.</p>
+<p>`sizeof` prevents many manual size mistakes.</p>
+<p>It does not eliminate the need to understand the object being copied.</p>
+<hr>
+<h2>12. Arrays are a common source of confusion</h2>
+<p>Suppose:</p>
+<pre><code>char src[100];</code></pre>
+<p>Then:</p>
+<pre><code>sizeof(src)</code></pre>
+<p>is 100.</p>
+<p>But if:</p>
+<pre><code>char *src;</code></pre>
+<p>then:</p>
+<pre><code>sizeof(src)</code></pre>
+<p>is the size of the pointer, not the size of the memory to which it points.</p>
+<p>This is a classic C distinction.</p>
+<p>It becomes particularly dangerous when code changes from an array to a pointer while retaining an apparently sensible `sizeof` expression.</p>
+<p>For example:</p>
+<pre><code>memcpy(dst, src, sizeof(src));</code></pre>
+<p>may copy 100 bytes in one context and only the size of a pointer in another.</p>
+<p>The expression still compiles.</p>
+<p>The resulting copy may still look reasonable during review.</p>
+<p>But the meaning has changed.</p>
+<p>The lesson is not &quot;never use `sizeof`.&quot;</p>
+<p>It is:</p>
+<pre><code>Know what object the expression actually measures.</code></pre>
+<hr>
+<h2>13. Structure copies are usually straightforward</h2>
+<p>For a complete structure object:</p>
+<pre><code>struct header src;
+struct header dst;</code></pre>
+<p>this is generally straightforward:</p>
+<pre><code>memcpy(&amp;dst, &amp;src, sizeof(dst));</code></pre>
+<p>The size corresponds to the complete object.</p>
+<p>But problems appear when a structure contains pointers.</p>
+<p>For example:</p>
+<pre><code>struct record {
+    char *name;
+    size_t length;
+};</code></pre>
+<p>A copy of the structure copies the pointer value.</p>
+<p>It does not copy the characters pointed to by `name`.</p>
+<p>Thus:</p>
+<pre><code>memcpy(&amp;dst, &amp;src, sizeof(dst));</code></pre>
+<p>produces two structures whose `name` members point to the same memory.</p>
+<p>That may be exactly what is intended.</p>
+<p>It may also be completely wrong.</p>
+<p>This is a different kind of &quot;wrong amount.&quot;</p>
+<p>The byte count may be correct for the structure itself while being wrong for the logical data represented by the structure.</p>
+<p>The distinction between an object&#x27;s representation and the resources it refers to is therefore important.</p>
+<hr>
+<h2>14. Shallow copies and deep copies</h2>
+<p>Consider:</p>
+<pre><code>struct object {
+    size_t length;
+    char *data;
+};</code></pre>
+<p>A shallow copy copies:</p>
+<pre><code>length
+data</code></pre>
+<p>It does not copy:</p>
+<pre><code>data[0] ... data[length - 1]</code></pre>
+<p>A deep copy needs a second operation:</p>
+<pre><code>new_data = malloc(length);
+memcpy(new_data, object-&gt;data, length);</code></pre>
+<p>Now the original size problem appears again.</p>
+<p>The deep copy has to calculate and allocate the right amount before copying it.</p>
+<p>This gives another chain:</p>
+<pre><code>logical length
+    -&gt;
+allocation size
+    -&gt;
+destination capacity
+    -&gt;
+copy length</code></pre>
+<p>A mistake at any stage can invalidate the next one.</p>
+<hr>
+<h2>15. The dangerous assumption: "the source is the size"</h2>
+<p>A frequent pattern is:</p>
+<pre><code>memcpy(dst, src, sizeof(*src));</code></pre>
+<p>This is safe only if the source object really is the complete object whose size is being copied.</p>
+<p>Suppose:</p>
+<pre><code>src</code></pre>
+<p>points into a larger byte buffer.</p>
+<p>The pointer may be perfectly valid.</p>
+<p>The first object may be valid.</p>
+<p>But the program still needs to know that at least:</p>
+<pre><code>sizeof(*src)</code></pre>
+<p>bytes remain available from that location.</p>
+<p>A valid pointer does not automatically imply that an arbitrary number of bytes can be read from it.</p>
+<p>The pointer establishes a location.</p>
+<p>The length establishes a range.</p>
+<p>Both matter.</p>
+<hr>
+<h2>16. Strings are copies with hidden assumptions</h2>
+<p>String functions are another form of memory-copy operation.</p>
+<p>Consider:</p>
+<pre><code>strcpy(dst, src);</code></pre>
+<p>Unlike `memcpy`, there is no explicit length.</p>
+<p>The function derives the amount from the source string&#x27;s terminator.</p>
+<p>Conceptually, it performs something like:</p>
+<pre><code>find the terminating null byte
+determine the string length
+copy the string and terminator</code></pre>
+<p>The absence of an explicit length does not remove the size problem.</p>
+<p>It merely moves the responsibility.</p>
+<p>The source must contain a valid null-terminated string.</p>
+<p>The destination must have enough space for the entire string and its terminator.</p>
+<p>If either assumption is false, the operation can access memory outside the intended ranges.</p>
+<p>The amount is still there.</p>
+<p>It is simply implicit.</p>
+<hr>
+<h2>17. `strlen` does not validate a string</h2>
+<p>Consider:</p>
+<pre><code>n = strlen(src);
+memcpy(dst, src, n + 1);</code></pre>
+<p>This may look careful.</p>
+<p>But `strlen` itself requires that `src` contain a null terminator within accessible memory.</p>
+<p>If the terminator is missing, `strlen` will continue reading until it encounters one or encounters invalid memory.</p>
+<p>The bug therefore occurred before `memcpy`.</p>
+<p>The copy length was derived from a read whose own bounds were not established.</p>
+<p>Again, the chain matters.</p>
+<hr>
+<h2>18. The terminator creates another byte</h2>
+<p>Suppose a string contains:</p>
+<pre><code>&quot;hello&quot;</code></pre>
+<p>The characters occupy five bytes:</p>
+<pre><code>h e l l o</code></pre>
+<p>A C string requires an additional byte:</p>
+<pre><code>\0</code></pre>
+<p>Therefore the storage requirement is:</p>
+<pre><code>strlen(s) + 1</code></pre>
+<p>not:</p>
+<pre><code>strlen(s)</code></pre>
+<p>This small difference is one of the most persistent sources of C memory bugs.</p>
+<p>For example:</p>
+<pre><code>char *copy = malloc(strlen(src));
+strcpy(copy, src);</code></pre>
+<p>The allocation provides space for the characters but not the terminating byte.</p>
+<p>The allocation is therefore too small for the operation that follows.</p>
+<p>The copy is where the memory corruption occurs.</p>
+<p>The allocation calculation is where the chain first became wrong.</p>
+<hr>
+<h2>19. `memmove` does not make the length safe</h2>
+<p>`memmove` handles overlapping source and destination regions.</p>
+<p>It does not validate their sizes.</p>
+<p>For example:</p>
+<pre><code>memmove(dst, src, length);</code></pre>
+<p>still requires valid source and destination ranges of the requested length.</p>
+<p>Its special property concerns overlap, not bounds.</p>
+<p>This distinction is useful because a function can solve one class of memory problem while leaving another completely untouched.</p>
+<p>The programmer still has to establish:</p>
+<pre><code>source range is valid
+destination range is valid</code></pre>
+<hr>
+<h2>20. Overlap is a separate question</h2>
+<p>Suppose:</p>
+<pre><code>src</code></pre>
+<p>and:</p>
+<pre><code>dst</code></pre>
+<p>refer to overlapping regions.</p>
+<p>For `memcpy`, overlapping source and destination regions are not permitted.</p>
+<p>`memmove` exists specifically to handle this case.</p>
+<p>Thus a memory copy has at least two kinds of correctness questions:</p>
+<pre><code>Are the ranges valid?</code></pre>
+<p>and:</p>
+<pre><code>Are the ranges allowed to overlap for this operation?</code></pre>
+<p>These should not be confused.</p>
+<p>A copy can have the correct size and still be invalid because of overlap.</p>
+<p>Conversely, a non-overlapping copy can still be invalid because its length is too large.</p>
+<hr>
+<h2>21. Partial copies and stale data</h2>
+<p>A copy that is too small can create a less obvious security problem.</p>
+<p>Suppose a structure contains:</p>
+<pre><code>length
+data</code></pre>
+<p>and code intends to replace the entire object.</p>
+<p>If only part of the object is copied, old contents may remain.</p>
+<p>This can lead to:</p>
+<pre><code>stale pointers
+stale lengths
+stale flags
+stale credentials
+stale metadata</code></pre>
+<p>The memory operation itself may remain within bounds.</p>
+<p>The problem is that the program&#x27;s logical object is now inconsistent with the bytes actually written.</p>
+<p>This matters particularly when partially initialized objects are later trusted.</p>
+<p>Memory safety is not only about crossing a physical boundary.</p>
+<p>The logical boundary of an object matters too.</p>
+<hr>
+<h2>22. Copying structured input</h2>
+<p>Network protocols and file formats often contain a length followed by variable-sized data.</p>
+<p>For example:</p>
+<pre><code>struct message {
+    uint32_t length;
+    unsigned char data[];
+};</code></pre>
+<p>A parser may receive a buffer and want to construct a message object.</p>
+<p>The conceptual operation is:</p>
+<pre><code>header size
+    +
+data length
+    -&gt;
+allocation size
+    -&gt;
+copy header
+    -&gt;
+copy data</code></pre>
+<p>The danger is obvious once the chain is written down.</p>
+<p>If the input length is incorrect, then:</p>
+<pre><code>the allocation may be wrong</code></pre>
+<p>or:</p>
+<pre><code>the copy length may be wrong</code></pre>
+<p>or:</p>
+<pre><code>the source range may be wrong</code></pre>
+<p>or:</p>
+<pre><code>all three.</code></pre>
+<p>The copy is therefore not an isolated operation.</p>
+<p>It is one step in interpreting untrusted data as memory layout.</p>
+<hr>
+<h2>23. Trusting the source's length</h2>
+<p>Suppose a structure says:</p>
+<pre><code>length = 1000</code></pre>
+<p>and the program receives a buffer containing only 100 bytes.</p>
+<p>If code performs:</p>
+<pre><code>memcpy(dst, src-&gt;data, src-&gt;length);</code></pre>
+<p>the length field is being treated as a statement about the actual source memory.</p>
+<p>But a value stored in memory does not make that much memory exist.</p>
+<p>The program needs an independent fact establishing the available input size.</p>
+<p>This distinction is fundamental:</p>
+<pre><code>declared length</code></pre>
+<p>versus:</p>
+<pre><code>available length.</code></pre>
+<p>A length field is metadata.</p>
+<p>It is not evidence by itself.</p>
+<hr>
+<h2>24. The destination has the same issue</h2>
+<p>Suppose:</p>
+<pre><code>dst-&gt;capacity = 1000;</code></pre>
+<p>but the actual allocation contains only 100 bytes.</p>
+<p>Then:</p>
+<pre><code>memcpy(dst-&gt;data, src, dst-&gt;capacity);</code></pre>
+<p>is not made safe by the metadata.</p>
+<p>The program&#x27;s internal description of an object can diverge from the actual allocation.</p>
+<p>Once that happens, later operations can faithfully follow the wrong description.</p>
+<p>This is one of the most dangerous aspects of memory corruption: corrupted metadata can become the source of subsequent memory errors.</p>
+<hr>
+<h2>25. Copy loops are just manual `memcpy`</h2>
+<p>Not every copy uses a library function.</p>
+<p>Consider:</p>
+<pre><code>for (i = 0; i &lt; length; ++i)
+    dst[i] = src[i];</code></pre>
+<p>This is conceptually the same range operation.</p>
+<p>The source range is:</p>
+<pre><code>[src, src + length)</code></pre>
+<p>The destination range is:</p>
+<pre><code>[dst, dst + length)</code></pre>
+<p>The same questions apply.</p>
+<p>In fact, manual loops introduce additional opportunities for mistakes:</p>
+<pre><code>wrong initial index
+wrong termination condition
+wrong increment
+off-by-one
+signed/unsigned comparison
+incorrect element size</code></pre>
+<p>The absence of `memcpy` does not make the operation conceptually different.</p>
+<hr>
+<h2>26. Element counts versus byte counts</h2>
+<p>One particularly important distinction is:</p>
+<pre><code>number of elements</code></pre>
+<p>versus:</p>
+<pre><code>number of bytes.</code></pre>
+<p>Suppose:</p>
+<pre><code>int src[100];
+int dst[100];</code></pre>
+<p>Then:</p>
+<pre><code>memcpy(dst, src, 100);</code></pre>
+<p>copies 100 bytes.</p>
+<p>It does not copy 100 integers.</p>
+<p>To copy all 100 integers, the length must be:</p>
+<pre><code>100 * sizeof(src[0])</code></pre>
+<p>This seems elementary.</p>
+<p>The interesting cases are where the value has already been transformed.</p>
+<p>For example:</p>
+<pre><code>count = number of records</code></pre>
+<p>then:</p>
+<pre><code>bytes = count * record_size</code></pre>
+<p>then:</p>
+<pre><code>memcpy(dst, src, bytes);</code></pre>
+<p>Each stage must preserve the intended unit.</p>
+<p>A value called `size` is not enough information.</p>
+<p>We need to know:</p>
+<pre><code>size of what?</code></pre>
+<hr>
+<h2>27. Multiplication can make the copy dangerous</h2>
+<p>Suppose:</p>
+<pre><code>bytes = count * element_size;</code></pre>
+<p>The result is intended to describe the copy length.</p>
+<p>If the multiplication overflows, `bytes` may become smaller than intended.</p>
+<p>That can have two very different consequences.</p>
+<p>If the allocation also uses the same incorrect `bytes`, the allocation and copy may agree with each other while both disagree with the intended object size.</p>
+<p>If the allocation uses a checked calculation but the copy uses an unchecked calculation, the destination may be large enough while the copy length is wrong.</p>
+<p>If the copy length is computed differently from the allocation size, the two operations can disagree about the size of the object.</p>
+<p>The most dangerous bugs are often not isolated arithmetic errors.</p>
+<p>They are inconsistencies between calculations that are supposed to describe the same memory.</p>
+<hr>
+<h2>28. The allocation and copy must agree</h2>
+<p>Suppose:</p>
+<pre><code>size = calculate_size(count);
+p = malloc(size);</code></pre>
+<p>Later:</p>
+<pre><code>n = calculate_copy_size(count);
+memcpy(p, src, n);</code></pre>
+<p>There are now two calculations describing related quantities.</p>
+<p>The program needs:</p>
+<pre><code>n &lt;= size</code></pre>
+<p>and, depending on the intended object:</p>
+<pre><code>n == the amount of data that should be copied</code></pre>
+<p>If the calculations use different rules, types, or overflow behavior, they can disagree.</p>
+<p>This is a powerful review technique:</p>
+<p>&gt; Find every place where the program calculates the size of the same logical object, and compare the calculations.</p>
+<p>Duplicated size calculations are opportunities for divergence.</p>
+<hr>
+<h2>29. Prefer one authoritative size</h2>
+<p>A safer design often looks like:</p>
+<pre><code>size = calculate_size(...);
+
+p = malloc(size);
+
+...
+
+memcpy(p, src, size);</code></pre>
+<p>The exact design will vary, but the principle is useful:</p>
+<pre><code>calculate a size once,
+validate it,
+and preserve its meaning.</code></pre>
+<p>Every time the same size is recalculated, the program creates another opportunity for the calculations to disagree.</p>
+<p>This is not merely a style preference.</p>
+<p>It reduces the number of relationships that have to remain true.</p>
+<hr>
+<h2>30. The danger of changing units halfway through</h2>
+<p>Suppose:</p>
+<pre><code>count</code></pre>
+<p>is measured in elements.</p>
+<p>Then:</p>
+<pre><code>bytes = count * sizeof(*src);</code></pre>
+<p>Now `bytes` is measured in bytes.</p>
+<p>If code later does:</p>
+<pre><code>offset += bytes;</code></pre>
+<p>that may be correct if `offset` is also a byte offset.</p>
+<p>But if `offset` is an element index, the calculation silently mixes units.</p>
+<p>The compiler may not help.</p>
+<p>Both values may have type `size_t`.</p>
+<p>The program therefore needs to preserve semantic information that the type system does not express.</p>
+<p>This is one reason memory bugs often survive ordinary compiler warnings.</p>
+<hr>
+<h2>31. A useful review pattern</h2>
+<p>When reviewing a copy, write down four things:</p>
+<pre><code>source object
+source available range
+destination object
+destination available range</code></pre>
+<p>Then identify:</p>
+<pre><code>copy length</code></pre>
+<p>For example:</p>
+<pre><code>source:
+    packet
+    available = packet_size
+
+destination:
+    buffer
+    capacity = buffer_capacity - offset
+
+copy:
+    length = payload_length</code></pre>
+<p>The central questions become:</p>
+<pre><code>payload_length &lt;= packet_size</code></pre>
+<p>and:</p>
+<pre><code>payload_length &lt;= buffer_capacity - offset</code></pre>
+<p>This simple transformation often exposes problems that are hard to see in the original code.</p>
+<hr>
+<h2>32. Do not confuse validation with trust</h2>
+<p>Consider:</p>
+<pre><code>if (length &lt;= MAX)
+    memcpy(dst, src, length);</code></pre>
+<p>The check establishes only:</p>
+<pre><code>length &lt;= MAX</code></pre>
+<p>It does not establish:</p>
+<pre><code>length &lt;= source_available</code></pre>
+<p>or:</p>
+<pre><code>length &lt;= destination_available</code></pre>
+<p>The constant may be useful.</p>
+<p>It is simply not the same property.</p>
+<p>A maximum input size can reduce risk without proving that a particular memory operation is safe.</p>
+<p>The question is always:</p>
+<pre><code>Safe relative to what boundary?</code></pre>
+<hr>
+<h2>33. Validation order matters</h2>
+<p>Suppose a program receives:</p>
+<pre><code>count</code></pre>
+<p>and wants to allocate:</p>
+<pre><code>count * sizeof(*items)</code></pre>
+<p>A robust sequence conceptually looks like:</p>
+<pre><code>validate count
+    -&gt;
+validate multiplication
+    -&gt;
+calculate allocation size
+    -&gt;
+allocate
+    -&gt;
+establish destination capacity
+    -&gt;
+validate copy length
+    -&gt;
+copy</code></pre>
+<p>The exact implementation will depend on the application.</p>
+<p>The important idea is that later operations should depend only on facts already established.</p>
+<p>If code copies first and validates afterward, the validation is irrelevant to that copy.</p>
+<hr>
+<h2>34. A copy can expose an earlier bug</h2>
+<p>Suppose:</p>
+<pre><code>size = count * sizeof(*item);
+
+buffer = malloc(size);
+
+...
+
+memcpy(buffer, input, count * sizeof(*item));</code></pre>
+<p>If the multiplication in the allocation wraps, the allocation may be too small.</p>
+<p>The copy repeats the same arithmetic and may produce the same wrapped value.</p>
+<p>In that case, the copy might not immediately exceed the allocation.</p>
+<p>That can be misleading.</p>
+<p>The program may still have created an object smaller than intended.</p>
+<p>Later code may use the logical `count` and access elements that were never allocated.</p>
+<p>The first incorrect operation was the allocation calculation.</p>
+<p>The eventual memory corruption may occur somewhere else.</p>
+<p>This is why a memory-safe copy cannot be analyzed entirely independently of the code that created its ranges.</p>
+<hr>
+<h2>35. A copy can also be the first visible failure</h2>
+<p>The reverse can happen.</p>
+<p>Suppose the allocation is correct:</p>
+<pre><code>buffer = malloc(capacity);</code></pre>
+<p>but a later calculation produces:</p>
+<pre><code>length &gt; capacity;</code></pre>
+<p>The allocation itself is fine.</p>
+<p>The copy is the first operation that violates the boundary.</p>
+<p>In this case the copy really is where the spatial memory error begins.</p>
+<p>The same surface symptom can therefore have different roots.</p>
+<p>That is why the chain has to be reconstructed rather than assumed.</p>
+<hr>
+<h2>36. `memcpy` does not know your object model</h2>
+<p>The function sees:</p>
+<pre><code>destination
+source
+length</code></pre>
+<p>It does not know:</p>
+<pre><code>this is a packet</code></pre>
+<p>or:</p>
+<pre><code>this is an array of records</code></pre>
+<p>or:</p>
+<pre><code>this is a string</code></pre>
+<p>or:</p>
+<pre><code>this is the last field in a structure</code></pre>
+<p>or:</p>
+<pre><code>these 200 bytes are supposed to represent 10 objects.</code></pre>
+<p>The programmer supplies that meaning through the length.</p>
+<p>This is a general property of low-level interfaces.</p>
+<p>The closer an API is to raw memory, the more of the correctness argument remains outside the API.</p>
+<hr>
+<h2>37. The destination's physical size wins</h2>
+<p>Suppose the program has:</p>
+<pre><code>logical_size = 4096;</code></pre>
+<p>but:</p>
+<pre><code>allocated_size = 1024;</code></pre>
+<p>The program cannot safely copy 4096 bytes simply because its metadata says that the object is 4096 bytes long.</p>
+<p>The physical allocation establishes what memory exists.</p>
+<p>Logical metadata can describe intended contents.</p>
+<p>It cannot create storage.</p>
+<p>This is one of the most important rules in memory-safety analysis:</p>
+<p>&gt; A size stored in a variable is not the same thing as the amount of memory that actually exists.</p>
+<p>The relationship between the two has to be established.</p>
+<hr>
+<h2>38. The source's physical availability wins too</h2>
+<p>The same principle applies to input.</p>
+<p>Suppose:</p>
+<pre><code>input_length = 4096;</code></pre>
+<p>but only:</p>
+<pre><code>1024</code></pre>
+<p>bytes have actually been received.</p>
+<p>Then:</p>
+<pre><code>memcpy(dst, input, input_length);</code></pre>
+<p>does not become valid because the protocol says the message should contain 4096 bytes.</p>
+<p>The program has to establish how much input is actually available before treating the declared length as a readable range.</p>
+<p>This distinction is especially important in parsers.</p>
+<hr>
+<h2>39. Copying is where abstract sizes become physical effects</h2>
+<p>An incorrect size calculation is initially just a number.</p>
+<p>An incorrect allocation turns that number into an object boundary.</p>
+<p>An incorrect pointer calculation turns it into a location.</p>
+<p>A copy turns the resulting assumptions into actual reads and writes.</p>
+<p>That is why copying is such an important stage in the chain.</p>
+<p>It is the point where the program says:</p>
+<pre><code>&quot;Take these bytes from here and put them there.&quot;</code></pre>
+<p>If the ranges are wrong, the machine performs the operation anyway.</p>
+<p>C does not generally insert a runtime boundary check around the operation.</p>
+<p>The correctness has to come from the program.</p>
+<hr>
+<h2>40. A compact mental model</h2>
+<p>When you encounter:</p>
+<pre><code>memcpy(dst, src, length);</code></pre>
+<p>translate it mentally into:</p>
+<pre><code>read:
+    length bytes
+    starting at src
+
+write:
+    length bytes
+    starting at dst</code></pre>
+<p>Then ask:</p>
+<pre><code>Where did src come from?
+
+Where did dst come from?
+
+Where did length come from?
+
+How much readable memory exists at src?
+
+How much writable memory exists at dst?
+
+Are the ranges allowed to overlap?
+
+Does length have the correct unit?
+
+Can any calculation producing it overflow or truncate?</code></pre>
+<p>Those questions are usually more useful than asking whether `memcpy` itself is &quot;safe.&quot;</p>
+<hr>
+<h2>41. A practical example</h2>
+<p>Consider:</p>
+<pre><code>struct item {
+    uint32_t id;
+    uint32_t value;
+};
+
+void copy_items(struct item *dst,
+                size_t dst_count,
+                const struct item *src,
+                size_t src_count,
+                size_t count)
+{
+    if (count &gt; src_count)
+        return;
+
+    memcpy(dst, src, count * sizeof(*src));
+}</code></pre>
+<p>At first glance, the code checks the source.</p>
+<p>But what about the destination?</p>
+<p>There is no check that:</p>
+<pre><code>count &lt;= dst_count</code></pre>
+<p>So the function can read a valid number of items from `src` and still write beyond `dst`.</p>
+<p>The source-side invariant has been established.</p>
+<p>The destination-side invariant has not.</p>
+<p>This is a good example of why every copy has two independent bounds.</p>
+<hr>
+<h2>42. Improving the example</h2>
+<p>Conceptually, the function needs both:</p>
+<pre><code>count &lt;= src_count</code></pre>
+<p>and:</p>
+<pre><code>count &lt;= dst_count</code></pre>
+<p>Then the multiplication needs to produce the intended byte count.</p>
+<p>If `count` is a `size_t` and `sizeof(*src)` is also converted appropriately, the multiplication still needs to be considered as part of the calculation.</p>
+<p>The important point is not the exact defensive coding pattern.</p>
+<p>It is the structure of the proof:</p>
+<pre><code>number of elements
+    -&gt;
+number of bytes
+    -&gt;
+source range
+    -&gt;
+destination range</code></pre>
+<p>Every arrow represents an assumption.</p>
+<hr>
+<h2>43. What to look for in real code</h2>
+<p>When reviewing code that copies memory, look especially closely at:</p>
+<pre><code>memcpy
+memmove
+memset
+strcpy
+strncpy
+strcat
+strncat
+sprintf
+snprintf
+manual copy loops</code></pre>
+<p>Also look for wrappers.</p>
+<p>A function such as:</p>
+<pre><code>copy_packet(dst, packet);</code></pre>
+<p>may eventually call:</p>
+<pre><code>memcpy</code></pre>
+<p>with a size derived several layers above.</p>
+<p>Do not stop at the library call.</p>
+<p>Trace the length back to its origin.</p>
+<p>Then trace the destination back to its allocation.</p>
+<p>Then establish the source&#x27;s actual available range.</p>
+<p>The important information is often several functions away from the copy itself.</p>
+<hr>
+<h2>44. The central lesson</h2>
+<p>A memory copy is not:</p>
+<pre><code>pointer A -&gt; pointer B</code></pre>
+<p>It is:</p>
+<pre><code>range A -&gt; range B</code></pre>
+<p>The range has a location and a size.</p>
+<p>Both matter.</p>
+<p>And the size is rarely an isolated constant.</p>
+<p>It is usually the final result of a chain:</p>
+<pre><code>input
+  -&gt;
+count
+  -&gt;
+arithmetic
+  -&gt;
+size
+  -&gt;
+allocation or bound
+  -&gt;
+pointer
+  -&gt;
+copy</code></pre>
+<p>If the chain produces the wrong amount, the copy may expose the mistake.</p>
+<p>If the chain produces the wrong location, the copy may expose that instead.</p>
+<p>If the copy is too small, it may leave the program with an incomplete or inconsistent object.</p>
+<p>If the source or destination has already become invalid, the copy may merely be the first operation to touch the invalid range.</p>
+<p>The useful question is therefore not:</p>
+<pre><code>&quot;Is memcpy dangerous?&quot;</code></pre>
+<p>It is:</p>
+<pre><code>&quot;What exact ranges does this operation read and write,
+ and why does the program believe those ranges are valid?&quot;</code></pre>
+<p>That question takes us directly to the next stage of the chain:</p>
+<pre><code>bounds.</code></pre>
+<p>Once we know how much memory an operation intends to use, we have to establish where the boundaries of that memory actually are.</p>
+
+    <div class="book-navigation">
+        <a href="chapter_4_from_bug_to_vulnerability.html" class="nav-btn">&larr; Previous</a> <span class="nav-info">7 of 13</span> <a href="chapter_6_reading_the_wrong_amount.html" class="nav-btn">Next &rarr;</a>
+    </div>
+    
+</body>
+</html>

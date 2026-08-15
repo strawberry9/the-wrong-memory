@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chapter 3 Pointer Arithmetic And Bounds</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #d1d5db; /* Soft light gray text */
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 0 20px;
+            background-color: #1f2937; /* Dark charcoal/slate background */
+        }
+        h1, h2 {
+            color: #f3f4f6; /* Bright white-gray for headers */
+            border-bottom: 1px solid #374151;
+            padding-bottom: 0.3em;
+        }
+        pre {
+            background-color: #111827; /* Darker background for code blocks */
+            border: 1px solid #374151;
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+            font-size: 85%;
+            line-height: 1.45;
+            color: #e5e7eb;
+        }
+        code {
+            font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+        }
+        hr {
+            border: 0;
+            height: 1px;
+            background: #374151;
+            margin: 40px 0;
+        }
+        p {
+            margin-bottom: 16px;
+        }
+    </style>
+
+    <style>
+        .book-navigation {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #374151;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        .nav-btn {
+            background-color: #374151;
+            color: #f3f4f6;
+            padding: 8px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        .nav-btn:hover {
+            background-color: #4b5563;
+        }
+        .nav-info {
+            color: #9ca3af;
+            font-size: 14px;
+        }
+    </style>
+    
+</head>
+<body>
+<p> PART I</p>
+<h1>Chapter 3 - Pointer Arithmetic and Bounds</h1>
+<h1>Worked Exercises: Finding the First Broken Invariant</h1>
+<p>The previous chapters established a model:</p>
+<pre><code>integer arithmetic
+    -&gt;
+allocation size
+    -&gt;
+pointer arithmetic
+    -&gt;
+bounds
+    -&gt;
+memory corruption</code></pre>
+<p>This chapter puts that model into practice.</p>
+<p>Each exercise presents a small piece of C code. The examples are intentionally realistic rather than artificially minimal. In several cases, the final memory error is not caused directly by the first mistake.</p>
+<p>For each example, try to answer four questions before reading the solution:</p>
+<pre><code>1. What value controls the memory access?
+2. Where did that value come from?
+3. What invariant is supposed to hold?
+4. Where is that invariant first broken?</code></pre>
+<p>The fourth question is the most important.</p>
+<p>The first broken invariant is often several operations before the eventual invalid memory access.</p>
+<hr>
+<h2>Exercise 1: The obvious multiplication</h2>
+<p>Consider:</p>
+<pre><code>struct item {
+    uint32_t type;
+    uint32_t value;
+};
+
+struct item *make_items(size_t count)
+{
+    struct item *items;
+
+    items = malloc(count * sizeof(*items));
+    if (items == NULL)
+        return NULL;
+
+    for (size_t i = 0; i &lt; count; ++i)
+        initialize_item(&amp;items[i]);
+
+    return items;
+}</code></pre>
+<p>### Questions</p>
+<p>1. What arithmetic operation deserves attention?<br>
+2. What invariant must hold before `malloc`?<br>
+3. Can the loop itself be correctly written while the function is still unsafe?<br>
+4. Where should the defensive check occur?</p>
+<p>### Solution</p>
+<p>The multiplication is:</p>
+<pre><code>count * sizeof(*items)</code></pre>
+<p>The required invariant is:</p>
+<pre><code>count * sizeof(*items) &lt;= SIZE_MAX</code></pre>
+<p>If this multiplication overflows, `malloc` receives an allocation smaller than the number of objects subsequently addressed by the loop.</p>
+<p>The loop can therefore be perfectly correct:</p>
+<pre><code>i &lt; count</code></pre>
+<p>while the allocation is incorrect.</p>
+<p>A suitable check is:</p>
+<pre><code>if (count &gt; SIZE_MAX / sizeof(*items))
+    return NULL;
+
+items = malloc(count * sizeof(*items));</code></pre>
+<p>The important lesson is that the loop bound does not prove the allocation is large enough.</p>
+<p>The chain is:</p>
+<pre><code>count
+    -&gt;
+overflowing multiplication
+    -&gt;
+undersized allocation
+    -&gt;
+valid-looking items pointer
+    -&gt;
+correct-looking loop
+    -&gt;
+out-of-bounds access</code></pre>
+<p>The first broken invariant is the allocation-size calculation.</p>
+<hr>
+<h1>Exercise 2: A check that proves the wrong thing</h1>
+<p>Consider:</p>
+<pre><code>#define MAX_ITEMS 1000000
+
+struct item *make_items(size_t count)
+{
+    struct item *items;
+
+    if (count &gt; MAX_ITEMS)
+        return NULL;
+
+    items = malloc(count * sizeof(*items));
+    if (items == NULL)
+        return NULL;
+
+    return items;
+}</code></pre>
+<p>### Questions</p>
+<p>1. What does the check actually prove?<br>
+2. Does it prove that the multiplication is safe?<br>
+3. How would you review this code without knowing the size of `struct item`?<br>
+4. What is the stronger form of the check?</p>
+<p>### Solution</p>
+<p>The check proves only:</p>
+<pre><code>count &lt;= MAX_ITEMS</code></pre>
+<p>It does not directly prove:</p>
+<pre><code>count * sizeof(*items) &lt;= SIZE_MAX</code></pre>
+<p>Whether the multiplication is safe depends on the relationship between `MAX_ITEMS` and `sizeof(*items)`.</p>
+<p>A fixed item-count limit can be perfectly reasonable as a policy constraint, but it should not be confused with an arithmetic overflow check.</p>
+<p>The stronger check is:</p>
+<pre><code>if (count &gt; SIZE_MAX / sizeof(*items))
+    return NULL;</code></pre>
+<p>If both a policy limit and an arithmetic limit are required, both can be checked:</p>
+<pre><code>if (count &gt; MAX_ITEMS)
+    return NULL;
+
+if (count &gt; SIZE_MAX / sizeof(*items))
+    return NULL;</code></pre>
+<p>The first broken assumption in the original code is that limiting the number of elements necessarily limits the resulting byte count sufficiently.</p>
+<hr>
+<h1>Exercise 3: The endpoint check</h1>
+<p>Consider:</p>
+<pre><code>int append_data(unsigned char *buffer,
+                size_t capacity,
+                size_t offset,
+                const unsigned char *data,
+                size_t length)
+{
+    if (offset &gt; capacity)
+        return -1;
+
+    memcpy(buffer + offset, data, length);
+    return 0;
+}</code></pre>
+<p>### Questions</p>
+<p>1. What does the check prove?<br>
+2. What property does `memcpy` actually require?<br>
+3. Can `buffer + offset` be valid while the copy is invalid?<br>
+4. Rewrite the validation.</p>
+<p>### Solution</p>
+<p>The check establishes:</p>
+<pre><code>offset &lt;= capacity</code></pre>
+<p>It does not establish:</p>
+<pre><code>offset + length &lt;= capacity</code></pre>
+<p>The starting address may be inside the buffer while the copied range extends beyond it.</p>
+<p>A safer formulation is:</p>
+<pre><code>if (offset &gt; capacity)
+    return -1;
+
+if (length &gt; capacity - offset)
+    return -1;
+
+memcpy(buffer + offset, data, length);</code></pre>
+<p>The subtraction is performed only after proving that `offset &lt;= capacity`.</p>
+<p>The intended invariant is:</p>
+<pre><code>offset + length &lt;= capacity</code></pre>
+<p>but the code should avoid evaluating the addition when it could overflow.</p>
+<p>The first broken invariant is not the pointer calculation. It is the missing relationship between the starting offset and the length of the operation.</p>
+<hr>
+<h1>Exercise 4: Two arithmetic operations</h1>
+<p>Consider:</p>
+<pre><code>void *allocate_buffer(size_t count,
+                      size_t element_size,
+                      size_t header_size)
+{
+    size_t total;
+
+    total = header_size + count * element_size;
+
+    return malloc(total);
+}</code></pre>
+<p>### Questions</p>
+<p>1. How many independent arithmetic operations can overflow?<br>
+2. Is checking only the multiplication sufficient?<br>
+3. Is checking only the addition sufficient?<br>
+4. What order should the checks take?</p>
+<p>### Solution</p>
+<p>There are two operations:</p>
+<pre><code>count * element_size</code></pre>
+<p>and:</p>
+<pre><code>header_size + result</code></pre>
+<p>Both must be safe.</p>
+<p>First establish:</p>
+<pre><code>count &lt;= SIZE_MAX / element_size</code></pre>
+<p>assuming `element_size` is nonzero.</p>
+<p>Then calculate the product.</p>
+<p>Next establish:</p>
+<pre><code>product &lt;= SIZE_MAX - header_size</code></pre>
+<p>Only then calculate:</p>
+<pre><code>total = header_size + product;</code></pre>
+<p>Conceptually:</p>
+<pre><code>if (element_size != 0 &amp;&amp;
+    count &gt; SIZE_MAX / element_size)
+    return NULL;
+
+product = count * element_size;
+
+if (product &gt; SIZE_MAX - header_size)
+    return NULL;
+
+total = header_size + product;</code></pre>
+<p>The important lesson is that a size expression must be analyzed operation by operation.</p>
+<p>This:</p>
+<pre><code>header + count * element_size</code></pre>
+<p>is not one arithmetic operation. It contains a multiplication followed by an addition.</p>
+<hr>
+<h1>Exercise 5: The negative length</h1>
+<p>Consider:</p>
+<pre><code>int process(char *buffer, int length)
+{
+    if (length &gt; 1024)
+        return -1;
+
+    memcpy(buffer, input, length);
+    return 0;
+}</code></pre>
+<p>### Questions</p>
+<p>1. What values pass the check?<br>
+2. What happens to a negative `length` when passed to `memcpy`?<br>
+3. What is wrong with treating `length &lt;= 1024` as sufficient validation?<br>
+4. What should the function establish?</p>
+<p>### Solution</p>
+<p>The check rejects values greater than 1024.</p>
+<p>It does not reject negative values.</p>
+<p>The effective condition is therefore:</p>
+<pre><code>length &lt;= 1024</code></pre>
+<p>rather than:</p>
+<pre><code>0 &lt;= length &lt;= 1024</code></pre>
+<p>`memcpy` takes a `size_t` length. A negative `int` is converted to `size_t`.</p>
+<p>Thus a value such as:</p>
+<pre><code>-1</code></pre>
+<p>can become a very large unsigned value.</p>
+<p>The function should establish that the length is both nonnegative and within the destination&#x27;s capacity.</p>
+<p>For example:</p>
+<pre><code>if (length &lt; 0 || length &gt; 1024)
+    return -1;
+
+memcpy(buffer, input, (size_t)length);</code></pre>
+<p>The deeper lesson is to consider the value at the point where it is consumed, not merely at the point where it was received.</p>
+<hr>
+<h1>Exercise 6: The parser with a trusted-looking count</h1>
+<p>Consider:</p>
+<pre><code>struct file_header {
+    uint32_t count;
+};
+
+int load(const unsigned char *data, size_t data_size)
+{
+    const struct file_header *header;
+    struct item *items;
+    size_t count;
+
+    if (data_size &lt; sizeof(*header))
+        return -1;
+
+    header = (const struct file_header *)data;
+    count = header-&gt;count;
+
+    items = malloc(count * sizeof(*items));
+    if (items == NULL)
+        return -1;
+
+    for (size_t i = 0; i &lt; count; ++i)
+        parse_item(data, data_size, &amp;items[i]);
+
+    free(items);
+    return 0;
+}</code></pre>
+<p>### Questions</p>
+<p>There are at least two independent bounds problems here.</p>
+<p>Identify them.</p>
+<p>### Solution</p>
+<p>The first is the allocation calculation:</p>
+<pre><code>count * sizeof(*items)</code></pre>
+<p>The value came from external data and may overflow `size_t`.</p>
+<p>The second is the input-side bound.</p>
+<p>Even if the allocation is safe, nothing shown establishes that the input contains enough data for:</p>
+<pre><code>count</code></pre>
+<p>items.</p>
+<p>The program has two separate objects whose bounds must be established:</p>
+<pre><code>output allocation
+    -&gt;
+enough space for count items</code></pre>
+<p>and:</p>
+<pre><code>input buffer
+    -&gt;
+enough encoded data for count items</code></pre>
+<p>A common mistake is to notice the output allocation and forget that parsing also consumes input.</p>
+<p>The chain therefore splits:</p>
+<pre><code>external count
+    |
+    +--&gt; allocation size --&gt; output bounds
+    |
+    +--&gt; required input --&gt; input bounds</code></pre>
+<p>Both branches must be safe.</p>
+<hr>
+<h1>Exercise 7: The nested size calculation</h1>
+<p>Consider:</p>
+<pre><code>int read_image(const unsigned char *data,
+               size_t data_size,
+               uint32_t width,
+               uint32_t height,
+               uint32_t channels)
+{
+    size_t pixels;
+    size_t bytes;
+    unsigned char *image;
+
+    pixels = width * height;
+    bytes = pixels * channels;
+
+    image = malloc(bytes);
+    if (image == NULL)
+        return -1;
+
+    memcpy(image, data, bytes);
+
+    free(image);
+    return 0;
+}</code></pre>
+<p>### Questions</p>
+<p>1. How many arithmetic stages are present?<br>
+2. Which checks are required?<br>
+3. Does the fact that `width`, `height`, and `channels` are 32-bit make the calculation safe?<br>
+4. What additional input-side condition is missing?</p>
+<p>### Solution</p>
+<p>There are two multiplications:</p>
+<pre><code>width * height</code></pre>
+<p>and:</p>
+<pre><code>pixels * channels</code></pre>
+<p>Each must be checked.</p>
+<p>The fact that the inputs are 32-bit does not make the result fit in `size_t` on every possible implementation, and even on implementations where it does, the intermediate and final values still need to be considered explicitly.</p>
+<p>The intended allocation invariant is:</p>
+<pre><code>width * height * channels &lt;= SIZE_MAX</code></pre>
+<p>but the calculation should be performed in checked stages.</p>
+<p>There is also an input-side requirement:</p>
+<pre><code>data_size &gt;= bytes</code></pre>
+<p>The allocation being large enough says nothing about whether `data` contains `bytes` readable bytes.</p>
+<p>The complete reasoning is:</p>
+<pre><code>dimensions
+    -&gt;
+pixel count
+    -&gt;
+byte count
+    -&gt;
+allocation
+    -&gt;
+destination bounds</code></pre>
+<p>and independently:</p>
+<pre><code>dimensions
+    -&gt;
+byte count
+    -&gt;
+source bounds</code></pre>
+<hr>
+<h1>Exercise 8: The apparently safe `realloc`</h1>
+<p>Consider:</p>
+<pre><code>int grow(struct item **items,
+         size_t count,
+         size_t additional)
+{
+    count += additional;
+
+    *items = realloc(*items,
+                     count * sizeof(**items));
+
+    if (*items == NULL)
+        return -1;
+
+    return 0;
+}</code></pre>
+<p>### Questions</p>
+<p>Identify every distinct issue you would investigate.</p>
+<p>### Solution</p>
+<p>There are at least three.</p>
+<p>First:</p>
+<pre><code>count += additional;</code></pre>
+<p>can overflow.</p>
+<p>The required condition is:</p>
+<pre><code>count &lt;= SIZE_MAX - additional</code></pre>
+<p>before performing the addition.</p>
+<p>Second:</p>
+<pre><code>count * sizeof(**items)</code></pre>
+<p>can overflow.</p>
+<p>That multiplication needs its own check.</p>
+<p>Third, the original pointer is overwritten before checking whether `realloc` succeeded.</p>
+<p>If `realloc` fails, the original allocation remains allocated, but:</p>
+<pre><code>*items</code></pre>
+<p>has been assigned `NULL`.</p>
+<p>The caller has lost the pointer to the original allocation.</p>
+<p>A safer structure is conceptually:</p>
+<pre><code>if (additional &gt; SIZE_MAX - count)
+    return -1;
+
+new_count = count + additional;
+
+if (new_count &gt; SIZE_MAX / sizeof(**items))
+    return -1;
+
+tmp = realloc(*items, new_count * sizeof(**items));
+
+if (tmp == NULL)
+    return -1;
+
+*items = tmp;</code></pre>
+<p>The important lesson is that a single line can contain multiple independent safety properties.</p>
+<p>The review should not stop after finding one.</p>
+<hr>
+<h1>Exercise 9: Derived pointers and `realloc`</h1>
+<p>Consider:</p>
+<pre><code>struct buffer {
+    unsigned char *data;
+    size_t size;
+};
+
+int extend(struct buffer *b, size_t extra)
+{
+    unsigned char *cursor;
+    unsigned char *tmp;
+
+    cursor = b-&gt;data + b-&gt;size;
+
+    tmp = realloc(b-&gt;data, b-&gt;size + extra);
+    if (tmp == NULL)
+        return -1;
+
+    b-&gt;data = tmp;
+    b-&gt;size += extra;
+
+    *cursor = 0;
+    return 0;
+}</code></pre>
+<p>### Questions</p>
+<p>1. Is `cursor` necessarily valid after `realloc`?<br>
+2. What arithmetic must be checked?<br>
+3. What additional issue exists even if `realloc` happens to return the same address?<br>
+4. What invariant is the code trying to maintain?</p>
+<p>### Solution</p>
+<p>`cursor` is derived from the old allocation.</p>
+<p>A successful `realloc` may move the allocation.</p>
+<p>If it moves, `cursor` becomes invalid.</p>
+<p>Therefore:</p>
+<pre><code>cursor = b-&gt;data + b-&gt;size;</code></pre>
+<p>must not be used after a successful `realloc`.</p>
+<p>There is also an arithmetic issue:</p>
+<pre><code>b-&gt;size + extra</code></pre>
+<p>must not overflow.</p>
+<p>Even if `realloc` returns the same address, the code still needs to ensure that writing:</p>
+<pre><code>*cursor = 0;</code></pre>
+<p>is within the newly allocated object.</p>
+<p>The intended model appears to be:</p>
+<pre><code>b-&gt;data
+    |
+    +---- b-&gt;size bytes ----+
+                             |
+                           cursor</code></pre>
+<p>The program wants `cursor` to point at the first byte after the existing data, presumably to write a terminator.</p>
+<p>A safer implementation would calculate the offset before reallocation, perform the checked resize, update the base pointer, and then reconstruct the derived pointer if needed.</p>
+<p>The important lesson is:</p>
+<pre><code>A pointer derived from an allocation is part of the allocation&#x27;s state.</code></pre>
+<p>Changing the allocation can invalidate the derived pointer even when the pointer variable itself has not changed.</p>
+<hr>
+<h1>Exercise 10: The parser with subtraction</h1>
+<p>Consider:</p>
+<pre><code>int parse_payload(const unsigned char *packet,
+                  size_t packet_size,
+                  size_t header_size)
+{
+    size_t payload_size;
+    unsigned char *payload;
+
+    payload_size = packet_size - header_size;
+
+    payload = malloc(payload_size);
+    if (payload == NULL)
+        return -1;
+
+    memcpy(payload,
+           packet + header_size,
+           payload_size);
+
+    free(payload);
+    return 0;
+}</code></pre>
+<p>### Questions</p>
+<p>1. What must be established before `packet_size - header_size`?<br>
+2. What happens if `header_size &gt; packet_size`?<br>
+3. Does the later `memcpy` validation need anything else?<br>
+4. Identify the complete chain.</p>
+<p>### Solution</p>
+<p>Before subtracting, establish:</p>
+<pre><code>header_size &lt;= packet_size</code></pre>
+<p>Otherwise the unsigned subtraction can wrap to a very large value.</p>
+<p>The resulting chain could be:</p>
+<pre><code>invalid header size
+    -&gt;
+unsigned subtraction
+    -&gt;
+huge payload_size
+    -&gt;
+huge allocation request
+    -&gt;
+invalid input range</code></pre>
+<p>There is also an important conceptual issue.</p>
+<p>The program appears to assume:</p>
+<pre><code>packet[header_size ... packet_size)</code></pre>
+<p>is the payload.</p>
+<p>That range exists only if:</p>
+<pre><code>header_size &lt;= packet_size</code></pre>
+<p>The subtraction is therefore not merely an arithmetic detail. It expresses a range relationship.</p>
+<p>This is a useful general rule:</p>
+<pre><code>Whenever a size is calculated by subtraction,
+ask what ordering relationship makes that subtraction valid.</code></pre>
+<hr>
+<h1>Exercise 11: The stride calculation</h1>
+<p>Consider:</p>
+<pre><code>void process(unsigned char *buffer,
+             size_t count,
+             size_t stride)
+{
+    for (size_t i = 0; i &lt; count; ++i) {
+        unsigned char *p = buffer + i * stride;
+        process_record(p);
+    }
+}</code></pre>
+<p>Assume the caller has allocated:</p>
+<pre><code>count * stride</code></pre>
+<p>bytes.</p>
+<p>### Questions</p>
+<p>1. Is the caller&#x27;s allocation necessarily safe?<br>
+2. Is the pointer calculation necessarily safe?<br>
+3. What property must hold for every iteration?<br>
+4. What should a reviewer ask about `process_record`?</p>
+<p>### Solution</p>
+<p>The caller must first establish:</p>
+<pre><code>count * stride &lt;= SIZE_MAX</code></pre>
+<p>Then, for each iteration, the pointer calculation:</p>
+<pre><code>i * stride</code></pre>
+<p>must represent a valid offset within the allocation.</p>
+<p>The intended range is approximately:</p>
+<pre><code>0 &lt;= i &lt; count</code></pre>
+<p>and each record should occupy:</p>
+<pre><code>stride</code></pre>
+<p>bytes.</p>
+<p>The important invariant is:</p>
+<pre><code>i * stride + record_access_size &lt;= count * stride</code></pre>
+<p>for every iteration.</p>
+<p>This immediately raises another question:</p>
+<pre><code>Does process_record access at most stride bytes?</code></pre>
+<p>The caller may have correctly calculated the record boundaries while the callee independently violates them.</p>
+<p>This illustrates the importance of compositional bounds:</p>
+<pre><code>outer object bound
+    -&gt;
+subobject bound
+    -&gt;
+callee access bound</code></pre>
+<p>Each layer must preserve the invariant.</p>
+<hr>
+<h1>Exercise 12: The duplicated size calculation</h1>
+<p>Consider:</p>
+<pre><code>struct item {
+    uint32_t type;
+    uint64_t value;
+};
+
+size_t allocate_size(size_t count)
+{
+    return count * sizeof(struct item);
+}
+
+void initialize(void *buffer, size_t count)
+{
+    for (size_t i = 0; i &lt; count; ++i) {
+        unsigned char *p =
+            (unsigned char *)buffer + i * 12;
+
+        initialize_item(p);
+    }
+}</code></pre>
+<p>### Questions</p>
+<p>1. What is wrong even if the multiplication in `allocate_size` is safe?<br>
+2. What happens if the structure contains padding?<br>
+3. What invariant has been duplicated incorrectly?<br>
+4. What should replace the literal `12`?</p>
+<p>### Solution</p>
+<p>The allocation uses:</p>
+<pre><code>sizeof(struct item)</code></pre>
+<p>while the access uses:</p>
+<pre><code>12</code></pre>
+<p>Those values are not necessarily equal.</p>
+<p>On many systems, the structure will contain padding because of alignment requirements.</p>
+<p>Even if they happen to be equal on the current platform, the code has created two independent representations of the object&#x27;s size.</p>
+<p>The allocation assumes:</p>
+<pre><code>item_size = sizeof(struct item)</code></pre>
+<p>while the initialization code assumes:</p>
+<pre><code>item_size = 12</code></pre>
+<p>Those assumptions can diverge.</p>
+<p>The access should derive the stride from the actual type:</p>
+<pre><code>i * sizeof(struct item)</code></pre>
+<p>or, preferably, use properly typed pointer arithmetic:</p>
+<pre><code>struct item *items = buffer;
+
+initialize_item(&amp;items[i]);</code></pre>
+<p>The broader lesson is:</p>
+<pre><code>A memory layout should have one authoritative representation.</code></pre>
+<p>Hard-coded sizes are particularly dangerous when they represent C object layouts.</p>
+<hr>
+<h1>Exercise 13: The validation happens too early</h1>
+<p>Consider:</p>
+<pre><code>int process(unsigned char *buffer,
+            size_t capacity,
+            size_t length)
+{
+    if (length &gt; capacity)
+        return -1;
+
+    length += 16;
+
+    memset(buffer, 0, length);
+
+    return 0;
+}</code></pre>
+<p>### Questions</p>
+<p>1. Is the original validation sufficient?<br>
+2. What invariant is broken?<br>
+3. What should be checked after modifying `length`?<br>
+4. Can the addition itself overflow?</p>
+<p>### Solution</p>
+<p>The original check establishes:</p>
+<pre><code>length &lt;= capacity</code></pre>
+<p>But the actual memory operation uses:</p>
+<pre><code>length + 16</code></pre>
+<p>The relevant invariant is therefore:</p>
+<pre><code>length + 16 &lt;= capacity</code></pre>
+<p>The code changed the value after validating it.</p>
+<p>A correct approach is to validate the final quantity:</p>
+<pre><code>if (length &gt; capacity)
+    return -1;
+
+if (16 &gt; capacity - length)
+    return -1;
+
+length += 16;
+
+memset(buffer, 0, length);</code></pre>
+<p>The addition itself can also overflow if performed without checking, although the capacity relationship may provide enough information to prevent that in this particular case.</p>
+<p>The general lesson is:</p>
+<pre><code>A bounds proof belongs as close as practical to
+the operation it justifies.</code></pre>
+<p>If the quantity changes, the proof may no longer apply.</p>
+<hr>
+<h1>Exercise 14: The loop has a hidden unit conversion</h1>
+<p>Consider:</p>
+<pre><code>struct record {
+    uint64_t timestamp;
+    uint32_t value;
+};
+
+void process_records(unsigned char *buffer,
+                     size_t bytes,
+                     size_t count)
+{
+    for (size_t i = 0; i &lt; count; ++i) {
+        struct record *r =
+            (struct record *)(buffer + i);
+
+        process_record(r);
+    }
+}</code></pre>
+<p>### Questions</p>
+<p>1. What unit is `i` expressed in?<br>
+2. What unit does the pointer addition use?<br>
+3. What was probably intended?<br>
+4. Why can this bug be especially subtle?</p>
+<p>### Solution</p>
+<p>`buffer` is an `unsigned char *`.</p>
+<p>Therefore:</p>
+<pre><code>buffer + i</code></pre>
+<p>advances by:</p>
+<pre><code>i bytes</code></pre>
+<p>not:</p>
+<pre><code>i records</code></pre>
+<p>The intended stride is presumably:</p>
+<pre><code>sizeof(struct record)</code></pre>
+<p>The code should instead use something equivalent to:</p>
+<pre><code>struct record *records = (struct record *)buffer;
+
+for (size_t i = 0; i &lt; count; ++i)
+    process_record(&amp;records[i]);</code></pre>
+<p>or explicitly:</p>
+<pre><code>buffer + i * sizeof(struct record)</code></pre>
+<p>The subtlety is that the code is syntactically correct.</p>
+<p>The pointer arithmetic is valid as byte-pointer arithmetic.</p>
+<p>The problem is semantic: the unit of the offset does not match the unit of the logical object.</p>
+<p>This is another way the chain can break:</p>
+<pre><code>logical count
+    -&gt;
+wrong unit conversion
+    -&gt;
+wrong pointer offset
+    -&gt;
+wrong object
+    -&gt;
+memory error</code></pre>
+<hr>
+<h1>Exercise 15: The complete chain</h1>
+<p>Consider the following simplified parser:</p>
+<pre><code>struct header {
+    uint32_t count;
+    uint32_t item_size;
+};
+
+int load(const unsigned char *data,
+         size_t data_size)
+{
+    const struct header *h;
+    unsigned char *items;
+    size_t count;
+    size_t item_size;
+    size_t total;
+
+    if (data_size &lt; sizeof(*h))
+        return -1;
+
+    h = (const struct header *)data;
+
+    count = h-&gt;count;
+    item_size = h-&gt;item_size;
+
+    total = count * item_size;
+
+    items = malloc(total);
+    if (items == NULL)
+        return -1;
+
+    for (size_t i = 0; i &lt; count; ++i) {
+        unsigned char *item =
+            items + i * item_size;
+
+        parse_item(data + sizeof(*h),
+                   data_size - sizeof(*h),
+                   item,
+                   item_size);
+    }
+
+    free(items);
+    return 0;
+}</code></pre>
+<p>### Questions</p>
+<p>Find as many independent problems as you can.</p>
+<p>Do not stop at the first one.</p>
+<p>### Solution</p>
+<p>This example contains several layers.</p>
+<p>### Problem 1: Allocation multiplication</p>
+<p>The calculation:</p>
+<pre><code>count * item_size</code></pre>
+<p>can overflow.</p>
+<p>The required property is:</p>
+<pre><code>count * item_size &lt;= SIZE_MAX</code></pre>
+<p>before the multiplication.</p>
+<p>### Problem 2: Pointer multiplication</p>
+<p>The calculation:</p>
+<pre><code>i * item_size</code></pre>
+<p>can overflow independently.</p>
+<p>It must be valid for every iteration.</p>
+<p>### Problem 3: Output range</p>
+<p>The item pointer:</p>
+<pre><code>items + i * item_size</code></pre>
+<p>must identify a region inside the allocation.</p>
+<p>The intended invariant is:</p>
+<pre><code>i * item_size + item_size &lt;= total</code></pre>
+<p>for every valid `i`.</p>
+<p>### Problem 4: Input subtraction</p>
+<p>The expression:</p>
+<pre><code>data_size - sizeof(*h)</code></pre>
+<p>requires:</p>
+<pre><code>data_size &gt;= sizeof(*h)</code></pre>
+<p>That condition has actually been established by the earlier check, so this particular subtraction is safe.</p>
+<p>This is an important example of a safe arithmetic operation.</p>
+<p>Not every arithmetic expression needs to be treated as a vulnerability.</p>
+<p>The question is whether the necessary invariant has been established.</p>
+<p>### Problem 5: Input availability</p>
+<p>Even though:</p>
+<pre><code>data_size - sizeof(*h)</code></pre>
+<p>is valid, that does not prove there is enough input data for all `count` items.</p>
+<p>`parse_item` receives:</p>
+<pre><code>data + sizeof(*h)</code></pre>
+<p>and:</p>
+<pre><code>data_size - sizeof(*h)</code></pre>
+<p>but the code has not shown that the aggregate encoded representation fits inside that remaining input.</p>
+<p>### Problem 6: Per-item input size</p>
+<p>If every item consumes:</p>
+<pre><code>item_size</code></pre>
+<p>bytes, the input must contain at least:</p>
+<pre><code>count * item_size</code></pre>
+<p>bytes.</p>
+<p>That is another size calculation which needs to be checked.</p>
+<p>### Problem 7: Callee contract</p>
+<p>Even if the caller proves that the input contains `count * item_size` bytes and the output contains the same number of bytes, `parse_item` must itself respect:</p>
+<pre><code>item_size</code></pre>
+<p>for each item.</p>
+<p>The outer function cannot assume the callee is bounded merely because the pointer is valid.</p>
+<p>### The complete chain</p>
+<p>The intended relationship is:</p>
+<pre><code>count
+    +
+item_size
+    |
+    v
+count * item_size
+    |
+    +----------------+
+    |                |
+    v                v
+output size      input size
+    |                |
+    v                v
+allocation       input bounds
+    |
+    v
+i * item_size
+    |
+    v
+item pointer
+    |
+    v
+parse_item
+    |
+    v
+memory access</code></pre>
+<p>This is exactly the kind of code where examining only the final `parse_item` call is insufficient.</p>
+<p>The vulnerability may originate in the first multiplication.</p>
+<hr>
+<h1>A Worked Review Method</h1>
+<p>The exercises illustrate a repeatable process.</p>
+<p>Suppose you encounter:</p>
+<pre><code>p = malloc(size);
+
+...
+
+q = p + offset;
+
+...
+
+memcpy(q, src, length);</code></pre>
+<p>Do not immediately inspect `memcpy`.</p>
+<p>Instead construct the chain:</p>
+<pre><code>size
+  |
+  v
+allocation
+  |
+  v
+p
+  |
+  +---- offset ----&gt; q
+  |
+  +---- size
+           |
+           v
+      available range</code></pre>
+<p>Then establish the required invariant:</p>
+<pre><code>offset + length &lt;= size</code></pre>
+<p>Now work backward.</p>
+<p>Where did `offset` come from?</p>
+<p>Where did `length` come from?</p>
+<p>Where did `size` come from?</p>
+<p>Suppose you discover:</p>
+<pre><code>size = count * element_size;</code></pre>
+<p>Now the invariant becomes:</p>
+<pre><code>offset + length &lt;= count * element_size</code></pre>
+<p>Then ask whether the right-hand side was calculated safely.</p>
+<p>The analysis has moved from a memory operation to arithmetic.</p>
+<p>That is exactly what we want.</p>
+<hr>
+<h1>Exercise Ranking: Which Bugs Should You Investigate First?</h1>
+<p>Not every suspicious expression deserves equal attention.</p>
+<p>When reviewing a large codebase, prioritize chains that have these properties:</p>
+<pre><code>1. The controlling value is externally influenced.
+2. The value is used in arithmetic.
+3. The arithmetic determines an allocation or access size.
+4. The resulting pointer is used for writing.
+5. The access occurs in a parser, decoder, or other untrusted-data path.
+6. The code performs multiple conversions or arithmetic operations.
+7. The same quantity controls both allocation and indexing.
+8. There are separate input and output buffers.
+9. A size is represented by multiple variables or units.
+10. A custom allocator hides the actual size calculation.</code></pre>
+<p>The most interesting pattern is often:</p>
+<pre><code>external value
+    -&gt;
+arithmetic
+    -&gt;
+allocation
+    -&gt;
+loop
+    -&gt;
+pointer arithmetic
+    -&gt;
+write</code></pre>
+<p>This combines attacker control, arithmetic, allocation, and memory corruption in one path.</p>
+<hr>
+<h1>Distinguishing Real Problems from False Positives</h1>
+<p>A good reviewer should also know when not to report a problem.</p>
+<p>Consider:</p>
+<pre><code>if (count &gt; SIZE_MAX / sizeof(*items))
+    return ERROR;
+
+items = malloc(count * sizeof(*items));</code></pre>
+<p>The multiplication is present, but the relevant invariant has already been established.</p>
+<p>That is not an integer-overflow vulnerability.</p>
+<p>Likewise:</p>
+<pre><code>if (offset &gt; capacity)
+    return ERROR;
+
+if (length &gt; capacity - offset)
+    return ERROR;
+
+memcpy(buffer + offset, data, length);</code></pre>
+<p>The subtraction is not itself a problem because:</p>
+<pre><code>offset &lt;= capacity</code></pre>
+<p>has already been established.</p>
+<p>The important skill is therefore not:</p>
+<pre><code>&quot;Find arithmetic.&quot;</code></pre>
+<p>It is:</p>
+<pre><code>&quot;Determine whether the arithmetic is justified by an invariant.&quot;</code></pre>
+<p>This distinction greatly improves both manual review and static-analysis triage.</p>
+<hr>
+<h1>A More Formal View</h1>
+<p>For an allocated byte array, let:</p>
+<pre><code>B = allocation size
+O = offset
+L = access length</code></pre>
+<p>The fundamental safety property is:</p>
+<pre><code>O + L &lt;= B</code></pre>
+<p>But because `O + L` may overflow, the operational proof should be expressed as:</p>
+<pre><code>O &lt;= B</code></pre>
+<p>and:</p>
+<pre><code>L &lt;= B - O</code></pre>
+<p>The second condition is meaningful only after the first has been established.</p>
+<p>For an array of `N` elements of size `S`, the allocation requires:</p>
+<pre><code>N * S &lt;= SIZE_MAX</code></pre>
+<p>and an access to element `I` requires:</p>
+<pre><code>I &lt; N</code></pre>
+<p>If an access spans `K` elements starting at `I`, the required relationship is:</p>
+<pre><code>I &lt;= N</code></pre>
+<p>and:</p>
+<pre><code>K &lt;= N - I</code></pre>
+<p>Again, the subtraction form avoids requiring an unchecked addition.</p>
+<p>These patterns generalize.</p>
+<p>When possible, express bounds in terms of:</p>
+<pre><code>remaining capacity</code></pre>
+<p>rather than:</p>
+<pre><code>endpoint calculated by addition</code></pre>
+<p>This often makes overflow reasoning substantially easier.</p>
+<hr>
+<h1>A Useful Three-Layer Model</h1>
+<p>For complicated code, it can help to divide the analysis into three layers.</p>
+<h2>Layer 1: Numerical validity</h2>
+<p>Ask:</p>
+<pre><code>Are the numbers themselves valid?</code></pre>
+<p>This includes:</p>
+<pre><code>overflow
+underflow
+truncation
+signedness
+conversion
+units</code></pre>
+<h2>Layer 2: Object validity</h2>
+<p>Ask:</p>
+<pre><code>Does the number correctly describe the object?</code></pre>
+<p>This includes:</p>
+<pre><code>allocation size
+logical length
+capacity
+element count
+structure size
+object lifetime</code></pre>
+<h2>Layer 3: Access validity</h2>
+<p>Ask:</p>
+<pre><code>Does the actual operation stay within the object?</code></pre>
+<p>This includes:</p>
+<pre><code>pointer arithmetic
+indexes
+offsets
+copy lengths
+loops
+subobject boundaries</code></pre>
+<p>A vulnerability can arise at any layer, but the layers are connected:</p>
+<pre><code>numerical validity
+    -&gt;
+object validity
+    -&gt;
+access validity</code></pre>
+<p>The original five-part chain is therefore a more detailed version of this three-layer model.</p>
+<hr>
+<h1>The Most Important Review Question</h1>
+<p>When you find a suspicious memory operation, ask:</p>
+<pre><code>What fact makes this access safe?</code></pre>
+<p>Do not accept answers such as:</p>
+<pre><code>&quot;The value came from the header.&quot;
+
+&quot;The loop checks the count.&quot;
+
+&quot;malloc succeeded.&quot;
+
+&quot;The pointer is non-NULL.&quot;
+
+&quot;The offset was validated.&quot;</code></pre>
+<p>Instead, turn the claim into an equation.</p>
+<p>For example:</p>
+<pre><code>Why is this write safe?</code></pre>
+<p>Because:</p>
+<pre><code>index &lt; count</code></pre>
+<p>Why is that sufficient?</p>
+<p>Because:</p>
+<pre><code>allocation contains count elements</code></pre>
+<p>Why does it contain count elements?</p>
+<p>Because:</p>
+<pre><code>allocation_size = count * sizeof(*items)</code></pre>
+<p>Why is that calculation valid?</p>
+<p>Because:</p>
+<pre><code>count &lt;= SIZE_MAX / sizeof(*items)</code></pre>
+<p>Now the proof is explicit.</p>
+<p>If one of those statements cannot be established, that is where the review should focus.</p>
+<hr>
+<h1>Final Exercise: Find the First Broken Link</h1>
+<p>Consider:</p>
+<pre><code>int decode(const unsigned char *input,
+           size_t input_size,
+           uint32_t count,
+           uint32_t width)
+{
+    size_t bytes;
+    unsigned char *out;
+
+    if (count &gt; 100000)
+        return -1;
+
+    bytes = count * width;
+
+    if (bytes &gt; input_size)
+        return -1;
+
+    out = malloc(bytes);
+    if (out == NULL)
+        return -1;
+
+    for (uint32_t i = 0; i &lt; count; ++i) {
+        unsigned char *p = out + i * width;
+
+        memcpy(p,
+               input + i * width,
+               width);
+    }
+
+    return 0;
+}</code></pre>
+<p>Before reading further, identify the first broken invariant.</p>
+<p>### Answer</p>
+<p>The first suspicious operation is:</p>
+<pre><code>bytes = count * width;</code></pre>
+<p>The inputs are attacker-influenced values, and the multiplication can overflow.</p>
+<p>The subsequent check:</p>
+<pre><code>if (bytes &gt; input_size)</code></pre>
+<p>does not repair the problem.</p>
+<p>An overflow can produce a small `bytes` value that passes the check.</p>
+<p>The program can then allocate too little memory.</p>
+<p>The loop still uses the original `count` and `width`:</p>
+<pre><code>i * width</code></pre>
+<p>and eventually calculates a pointer beyond the allocation.</p>
+<p>The resulting chain is:</p>
+<pre><code>count, width
+    |
+    v
+overflowing multiplication
+    |
+    v
+incorrect bytes
+    |
+    v
+incorrect allocation
+    |
+    v
+i * width
+    |
+    v
+pointer outside allocation
+    |
+    v
+memcpy
+    |
+    v
+out-of-bounds access</code></pre>
+<p>There is also a second side to the copy:</p>
+<pre><code>input + i * width</code></pre>
+<p>so the input-side range must be considered as well.</p>
+<p>The first broken invariant is therefore numerical:</p>
+<pre><code>count * width &lt;= SIZE_MAX</code></pre>
+<p>The memory corruption comes later.</p>
+<p>That distinction is the central skill this chapter is designed to teach.</p>
+<hr>
+<h1>Closing Perspective</h1>
+<p>The strongest C vulnerability reviews do not merely identify dangerous statements.</p>
+<p>They reconstruct the assumptions connecting those statements.</p>
+<p>A typical chain looks like:</p>
+<pre><code>attacker-controlled number
+    -&gt;
+integer conversion
+    -&gt;
+arithmetic
+    -&gt;
+allocation size
+    -&gt;
+allocated object
+    -&gt;
+pointer arithmetic
+    -&gt;
+logical bounds
+    -&gt;
+memory operation</code></pre>
+<p>At every transition, ask:</p>
+<pre><code>What invariant is supposed to hold?</code></pre>
+<p>Then ask:</p>
+<pre><code>Where is it established?</code></pre>
+<p>Then ask:</p>
+<pre><code>Can the value change before it is used?</code></pre>
+<p>Finally:</p>
+<pre><code>What happens if the invariant is false?</code></pre>
+<p>The first broken invariant is usually more valuable than the final crash site.</p>
+<p>An integer overflow may look harmless until it controls an allocation.</p>
+<p>An undersized allocation may look harmless until a loop trusts the original count.</p>
+<p>A pointer calculation may look harmless until its offset is outside the object.</p>
+<p>A bounds check may look correct until you discover that it checks the starting point but not the complete range.</p>
+<p>And an invalid write may look like an isolated memory bug until you trace it backward to the attacker-controlled integer that started the chain.</p>
+<p>That is the central discipline:</p>
+<pre><code>Do not inspect the memory access in isolation.
+
+Follow the value.
+
+Follow the size.
+
+Follow the pointer.
+
+Follow the bound.
+
+Find the first invariant that stopped being true.</code></pre>
+<p>That is where the vulnerability begins.</p>
+<hr>
+
+    <div class="book-navigation">
+        <a href="chapter_2_allocation_size.html" class="nav-btn">&larr; Previous</a> <span class="nav-info">5 of 13</span> <a href="chapter_4_from_bug_to_vulnerability.html" class="nav-btn">Next &rarr;</a>
+    </div>
+    
+</body>
+</html>
