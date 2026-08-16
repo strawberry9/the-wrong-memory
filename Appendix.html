@@ -87,7 +87,7 @@
 <p>That is a profound change in the programming model.</p>
 <h2>The limits of an implicit contract</h2>
 <p>Consider a familiar C operation:</p>
-<pre><code>c
+<pre><code>
 memcpy(destination, source, length);</code></pre>
 <p>For this operation to be valid, a substantial collection of conditions must hold.</p>
 <p>The source must identify a live object containing at least `length` readable bytes. The destination must identify a live object containing at least `length` writable bytes. `length` must represent the intended quantity. The pointers must identify the intended objects. The operation must satisfy the requirements of the particular memory primitive.</p>
@@ -122,7 +122,7 @@ memcpy(destination, source, length);</code></pre>
 <p>Languages such as Java, C#, Go and many others use garbage collection to manage object lifetimes.</p>
 <p>This eliminates an entire category of errors examined in *The Wrong Memory*.</p>
 <p>In C, a typical lifetime failure looks like:</p>
-<pre><code>text
+<pre><code>
 allocate
    ↓
 use
@@ -145,17 +145,17 @@ use again</code></pre>
 <h1>2. Bounds and slices: keep location and amount together</h1>
 <p>A second approach is to make the relationship between an object and its accessible extent explicit.</p>
 <p>An ordinary C pointer does not inherently carry its bounds. This is why interfaces of the form</p>
-<pre><code>c
+<pre><code>
 void process(char *data, size_t length);</code></pre>
 <p>are so common—and so dependent on convention.</p>
 <p>The programmer must preserve the relationship between `data` and `length`.</p>
 <p>A safer abstraction can instead represent a bounded region as a single value: a slice, span, array view or equivalent construct.</p>
 <p>The difference is more than syntactic.</p>
 <p>Instead of:</p>
-<pre><code>text
+<pre><code>
 address + separately maintained length</code></pre>
 <p>the abstraction represents:</p>
-<pre><code>text
+<pre><code>
 a bounded view of an object</code></pre>
 <p>The address and the information required to interpret that address safely remain connected.</p>
 <p>Rust&#x27;s slices are a prominent example. Rust&#x27;s ownership model combines with borrowing and slices to provide compile-time memory-safety guarantees without requiring a garbage collector.</p>
@@ -201,7 +201,7 @@ a bounded view of an object</code></pre>
 <p>or</p>
 <p>&gt; a language in which low-level operations are impossible.</p>
 <p>D instead explores:</p>
-<p>&gt; **safe (not currently the default though), but with explicit escape routes when low-level control is genuinely required.**</p>
+<p>&gt; @safe (which sadly, is not the current default), but with explicit escape routes when low-level control is genuinely required.**</p>
 <p>That is a compelling model for systems programming.</p>
 <p>There are legitimate reasons to manipulate raw memory, perform unusual casts, interact directly with hardware, implement allocators, or cross a foreign-function interface. A systems language that cannot express such operations may simply force programmers to leave the language&#x27;s safety model entirely.</p>
 <p>A language such as D can instead make the boundary explicit.</p>
@@ -241,13 +241,13 @@ a bounded view of an object</code></pre>
 <p>Ada and SPARK represent a different and particularly important tradition: **explicit contracts and formal verification**.</p>
 <p>The approach is valuable because not every property that matters can conveniently be encoded in ownership or borrowing rules.</p>
 <p>Consider an invariant such as:</p>
-<pre><code>text
+<pre><code>
 length &lt;= capacity</code></pre>
 <p>or:</p>
-<pre><code>text
+<pre><code>
 index &lt; number_of_elements</code></pre>
 <p>or:</p>
-<pre><code>text
+<pre><code>
 allocated_size &gt;= required_size</code></pre>
 <p>These are straightforward examples, but real systems can require much richer relationships involving state, inputs, outputs and sequences of operations.</p>
 <p>Contracts allow programmers to state such properties explicitly. Verification tools can then attempt to establish that those properties hold.</p>
@@ -259,7 +259,7 @@ allocated_size &gt;= required_size</code></pre>
 <p>The future of safe systems programming need not consist of one universal mechanism. Types, ownership systems, contracts and formal proofs can address different parts of the problem.</p>
 <hr>
 <h1>8. Cyclone: the problem predates today's languages</h1>
-<p>The modern discussion of memory-safe systems programming can sometimes make it appear that the problem began with Rust.</p>
+<p>The modern discussion of memory-safe systems programming can sometimes make it appear that the solution began with Rust.</p>
 <p>It did not.</p>
 <p>Cyclone is an important earlier experiment. Developed as a safe dialect of C, it was designed specifically to prevent buffer overflows, dangling pointers, format-string attacks and memory-management errors while retaining C&#x27;s low-level control over data representation and memory management.</p>
 <p>Cyclone is historically significant because it demonstrates that the underlying problem was recognised long before today&#x27;s memory-safe systems languages.</p>
@@ -269,7 +269,7 @@ allocated_size &gt;= required_size</code></pre>
 <p>The project did not become a mainstream replacement for C. But that is not the important point here.</p>
 <p>Its importance is conceptual.</p>
 <p>It demonstrates that the tension between low-level control and memory safety has been a programming-language research problem for decades.</p>
-<p>Rust, D, Swift, Ada/SPARK and other modern approaches are part of that longer evolution rather than appearing from nowhere.</p>
+<p>Rust, D, Swift and other modern approaches are part of that longer evolution rather than appearing from nowhere.</p>
 <hr>
 <h1>9. Pony: references as capabilities</h1>
 <p>Pony explores another dimension of the problem: **what a reference permits its holder to do**.</p>
@@ -291,12 +291,12 @@ allocated_size &gt;= required_size</code></pre>
 <p>Vale explores a different combination of ownership, reference tracking and memory-management techniques, including generational references designed to detect stale references. This illustrates an important alternative to Rust&#x27;s predominantly compile-time strategy.</p>
 <p>The distinction is conceptually useful.</p>
 <p>One approach attempts to prevent an invalid relationship from being created:</p>
-<pre><code>text
+<pre><code>
 attempt to create invalid reference
             ↓
         compile error</code></pre>
 <p>Another can allow a reference to exist but detect that it has become invalid:</p>
-<pre><code>text
+<pre><code>
 reference exists
        ↓
 object destroyed
@@ -355,7 +355,7 @@ stale use detected</code></pre>
 <p>Or it can require enough information to **prove** that the operation is valid.</p>
 <p>These are not equivalent.</p>
 <p>Consider three possible outcomes:</p>
-<pre><code>text
+<pre><code>
 Implicit C-style contract
 
 incorrect assumption
@@ -368,7 +368,7 @@ unexpected input
         ↓
 memory corruption</code></pre>
 <p>A runtime-checked model changes this to:</p>
-<pre><code>text
+<pre><code>
 incorrect assumption
         ↓
 compiled program
@@ -377,14 +377,14 @@ runtime check
         ↓
 detected violation</code></pre>
 <p>A statically checked model attempts to produce:</p>
-<pre><code>text
+<pre><code>
 incorrect assumption
         ↓
 compiler
         ↓
 program rejected</code></pre>
 <p>And a stronger type or capability system may go further:</p>
-<pre><code>text
+<pre><code>
 invalid operation
         ↓
 cannot be expressed in safe code</code></pre>
