@@ -192,38 +192,76 @@ a bounded view of an object</code></pre>
 <p>This is an important principle:</p>
 <p>&gt; **Unsafe operations do not necessarily need to disappear. They need to become identifiable, exceptional and reviewable.**</p>
 <hr>
-<h1>5. D: making safety the default without abandoning systems programming</h1>
-<p>D is particularly interesting in the context of this book because it occupies an important middle ground.</p>
-<p>It retains a systems-programming orientation and low-level capabilities while providing an explicitly defined safe subset. D distinguishes `@safe`, `@trusted` and `@system` code, with `@safe` code subject to restrictions intended to prevent memory corruption.</p>
-<p>This is significant because it rejects a false choice.</p>
-<p>The alternatives are not necessarily:</p>
-<p>&gt; unrestricted C</p>
-<p>or</p>
-<p>&gt; a language in which low-level operations are impossible.</p>
-<p>D instead explores:</p>
-<p>&gt; @safe (which sadly, is not the current default), but with explicit escape routes when low-level control is genuinely required.**</p>
-<p>That is a compelling model for systems programming.</p>
-<p>There are legitimate reasons to manipulate raw memory, perform unusual casts, interact directly with hardware, implement allocators, or cross a foreign-function interface. A systems language that cannot express such operations may simply force programmers to leave the language&#x27;s safety model entirely.</p>
-<p>A language such as D can instead make the boundary explicit.</p>
-<p>Conceptually:</p>
-<pre><code>text
-                    Program
-                       │
-              ┌────────┴────────┐
-              │                 │
-            @safe           @system
-              │                 │
-      compiler-enforced       low-level
-          guarantees          operations
-              │
-           @trusted
-              │
-       audited bridge
-          code</code></pre>
-<p>The important idea is not the particular annotations.</p>
-<p>It is the architectural principle:</p>
-<p>&gt; **Make unsafe reasoning local rather than making it the default condition of the entire program.**</p>
-<p>For the argument of *The Wrong Memory*, D is especially instructive because it demonstrates that stronger safety guarantees do not necessarily require abandoning the programming model that attracts developers to C in the first place.</p>
+<h1>5. D: an explicitly safe subset, but not a safe-by-default language</h1>
+<p>D is particularly interesting because it occupies an important middle ground.</p>
+<p>It retains a systems-programming orientation and low-level capabilities while defining an explicit memory-safe subset. D distinguishes three categories of code:</p>
+<p>* `@safe` - code subject to compiler-enforced restrictions intended to prevent memory corruption;<br>
+* `@trusted` - code whose interface can be used from `@safe` code, but whose implementation is responsible for upholding the safety contract; and<br>
+* `@system` - unrestricted D code, where memory safety is the programmer&#x27;s responsibility.</p>
+<p>The crucial qualification is that `@safe` is not D&#x27;s default. An ordinary function without a safety attribute is `@system`. The programmer must explicitly write:</p>
+<pre><code>
+void process(Data data) @safe
+{
+    // ...
+}</code></pre>
+<p>to put the function under D&#x27;s `@safe` rules.</p>
+<p>This makes D fundamentally different from Rust.</p>
+<p>Rust does not require ordinary code to be marked `safe`. Safe Rust is the normal programming model. The programmer writes ordinary Rust, and the compiler&#x27;s ownership, borrowing, lifetime and type rules establish the language&#x27;s memory-safety guarantees. Only when code needs capabilities outside that safe subset does the programmer explicitly enter `unsafe` territory.</p>
+<p>Conceptually, the two models look like this:</p>
+<pre><code>
+
+
+        ordinary D code
+              |
+              v
+          @system
+              |
+        +-----+-----+
+        |           |
+      @safe       @trusted
+        |           |
+   compiler       manually
+   enforced       justified
+   restrictions   escape hatch
+
+
+Rust
+
+        ordinary Rust code
+              |
+              v
+          Safe Rust
+              |
+      compiler-enforced
+       memory safety
+              |
+              v
+        unsafe { ... }
+              |
+       explicit escape
+          hatch</code></pre>
+<p>The difference is more than syntactic.</p>
+<p>In D, the programmer must opt into the compiler-enforced safe subset with `@safe`. In Rust, the programmer must opt out of the safe subset with `unsafe`.</p>
+<p>That changes the default safety boundary of an entire program. A D program can contain substantial amounts of `@system` code without an explicit annotation saying that the code is outside the compiler-enforced safe subset. A Rust program, by contrast, treats safe code as the normal case and makes departures from the safety guarantees syntactically visible through `unsafe`.</p>
+<p>Rust&#x27;s `unsafe` keyword permits operations that safe Rust cannot justify, such as dereferencing raw pointers or calling unsafe functions. The important point is that the programmer explicitly marks the point at which these additional powers are being used.</p>
+<p>D&#x27;s model nevertheless has an important architectural virtue: it does not attempt to eliminate low-level programming. `@system` code can perform operations that `@safe` code cannot, while `@trusted` functions can provide a carefully reviewed bridge between low-level implementation and safe callers. The trusted code is a programmer responsibility rather than something the compiler can prove safe.</p>
+<p>The two models can therefore be summarized as:</p>
+<pre><code>
+D:
+
+    @safe     -&gt; compiler-enforced safety
+    @trusted  -&gt; programmer-verified bridge
+    @system   -&gt; unrestricted low-level programming
+
+Rust:
+
+    Safe Rust -&gt; the normal programming model
+    unsafe    -&gt; explicit escape from compiler-enforced safety</code></pre>
+<p>Both languages acknowledge that systems programming sometimes requires operations that cannot be justified by the ordinary safety rules. The important difference is which side of the boundary is the default.</p>
+<p>For the argument of this book, this distinction is significant. D demonstrates that a systems language can provide a statically checked memory-safe subset without abandoning low-level programming. Rust demonstrates a stronger default: memory safety is the baseline, and unsafe reasoning must be explicitly introduced.</p>
+<p>The broader design principle is therefore better stated as:</p>
+<p>&gt; Do not merely provide a safe subset. Make the safe subset the normal place in which programs live, and make departures from it explicit, local and reviewable.</p>
+<p>D shows the usefulness of a `@safe`/`@trusted`/`@system` boundary. Rust demonstrates the stronger alternative of making that boundary safe by default.</p>
 <hr>
 <h1>6. Swift: combine static guarantees, runtime checks and managed lifetime</h1>
 <p>Swift provides another answer to the same problem.</p>
