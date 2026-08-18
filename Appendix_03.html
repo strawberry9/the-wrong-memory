@@ -75,7 +75,7 @@
 </head>
 <body>
 <h1>APPENDIX III - C may have reached the boundary of what its own design principles permit it to become.</h1>
-<p>Can the C language itself can be changed so that the class of problems examined in this book can be prevented by the language?</p>
+<p>Can the C language itself be changed so that the class of problems examined in this book can be prevented by the language?</p>
 <p>There is an obvious objection to asking this question. C is not an unconstrained design exercise. It is an international standard with an established purpose, an existing body of programs and implementations, and a committee with an explicit charter governing how the language is to evolve.</p>
 <p>That charter is therefore the proper place to begin.</p>
 <h2>THE CHARACTER OF C</h2>
@@ -85,22 +85,21 @@
 <p>They establish a tension.</p>
 <p>The charter asks C to address memory safety while also asking C to remain C. It asks for improvements without abandoning the language&#x27;s character, and for security without turning C into a fundamentally different language. It asks for greater analyzability while preserving programming freedom and portability.</p>
 <p>That tension is not incidental to the question of memory safety.</p>
-<p>It is the question.</p>
 <h2>WHAT WOULD MEMORY SAFETY REQUIRE?</h2>
 <p>A language cannot guarantee a property that its semantics do not define.</p>
 <p>For C to provide a language-level memory-safety guarantee, the language would have to define enough information to establish at least the following:</p>
-<p>which object a memory access concerns;</p>
-<p>what portion of that object may be accessed;</p>
-<p>whether the object is currently alive;</p>
-<p>whether a pointer or reference remains valid;</p>
-<p>and whether the operations used to obtain those properties preserve them.</p>
+<p>- which object a memory access concerns;</p>
+<p>- what portion of that object may be accessed;</p>
+<p>- whether the object is currently alive;</p>
+<p>- whether a pointer or reference remains valid;</p>
+<p>- and whether the operations used to obtain those properties preserve them.</p>
 <p>Traditional C does define objects, lifetimes, pointer types, arrays and rules governing access to objects. The problem is that these concepts do not form a comprehensive system in which the validity of every memory access can be established from the program itself.</p>
 <p>Consider a pointer obtained from dynamic allocation.</p>
 <p>The programmer may know:</p>
-<p>this pointer refers to an array of N objects;</p>
-<p>the allocation contains exactly N objects;</p>
-<p>the pointer may be used until the allocation is released;</p>
-<p>the index must remain within those N objects.</p>
+<p>- this pointer refers to an array of N objects;</p>
+<p>- the allocation contains exactly N objects;</p>
+<p>- the pointer may be used until the allocation is released;</p>
+<p>- the index must remain within those N objects.</p>
 <p>Traditional C does not require all of that knowledge to travel with the pointer.</p>
 <p>The programmer maintains the relationship.</p>
 <p>The language provides only part of it.</p>
