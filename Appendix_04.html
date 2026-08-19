@@ -227,8 +227,7 @@
 <p>A sufficiently strong type system eliminates some of those possibilities before execution.</p>
 <p>The programmer can therefore reason within a smaller space.</p>
 <p>This produces a paradox:</p>
-<p>Stronger constraints can increase local cognitive effort<br>
-    while reducing the global space of possibilities.</p>
+<p>Stronger constraints can increase local cognitive effort while reducing the global space of possibilities.</p>
 <p>The programmer may spend more time deciding how ownership should work, but less time reasoning about entire classes of possible memory failures.</p>
 <p>This is one reason that the learning experience and the experienced-user experience can be very different.</p>
 <p>For the novice, the constraint is an obstacle.</p>
@@ -288,13 +287,12 @@
 <p>The compiler is no longer merely correcting the programmer.</p>
 <p>The programmer has incorporated the compiler&#x27;s model into the design process.</p>
 <p>This is the point at which a constraint becomes internalized.</p>
-<h2>The Transitiion from C to Rust as a Change in Ontology</h2>
+<h2>The Transition from C to Rust as a Change in Ontology</h2>
 <p>This may be the most useful way to understand the transition.</p>
 <p>The difference is not simply:</p>
 <p>C + safety rules = Rust</p>
 <p>The deeper difference is:</p>
-<p>C and Rust encourage somewhat different ways<br>
-    of representing program state.</p>
+<p>C and Rust encourage somewhat different ways of representing program state.</p>
 <p>In one mental model, memory is primarily something the programmer manipulates.</p>
 <p>In the other, memory is something over which the program establishes relationships of ownership, access, and temporal validity.</p>
 <p>The programmer has therefore acquired a different ontology of state.</p>
@@ -309,7 +307,7 @@
 <p>Should this function consume the value or borrow it?</p>
 <p>Is this relationship structural or temporary?</p>
 <p>These questions become part of the programmer&#x27;s perception of the problem itself.</p>
-<h2>A Revised From of the Original Claim</h2>
+<h2>A Revised Form of the Original Claim</h2>
 <p>The original proposition can now be stated more precisely:</p>
 <p>The stronger the memory-safety constraints imposed by a programming language, the more the programmer is encouraged, and in some cases required, to construct a mental model in which ownership, access, mutation, and lifetime are explicit features of the program.</p>
 <p>But there is an important qualification:</p>
