@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Appendix V - AI and the Division of Cognitive Labour</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #d1d5db; /* Soft light gray text */
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 0 20px;
+            background-color: #1f2937; /* Dark charcoal/slate background */
+        }
+        h1, h2 {
+            color: #f3f4f6; /* Bright white-gray for headers */
+            border-bottom: 1px solid #374151;
+            padding-bottom: 0.3em;
+        }
+        pre {
+            background-color: #111827; /* Darker background for code blocks */
+            border: 1px solid #374151;
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+            font-size: 85%;
+            line-height: 1.45;
+            color: #e5e7eb;
+        }
+        code {
+            font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+        }
+        hr {
+            border: 0;
+            height: 1px;
+            background: #374151;
+            margin: 40px 0;
+        }
+        p {
+            margin-bottom: 16px;
+        }
+    </style>
+
+    <style>
+        .book-navigation {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #374151;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        .nav-btn {
+            background-color: #374151;
+            color: #f3f4f6;
+            padding: 8px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        .nav-btn:hover {
+            background-color: #4b5563;
+        }
+        .nav-info {
+            color: #9ca3af;
+            font-size: 14px;
+        }
+    </style>
+    
+</head>
+<body>
+<h1>Appendix V - AI and the Division of Cognitive Labour</h1>
+
+<h2>AI-assisted invariant analysis</h2>
+
+<p>There is a difference between asking a machine to find a bug and asking a machine to discover a relationship.</p>
+
+<p>The first question assumes that we already know what we are looking for.</p>
+
+<p>The second does not.</p>
+
+<p>This distinction matters.</p>
+
+<p>Throughout this book we have treated memory safety as a problem of maintaining relationships that C does not necessarily express. A value has a meaning. A size describes an extent. A pointer is expected to identify an object. An offset is expected to remain within that object. An object is expected to remain alive. An owner is expected to remain responsible for it.</p>
+
+<p>The programmer is expected to keep these relationships coherent.</p>
+
+<p>The difficulty becomes obvious when the program is small enough to fit inside a person's head. We can follow a value from its origin through its transformations and eventually to the operation that consumes it. We can ask what must be true at each step.</p>
+
+<p>But real programs are not small.</p>
+
+<p>The relationships are distributed across functions, files, modules, data structures, APIs and years of maintenance. An invariant established in one place may be relied upon somewhere else. Two programmers may use different names for the same concept. The same concept may be represented by several different types. An assumption may exist only because everyone who has touched the code happens to understand it.</p>
+
+<p>This is where AI-assisted analysis becomes interesting.</p>
+
+<p>Not because an AI can answer the questions in this book.</p>
+
+<p>Those questions are already available to the programmer.</p>
+
+<p>The interesting possibility is that an AI can help us discover the questions we did not know to ask.</p>
+
+<p>Consider a codebase containing:</p>
+
+<pre><code>size
+length
+capacity
+count
+offset
+end
+used
+available</code></pre>
+
+<p>A programmer looking at one function may understand each variable perfectly.</p>
+
+<p>But perhaps three of them describe the same underlying quantity.</p>
+
+<p>Perhaps one is measured in bytes and another in elements.</p>
+
+<p>Perhaps allocation uses one representation while access uses another.</p>
+
+<p>Perhaps the relationship between them is never expressed anywhere.</p>
+
+<p>The code may nevertheless depend upon the relationship being correct.</p>
+
+<p>An AI could be asked:</p>
+
+<blockquote>
+<p>Find places where different variables appear to represent the same conceptual quantity. Identify where their representations diverge and where the code assumes that they remain equivalent.</p>
+</blockquote>
+
+<p>That is a different kind of question.</p>
+
+<p>It does not tell the AI what invariant to look for.</p>
+
+<p>It asks the AI to search for invariants.</p>
+
+<p>The programmer supplies meaning.</p>
+
+<p>The machine searches the program for evidence of that meaning.</p>
+
+<p>The programmer then decides:</p>
+
+<blockquote>
+<p>Yes. That is the relationship I intended.</p>
+</blockquote>
+
+<p>Or:</p>
+
+<blockquote>
+<p>No. That interpretation is wrong.</p>
+</blockquote>
+
+<p>Only then does it make sense to ask whether the relationship can be expressed as a type, an assertion, a static analysis rule, a test, or some other mechanism.</p>
+
+<p>This suggests a new division of cognitive labour.</p>
+
+<p>The programmer asks:</p>
+
+<blockquote>
+<p>What is this program supposed to mean?</p>
+</blockquote>
+
+<p>The AI asks, in effect:</p>
+
+<blockquote>
+<p>What relationships appear to exist within the program?</p>
+</blockquote>
+
+<p>The programmer then decides:</p>
+
+<blockquote>
+<p>Yes. That is the relationship I intended.</p>
+</blockquote>
+
+<p>Or:</p>
+
+<blockquote>
+<p>No. That interpretation is wrong.</p>
+</blockquote>
+
+<p>This changes the role of the AI.</p>
+
+<p>It is not the authority on correctness.</p>
+
+<p>It is not a replacement for the programmer.</p>
+
+<p>It is not even necessarily a vulnerability detector.</p>
+
+<p>It is a machine for exploring the semantic structure of a program.</p>
+
+<h3>Discovering relationships</h3>
+
+<p>Consider another question:</p>
+
+<blockquote>
+<p>Find all functions that create, transform, store, return, or release objects of this type. Construct the apparent lifetime relationships between them. Identify assumptions about lifetime that are not represented in the interfaces.</p>
+</blockquote>
+
+<p>This is difficult for a human to do exhaustively.</p>
+
+<p>The question is not:</p>
+
+<blockquote>
+<p>Is there a use-after-free?</p>
+</blockquote>
+
+<p>It is:</p>
+
+<blockquote>
+<p>What lifetime model does this subsystem appear to assume?</p>
+</blockquote>
+
+<p>That distinction is important.</p>
+
+<p>A vulnerability is a conclusion.</p>
+
+<p>An invariant is an explanation.</p>
+
+<p>If the AI discovers that a pointer returned by one subsystem is routinely stored by another subsystem, while a third subsystem can release the underlying object, it may not know whether that is a bug.</p>
+
+<p>But it can expose the relationship:</p>
+
+<pre><code>A returns pointer P.
+B retains P.
+C can release the object containing P.
+No explicit ownership relationship connects B and C.</code></pre>
+
+<p>The programmer can then decide what the intended model actually is.</p>
+
+<p>The same approach can be applied to quantities.</p>
+
+<blockquote>
+<p>Find every path by which an externally supplied count can influence both an allocation size and a later memory access. Identify transformations between the two uses.</p>
+</blockquote>
+
+<p>Or to object identity:</p>
+
+<blockquote>
+<p>Find places where a pointer is passed between components. Identify the evidence that each component believes it refers to the same object.</p>
+</blockquote>
+
+<p>Or to representation:</p>
+
+<blockquote>
+<p>Find values whose semantic role changes during their lifetime. In particular, identify transitions between elements, bytes, offsets, addresses, capacities and counts.</p>
+</blockquote>
+
+<p>Or to ownership:</p>
+
+<blockquote>
+<p>Find resources for which creation, use and destruction occur in different components. Identify the assumptions that connect those operations.</p>
+</blockquote>
+
+<p>These questions are interesting because they search for structure rather than syntax.</p>
+
+<p>The AI is not looking merely for calls to <code>memcpy</code>, <code>malloc</code> or <code>free</code>.</p>
+
+<p>It is looking for relationships between things.</p>
+
+<p>That is closer to the problem this book has been trying to describe.</p>
+
+<h3>Invariants across boundaries</h3>
+
+<p>There is another useful question:</p>
+
+<blockquote>
+<p>Find invariants that cross function boundaries.</p>
+</blockquote>
+
+<p>This can reveal a particularly important class of assumptions.</p>
+
+<p>A function may accept:</p>
+
+<pre><code>buffer
+length</code></pre>
+
+<p>and internally assume:</p>
+
+<pre><code>length &lt;= buffer_capacity</code></pre>
+
+<p>The function's type does not express this.</p>
+
+<p>Its caller may know it.</p>
+
+<p>The implementation may rely upon it.</p>
+
+<p>The documentation may mention it.</p>
+
+<p>Or nobody may have written it down at all.</p>
+
+<p>The relationship nevertheless exists.</p>
+
+<p>It is an invariant maintained socially rather than mechanically.</p>
+
+<p>An AI examining the larger program may be able to identify such relationships by comparing callers, callees, data structures and repeated patterns.</p>
+
+<p>It could then report:</p>
+
+<pre><code>This function appears to require the following relationship:
+
+    length &lt;= capacity(buffer)
+
+I found this relationship established explicitly in four callers,
+inferred in two callers, and not established in one caller.</code></pre>
+
+<p>That is much more useful than:</p>
+
+<pre><code>Possible buffer overflow.</code></pre>
+
+<p>The first statement describes the program's apparent semantic contract.</p>
+
+<p>The second merely names a class of failure.</p>
+
+<h3>Finding invariants that have no owner</h3>
+
+<p>This also suggests another question:</p>
+
+<blockquote>
+<p>Find invariants that have no obvious owner.</p>
+</blockquote>
+
+<p>A relationship can be real without belonging to any particular piece of code.</p>
+
+<p>Who is responsible for ensuring that a cached length remains consistent with the underlying object?</p>
+
+<p>Who ensures that an offset remains relative to the object from which it was calculated?</p>
+
+<p>Who ensures that a pointer remains valid after ownership is transferred?</p>
+
+<p>Who ensures that two representations of the same state are updated together?</p>
+
+<p>If the answer is "the programmer", then the program may contain an invariant that exists entirely in human memory.</p>
+
+<p>That is precisely the kind of invariant that is vulnerable to being forgotten.</p>
+
+<p>AI-assisted analysis could therefore become a way of finding the semantic assumptions that have accumulated between the formal structures of a program.</p>
+
+<h3>Finding disagreement</h3>
+
+<p>There is an even more interesting question:</p>
+
+<blockquote>
+<p>Find places where two parts of the program appear to believe different things about the same object.</p>
+</blockquote>
+
+<p>This might compare allocation code with access code.</p>
+
+<p>Serialization with deserialization.</p>
+
+<p>Initialization with destruction.</p>
+
+<p>A producer with its consumers.</p>
+
+<p>A caller with its callee.</p>
+
+<p>A type definition with the assumptions made by the code manipulating it.</p>
+
+<p>The result need not be a vulnerability.</p>
+
+<p>It might instead reveal an architectural contradiction.</p>
+
+<p>One component may treat a field as a count.</p>
+
+<p>Another may treat it as a byte length.</p>
+
+<p>Both interpretations may be individually reasonable.</p>
+
+<p>Together they are impossible.</p>
+
+<p>The AI has not found the bug.</p>
+
+<p>It has found the disagreement from which a bug might emerge.</p>
+
+<h3>Searching for the unknown</h3>
+
+<p>This is perhaps the most interesting extension of invariant analysis.</p>
+
+<p>The programmer normally begins with a hypothesis:</p>
+
+<blockquote>
+<p>I suspect that this is the invariant.</p>
+</blockquote>
+
+<p>The AI could instead begin with the program itself:</p>
+
+<blockquote>
+<p>Here are relationships that appear to be repeatedly relied upon.</p>
+</blockquote>
+
+<p>That reverses the direction of analysis.</p>
+
+<p>Instead of starting from a known invariant and asking whether the program preserves it, we start from the program and ask what invariants appear to exist.</p>
+
+<p>The resulting workflow might look like this:</p>
+
+<pre><code>program
+    |
+    v
+observed relationships
+    |
+    v
+candidate invariants
+    |
+    v
+programmer interpretation
+    |
+    v
+explicit invariant
+    |
+    v
+type, assertion, analysis or test</code></pre>
+
+<p>The important step is the middle one.</p>
+
+<p>The AI proposes.</p>
+
+<p>The programmer interprets.</p>
+
+<p>The program then becomes an opportunity to make the relationship explicit.</p>
+
+<h3>The new cognitive instrument</h3>
+
+<p>This is where AI becomes a different kind of cognitive instrument.</p>
+
+<p>A compiler can enforce a relationship that has been expressed in a form the compiler understands.</p>
+
+<p>A static analyzer can search for violations of rules that have been formulated.</p>
+
+<p>A test can exercise states that someone thought to test.</p>
+
+<p>But before any of these things can happen, somebody has to identify the relationship that matters.</p>
+
+<p>That is often the difficult part.</p>
+
+<p>A programmer can know that a buffer must be large enough.</p>
+
+<p>But what exactly establishes "large enough"?</p>
+
+<p>A programmer can know that a pointer must remain valid.</p>
+
+<p>But what exactly establishes the lifetime?</p>
+
+<p>A programmer can know that two fields must remain synchronized.</p>
+
+<p>But where is that relationship represented?</p>
+
+<p>These questions are not always difficult because the programmer lacks knowledge.</p>
+
+<p>They are difficult because the relationships are distributed across the program.</p>
+
+<p>The possible relationships grow faster than a person can comfortably inspect.</p>
+
+<p>This is where an AI system may have an unusual advantage.</p>
+
+<p>It can examine many representations of the same concept simultaneously.</p>
+
+<p>It can compare names, types, data flow, callers, callees, comments, assertions and repeated patterns.</p>
+
+<p>It can notice that a quantity called <code>count</code> in one place becomes <code>size</code> in another.</p>
+
+<p>It can notice that one component calculates an extent while another independently calculates an access length.</p>
+
+<p>It can notice that ownership appears to change without an explicit transfer.</p>
+
+<p>It can notice that an assumption is documented in one place and contradicted in another.</p>
+
+<p>None of this establishes that the program is wrong.</p>
+
+<p>But it can expose the relationships that deserve human attention.</p>
+
+<h3>Questions worth asking</h3>
+
+<p>That suggests a more useful question to put to an AI than:</p>
+
+<pre><code>Is this code secure?</code></pre>
+
+<p>Try:</p>
+
+<blockquote>
+<p>What assumptions does this code appear to depend upon that are not explicitly represented?</p>
+</blockquote>
+
+<p>Or:</p>
+
+<blockquote>
+<p>What relationships exist here that are maintained only by convention?</p>
+</blockquote>
+
+<p>Or:</p>
+
+<blockquote>
+<p>What concepts appear to have multiple representations in this codebase?</p>
+</blockquote>
+
+<p>Or:</p>
+
+<blockquote>
+<p>Where does the program appear to rely upon two values remaining consistent, without mechanically enforcing that consistency?</p>
+</blockquote>
+
+<p>Or simply:</p>
+
+<blockquote>
+<p>What invariants have I not thought to ask about?</p>
+</blockquote>
+
+<p>The last question may be the most interesting of all.</p>
+
+<p>Because if an AI can reliably help us discover invariants that were previously invisible, then its value is not primarily that it finds more bugs.</p>
+
+<p>Its value is that it expands the programmer's field of attention.</p>
+
+<p>The programmer remains responsible for meaning.</p>
+
+<p>The AI helps explore the space of possible meanings and relationships.</p>
+
+<p>The compiler and other formal tools remain responsible for enforcing whatever can be expressed mechanically.</p>
+
+<p>The division of cognitive labour therefore becomes:</p>
+
+<pre><code>Programmer
+    |
+    | intention
+    v
+AI
+    |
+    | candidate relationships
+    v
+Programmer
+    |
+    | confirmed invariant
+    v
+Language and tools
+    |
+    | enforcement
+    v
+Program</code></pre>
+
+<p>This does not eliminate human reasoning.</p>
+
+<p>It changes where human reasoning is spent.</p>
+
+<p>Instead of spending all of our effort discovering what relationships might exist, we may spend more of it deciding which relationships actually matter.</p>
+
+<p>Instead of asking the machine to tell us whether the program is correct, we ask it to show us where the program appears to depend upon something that has never been made explicit.</p>
+
+<p>And that brings us back to the central problem of this book.</p>
+
+<p>Memory safety failures are not merely failures of instructions.</p>
+
+<p>They are failures of relationships.</p>
+
+<p>The most useful AI for programming may therefore not be the one that writes the most code.</p>
+
+<p>It may be the one that looks at a large body of code and says:</p>
+
+<blockquote>
+<p>I found a relationship here.</p>
+
+<p>I don't think anyone has named it yet.</p>
+</blockquote>
+
+<p>That is the moment at which an implicit invariant can become an explicit one.</p>
+
+<p>And once we can see an invariant, we can begin to decide what should be done with it.</p>
+
+<p>We can document it.</p>
+
+<p>We can test it.</p>
+
+<p>We can assert it.</p>
+
+<p>We can encode it in an interface.</p>
+
+<p>We can give it to a static analyzer.</p>
+
+<p>We can put it into a type system.</p>
+
+<p>Or, if necessary, we can discover that the program was never actually maintaining it at all.</p>
+
+<p>The machine has not proved the program correct.</p>
+
+<p>It has done something perhaps more useful.</p>
+
+<p>It has helped us discover what correctness was supposed to mean.</p>
+
+<hr>
+
+    <div class="book-navigation">
+        <a href="Appendix_04.html" class="nav-btn">&larr; Previous</a> <a href="Bibliography.html" class="nav-btn">Bibliography &rarr;</a>
+    </div>
+
+<footer>
+  <p>
+    This work is licensed under a 
+    <a rel="license" href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" rel="noopener">
+      Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License
+    </a>.
+  </p>
+</footer>
+
+</body>
+</html>
