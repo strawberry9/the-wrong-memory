@@ -74,7 +74,7 @@
     
 </head>
 <body>
-<p>Preface</p>
+<h2>Preface</h2>
 <p>Memory-safety vulnerabilities are usually presented as a collection of familiar categories: buffer overflows, use-after-free, double frees, dangling pointers, integer overflows, and so on. Each category has its own terminology, examples, mitigations, and history. But this way of looking at the problem can obscure something fundamental: these are not necessarily different kinds of failure. They can be different manifestations of a deeper failure — the violation of a semantic invariant.</p>
 <p>This book brings together and develops a perspective in which these familiar vulnerabilities can be understood in those terms. The idea of viewing programming errors through violated invariants has a long history across programming languages, formal methods, and software engineering. The aim here is not to claim that perspective as new, but to apply it systematically to memory safety and to bring several related ideas into closer alignment</p>
 <p>A semantic invariant is a relationship that must remain true for a program to behave as intended. In C, many such relationships exist only implicitly. A pointer must refer to a live object; an array index must remain within its bounds; an allocation must eventually be released, but not released twice; a length must correspond to the amount of storage actually available. The language often does not express these relationships strongly enough to enforce them. They therefore become obligations placed on the programmer.</p>
