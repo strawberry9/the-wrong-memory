@@ -218,50 +218,49 @@ described another.
 <p>That is the wrong memory.</p>
 
 <h1>Who Is This Book For?</h1>
-<p>The Wrong Memory is primarily a book about learning how to reason about memory-safety bugs.</p>
-<p>It is written for programmers, security engineers, code reviewers, students, and anyone else who wants to understand not only that a C program has a memory-safety problem, but why the problem exists, where it first appears, and how an apparently ordinary operation eventually reaches the wrong memory.</p>
+
+<p><em>The Wrong Memory</em> is primarily about learning how to reason about C memory-safety problems: not just recognising a vulnerability, but understanding the assumptions that led to it.</p>
+
+<p>It is written for C and systems programmers, security engineers, code reviewers, students, and others interested in how memory-safety failures arise.</p>
+
 <h2>C and systems programmers</h2>
-<p>If you write C, this book is for you.</p>
-<p>You may already know the familiar vocabulary: integer overflow, buffer overflow, out-of-bounds read, out-of-bounds write, use-after-free, double-free, invalid free, and so on. The book does not ask you to forget those categories. Instead, it asks you to look underneath them.</p>
-<p>A memory operation depends on a collection of assumptions. A number must represent the right quantity. An allocation must be large enough. A pointer must identify the intended object. A length must describe the range actually available. An object must still be alive. And the code performing the operation must have the right to use or release that object.</p>
-<p>When one of those assumptions becomes false, the eventual symptom may be called a particular kind of vulnerability. But the underlying mistake may have happened much earlier.</p>
-<p>The book gives you a way to follow that chain.</p>
-<h2>Security engineers, vulnerability researchers, and code auditors</h2>
-<p>The book is also intended for people who need to investigate unfamiliar C code.</p>
-<p>A useful security review does not stop at finding an apparently dangerous expression. It asks questions such as:</p>
-<p>What value controls this memory access?</p>
-<p>Where did that value come from?</p>
-<p>What was it supposed to mean?</p>
-<p>What invariant is supposed to hold?</p>
-<p>Where is that invariant first broken?</p>
-<p>The early chapters develop this as a practical code-review and vulnerability-analysis technique. Later chapters extend the same reasoning to copying, reading, writing, addressing, lifetime, and ownership. The goal is to make it possible to trace a vulnerability through the program rather than treating each memory-safety bug as an isolated category.</p>
-<h2>Students and people learning systems security</h2>
-<p>The book can also be read as a way of developing a mental model for low-level programming.</p>
-<p>You do not need to be an expert vulnerability researcher. Some familiarity with C, pointers, arrays, structures, dynamic allocation, and basic integer types will help, but the book builds its central framework progressively.</p>
-<p>The exercises are particularly useful if you are learning how to analyse code rather than simply write it. Instead of asking only whether a particular line is &quot;safe&quot; or &quot;unsafe,&quot; they encourage you to identify the quantity controlling the access, reconstruct the intended invariant, and find the first place where that invariant can fail.</p>
-<h2>Experienced programmers who want to understand memory safety more deeply</h2>
-<p>The book is not only for people who are new to C.</p>
-<p>Experienced C programmers may recognise every individual operation discussed here and still find that the connections between them are worth examining. In real programs, the dangerous assumption is often separated from the eventual memory access by several transformations, functions, or layers of abstraction.</p>
-<p>The central idea of the book is therefore deliberately broader than &quot;check your bounds.&quot;</p>
-<p>A value can change meaning as it travels through a program. A count can become a byte size. A size can determine an allocation. An allocation can determine a pointer range. A range can determine a copy. A pointer can outlive the object it once identified. A value that was correct at one stage can therefore become the wrong value at another.</p>
-<p>The book is about learning to see those relationships.</p>
-<h2>Readers interested in memory-safe languages</h2>
-<p>The book also has a second life beyond C.</p>
-<p>The four appendices step back from individual vulnerabilities and ask a larger question: what would it mean for memory safety to be a property of the programming language rather than a collection of responsibilities placed on the programmer?</p>
-<p>The first three appendices explore memory safety, semantic invariants, and the possibilities and limitations of changing C itself. They are particularly suited to readers interested in programming-language design, language evolution, and the relationship between a language&#x27;s semantics and the errors its programmers can express.</p>
-<p>These appendices can be read independently of the practical chapters, but they are especially useful after seeing the concrete problems described in the main book. The practical bugs provide the motivation for the more abstract questions.</p>
-<h2>C programmers considering Rust</h2>
-<p>The fourth appendix is aimed more specifically at readers making - or considering - the transition from C to Rust.</p>
-<p>Rust is often introduced in terms of technical mechanisms: ownership, borrowing, lifetimes, and the type system. But the deeper transition is one of mental models.</p>
-<p>If you have spent years programming in C, you may be accustomed to keeping many facts about memory in your head: which allocation a pointer belongs to, how much capacity remains, whether an object is still alive, who owns it, and which aliases may be used at a particular point in the program.</p>
-<p>Rust asks you to represent more of those facts explicitly in the program itself.</p>
-<p>Understanding the memory-safety problems described in this book can therefore make the motivation behind Rust&#x27;s constraints much clearer. The question is not simply &quot;How does Rust do things differently from C?&quot; It is &quot;Which assumptions was I previously responsible for maintaining myself?&quot;</p>
-<h2>You do not need to fit neatly into any of these categories</h2>
-<p>Ultimately, this book is for anyone interested in the boundary between what a program appears to say and what its memory operations are actually entitled to do.</p>
-<p>You may be writing C code, reviewing it, auditing it for vulnerabilities, learning systems programming, studying programming languages, or considering a move to a memory-safe language.</p>
-<p>The common thread is curiosity about the underlying question:</p>
+
+<p>If you write C, you will probably recognise many of the individual problems discussed here: integer overflow, buffer overflow, out-of-bounds access, use-after-free, double-free, and so on.</p>
+
+<p>The book's focus is not on introducing new categories of bugs, but on showing how they are connected. A value can determine a size, a size can determine an allocation, an allocation can determine a valid range, and that range can determine a memory operation. When one of the assumptions in that chain becomes false, the eventual failure may occur much later.</p>
+
+<p>The book provides a framework for tracing those relationships.</p>
+
+<h2>Security engineers and code reviewers</h2>
+
+<p>The same approach can be useful when investigating unfamiliar code. Instead of asking only whether an expression looks dangerous, the book encourages questions such as:</p>
+
+<ul>
+<li>What controls this memory operation?</li>
+<li>What is that value supposed to mean?</li>
+<li>What assumptions must hold?</li>
+<li>Where is the first assumption violated?</li>
+<li>How does that error reach memory?</li>
+</ul>
+
+<p>The goal is to understand the path from the original mistake to the eventual vulnerability.</p>
+
+<h2>Students and experienced programmers</h2>
+
+<p>The book assumes some familiarity with C, pointers, arrays, structures, and dynamic allocation. It is therefore not a beginner's introduction to C, but neither does it require experience in vulnerability research.</p>
+
+<p>For experienced programmers, many individual rules and examples will be familiar. The intended value is in considering them together as a common model of memory safety.</p>
+
+<h2>What this book is not</h2>
+
+<p><em>The Wrong Memory</em> is not an exhaustive reference to C semantics, a catalogue of real-world vulnerabilities, or an exploit-development manual. Its purpose is narrower: to provide a coherent way of thinking about why memory-safety failures occur and how apparently different failures can be related.</p>
+
+<p>The question at its centre is:</p>
+
+<blockquote>
 <p>What did the program believe about memory, and where did that belief stop being true?</p>
-<p>If that question interests you, this book is for you.</p>
+</blockquote>
+
 
 <nav class="book-outline" aria-label="Book Outline">
     <h2>A Brief Outline of the Book</h2>
