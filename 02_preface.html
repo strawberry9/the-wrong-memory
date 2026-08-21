@@ -82,39 +82,46 @@
 
 <p>But one detail near the beginning of the attack caught my attention.</p>
 
-<p>The agent found a public code-execution harness in which submitted C code was compiled and run against SQLite.</p>
-<p>The harness expected the submitted code to provide an implementation of sqlite3_initialize(). In the particular target used by the harness, that symbol was registered as a constructor, meaning that the supplied implementation would execute automatically when the resulting library was loaded.</p>
+<p>The agent found a public code-execution harness in which submitted C code was compiled and linked into a target involving SQLite.</p>
 
-<p>So the trick was essentially:<p>
-<pre><code>
+<p>The harness expected the submitted code to provide an implementation of <code>sqlite3_initialize()</code>. In the particular target used by the harness, that symbol was registered as a constructor, meaning that the supplied implementation would execute automatically when the resulting library was loaded.</p>
+
+<pre>
 Harness expects:
     "Give me a C implementation of sqlite3_initialize()."
 
 Attacker supplies:
     sqlite3_initialize() {
-        run_arbitrary_commands();
+        execute_attacker_controlled_code();
     }
 
 Harness loads the resulting library:
-    ↓
+    |
+    v
 constructor runs automatically
-    ↓
+    |
+    v
 attacker's sqlite3_initialize()
-    ↓
-arbitrary commands execute
-</code></pre>
+    |
+    v
+attacker-controlled code executes
+</pre>
 
-<p>sqlite3_initialize() has a perfectly legitimate semantic meaning:</p>
+<p><code>sqlite3_initialize()</code> has a perfectly legitimate semantic meaning:</p>
+
 <p>"Initialize SQLite."</p>
-<p>But in the harness, the symbol also had another semantic property:</p>
-<p>"This is a constructor that will execute when the library is loaded."</p>
-<p>The agent eventually found two ways to obtain arbitrary shell execution as uid=0 inside the sandbox.</p>
 
-<pre><code>
+<p>But in the harness, the symbol also had another semantic property:</p>
+
+<p>"This is a constructor that will execute when the library is loaded."</p>
+
+<p>By supplying a malicious path containing shell metacharacters, the agent effectively turned the build step into a command-injection primitive, obtaining shell execution as <code>uid=0</code> inside the sandbox.</p>
+
+<pre>
 OpenAI evaluation environment
           |
           v
-     sandbox escape
+   external sandbox
           |
           v
 public CyberGym-style harness
@@ -136,19 +143,27 @@ constructor trick          shell injection
                     |
                     v
           Hugging Face attacks
-</code></pre>
+</pre>
 
-<p>To put it simply, the attack exploited the difference between two meanings.</p<>
-<p>The function has the correct name: sqlite3_initialize </p>
-<p>It has the correct apparent signature: int sqlite3_initialize(void)</p>
-<p>It can even return the expected value: return 0;</p>
-<p>Nothing about those surface properties tells you that executing the function will run: system("id");</p>
+<p>To put it simply, the attack exploited the difference between two meanings.</p>
+
+<p>The function has the correct name: <code>sqlite3_initialize</code>.</p>
+
+<p>It has the correct apparent signature: <code>int sqlite3_initialize(void)</code>.</p>
+
+<p>It can even return the expected value: <code>return 0;</code>.</p>
+
+<p>Nothing about those surface properties tells you that executing the function will run attacker-controlled code.</p>
+
 <p>The dangerous property is supplied by the context in which the symbol is interpreted.</p>
-<p>The surrounding system supplies additional invariants.</p>
-<p>The attacker found one that the designers apparently hadn't intended to expose.</p>
-<p>The vulnerability wasn't hiding inside the name sqlite3_initialize().</p>
-<p>It was hiding in the relationship between the name, the supplied implementation, the linker/loader, and the execution environment.</p>
 
+<p>The surrounding system gives the symbol additional semantics.</p>
+
+<p>The attacker found a semantic property that the harness exposed but was not intended to provide as an execution primitive.</p>
+
+<p>The vulnerability wasn't hiding inside the name <code>sqlite3_initialize()</code>.</p>
+
+<p>It was hiding in the relationship between the name, the supplied implementation, the linker/loader, and the execution environment.</p>
 <p>That observation sent me back to a question I had been thinking about for years: what, exactly, is a memory-safety bug?</p>
 
 <p>We usually answer that question with a taxonomy. There are buffer overflows. There are out-of-bounds reads and writes. There are use-after-free bugs. There are double frees. There are integer overflows and dangling pointers.</p>
