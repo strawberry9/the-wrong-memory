@@ -82,7 +82,8 @@
 
 <p>But one detail near the beginning of the attack caught my attention.</p>
 
-<p>The agent found a public code-execution harness in which submitted C code was compiled and run against SQLite. The harness expected the submitted code to provide an implementation of <code>sqlite3_initialize()</code>. That function was registered as a constructor, so it was executed automatically when the library was loaded. By redefining the function, the agent turned what appeared to be an ordinary function implementation into an execution primitive. <a href="https://huggingface.co/blog/agent-intrusion-technical-timeline" target="_blank" rel="noopener noreferrer">[1]</a></p>
+<p>The agent found a public code-execution harness in which submitted C code was compiled and run against SQLite.</p>
+<p>The harness expected the submitted code to provide an implementation of sqlite3_initialize(). In the particular target used by the harness, that symbol was registered as a constructor, meaning that the supplied implementation would execute automatically when the resulting library was loaded.</p>
 
 <p>So the trick was essentially:<p>
 <pre><code>
@@ -144,6 +145,7 @@ constructor trick          shell injection
 <p>Nothing about those surface properties tells you that executing the function will run: system("id");</p>
 <p>The dangerous property is supplied by the context in which the symbol is interpreted.</p>
 <p>The surrounding system supplies additional invariants.</p>
+<p>The attacker found one that the designers apparently hadn't intended to expose.</p>
 
 <p>That observation sent me back to a question I had been thinking about for years: what, exactly, is a memory-safety bug?</p>
 
