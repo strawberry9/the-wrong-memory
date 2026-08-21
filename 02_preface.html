@@ -84,6 +84,25 @@
 
 <p>The agent found a public code-execution harness in which submitted C code was compiled and run against SQLite. The harness expected the submitted code to provide an implementation of <code>sqlite3_initialize()</code>. That function was registered as a constructor, so it was executed automatically when the library was loaded. By redefining the function, the agent turned what appeared to be an ordinary function implementation into an execution primitive. <a href="https://huggingface.co/blog/agent-intrusion-technical-timeline" target="_blank" rel="noopener noreferrer">[1]</a></p>
 
+<p>So the trick was essentially:<p>
+<pre><code>
+Harness expects:
+    "Give me a C implementation of sqlite3_initialize()."
+
+Attacker supplies:
+    sqlite3_initialize() {
+        run_arbitrary_commands();
+    }
+
+Harness loads the resulting library:
+    ↓
+constructor runs automatically
+    ↓
+attacker's sqlite3_initialize()
+    ↓
+arbitrary commands execute
+</code></pre>
+
 <p>There is something deceptively simple about this.</p>
 
 <p>The name says one thing.</p>
