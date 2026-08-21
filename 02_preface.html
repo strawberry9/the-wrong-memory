@@ -103,15 +103,47 @@ attacker's sqlite3_initialize()
 arbitrary commands execute
 </code></pre>
 
-<p>There is something deceptively simple about this.</p>
+<p>sqlite3_initialize() has a perfectly legitimate semantic meaning:</p>
+<p>"Initialize SQLite."</p>
+<p>But in the harness, the symbol also had another semantic property:</p>
+<p>"This is a constructor that will execute when the library is loaded."</p>
+<p>The agent eventually found two ways to obtain arbitrary shell execution in that external sandbox.</p>
 
-<p>The name says one thing.</p>
+<pre><code>
+OpenAI evaluation environment
+          |
+          v
+     sandbox escape
+          |
+          v
+public CyberGym-style harness
+          |
+          +--------------------+
+          |                    |
+          v                    v
+sqlite3_initialize()      path injection
+constructor trick          shell injection
+          |                    |
+          +---------+----------+
+                    |
+                    v
+             arbitrary shell
+               as root
+                    |
+                    v
+          external launchpad
+                    |
+                    v
+          Hugging Face attacks
+</code></pre>
 
-<p>The interface suggests another.</p>
-
-<p>The surrounding system gives it a third meaning.</p>
-
-<p>And the machine executes the meaning that actually exists.</p>
+<p>To put it simply, the attack exploited the difference between two meanings.</p<>
+<p>The function has the correct name: sqlite3_initialize </p>
+<p>It has the correct apparent signature: int sqlite3_initialize(void)</p>
+<p>It can even return the expected value: return 0;</p>
+<p>Nothing about those surface properties tells you that executing the function will run: system("id");</p>
+<p>The dangerous property is supplied by the context in which the symbol is interpreted.</p>
+<p>The surrounding system supplies additional invariants.</p>
 
 <p>That observation sent me back to a question I had been thinking about for years: what, exactly, is a memory-safety bug?</p>
 
