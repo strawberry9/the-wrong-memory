@@ -139,7 +139,7 @@ constructor trick          shell injection
                as root
                     |
                     v
-          external launchpad
+          external infrastructure
                     |
                     v
           Hugging Face attacks
@@ -155,11 +155,11 @@ constructor trick          shell injection
 
 <p>Nothing about those surface properties tells you that executing the function will run attacker-controlled code.</p>
 
-<p>The dangerous property is supplied by the context in which the symbol is interpreted.</p>
+<p>The dangerous property comes from the context in which the symbol is interpreted.</p>
 
 <p>The surrounding system gives the symbol additional semantics.</p>
 
-<p>The attacker found a semantic property that the harness exposed but was not intended to provide as an execution primitive.</p>
+<p>The attacker found a semantic property that the harness exposed but did not intend to provide as an execution primitive.</p>
 
 <p>The vulnerability wasn't hiding inside the name <code>sqlite3_initialize()</code>.</p>
 
