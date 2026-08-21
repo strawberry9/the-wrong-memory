@@ -146,6 +146,8 @@ constructor trick          shell injection
 <p>The dangerous property is supplied by the context in which the symbol is interpreted.</p>
 <p>The surrounding system supplies additional invariants.</p>
 <p>The attacker found one that the designers apparently hadn't intended to expose.</p>
+<p>The vulnerability wasn't hiding inside the name sqlite3_initialize().</p>
+<p>It was hiding in the relationship between the name, the supplied implementation, the linker/loader, and the execution environment.</p>
 
 <p>That observation sent me back to a question I had been thinking about for years: what, exactly, is a memory-safety bug?</p>
 
