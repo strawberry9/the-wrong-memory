@@ -133,6 +133,8 @@ ZZROOTSTART
 
 <p>This isn't a book about the incident. The incident is an example of the kind of reasoning the book is about.</p>
 
+<p>Whether looking at a rogue memory pointer or a co-opted C symbol like sqlite3_initialize(), the core takeaway is the same: systems fail when they blindly trust a valid representation while the underlying semantic meaning is completely subverted.</p>
+
 <p>We usually describe memory-safety bugs by their visible symptoms: buffer overflows, out-of-bounds accesses, use-after-free, double frees, dangling pointers. These categories are useful, but they can obscure the common problem underneath them.</p>
 
 <p>A pointer is supposed to identify a particular object.</p>
