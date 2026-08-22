@@ -123,9 +123,9 @@ ZZROOTSTART
 
 <p>Neither attack depended on a vulnerability in SQLite itself. The interesting failure was in the relationship between the interface, the supplied implementation, the linker and loader, and the environment in which the resulting code was executed.</p>
 
-<p>The function had an ordinary meaning: initialize SQLite. But the surrounding system gave that function another property: it was also code that would execute when the library was loaded.</p>
+<p>The function had an ordinary purpose: initialize SQLite. But the surrounding system gave that symbol another property: the supplied implementation would execute when the library was loaded.</p>
 
-<p>That is where this incident connects to the theme of this book.</p>
+<p>This isn't a book about the incident. The incident is an example of the kind of reasoning the book is about.</p>
 
 <p>We usually describe memory-safety bugs by their visible symptoms: buffer overflows, out-of-bounds accesses, use-after-free, double frees, dangling pointers. These categories are useful, but they can obscure the common problem underneath them.</p>
 
