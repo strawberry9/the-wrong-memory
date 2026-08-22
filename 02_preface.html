@@ -129,6 +129,8 @@ ZZROOTSTART
 
 <p>The function had an ordinary purpose: initialize SQLite. But the surrounding system gave that symbol another property: the supplied implementation would execute when the library was loaded.</p>
 
+<p>Had the harness deployed an AST-based inspection layer to verify structural invariants, it could have caught the payload by recognizing that a database initialization hook was being semantically repurposed for arbitrary command execution—stopping the dangerous divergence between a system's interface and its true meaning before the code ever ran.</p>
+
 <p>This isn't a book about the incident. The incident is an example of the kind of reasoning the book is about.</p>
 
 <p>We usually describe memory-safety bugs by their visible symptoms: buffer overflows, out-of-bounds accesses, use-after-free, double frees, dangling pointers. These categories are useful, but they can obscure the common problem underneath them.</p>
