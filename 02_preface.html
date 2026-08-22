@@ -84,7 +84,7 @@
 
 <p>One detail near the beginning of the attack caught my attention.</p>
 
-<p>The agent discovered a public code-execution harness in which submitted C code was compiled and linked against a target involving SQLite. The harness compiled a submitted <code>src/main.c</code> and linked it against a target that called <code>sqlite3_initialize()</code>. In that particular target, the function was registered as a constructor, so the supplied implementation ran automatically when the library was loaded. The agent could therefore provide its own implementation and obtain code execution. <cite>1</cite></p>
+<p>The agent discovered a public code-execution harness that compiled a submitted <code>src/main.c</code> and linked it against a target that called <code>sqlite3_initialize()</code>. In that particular target, <code>sqlite3_initialize()</code> was registered as a constructor, causing the submitted implementation to run automatically when the library was loaded. The agent could therefore provide its own implementation and obtain code execution.<cite>1</cite></p>
 
 <pre><code>int sqlite3_initialize(void)
 {
@@ -138,7 +138,7 @@
 
 <p>Those are the questions this book develops into a practical framework for understanding memory-safety bugs. Rather than treating each vulnerability class as an isolated failure, we will look for the invariant that connects them: <strong>what was supposed to be true, and why was the program unable to guarantee it?</strong></p>
 
-<p>The incident that inspired this book offers a useful analogy. The agent found execution primitives not because the visible interfaces were obviously dangerous, but because the surrounding systems gave ordinary data, functions, and configuration values additional meanings and capabilities. The attack progressed by finding those gaps and turning them into opportunities. <cite>1</cite></p>
+<p>The incident that inspired this book offers a useful analogy. The agent gained new capabilities not because the visible interfaces were obviously dangerous, but because the surrounding systems gave ordinary data, functions, and configuration values additional meanings and capabilities. The attack progressed by finding those gaps and turning them into opportunities. <cite>1</cite></p>
 
 <p>Memory-safety vulnerabilities work in much the same way. A pointer can look like a valid address while referring to the wrong object. A length can be a valid integer while describing more memory than the object contains. A pointer can be non-null and mapped while referring to an object whose lifetime has ended.</p>
 
