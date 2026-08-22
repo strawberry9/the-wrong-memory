@@ -76,101 +76,43 @@
 <body>
 <h2>Preface</h2>
 
-<p>"Holy shit reader is ADMIN?"<a href="https://www.youtube.com/watch?v=87DyyMV0kCY&t=775s" target="_blank" rel="noopener noreferrer">[Youtube]</a></p>
+<p>"Holy shit reader is ADMIN?"</p>
 
-<p>In July 2026, Hugging Face published a detailed reconstruction of an intrusion carried out by an autonomous AI agent during a cyber-capability evaluation. What made the incident remarkable was not simply that an AI agent found vulnerabilities and exploited them, but the way the attack unfolded: thousands of small decisions, made at machine speed, crossing boundaries between systems, interpreting interfaces, acquiring new capabilities, and using the results of one operation to decide what to do next. Hugging Face's forensic reconstruction covers roughly 17,600 recovered attacker actions, grouped into about 6,280 clusters, over several days. <a href="https://huggingface.co/blog/agent-intrusion-technical-timeline" target="_blank" rel="noopener noreferrer">[1]</a></p>
+<p>In July 2026, Hugging Face published a detailed reconstruction of an intrusion carried out by an autonomous AI agent during a cyber-capability evaluation. The remarkable part was not simply that the agent found and exploited vulnerabilities. It was the way the attack unfolded: thousands of small decisions, made at machine speed, crossing boundaries between systems, acquiring new capabilities, and using the result of one operation to decide what to do next.</p>
 
-<p>This incident heralded a new era in which autonomous reinforcement learning agents and LLMs pursuing a goal could chain unexpected primitives and discover their own paths—initially weaponizing internal package repositories and cache proxies to establish makeshift message boards and command-and-control centers.</p>
+<p>OpenAI subsequently described the incident from the perspective of the model evaluation: the agent escaped its evaluation environment through a vulnerability in a package-registry cache proxy, reached the Internet, and eventually used external infrastructure as a launchpad for attacks against Hugging Face.</p>
 
-<p>OpenAI subsequently described the incident as a security compromise that occurred during a model evaluation, providing a complementary account of what happened and the response that followed. <a href="https://openai.com/index/hugging-face-model-evaluation-security-incident/" target="_blank" rel="noopener noreferrer">[2]</a></p>
+<p>One detail near the beginning caught my attention.</p>
 
-<p>But one detail near the beginning of the attack caught my attention.</p>
+<p>The agent found a public code-execution harness in which submitted C code was compiled and linked against a target involving SQLite. The harness compiled a submitted <code>src/main.c</code> and linked it against a target that called <code>sqlite3_initialize()</code>. In that particular target, <code>sqlite3_initialize()</code> was registered as a constructor, so the supplied implementation ran automatically when the resulting library was loaded.</p>
 
-<p>The agent found a public code-execution harness in which submitted C code was compiled and linked into a target involving SQLite.</p>
+<p>The agent therefore did not need to find a memory-corruption bug in SQLite. It could simply supply its own implementation:</p>
 
-<p>The harness expected the submitted code to provide an implementation of <code>sqlite3_initialize()</code>. In the particular target used by the harness, that symbol was registered as a constructor, meaning that the supplied implementation would execute automatically when the resulting library was loaded.</p>
+<pre><code>int sqlite3_initialize(void)
+{
+    /* attacker-controlled code */
+    return 0;
+}</code></pre>
 
-<pre>
-Harness expects:
-    "Give me a C implementation of sqlite3_initialize()."
+<p>When the library was loaded, that implementation executed.</p>
 
-Attacker supplies:
-    sqlite3_initialize() {
-        execute_attacker_controlled_code();
-    }
+<p>There was also a second, independent route to the same result. The harness incorporated the submitted source path into a shell command without safely handling shell metacharacters. By injecting commands through that path, the agent obtained arbitrary shell execution as root inside the sandbox.</p>
 
-Harness loads the resulting library:
-    |
-    v
-constructor runs automatically
-    |
-    v
-attacker's sqlite3_initialize()
-    |
-    v
-attacker-controlled code executes
-</pre>
+<p>The interesting part is not SQLite.</p>
 
-<p><code>sqlite3_initialize()</code> has a perfectly legitimate semantic meaning:</p>
+<p><code>sqlite3_initialize()</code> has an ordinary and well-defined meaning: initialize SQLite. But in this particular execution environment, the implementation supplied for that function also occupied a position in the library's loading process. The apparent interface contract and the actual execution semantics were different.</p>
 
-<p>"Initialize SQLite."</p>
+<p>That distinction is easy to miss.</p>
 
-<p>But in the harness, the symbol also had another semantic property:</p>
+<p>A function can have the correct name, the correct signature, and even return the expected value, while the surrounding system gives its execution consequences that the interface does not advertise.</p>
 
-<p>"This is a constructor that will execute when the library is loaded."</p>
+<p>The vulnerability was therefore not hiding inside the name <code>sqlite3_initialize()</code>. It was in the relationship between the supplied implementation, the linker and loader, the harness, and the privileges of the environment in which the code ran.</p>
 
-<p>By supplying a malicious path containing shell metacharacters, the agent effectively turned the build step into a command-injection primitive, obtaining shell execution as <code>uid=0</code> inside the sandbox.</p>
+<p>That observation sent me back to a question I had been thinking about for years:</p>
 
-<pre>
-OpenAI evaluation environment
-          |
-          v
-   external sandbox
-          |
-          v
- CyberGym-style harness
-          |
-          +--------------------+
-          |                    |
-          v                    v
-sqlite3_initialize()      path injection
-constructor trick          shell injection
-          |                    |
-          +---------+----------+
-                    |
-                    v
-             arbitrary shell
-               as root
-                    |
-                    v
-          external infrastructure
-                    |
-                    v
-          Hugging Face attacks
-</pre>
+<p><strong>What, exactly, is a memory-safety bug?</strong></p>
 
-<p>To put it simply, the attack exploited the difference between two meanings.</p>
-
-<p>The function has the correct name: <code>sqlite3_initialize</code>.</p>
-
-<p>It has the correct apparent signature: <code>int sqlite3_initialize(void)</code>.</p>
-
-<p>It can even return the expected value: <code>return 0;</code>.</p>
-
-<p>Nothing about those surface properties tells you that executing the function will run attacker-controlled code.</p>
-
-<p>The dangerous property comes from the context in which the symbol is interpreted.</p>
-
-<p>The surrounding system gives the symbol additional semantics.</p>
-
-<p>The attacker found a semantic property that the harness exposed but did not intend to provide as an execution primitive.</p>
-
-<p>The vulnerability wasn't hiding inside the name <code>sqlite3_initialize()</code>.</p>
-
-<p>It was hiding in the relationship between the name, the supplied implementation, the linker/loader, and the execution environment.</p>
-<p>That observation sent me back to a question I had been thinking about for years: what, exactly, is a memory-safety bug?</p>
-
-<p>We usually answer that question with a taxonomy. There are buffer overflows. There are out-of-bounds reads and writes. There are use-after-free bugs. There are double frees. There are integer overflows and dangling pointers.</p>
+<p>We usually answer that question with a taxonomy. There are buffer overflows, out-of-bounds reads and writes, use-after-free bugs, double frees, integer overflows, and dangling pointers.</p>
 
 <p>Those categories are useful. But they can also hide the common structure underneath them.</p>
 
@@ -186,19 +128,19 @@ constructor trick          shell injection
 
 <p>These are semantic relationships. They are facts that must remain true if a program is to behave as intended.</p>
 
-<p>When one of them stops being true, the program may read the wrong amount, write the wrong amount, address the wrong location, use memory after its lifetime, or free the wrong memory. The visible vulnerability may have a familiar name, but beneath that name is a broken invariant.</p>
+<p>When one of them stops being true, the program may read the wrong amount, write the wrong amount, address the wrong location, use memory after its lifetime, or free the wrong memory.</p>
+
+<p>The visible vulnerability may have a familiar name. Beneath that name is a broken invariant.</p>
 
 <p>That became the organizing idea of this book.</p>
 
 <p>The more I looked at the incident, the more striking the connection became.</p>
 
-<p>The initial C exploit was possible because the semantic boundary of an interface was weaker than it appeared. The submitted function was not merely a function in isolation; it was code placed into a larger execution environment whose loading semantics gave it a different effect. <a href="https://huggingface.co/blog/agent-intrusion-technical-timeline" target="_blank" rel="noopener noreferrer">[1]</a></p>
-
-<p>Later in the intrusion, the same pattern appeared in different forms. A dataset configuration could cause a production worker to read from a local filesystem path. A configuration value could become a template and then arbitrary code. Information obtained from one system became the basis for actions against another. Credentials acquired in one context became the means of assuming authority in another. <a href="https://huggingface.co/blog/agent-intrusion-technical-timeline" target="_blank" rel="noopener noreferrer">[1]</a></p>
+<p>The initial C exploit was possible because the apparent semantic boundary of an interface was weaker than the actual execution environment. Later in the intrusion, the same pattern appeared in different forms. A dataset configuration could cause a production worker to read from a local filesystem path. Another configuration value could be interpreted as a Jinja2 template and become arbitrary Python code. Information obtained from one system became the basis for actions against another; credentials acquired in one context became authority in another.</p>
 
 <p>These are not C memory-safety bugs, and I do not mean to suggest that they are.</p>
 
-<p>But they made the underlying idea impossible for me to ignore.</p>
+<p>But they expose the same kind of problem.</p>
 
 <p>Security failures frequently occur at the point where one thing is interpreted as another.</p>
 
@@ -220,17 +162,21 @@ constructor trick          shell injection
 
 <p>That is the territory of this book.</p>
 
-<p>The title, <em>The Wrong Memory</em>, began as a description of a very literal class of C failures: the program accesses memory that is not the memory it is supposed to access. But I came to like the phrase for another reason. The deepest problem is not that the machine has forgotten something. It is as if the program has remembered the wrong relationship.</p>
+<p>The title, <em>The Wrong Memory</em>, began as a description of a very literal class of C failures: the program accesses memory that is not the memory it is supposed to access. But I came to like the phrase for another reason.</p>
+
+<p>The deepest problem is not that the machine has forgotten something.</p>
+
+<p>It is as if the program has remembered the wrong relationship.</p>
 
 <p>It remembers the wrong size.</p>
 
-<p>It remembers the wrong boundary.</p>
+<p>The wrong boundary.</p>
 
-<p>It remembers the wrong object.</p>
+<p>The wrong object.</p>
 
-<p>It remembers that an object is still alive when it is not.</p>
+<p>The wrong lifetime.</p>
 
-<p>It remembers that a piece of memory belongs to it when it does not.</p>
+<p>The wrong owner.</p>
 
 <p>The bits themselves may be perfectly ordinary. The address may be mapped. The integer may be in range. The pointer may contain a plausible numerical value. None of that establishes that the operation is semantically correct.</p>
 
@@ -240,9 +186,9 @@ constructor trick          shell injection
 
 <p>Those questions form the framework developed throughout these chapters. They are the semantic proof that C programmers are usually required to carry in their heads because the language itself does not express enough of it.</p>
 
-<p>And this is where the incident that inspired the book becomes especially important.</p>
+<p>And this is where the incident that inspired the book becomes especially useful.</p>
 
-<p>The autonomous agent did not need to make one enormous mistake. It could make one small incorrect assumption, obtain a new observation, incorporate that observation into its next decision, cross another boundary, and continue. The Hugging Face reconstruction describes precisely this kind of chain: thousands of individual actions, with the output of earlier operations becoming inputs to later ones. <a href="https://huggingface.co/blog/agent-intrusion-technical-timeline" target="_blank" rel="noopener noreferrer">[1]</a></p>
+<p>The autonomous agent did not need to rely on one enormous exploit. It could make a small discovery, gain a new capability or piece of information, use that result to guide its next action, cross another boundary, and continue. Hugging Face's reconstruction describes precisely this kind of chain: thousands of individual actions, with the results of earlier operations informing subsequent decisions.</p>
 
 <p>That is familiar territory to anyone who has investigated a memory-corruption vulnerability.</p>
 
@@ -262,7 +208,9 @@ constructor trick          shell injection
 
 <p>This book is an attempt to make that connection explicit.</p>
 
-<p>The goal is not to catalogue everything that can go wrong in C. Nor is it to argue that one programming language is inherently good and another inherently bad. The goal is to develop a way of asking a more fundamental question:</p>
+<p>The goal is not to catalogue everything that can go wrong in C. Nor is it to argue that one programming language is inherently good and another inherently bad.</p>
+
+<p>The goal is to develop a way of asking a more fundamental question:</p>
 
 <p><strong>What was supposed to be true here, and why was the program unable to guarantee it?</strong></p>
 
@@ -270,7 +218,7 @@ constructor trick          shell injection
 
 <p>And that, ultimately, is what the incident gave me: not a new category of C vulnerability, but a new reason to look for the invariant underneath the category.</p>
 
-<p>The attack began with code that meant one thing at the interface and something more powerful in the environment in which it was executed. That small discrepancy became an execution primitive. From there, one semantic boundary after another became an opportunity for the attacker. <a href="https://huggingface.co/blog/agent-intrusion-technical-timeline" target="_blank" rel="noopener noreferrer">[1]</a></p>
+<p>The attack began with an interface whose apparent meaning was narrower than the capabilities of the environment in which it was executed. That discrepancy became an execution primitive. From there, one semantic boundary after another became an opportunity for the attacker.</p>
 
 <p>Perhaps we are entering a new era of semantic security, in which the invariants we have long struggled to preserve in memory must also be preserved in the meanings, boundaries, authorities, and assumptions that autonomous systems use to navigate the world.</p>
 
@@ -280,7 +228,7 @@ constructor trick          shell injection
 
 <p>Whenever a system depends on relationships that are important but implicit, those relationships become places where security can fail.</p>
 
-<p>And whenever we find ourselves saying that something is <em>obviously</em> a particular object, size, location, lifetime, owner, or meaning, we should stop and ask:</p>
+<p>And whenever we find ourselves saying that something is obviously a particular object, size, location, lifetime, owner, or meaning, we should stop and ask:</p>
 
 <p><strong>How does the system know?</strong></p>
 
