@@ -265,6 +265,7 @@ Rust:
 <p>Attributes are powerful mechanism for adding compiler-enforced semantic information.</p>
 <p>While D is not unique in using attributes to give code additional semantic meaning (Rust, for example, has a very extensive attribute mechanism), D has a particularly broad and coherent use of attributes to express semantic properties. Its attribute system includes things such as @safe, @trusted, @system, @nogc, pure, nothrow, scope, return, @disable, and @mustuse. These aren't merely metadata for tools; many of them change what the compiler permits and what it can prove about the program.</p>
 <p>This is, perhaps, one of D's most attractive qualities: its attribute system provides a natural way to enrich otherwise ordinary code with additional compiler-enforced semantics, without requiring those semantics to become part of the program's runtime representation.</p>
+<p>D has gradually moved toward a generalized @-attribute namespace (AtAttribute) for semantic properties that don't need to become fundamental language keywords.</p>
 <hr>
 <h1>6. Swift: combine static guarantees, runtime checks and managed lifetime</h1>
 <p>Swift provides another answer to the same problem.</p>
