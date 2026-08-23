@@ -262,7 +262,8 @@ Rust:
 <p>The broader design principle is therefore better stated as:</p>
 <p>Do not merely provide a safe subset. Make the safe subset the normal place in which programs live, and make departures from it explicit, local and reviewable.</p>
 <p>D shows the usefulness of a @safe/@trusted/@system boundary. Rust demonstrates the stronger alternative of making that boundary safe by default.</p>
-<p>D is not unique in using attributes to give code additional semantic meaning. Rust, for example, has a very extensive attribute mechanism. But D has a particularly broad and coherent use of attributes to express semantic properties. Its attribute system includes things such as @safe, @trusted, @system, @nogc, pure, nothrow, scope, return, @disable, and @mustuse. These aren't merely metadata for tools; many of them change what the compiler permits and what it can prove about the program. This is, perhaps, one of D's most attractive qualities: the extensive use of attributes to attach additional meaning to otherwise ordinary code.</p>
+<p>D is not unique in using attributes to give code additional semantic meaning. Rust, for example, has a very extensive attribute mechanism. But D has a particularly broad and coherent use of attributes to express semantic properties. Its attribute system includes things such as @safe, @trusted, @system, @nogc, pure, nothrow, scope, return, @disable, and @mustuse. These aren't merely metadata for tools; many of them change what the compiler permits and what it can prove about the program.</p>
+<p>This is, perhaps, one of D's most attractive qualities: its attribute system provides a natural way to enrich otherwise ordinary code with additional compiler-enforced semantics.</p>
 <hr>
 <h1>6. Swift: combine static guarantees, runtime checks and managed lifetime</h1>
 <p>Swift provides another answer to the same problem.</p>
