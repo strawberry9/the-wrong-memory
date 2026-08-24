@@ -90,11 +90,27 @@
 
 <p><strong>What makes this memory operation safe, and how does the language know?</strong></p>
 
-<p>That question is a useful lens through which to view the evolution of systems programming languages. The answers differ considerably. Some languages use garbage collection to remove explicit lifetime management. Others use ownership, borrowing and lifetimes. Some make bounds and ranges explicit. Others provide contracts and formal verification. Some express permissions through capabilities. Some combine several of these mechanisms while retaining an explicitly unsafe subset for low-level operations.<sup><a href="#ref-2">[2]</a><sup><a href="#ref-3">[3]</a><sup><a href="#ref-4">[4]</a><sup><a href="#ref-5">[5]</a><sup><a href="#ref-6">[6]</a><sup><a href="#ref-7">[7]</a><sup><a href="#ref-8">[8]</a></sup></p>
+<p>That question is a useful lens through which to view the evolution of systems programming languages. The answers differ considerably. Some languages use garbage collection to remove explicit lifetime management. Others use ownership, borrowing and lifetimes. Some make bounds and ranges explicit. Others provide contracts and formal verification. Some express permissions through capabilities. Some combine several of these mechanisms while retaining an explicitly unsafe subset for low-level operations.
+<sup>
+  <a href="#ref-2">[2]</a>
+  <a href="#ref-3">[3]</a>
+  <a href="#ref-4">[4]</a>
+  <a href="#ref-5">[5]</a>
+  <a href="#ref-6">[6]</a>
+  <a href="#ref-7">[7]</a>
+  <a href="#ref-8">[8]</a>
+</sup>
+</p>
 
 <p>What they have in common is a change in where the safety argument lives.</p>
 
-<p>Instead of asking the programmer to remember every fact necessary to justify a memory operation, modern language design increasingly attempts to represent, check, enforce or automatically maintain those facts.<sup><a href="#ref-2">[2]</a><sup><a href="#ref-3">[3]</a><sup><a href="#ref-5">[5]</a></sup></p>
+<p>Instead of asking the programmer to remember every fact necessary to justify a memory operation, modern language design increasingly attempts to represent, check, enforce or automatically maintain those facts.
+<sup>
+  <a href="#ref-2">[2]</a>
+  <a href="#ref-3">[3]</a>
+  <a href="#ref-5">[5]</a>
+</sup>
+</p>
 
 <p>That is a profound change in the programming model.</p>
 
@@ -104,7 +120,12 @@
 
 <pre><code>memcpy(destination, source, length);</code></pre>
 
-<p>For this operation to be valid, a substantial collection of conditions must hold. The source must identify a live object containing at least <code>length</code> readable bytes. The destination must identify a live object containing at least <code>length</code> writable bytes. <code>length</code> must represent the intended quantity. The pointers must identify the intended objects. The operation must satisfy the requirements of the particular memory primitive.<sup><a href="#ref-1">[1]</a><sup><a href="#ref-9">[9]</a></sup></p>
+<p>For this operation to be valid, a substantial collection of conditions must hold. The source must identify a live object containing at least <code>length</code> readable bytes. The destination must identify a live object containing at least <code>length</code> writable bytes. <code>length</code> must represent the intended quantity. The pointers must identify the intended objects. The operation must satisfy the requirements of the particular memory primitive.
+<sup>
+  <a href="#ref-1">[1]</a>
+  <a href="#ref-9">[9]</a>
+</sup>
+</p>
 
 <p>Yet the types involved may communicate very little of this to the compiler.</p>
 
@@ -120,7 +141,12 @@
 <p>This reference identifies this particular object, at this particular location, for this particular amount of memory, while that object remains alive and accessible to this operation.</p>
 </blockquote>
 
-<p>The difference between those two descriptions is one of the recurring sources of C memory errors.<sup><a href="#ref-1">[1]</a><sup><a href="#ref-9">[9]</a></sup></p>
+<p>The difference between those two descriptions is one of the recurring sources of C memory errors.
+<sup>
+  <a href="#ref-1">[1]</a>
+  <a href="#ref-9">[9]</a>
+</sup>
+</p>
 
 <p>The problem is therefore deeper than the existence of dangerous functions. It is that C allows important safety properties to exist primarily as assumptions.</p>
 
@@ -146,7 +172,12 @@
 
 <p>A pointer can identify the wrong object even when its numerical value is perfectly valid. A length can be wrong even when the pointer is correct. An address and length can both be correct while the object has already ceased to exist. An object can be alive and correctly addressed while the current code nevertheless lacks the authority to modify or destroy it.</p>
 
-<p>This multidimensional nature of memory safety is important for programming-language design.<sup><a href="#ref-10">[10]</a><sup><a href="#ref-11">[11]</a></sup></p>
+<p>This multidimensional nature of memory safety is important for programming-language design.
+<sup>
+  <a href="#ref-10">[10]</a>
+  <a href="#ref-11">[11]</a>
+</sup>
+</p>
 
 <p>There is no single feature that solves all of these problems.</p>
 
@@ -160,7 +191,12 @@
 
 <p>Do not require ordinary application code to determine when an object can be destroyed.</p>
 
-<p>Languages such as Java, C#, Go and many others use garbage collection to manage object lifetimes.<sup><a href="#ref-12">[12]</a><sup><a href="#ref-13">[13]</a></sup></p>
+<p>Languages such as Java, C#, Go and many others use garbage collection to manage object lifetimes.
+<sup>
+  <a href="#ref-12">[12]</a>
+  <a href="#ref-13">[13]</a>
+</sup>
+</p>
 
 <p>This eliminates an entire category of errors examined in 'The Wrong Memory'.</p>
 
@@ -204,7 +240,12 @@ use again</code></pre>
 
 <p>The programmer must preserve the relationship between <code>data</code> and <code>length</code>.</p>
 
-<p>A safer abstraction can instead represent a bounded region as a single value: a slice, span, array view or equivalent construct.<sup><a href="#ref-14">[14]</a><sup><a href="#ref-15">[15]</a></sup></p>
+<p>A safer abstraction can instead represent a bounded region as a single value: a slice, span, array view or equivalent construct.
+<sup>
+  <a href="#ref-14">[14]</a>
+  <a href="#ref-15">[15]</a>
+</sup>
+</p>
 
 <p>The difference is more than syntactic.</p>
 
@@ -218,7 +259,12 @@ use again</code></pre>
 
 <p>The address and the information required to interpret that address safely remain connected.</p>
 
-<p>Rust's slices are a prominent example. Rust's ownership model combines with borrowing and slices to provide compile-time memory-safety guarantees without requiring a garbage collector.<sup><a href="#ref-15">[15]</a><sup><a href="#ref-16">[16]</a></sup></p>
+<p>Rust's slices are a prominent example. Rust's ownership model combines with borrowing and slices to provide compile-time memory-safety guarantees without requiring a garbage collector.
+<sup>
+  <a href="#ref-15">[15]</a>
+  <a href="#ref-16">[16]</a>
+</sup>
+</p>
 
 <p>Swift takes a different overall approach but similarly provides bounds checking for arrays and buffers. Its language documentation explicitly identifies bounds safety as one of its memory-safety guarantees.<sup><a href="#ref-17">[17]</a></sup></p>
 
@@ -240,7 +286,12 @@ use again</code></pre>
 
 <p>Rust is the best-known modern example.</p>
 
-<p>Its ownership model allows the compiler to provide memory-safety guarantees without a garbage collector. Ownership, borrowing and lifetime rules constrain how references are created and used, and violations of those rules result in compilation failure.<sup><a href="#ref-16">[16]</a><sup><a href="#ref-18">[18]</a></sup></p>
+<p>Its ownership model allows the compiler to provide memory-safety guarantees without a garbage collector. Ownership, borrowing and lifetime rules constrain how references are created and used, and violations of those rules result in compilation failure.
+<sup>
+  <a href="#ref-16">[16]</a>
+  <a href="#ref-18">[18]</a>
+</sup>
+</p>
 
 <p>This addresses questions that bounds checking alone cannot answer:</p>
 
@@ -264,15 +315,25 @@ use again</code></pre>
 
 <p>Rust is particularly significant because it combines several of these ideas without relying on garbage collection.</p>
 
-<p>Ownership, borrowing, lifetimes, slices and the type system allow the compiler to reject many programs in which a C programmer would instead have to maintain an informal memory-safety argument.<sup><a href="#ref-16">[16]</a><sup><a href="#ref-15">[15]</a></sup></p>
+<p>Ownership, borrowing, lifetimes, slices and the type system allow the compiler to reject many programs in which a C programmer would instead have to maintain an informal memory-safety argument.
+<sup>
+  <a href="#ref-16">[16]</a>
+  <a href="#ref-15">[15]</a>
+</sup>
+</p>
 
 <p>That does not mean Rust eliminates the need for low-level reasoning.</p>
 
-<p>Rust has <code>unsafe</code> code. It has foreign-function interfaces. It permits operations that cannot be justified entirely by the safe type system. And memory safety does not imply application correctness.<sup><a href="#ref-19">[19]</a><sup><a href="#ref-20">[20]</a></sup></p>
+<p>Rust has <code>unsafe</code> code. It has foreign-function interfaces. It permits operations that cannot be justified entirely by the safe type system. And memory safety does not imply application correctness.
+<sup>
+  <a href="#ref-19">[19]</a>
+  <a href="#ref-20">[20]</a>
+</sup>
+</p>
 
 <p>What matters is the boundary.</p>
 
-<p>Rust attempts to establish a protected subset in which the compiler can provide strong memory-safety guarantees, while making the programmer explicitly acknowledge operations that escape those guarantees.<sup><a href="#ref-19">[19]</a></p>
+<p>Rust attempts to establish a protected subset in which the compiler can provide strong memory-safety guarantees, while making the programmer explicitly acknowledge operations that escape those guarantees.<sup><a href="#ref-19">[19]</a></sup></p>
 
 <p>This changes the economics of code review.</p>
 
@@ -296,7 +357,10 @@ use again</code></pre>
 
 <p><code>@trusted</code> - code whose interface can be used from <code>@safe</code> code, but whose implementation is responsible for upholding the safety contract; and</p>
 
-<p><code>@system</code> - unrestricted D code, where memory safety is the programmer's responsibility.<sup><a href="#ref-21">[21]</a><sup><a href="#ref-22">[22]</a></sup></p>
+<p><code>@system</code> - unrestricted D code, where memory safety is the programmer's responsibility.<sup>
+<a href="#ref-21">[21]</a>
+<a href="#ref-22">[22]</a>
+</sup></p>
 
 <p>The crucial qualification is that <code>@safe</code> is not D's default. An ordinary function without a safety attribute is <code>@system</code>. The programmer must explicitly write:</p>
 
@@ -305,11 +369,14 @@ use again</code></pre>
     // ...
 }</code></pre>
 
-<p>to put the function under D's <code>@safe</code> rules.<sup><a href="#ref-21">[21]</a></p>
+<p>to put the function under D's <code>@safe</code> rules.<sup><a href="#ref-21">[21]</a></sup></p>
 
 <p>This makes D fundamentally different from Rust.</p>
 
-<p>Rust does not require ordinary code to be marked safe. Safe Rust is the normal programming model. The programmer writes ordinary Rust, and the compiler's ownership, borrowing, lifetime and type rules establish the language's memory-safety guarantees. Only when code needs capabilities outside that safe subset does the programmer explicitly enter unsafe territory.<sup><a href="#ref-19">[19]</a><sup><a href="#ref-16">[16]</a></sup></p>
+<p>Rust does not require ordinary code to be marked safe. Safe Rust is the normal programming model. The programmer writes ordinary Rust, and the compiler's ownership, borrowing, lifetime and type rules establish the language's memory-safety guarantees. Only when code needs capabilities outside that safe subset does the programmer explicitly enter unsafe territory.<sup>
+<a href="#ref-19">[19]</a>
+<a href="#ref-16">[16]</a>
+</sup></p>
 
 <p>Conceptually, the two models look like this:</p>
 
@@ -347,13 +414,19 @@ Rust
 
 <p>The difference is more than syntactic.</p>
 
-<p>In D, the programmer must opt into the compiler-enforced safe subset with <code>@safe</code>. In Rust, the programmer must opt out of the safe subset with <code>unsafe</code>.<sup><a href="#ref-19">[19]</a><sup><a href="#ref-21">[21]</a></sup></p>
+<p>In D, the programmer must opt into the compiler-enforced safe subset with <code>@safe</code>. In Rust, the programmer must opt out of the safe subset with <code>unsafe</code>.<sup>
+<a href="#ref-19">[19]</a>
+<a href="#ref-21">[21]</a>
+</sup></p>
 
 <p>That changes the default safety boundary of an entire program. A D program can contain substantial amounts of <code>@system</code> code without an explicit annotation saying that the code is outside the compiler-enforced safe subset. A Rust program, by contrast, treats safe code as the normal case and makes departures from the safety guarantees syntactically visible through <code>unsafe</code>.</p>
 
-<p>Rust's <code>unsafe</code> keyword permits operations that safe Rust cannot justify, such as dereferencing raw pointers or calling unsafe functions. The important point is that the programmer explicitly marks the point at which these additional powers are being used.<sup><a href="#ref-19">[19]</a><sup><a href="#ref-20">[20]</a></sup></p>
+<p>Rust's <code>unsafe</code> keyword permits operations that safe Rust cannot justify, such as dereferencing raw pointers or calling unsafe functions. The important point is that the programmer explicitly marks the point at which these additional powers are being used.<sup>
+<a href="#ref-19">[19]</a>
+<a href="#ref-20">[20]</a>
+</sup></p>
 
-<p>D's model nevertheless has an important architectural virtue: it does not attempt to eliminate low-level programming. <code>@system</code> code can perform operations that <code>@safe</code> code cannot, while <code>@trusted</code> functions can provide a carefully reviewed bridge between low-level implementation and safe callers. The trusted code is a programmer responsibility rather than something the compiler can prove safe.<sup><a href="#ref-21">[21]</a></p>
+<p>D's model nevertheless has an important architectural virtue: it does not attempt to eliminate low-level programming. <code>@system</code> code can perform operations that <code>@safe</code> code cannot, while <code>@trusted</code> functions can provide a carefully reviewed bridge between low-level implementation and safe callers. The trusted code is a programmer responsibility rather than something the compiler can prove safe.<sup><a href="#ref-21">[21]</a></sup></p>
 
 <p>The two models can therefore be summarized as:</p>
 
@@ -370,7 +443,10 @@ Rust:
 
 <p>Both languages acknowledge that systems programming sometimes requires operations that cannot be justified by the ordinary safety rules. The important difference is which side of the boundary is the default.</p>
 
-<p>For the argument of this book, this distinction is significant. D demonstrates that a systems language can provide a statically checked memory-safe subset without abandoning low-level programming. Rust demonstrates a stronger default: memory safety is the baseline, and unsafe reasoning must be explicitly introduced.<sup><a href="#ref-19">[19]</a><sup><a href="#ref-21">[21]</a></sup></p>
+<p>For the argument of this book, this distinction is significant. D demonstrates that a systems language can provide a statically checked memory-safe subset without abandoning low-level programming. Rust demonstrates a stronger default: memory safety is the baseline, and unsafe reasoning must be explicitly introduced.<sup>
+<a href="#ref-19">[19]</a>
+<a href="#ref-21">[21]</a>
+</sup></p>
 
 <p>The broader design principle is therefore better stated as:</p>
 
@@ -380,7 +456,7 @@ Rust:
 
 <p>Attributes are powerful mechanism for adding compiler-enforced semantic information.</p>
 
-<p>While D is not unique in using attributes to give code additional semantic meaning (Rust, for example, has a very extensive attribute mechanism), D has a particularly broad and coherent use of attributes to express semantic properties. Its attribute system includes things such as <code>@safe</code>, <code>@trusted</code>, <code>@system</code>, <code>@nogc</code>, <code>pure</code>, <code>nothrow</code>, <code>scope</code>, <code>return</code>, <code>@disable</code>, and <code>@mustuse</code>. These aren't merely metadata for tools; many of them change what the compiler permits and what it can prove about the program.<sup><a href="#ref-23">[23]</a></p>
+<p>While D is not unique in using attributes to give code additional semantic meaning (Rust, for example, has a very extensive attribute mechanism), D has a particularly broad and coherent use of attributes to express semantic properties. Its attribute system includes things such as <code>@safe</code>, <code>@trusted</code>, <code>@system</code>, <code>@nogc</code>, <code>pure</code>, <code>nothrow</code>, <code>scope</code>, <code>return</code>, <code>@disable</code>, and <code>@mustuse</code>. These aren't merely metadata for tools; many of them change what the compiler permits and what it can prove about the program.<sup><a href="#ref-23">[23]</a></sup></p>
 
 <p>This is, perhaps, one of D's most attractive qualities: its attribute system provides a natural way to enrich otherwise ordinary code with additional compiler-enforced semantics, without requiring those semantics to become part of the program's runtime representation.</p>
 
@@ -392,15 +468,18 @@ Rust:
 
 <p>Swift provides another answer to the same problem.</p>
 
-<p>Swift's memory-safety model includes definite initialization, bounds safety, lifetime safety and restrictions on conflicting access to memory. The language and runtime cooperate to enforce these properties, with checks occurring at compile time where possible and at runtime where necessary.<sup><a href="#ref-17">[17]</a><sup><a href="#ref-24">[24]</a></sup></p>
+<p>Swift's memory-safety model includes definite initialization, bounds safety, lifetime safety and restrictions on conflicting access to memory. The language and runtime cooperate to enforce these properties, with checks occurring at compile time where possible and at runtime where necessary.<sup>
+<a href="#ref-17">[17]</a>
+<a href="#ref-24">[24]</a>
+</sup></p>
 
 <p>This is an instructive contrast with both C and Rust.</p>
 
 <p>Swift does not simply reproduce C's manual-memory model with additional warnings. Nor does it rely on Rust's ownership system as the primary mechanism.</p>
 
-<p>Instead, it combines automatic memory management with language-level and runtime safety checks.<sup><a href="#ref-17">[17]</a></p>
+<p>Instead, it combines automatic memory management with language-level and runtime safety checks.<sup><a href="#ref-17">[17]</a></sup></p>
 
-<p>Swift also demonstrates the importance of making unsafe boundaries explicit. Its tooling can identify constructs and APIs that undermine memory safety, including unsafe pointer operations and other unsafe language features.<sup><a href="#ref-24">[24]</a></p>
+<p>Swift also demonstrates the importance of making unsafe boundaries explicit. Its tooling can identify constructs and APIs that undermine memory safety, including unsafe pointer operations and other unsafe language features.<sup><a href="#ref-24">[24]</a></sup></p>
 
 <p>This illustrates another important principle:</p>
 
@@ -414,7 +493,10 @@ Rust:
 
 <p>Ownership and runtime management are not the only ways to move the safety argument into the language ecosystem.</p>
 
-<p>Ada and SPARK represent a different and particularly important tradition: explicit contracts and formal verification.<sup><a href="#ref-25">[25]</a><sup><a href="#ref-26">[26]</a></sup></p>
+<p>Ada and SPARK represent a different and particularly important tradition: explicit contracts and formal verification.<sup>
+<a href="#ref-25">[25]</a>
+<a href="#ref-26">[26]</a>
+</sup></p>
 
 <p>The approach is valuable because not every property that matters can conveniently be encoded in ownership or borrowing rules.</p>
 
@@ -432,7 +514,10 @@ Rust:
 
 <p>These are straightforward examples, but real systems can require much richer relationships involving state, inputs, outputs and sequences of operations.</p>
 
-<p>Contracts allow programmers to state such properties explicitly. Verification tools can then attempt to establish that those properties hold.<sup><a href="#ref-25">[25]</a><sup><a href="#ref-26">[26]</a></sup></p>
+<p>Contracts allow programmers to state such properties explicitly. Verification tools can then attempt to establish that those properties hold.<sup>
+<a href="#ref-25">[25]</a>
+<a href="#ref-26">[26]</a>
+</sup></p>
 
 <p>This extends the approach taken throughout 'The Wrong Memory'.</p>
 
@@ -454,7 +539,10 @@ Rust:
 
 <p>It did not.</p>
 
-<p>Cyclone is an important earlier experiment. Developed as a safe dialect of C, it was designed specifically to prevent buffer overflows, dangling pointers, format-string attacks and memory-management errors while retaining C's low-level control over data representation and memory management.<sup><a href="#ref-27">[27]</a><sup><a href="#ref-28">[28]</a></sup></p>
+<p>Cyclone is an important earlier experiment. Developed as a safe dialect of C, it was designed specifically to prevent buffer overflows, dangling pointers, format-string attacks and memory-management errors while retaining C's low-level control over data representation and memory management.<sup>
+<a href="#ref-27">[27]</a>
+<a href="#ref-28">[28]</a>
+</sup></p>
 
 <p>Cyclone is historically significant because it demonstrates that the underlying problem was recognised long before today's memory-safe systems languages.</p>
 
@@ -480,7 +568,10 @@ Rust:
 
 <p>In C, a pointer primarily answers a question about location.</p>
 
-<p>Pony's reference capabilities make access rights part of the type system. Different capabilities express properties such as mutability, sharing and isolation, allowing the compiler to reason about how references may be used and shared.<sup><a href="#ref-29">[29]</a><sup><a href="#ref-30">[30]</a></sup></p>
+<p>Pony's reference capabilities make access rights part of the type system. Different capabilities express properties such as mutability, sharing and isolation, allowing the compiler to reason about how references may be used and shared.<sup>
+<a href="#ref-29">[29]</a>
+<a href="#ref-30">[30]</a>
+</sup></p>
 
 <p>This is particularly relevant to the aliasing problems that underlie many memory-safety failures.</p>
 
@@ -498,7 +589,10 @@ Rust:
 
 <p>That is a powerful extension of the ideas behind ownership and <code>const</code>.</p>
 
-<p>It also connects memory safety with concurrency. If the type system can establish that mutable state cannot be accessed through conflicting capabilities, it can prevent classes of data races as well as memory-safety failures.<sup><a href="#ref-29">[29]</a><sup><a href="#ref-30">[30]</a></sup></p>
+<p>It also connects memory safety with concurrency. If the type system can establish that mutable state cannot be accessed through conflicting capabilities, it can prevent classes of data races as well as memory-safety failures.<sup>
+<a href="#ref-29">[29]</a>
+<a href="#ref-30">[30]</a>
+</sup></p>
 
 <p>Pony therefore illustrates a broader lesson:</p>
 
@@ -559,9 +653,12 @@ stale use detected</code></pre>
 <li>increasingly sophisticated analysis tools.</li>
 </ul>
 
-<p>Used consistently, these mechanisms can eliminate many classes of memory-management errors.<sup><a href="#ref-32">[32]</a><sup><a href="#ref-33">[33]</a></sup></p>
+<p>Used consistently, these mechanisms can eliminate many classes of memory-management errors.<sup>
+<a href="#ref-32">[32]</a>
+<a href="#ref-33">[33]</a>
+</sup></p>
 
-<p>But C++ retains extensive mechanisms for bypassing those abstractions.<sup><a href="#ref-32">[32]</a></p>
+<p>But C++ retains extensive mechanisms for bypassing those abstractions.<sup><a href="#ref-32">[32]</a></sup></p>
 
 <p>That creates an important distinction:</p>
 
@@ -685,7 +782,12 @@ cannot be expressed in safe code</code></pre>
 
 <p>Once that information has disappeared from the program's formal representation, the compiler has far less opportunity to protect it.</p>
 
-<p>Modern language design can therefore be understood partly as an attempt to preserve semantic information for as long as it remains relevant.<sup><a href="#ref-15">[15]</a><sup><a href="#ref-16">[16]</a><sup><a href="#ref-29">[29]</a><sup><a href="#ref-25">[25]</a></sup></p>
+<p>Modern language design can therefore be understood partly as an attempt to preserve semantic information for as long as it remains relevant.<sup>
+<a href="#ref-15">[15]</a>
+<a href="#ref-16">[16]</a>
+<a href="#ref-29">[29]</a>
+<a href="#ref-25">[25]</a>
+</sup></p>
 
 <p>A slice preserves the relationship between a sequence and its extent.</p>
 
@@ -723,17 +825,23 @@ cannot be expressed in safe code</code></pre>
 
 <p>For a garbage-collected language, the runtime establishes important lifetime properties.</p>
 
-<p>For Rust, ownership, borrowing and the type system establish many lifetime, aliasing and ownership properties at compile time.<sup><a href="#ref-16">[16]</a></p>
+<p>For Rust, ownership, borrowing and the type system establish many lifetime, aliasing and ownership properties at compile time.<sup><a href="#ref-16">[16]</a></sup></p>
 
-<p>For Swift, the language and runtime establish initialization, bounds, lifetime and access-safety properties, with the compiler proving what it can and runtime checks handling cases that require them.<sup><a href="#ref-17">[17]</a></p>
+<p>For Swift, the language and runtime establish initialization, bounds, lifetime and access-safety properties, with the compiler proving what it can and runtime checks handling cases that require them.<sup><a href="#ref-17">[17]</a></sup></p>
 
-<p>For D, a defined safe subset provides compiler-enforced restrictions while explicitly marked code can operate outside those guarantees.<sup><a href="#ref-21">[21]</a></p>
+<p>For D, a defined safe subset provides compiler-enforced restrictions while explicitly marked code can operate outside those guarantees.<sup><a href="#ref-21">[21]</a></sup></p>
 
-<p>For Ada/SPARK, contracts and formal methods can make important invariants explicit and subject them to verification.<sup><a href="#ref-25">[25]</a><sup><a href="#ref-26">[26]</a></sup></p>
+<p>For Ada/SPARK, contracts and formal methods can make important invariants explicit and subject them to verification.<sup>
+<a href="#ref-25">[25]</a>
+<a href="#ref-26">[26]</a>
+</sup></p>
 
-<p>For Pony, reference capabilities make access rights and aliasing properties part of the type system.<sup><a href="#ref-29">[29]</a><sup><a href="#ref-30">[30]</a></sup></p>
+<p>For Pony, reference capabilities make access rights and aliasing properties part of the type system.<sup>
+<a href="#ref-29">[29]</a>
+<a href="#ref-30">[30]</a>
+</sup></p>
 
-<p>For Cyclone, the attempt was to preserve much of C's low-level model while adding mechanisms capable of ruling out important classes of memory errors.<sup><a href="#ref-27">[27]</a></p>
+<p>For Cyclone, the attempt was to preserve much of C's low-level model while adding mechanisms capable of ruling out important classes of memory errors.<sup><a href="#ref-27">[27]</a></sup></p>
 
 <p>These are very different answers.</p>
 
@@ -755,7 +863,10 @@ cannot be expressed in safe code</code></pre>
 
 <p>It can prevent memory corruption and the program can still disclose a secret because the programmer implemented the wrong security policy.</p>
 
-<p>Memory safety is therefore not synonymous with correctness or security.<sup><a href="#ref-34">[34]</a><sup><a href="#ref-17">[17]</a></sup></p>
+<p>Memory safety is therefore not synonymous with correctness or security.<sup>
+<a href="#ref-34">[34]</a>
+<a href="#ref-17">[17]</a>
+</sup></p>
 
 <p>The objective is narrower:</p>
 
@@ -783,7 +894,11 @@ cannot be expressed in safe code</code></pre>
 
 <p>Modern languages can instead attempt to make unsafe operations explicit.</p>
 
-<p>Rust's <code>unsafe</code> mechanism, D's <code>@system</code> and <code>@trusted</code> distinctions, and Swift's explicit unsafe constructs all illustrate versions of this idea.<sup><a href="#ref-19">[19]</a><sup><a href="#ref-21">[21]</a><sup><a href="#ref-24">[24]</a></sup></p>
+<p>Rust's <code>unsafe</code> mechanism, D's <code>@system</code> and <code>@trusted</code> distinctions, and Swift's explicit unsafe constructs all illustrate versions of this idea.<sup>
+<a href="#ref-19">[19]</a>
+<a href="#ref-21">[21]</a>
+<a href="#ref-24">[24]</a>
+</sup></p>
 
 <p>The principle is straightforward:</p>
 
@@ -799,11 +914,18 @@ cannot be expressed in safe code</code></pre>
 
 <p>None of this means that C can simply be discarded.</p>
 
-<p>C remains deeply embedded in operating systems, firmware, embedded devices, libraries, runtimes and infrastructure. Vast amounts of existing software cannot realistically be rewritten.<sup><a href="#ref-35">[35]</a><sup><a href="#ref-36">[36]</a></sup></p>
+<p>C remains deeply embedded in operating systems, firmware, embedded devices, libraries, runtimes and infrastructure. Vast amounts of existing software cannot realistically be rewritten.<sup>
+<a href="#ref-35">[35]</a>
+<a href="#ref-36">[36]</a>
+</sup></p>
 
 <p>The more immediate lesson is that the safety boundary around C can be strengthened even when C itself remains.</p>
 
-<p>Safer abstractions can associate pointers with lengths. Static analysis can check contracts. Sanitizers can detect violations during testing. Hardened allocators can make exploitation more difficult. Foreign-function interfaces can carry additional information about bounds and lifetimes. New components can be implemented in memory-safe languages while maintaining carefully controlled interfaces to existing C code.<sup><a href="#ref-37">[37]</a><sup><a href="#ref-38">[38]</a><sup><a href="#ref-39">[39]</a></sup></p>
+<p>Safer abstractions can associate pointers with lengths. Static analysis can check contracts. Sanitizers can detect violations during testing. Hardened allocators can make exploitation more difficult. Foreign-function interfaces can carry additional information about bounds and lifetimes. New components can be implemented in memory-safe languages while maintaining carefully controlled interfaces to existing C code.<sup>
+<a href="#ref-37">[37]</a>
+<a href="#ref-38">[38]</a>
+<a href="#ref-39">[39]</a>
+</sup></p>
 
 <p>This suggests a gradual transition rather than an all-or-nothing one.</p>
 
