@@ -79,13 +79,13 @@
 <h1>From Integer Arithmetic to Memory Corruption</h1>
 <p>A large class of C vulnerabilities follows a surprisingly predictable chain:</p>
 <pre><code>integer arithmetic
-    -&gt;
+   ↓
 allocation size
-    -&gt;
+   ↓
 pointer arithmetic
-    -&gt;
+   ↓
 bounds
-    -&gt;
+   ↓
 memory corruption</code></pre>
 <p>The individual operations are usually ordinary. There is nothing inherently suspicious about multiplying a count by a structure size, allocating the resulting number of bytes, advancing a pointer through the allocation, and writing objects into it.</p>
 <p>The danger appears when an assumption made at one stage is carried into the next stage without being checked.</p>
@@ -109,7 +109,7 @@ memory corruption</code></pre>
 <p>The important point is that the allocation routine does not know what the programmer intended.</p>
 <p>That gives us the first transition:</p>
 <pre><code>arithmetic error
-    -&gt;
+   ↓
 incorrect allocation size</code></pre>
 <p>This is why arithmetic involving memory sizes deserves more scrutiny than ordinary arithmetic.</p>
 <p>The most important expressions to recognize are things like:</p>
@@ -197,11 +197,11 @@ Before multiplication:
 <p>If the multiplication used to calculate `bytes` was wrong, the pointer arithmetic can now walk beyond the allocation.</p>
 <p>The chain is becoming:</p>
 <pre><code>bad arithmetic
-    -&gt;
+   ↓
 undersized allocation
-    -&gt;
+   ↓
 pointer arithmetic assumes a larger allocation
-    -&gt;
+   ↓
 pointer leaves the allocated object</code></pre>
 <p>This is the point at which the vulnerability becomes much more concrete.</p>
 <h2>5. Pointer arithmetic does not create memory</h2>
@@ -278,20 +278,15 @@ struct entry *read_entries(size_t count)
 </code></pre>
 <p>The code has a clear data flow:</p>
 <pre><code>count
-  |
-  v
+  ↓
 count * sizeof(*entries)
-  |
-  v
+  ↓
 malloc(bytes)
-  |
-  v
+  ↓
 entries
-  |
-  v
+  ↓
 entries[i]
-  |
-  v
+  ↓
 memory write</code></pre>
 <p>That diagram is more useful for security analysis than looking at each statement independently.</p>
 <p>The vulnerability question is:</p>
@@ -308,17 +303,17 @@ memory write</code></pre>
 <p>The vulnerability is not simply &quot;integer overflow.&quot;</p>
 <p>It is:</p>
 <pre><code>attacker-controlled count
-    -&gt;
+   ↓
 integer overflow
-    -&gt;
+   ↓
 undersized allocation
-    -&gt;
+   ↓
 apparently valid pointer
-    -&gt;
+   ↓
 incorrect pointer range
-    -&gt;
+   ↓
 out-of-bounds write
-    -&gt;
+   ↓
 memory corruption</code></pre>
 <p>That is the chain you should learn to recognize.</p>
 <h2>8. The same chain without an obvious multiplication</h2>
@@ -343,9 +338,9 @@ memcpy(buffer + header_size, input, payload_size);
 <p>If `total` wraps because the addition overflowed, the allocation may be smaller than the region described by the later `memcpy`.</p>
 <p>The code might therefore have:</p>
 <pre><code>correct-looking allocation
-    -&gt;
+   ↓
 correct-looking pointer arithmetic
-    -&gt;
+   ↓
 correct-looking copy length</code></pre>
 <p>while the combination is invalid.</p>
 <p>This is why security analysis should follow related values rather than isolated statements.</p>
@@ -414,11 +409,11 @@ memcpy(q, input, length);
 <pre><code>offset
     +
 length
-    -&gt;
+   ↓
 required range
-    -&gt;
+   ↓
 bounds check
-    -&gt;
+   ↓
 memory access</code></pre>
 <p>The arithmetic and the bounds check are inseparable.</p>
 <p>A check of only the starting position is not sufficient.</p>
@@ -445,19 +440,19 @@ command line
 database</code></pre>
 <p>It then passes through several transformations:</p>
 <pre><code>external value
-    -&gt;
+   ↓
 parsed integer
-    -&gt;
+   ↓
 converted integer
-    -&gt;
+   ↓
 arithmetic
-    -&gt;
+   ↓
 allocation size
-    -&gt;
+   ↓
 pointer offset
-    -&gt;
+   ↓
 loop bound
-    -&gt;
+   ↓
 memory access</code></pre>
 <p>At each stage, the program may assume that the value still means what it originally meant.</p>
 <p>That assumption is often where the vulnerability lives.</p>
@@ -618,13 +613,13 @@ for (i = 0; i < expected_count; ++i)
 <pre><code>ensure the operation&#x27;s size agrees with the validated range.</code></pre>
 <p>In other words:</p>
 <pre><code>arithmetic
-    -&gt;
+   ↓
 size
-    -&gt;
+   ↓
 object
-    -&gt;
+   ↓
 range
-    -&gt;
+   ↓
 access</code></pre>
 <p>Each arrow is a place where an invariant should be preserved.</p>
 <h2>18. The most important invariant</h2>
@@ -713,15 +708,15 @@ if (n <= MAX_ENTRIES)
 <pre><code>Where did those values originate?</code></pre>
 <p>You may eventually arrive at:</p>
 <pre><code>attacker-controlled packet field
-    -&gt;
+   ↓
 integer conversion
-    -&gt;
+   ↓
 overflowing multiplication
-    -&gt;
+   ↓
 undersized allocation
-    -&gt;
+   ↓
 incorrect offset
-    -&gt;
+   ↓
 out-of-bounds memcpy</code></pre>
 <p>The crash site is the end of the chain, not necessarily the beginning of the bug.</p>
 <h2>22. Why this matters for vulnerability research</h2>
@@ -768,46 +763,35 @@ subsequently addressed by the loop?</code></pre>
 <h2>23. The mental model to retain</h2>
 <p>When you see C code manipulating memory, mentally draw this chain:</p>
 <pre><code>VALUE
-  |
-  v
+  ↓
 ARITHMETIC
-  |
-  v
+  ↓
 SIZE
-  |
-  v
+  ↓
 ALLOCATION
-  |
-  v
+  ↓
 POINTER
-  |
-  v
+  ↓
 OFFSET
-  |
-  v
+  ↓
 BOUND
-  |
-  v
+  ↓
 MEMORY ACCESS</code></pre>
 <p>Then ask one question at every transition:</p>
 <pre><code>&quot;What proves that this value is still valid for the next operation?&quot;</code></pre>
 <p>For example:</p>
 <pre><code>count
-  |
   | What proves the multiplication cannot overflow?
-  v
+  ↓
 allocation_size
-  |
   | What proves this represents the required object?
-  v
+  ↓
 allocation
-  |
   | What proves this offset belongs to that object?
-  v
+  ↓
 pointer
-  |
   | What proves the entire access fits?
-  v
+  ↓
 memory access</code></pre>
 <p>This is the core lesson.</p>
 <p>A memory corruption vulnerability often does not begin with a bad pointer.</p>
@@ -819,13 +803,13 @@ memory access</code></pre>
 <p>And only at the final memory access does the original mistake become visible as memory corruption.</p>
 <p>So the security-relevant chain is:</p>
 <pre><code>integer arithmetic
-    -&gt;
+   ↓
 allocation size
-    -&gt;
+   ↓
 pointer arithmetic
-    -&gt;
+   ↓
 bounds
-    -&gt;
+   ↓
 memory corruption</code></pre>
 <p>Once you learn to trace that chain forward and backward, a large class of apparently unrelated C vulnerabilities becomes much easier to recognize.</p>
 <hr>

@@ -79,13 +79,13 @@
 <h1>Worked Exercises: Finding the First Broken Invariant</h1>
 <p>The previous chapters established a model:</p>
 <pre><code>integer arithmetic
-    -&gt;
+   ↓
 allocation size
-    -&gt;
+   ↓
 pointer arithmetic
-    -&gt;
+   ↓
 bounds
-    -&gt;
+   ↓
 memory corruption</code></pre>
 <p>This chapter puts that model into practice.</p>
 <p>Each exercise presents a small piece of C code. The examples are intentionally realistic rather than artificially minimal. In several cases, the final memory error is not caused directly by the first mistake.</p>
@@ -139,15 +139,15 @@ items = malloc(count * sizeof(*items));</code></pre>
 <p>The important lesson is that the loop bound does not prove the allocation is large enough.</p>
 <p>The chain is:</p>
 <pre><code>count
-    -&gt;
+   ↓
 overflowing multiplication
-    -&gt;
+   ↓
 undersized allocation
-    -&gt;
+   ↓
 valid-looking items pointer
-    -&gt;
+   ↓
 correct-looking loop
-    -&gt;
+   ↓
 out-of-bounds access</code></pre>
 <p>The first broken invariant is the allocation-size calculation.</p>
 <hr>
@@ -352,11 +352,11 @@ int load(const unsigned char *data, size_t data_size)
 <p>items.</p>
 <p>The program has two separate objects whose bounds must be established:</p>
 <pre><code>output allocation
-    -&gt;
+   ↓
 enough space for count items</code></pre>
 <p>and:</p>
 <pre><code>input buffer
-    -&gt;
+   ↓
 enough encoded data for count items</code></pre>
 <p>A common mistake is to notice the output allocation and forget that parsing also consumes input.</p>
 <p>The chain therefore splits:</p>
@@ -411,19 +411,19 @@ enough encoded data for count items</code></pre>
 <p>The allocation being large enough says nothing about whether `data` contains `bytes` readable bytes.</p>
 <p>The complete reasoning is:</p>
 <pre><code>dimensions
-    -&gt;
+   ↓
 pixel count
-    -&gt;
+   ↓
 byte count
-    -&gt;
+   ↓
 allocation
-    -&gt;
+   ↓
 destination bounds</code></pre>
 <p>and independently:</p>
 <pre><code>dimensions
-    -&gt;
+   ↓
 byte count
-    -&gt;
+   ↓
 source bounds</code></pre>
 <hr>
 <h1>Exercise 8: The apparently safe `realloc`</h1>
@@ -566,13 +566,13 @@ int extend(struct buffer *b, size_t extra)
 <p>Otherwise the unsigned subtraction can wrap to a very large value.</p>
 <p>The resulting chain could be:</p>
 <pre><code>invalid header size
-    -&gt;
+   ↓
 unsigned subtraction
-    -&gt;
+   ↓
 huge payload_size
-    -&gt;
+   ↓
 huge allocation request
-    -&gt;
+   ↓
 invalid input range</code></pre>
 <p>There is also an important conceptual issue.</p>
 <p>The program appears to assume:</p>
@@ -623,9 +623,9 @@ ask what ordering relationship makes that subtraction valid.</code></pre>
 <p>The caller may have correctly calculated the record boundaries while the callee independently violates them.</p>
 <p>This illustrates the importance of compositional bounds:</p>
 <pre><code>outer object bound
-    -&gt;
+   ↓
 subobject bound
-    -&gt;
+   ↓
 callee access bound</code></pre>
 <p>Each layer must preserve the invariant.</p>
 <hr>
@@ -767,13 +767,13 @@ for (size_t i = 0; i &lt; count; ++i)
 <p>The problem is semantic: the unit of the offset does not match the unit of the logical object.</p>
 <p>This is another way the chain can break:</p>
 <pre><code>logical count
-    -&gt;
+   ↓
 wrong unit conversion
-    -&gt;
+   ↓
 wrong pointer offset
-    -&gt;
+   ↓
 wrong object
-    -&gt;
+   ↓
 memory error</code></pre>
 <hr>
 <h1>Exercise 15: The complete chain</h1>
@@ -878,28 +878,21 @@ int load(const unsigned char *data,
 <pre><code>count
     +
 item_size
-    |
-    v
+    ↓
 count * item_size
     |
     +----------------+
-    |                |
-    v                v
+    ↓                ↓
 output size      input size
-    |                |
-    v                v
+    ↓                ↓
 allocation       input bounds
-    |
-    v
+    ↓
 i * item_size
-    |
-    v
+    ↓
 item pointer
-    |
-    v
+    ↓
 parse_item
-    |
-    v
+    ↓
 memory access</code></pre>
 <p>This is exactly the kind of code where examining only the final `parse_item` call is insufficient.</p>
 <p>The vulnerability may originate in the first multiplication.</p>
@@ -919,18 +912,15 @@ memcpy(q, src, length);</code></pre>
 <p>Do not immediately inspect `memcpy`.</p>
 <p>Instead construct the chain:</p>
 <pre><code>size
-  |
-  v
+  ↓
 allocation
-  |
-  v
+  ↓
 p
   |
   +---- offset ----&gt; q
   |
   +---- size
-           |
-           v
+           ↓    
       available range</code></pre>
 <p>Then establish the required invariant:</p>
 <pre><code>offset + length &lt;= size</code></pre>
@@ -961,15 +951,15 @@ p
 10. A custom allocator hides the actual size calculation.</code></pre>
 <p>The most interesting pattern is often:</p>
 <pre><code>external value
-    -&gt;
+   ↓
 arithmetic
-    -&gt;
+   ↓
 allocation
-    -&gt;
+   ↓
 loop
-    -&gt;
+   ↓
 pointer arithmetic
-    -&gt;
+   ↓
 write</code></pre>
 <p>This combines attacker control, arithmetic, allocation, and memory corruption in one path.</p>
 <hr>
@@ -1061,9 +1051,9 @@ loops
 subobject boundaries</code></pre>
 <p>A vulnerability can arise at any layer, but the layers are connected:</p>
 <pre><code>numerical validity
-    -&gt;
+   ↓
 object validity
-    -&gt;
+   ↓
 access validity</code></pre>
 <p>The original five-part chain is therefore a more detailed version of this three-layer model.</p>
 <hr>
@@ -1144,26 +1134,19 @@ access validity</code></pre>
 <p>and eventually calculates a pointer beyond the allocation.</p>
 <p>The resulting chain is:</p>
 <pre><code>count, width
-    |
-    v
+    ↓
 overflowing multiplication
-    |
-    v
+    ↓
 incorrect bytes
-    |
-    v
+    ↓
 incorrect allocation
-    |
-    v
+    ↓
 i * width
-    |
-    v
+    ↓
 pointer outside allocation
-    |
-    v
+    ↓
 memcpy
-    |
-    v
+    ↓
 out-of-bounds access</code></pre>
 <p>There is also a second side to the copy:</p>
 <pre><code>input + i * width</code></pre>
@@ -1178,19 +1161,19 @@ out-of-bounds access</code></pre>
 <p>They reconstruct the assumptions connecting those statements.</p>
 <p>A typical chain looks like:</p>
 <pre><code>attacker-controlled number
-    -&gt;
+   ↓
 integer conversion
-    -&gt;
+   ↓
 arithmetic
-    -&gt;
+   ↓
 allocation size
-    -&gt;
+   ↓
 allocated object
-    -&gt;
+   ↓
 pointer arithmetic
-    -&gt;
+   ↓
 logical bounds
-    -&gt;
+   ↓
 memory operation</code></pre>
 <p>At every transition, ask:</p>
 <pre><code>What invariant is supposed to hold?</code></pre>

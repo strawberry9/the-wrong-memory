@@ -163,7 +163,7 @@ release</code></pre>
 <pre><code>one spatial error</code></pre>
 <p>to:</p>
 <pre><code>corrupted metadata
-    -&gt;
+   ↓
 another spatial error.</code></pre>
 <p>This cascading behavior is common in memory corruption.</p>
 <hr>
@@ -368,21 +368,21 @@ whether ownership has been transferred.</code></pre>
 <hr>
 <h2>17. Why bugs cluster at boundaries</h2>
 <p>Memory bugs often appear where one concept is translated into another:</p>
-<pre><code>count -&gt; bytes
+<pre><code>count↓ bytes
 
-bytes -&gt; allocation
+bytes↓ allocation
 
-allocation -&gt; pointer
+allocation↓ pointer
 
-pointer -&gt; offset
+pointer↓ offset
 
-offset -&gt; range
+offset↓ range
 
-range -&gt; copy
+range↓ copy
 
-object -&gt; owner
+object↓ owner
 
-owner -&gt; lifetime</code></pre>
+owner↓ lifetime</code></pre>
 <p>Each transition introduces an assumption.</p>
 <p>The most useful review strategy is therefore not to stare at individual instructions.</p>
 <p>Look for the transitions.</p>

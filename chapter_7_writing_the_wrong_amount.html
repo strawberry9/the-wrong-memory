@@ -260,15 +260,15 @@ capacity</code></pre>
 <p>The corrupted metadata can then cause later code to perform additional invalid operations.</p>
 <p>For example:</p>
 <pre><code>corrupted length
-    -&gt;
+   ↓
 oversized copy
-    -&gt;
+   ↓
 further corruption</code></pre>
 <p>or:</p>
 <pre><code>corrupted pointer
-    -&gt;
+   ↓
 write to unintended location
-    -&gt;
+   ↓
 further corruption.</code></pre>
 <p>This is one way a single memory bug can become a chain of memory bugs.</p>
 <hr>
@@ -282,11 +282,11 @@ further corruption.</code></pre>
 <p>the next operation may use a corrupted boundary.</p>
 <p>This produces a feedback loop:</p>
 <pre><code>memory corruption
-    -&gt;
+   ↓
 corrupted metadata
-    -&gt;
+   ↓
 incorrect bounds
-    -&gt;
+   ↓
 further memory corruption.</code></pre>
 <p>Once metadata is corrupted, reasoning about later operations becomes much harder.</p>
 <hr>

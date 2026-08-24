@@ -146,11 +146,11 @@ n &lt;= destination_available</code></pre>
 memcpy(dst, src, n);</code></pre>
 <p>Now the copy depends on the entire calculation chain:</p>
 <pre><code>count
-  -&gt;
+ ↓
 count * sizeof(*src)
-  -&gt;
+ ↓
 n
-  -&gt;
+ ↓
 memcpy</code></pre>
 <p>If `count` is wrong, `n` may be wrong.</p>
 <p>If the multiplication overflows, `n` may be wrong.</p>
@@ -378,11 +378,11 @@ memcpy(new_data, object-&gt;data, length);</code></pre>
 <p>The deep copy has to calculate and allocate the right amount before copying it.</p>
 <p>This gives another chain:</p>
 <pre><code>logical length
-    -&gt;
+   ↓
 allocation size
-    -&gt;
+   ↓
 destination capacity
-    -&gt;
+   ↓
 copy length</code></pre>
 <p>A mistake at any stage can invalidate the next one.</p>
 <hr>
@@ -511,11 +511,11 @@ stale metadata</code></pre>
 <pre><code>header size
     +
 data length
-    -&gt;
+   ↓
 allocation size
-    -&gt;
+   ↓
 copy header
-    -&gt;
+   ↓
 copy data</code></pre>
 <p>The danger is obvious once the chain is written down.</p>
 <p>If the input length is incorrect, then:</p>
@@ -713,17 +713,17 @@ copy:
 <pre><code>count * sizeof(*items)</code></pre>
 <p>A robust sequence conceptually looks like:</p>
 <pre><code>validate count
-    -&gt;
+   ↓
 validate multiplication
-    -&gt;
+   ↓
 calculate allocation size
-    -&gt;
+   ↓
 allocate
-    -&gt;
+   ↓
 establish destination capacity
-    -&gt;
+   ↓
 validate copy length
-    -&gt;
+   ↓
 copy</code></pre>
 <p>The exact implementation will depend on the application.</p>
 <p>The important idea is that later operations should depend only on facts already established.</p>
@@ -883,11 +883,11 @@ void copy_items(struct item *dst,
 <p>The important point is not the exact defensive coding pattern.</p>
 <p>It is the structure of the proof:</p>
 <pre><code>number of elements
-    -&gt;
+   ↓
 number of bytes
-    -&gt;
+   ↓
 source range
-    -&gt;
+   ↓
 destination range</code></pre>
 <p>Every arrow represents an assumption.</p>
 <hr>
@@ -917,25 +917,25 @@ manual copy loops</code></pre>
 <hr>
 <h2>44. The central lesson</h2>
 <p>A memory copy is not:</p>
-<pre><code>pointer A -&gt; pointer B</code></pre>
+<pre><code>pointer A↓ pointer B</code></pre>
 <p>It is:</p>
-<pre><code>range A -&gt; range B</code></pre>
+<pre><code>range A↓ range B</code></pre>
 <p>The range has a location and a size.</p>
 <p>Both matter.</p>
 <p>And the size is rarely an isolated constant.</p>
 <p>It is usually the final result of a chain:</p>
 <pre><code>input
-  -&gt;
+ ↓
 count
-  -&gt;
+ ↓
 arithmetic
-  -&gt;
+ ↓
 size
-  -&gt;
+ ↓
 allocation or bound
-  -&gt;
+ ↓
 pointer
-  -&gt;
+ ↓
 copy</code></pre>
 <p>If the chain produces the wrong amount, the copy may expose the mistake.</p>
 <p>If the chain produces the wrong location, the copy may expose that instead.</p>

@@ -79,13 +79,13 @@
 <h1>Auditing C Code for the Arithmetic-to-Memory Chain</h1>
 <p>The previous chapter described this chain:</p>
 <pre><code>integer arithmetic
-    -&gt;
+   ↓
 allocation size
-    -&gt;
+   ↓
 pointer arithmetic
-    -&gt;
+   ↓
 bounds
-    -&gt;
+   ↓
 memory corruption</code></pre>
 <p>This chapter turns that model into a code-review technique.</p>
 <p>The goal is not to memorize a collection of dangerous functions. It is to learn how to inspect a piece of C code and determine whether a value can travel from an external input to an invalid memory access.</p>
@@ -225,15 +225,15 @@ length</code></pre>
 <pre><code>buffer = malloc(sizeof(struct header) + length);</code></pre>
 <p>Now the chain is visible:</p>
 <pre><code>packet-&gt;payload_length
-    -&gt;
+   ↓
 length
-    -&gt;
+   ↓
 header_size + length
-    -&gt;
+   ↓
 allocation
-    -&gt;
+   ↓
 buffer + header_size
-    -&gt;
+   ↓
 memcpy(..., length)</code></pre>
 <p>At this point, the key invariant is:</p>
 <pre><code>header_size + length &lt;= allocated_size</code></pre>
@@ -286,20 +286,15 @@ struct item *create_items(size_t count)
 <p>When auditing code, follow data flow across helper functions.</p>
 <p>You should recognize this:</p>
 <pre><code>count
-  |
-  v
+  ↓
 allocate_items()
-  |
-  v
+  ↓
 count * item_size
-  |
-  v
+  ↓
 malloc()
-  |
-  v
+  ↓
 returned pointer
-  |
-  v
+  ↓
 item access</code></pre>
 <p>as the same pattern as an explicit multiplication.</p>
 <p>This is one reason security review cannot be reduced to simple textual searches.</p>
@@ -470,11 +465,11 @@ unsigned char *pixels = malloc(bytes);
 <p>For a multidimensional allocation, review each multiplication as a separate operation.</p>
 <p>Conceptually:</p>
 <pre><code>width
-  -&gt;
+ ↓
 width * height
-  -&gt;
+ ↓
 previous_result * channels
-  -&gt;
+ ↓
 allocation</code></pre>
 <p>At every arrow ask:</p>
 <pre><code>Can this operation exceed SIZE_MAX?</code></pre>
@@ -511,7 +506,7 @@ void process(char *buffer, int length)
 <p>A negative signed length passed to a function expecting a `size_t` is converted to an unsigned value.</p>
 <p>A small negative number can therefore become a very large positive size.</p>
 <p>For example, conceptually:</p>
-<pre><code>-1  -&gt;  conversion to size_t -&gt; SIZE_MAX</code></pre>
+<pre><code>-1 ->  conversion to size_t -> SIZE_MAX</code></pre>
 <p>The security lesson is not simply:</p>
 <pre><code>&quot;signed/unsigned conversions are dangerous.&quot;</code></pre>
 <p>It is:</p>
@@ -612,19 +607,19 @@ items = tmp;
 <p>The arithmetic chain and the pointer-lifetime chain meet here.</p>
 <p>The full reasoning is:</p>
 <pre><code>count
-    -&gt;
+   ↓
 count + additional
-    -&gt;
+   ↓
 new_count
-    -&gt;
+   ↓
 new_count * sizeof(*items)
-    -&gt;
+   ↓
 new_size
-    -&gt;
+   ↓
 realloc
-    -&gt;
+   ↓
 new allocation
-    -&gt;
+   ↓
 pointer used by later accesses</code></pre>
 <p>Every transition needs its own invariant.</p>
 <h2>15. `realloc` and pointer invalidation</h2>
@@ -673,13 +668,13 @@ read_bytes(input, buffer, length);
 </code></pre>
 <p>That is already a chain:</p>
 <pre><code>input
-  -&gt;
+ ↓
 length
-  -&gt;
+ ↓
 allocation
-  -&gt;
+ ↓
 pointer
-  -&gt;
+ ↓
 read length bytes</code></pre>
 <p>Now consider a slightly more complicated format:</p>
 <pre><code>
@@ -741,15 +736,15 @@ for (i = 0; i < count; ++i)
 <p>But the parser may still read beyond `input` if the input does not contain enough bytes for all `count` items.</p>
 <p>There are therefore often two independent chains:</p>
 <pre><code>external count
-    -&gt;
+   ↓
 output allocation
-    -&gt;
+   ↓
 output bounds</code></pre>
 <p>and:</p>
 <pre><code>external count
-    -&gt;
+   ↓
 required input size
-    -&gt;
+   ↓
 input bounds</code></pre>
 <p>Security review should follow both.</p>
 <p>A parser is safe only if its assumptions about both input and output remain valid.</p>
@@ -773,17 +768,17 @@ input bounds</code></pre>
 <p>The correct approach is to preserve the available range as parsing proceeds.</p>
 <p>Conceptually:</p>
 <pre><code>remaining
-    -&gt;
+   ↓
 consume header
-    -&gt;
+   ↓
 remaining
-    -&gt;
+   ↓
 validate inner length
-    -&gt;
+   ↓
 consume item
-    -&gt;
+   ↓
 remaining
-    -&gt;
+   ↓
 validate next item</code></pre>
 <p>A parser should continuously maintain the invariant:</p>
 <pre><code>bytes consumed &lt;= bytes available</code></pre>
@@ -908,13 +903,13 @@ of the same memory layout.</code></pre>
 <p>This is worth making explicit during review.</p>
 <p>For example:</p>
 <pre><code>record_count
-    -&gt;
+   ↓
 record_count * sizeof(record)
-    -&gt;
+   ↓
 bytes</code></pre>
 <p>Then:</p>
 <pre><code>byte_offset
-    -&gt;
+   ↓
 pointer arithmetic</code></pre>
 <p>If the code accidentally treats a byte count as an element count, or vice versa, the resulting pointer arithmetic can be wrong by a factor of the element size.</p>
 <p>Many buffer overflows are effectively unit-conversion errors.</p>
@@ -957,13 +952,13 @@ array index</code></pre>
 <p>Mark it as a source.</p>
 <p>Then follow it:</p>
 <pre><code>length
-    -&gt;
+   ↓
 allocation
-    -&gt;
+   ↓
 pointer offset
-    -&gt;
+   ↓
 copy
-    -&gt;
+   ↓
 loop bound</code></pre>
 <p>At each step ask:</p>
 <pre><code>Is the value changed?
@@ -1004,15 +999,15 @@ Is the validation still applicable after the transformation?</code></pre>
 <pre><code>payload_size = packet-&gt;length;</code></pre>
 <p>Now the chain is:</p>
 <pre><code>packet length
-    -&gt;
+   ↓
 addition
-    -&gt;
+   ↓
 offset
-    -&gt;
+   ↓
 division
-    -&gt;
+   ↓
 index
-    -&gt;
+   ↓
 array access</code></pre>
 <p>The vulnerability may have started several functions and several transformations away from the crash.</p>
 <p>This is why a crash location is evidence, not necessarily a root cause.</p>
@@ -1027,7 +1022,7 @@ use-after-scope</code></pre>
 <p>UndefinedBehaviorSanitizer can detect many classes of undefined arithmetic and other language-level problems.</p>
 <p>These tools are particularly useful because they can confirm the final transition:</p>
 <pre><code>incorrect bounds
-    -&gt;
+   ↓
 invalid memory access</code></pre>
 <p>But they do not necessarily explain the entire chain.</p>
 <p>Suppose AddressSanitizer reports:</p>
@@ -1038,9 +1033,9 @@ invalid memory access</code></pre>
 <pre><code>Why was the destination too small?</code></pre>
 <p>That may lead to:</p>
 <pre><code>wrong length
-    -&gt;
+   ↓
 integer overflow
-    -&gt;
+   ↓
 undersized allocation</code></pre>
 <p>The sanitizer found the final link.</p>
 <p>Your job is to find the first incorrect assumption.</p>
@@ -1235,11 +1230,11 @@ What happens when the requested size is zero?</code></pre>
 <pre><code>memcpy(..., remaining)</code></pre>
 <p>The chain is:</p>
 <pre><code>invalid subtraction
-    -&gt;
+   ↓
 huge size
-    -&gt;
+   ↓
 allocation or copy
-    -&gt;
+   ↓
 memory error</code></pre>
 <p>So arithmetic review must include subtraction, not just addition and multiplication.</p>
 <h2>33. The "huge value" trap</h2>
@@ -1280,13 +1275,13 @@ memory error</code></pre>
 <p>The same arithmetic-to-bounds chain applies to both source and destination.</p>
 <p>The security consequences differ:</p>
 <pre><code>destination overflow
-    -&gt;
+   ↓
 memory corruption
 
 source overflow
-    -&gt;
+   ↓
 out-of-bounds read
-    -&gt;
+   ↓
 information disclosure or crash</code></pre>
 <p>Both are important.</p>
 <h2>35. Do not confuse successful validation with permanent validity</h2>
@@ -1505,19 +1500,19 @@ controlled data to occupy a formerly trusted object</code></pre>
 <pre><code>use-after-free</code></pre>
 <p>It is:</p>
 <pre><code>external value
-    -&gt;
+   ↓
 arithmetic
-    -&gt;
+   ↓
 size
-    -&gt;
+   ↓
 allocation
-    -&gt;
+   ↓
 pointer
-    -&gt;
+   ↓
 range
-    -&gt;
+   ↓
 access
-    -&gt;
+   ↓
 corrupted or disclosed memory</code></pre>
 <p>The first incorrect transition is often the most interesting part of the vulnerability.</p>
 <p>The final crash may be many steps later.</p>
@@ -1574,13 +1569,13 @@ corrupted or disclosed memory</code></pre>
 <p>And if the bounds depend on any of them, do not accept the bounds check until you have proved that it is checking the right quantity.</p>
 <p>That is how the chain becomes a practical vulnerability-auditing method:</p>
 <pre><code>integer arithmetic
-    -&gt;
+   ↓
 allocation size
-    -&gt;
+   ↓
 pointer arithmetic
-    -&gt;
+   ↓
 bounds
-    -&gt;
+   ↓
 memory corruption</code></pre>
 <hr>
 

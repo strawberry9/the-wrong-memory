@@ -301,13 +301,13 @@ metadata</code></pre>
 <p>Thus a memory corruption can become a second memory-management bug.</p>
 <p>The chain may look like:</p>
 <pre><code>out-of-bounds write
-    -&gt;
+   ↓
 pointer corruption
-    -&gt;
+   ↓
 invalid free
-    -&gt;
+   ↓
 allocator corruption
-    -&gt;
+   ↓
 later memory corruption.</code></pre>
 <p>This is why memory bugs can amplify one another.</p>
 <hr>
@@ -441,15 +441,15 @@ freeing an allocation whose ownership has already moved.</code></pre>
 <p>The deeper lesson is that allocation and release are a matched pair.</p>
 <p>The program needs to preserve the relationship:</p>
 <pre><code>allocation
-    -&gt;
+   ↓
 ownership
-    -&gt;
+   ↓
 use
-    -&gt;
+   ↓
 ownership transfer, if any
-    -&gt;
+   ↓
 release
-    -&gt;
+   ↓
 no further use.</code></pre>
 <p>Breaking that sequence creates dangling pointers, double frees, leaks, and corrupted allocator state.</p>
 <hr>

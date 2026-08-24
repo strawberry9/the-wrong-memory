@@ -358,9 +358,9 @@ the beginning of a subobject</code></pre>
 <hr>
 <h2>17. Reallocation changes the map</h2>
 <p>Before:</p>
-<pre><code>buffer -&gt; allocation A</code></pre>
+<pre><code>buffer↓ allocation A</code></pre>
 <p>After a successful reallocation, the program may have:</p>
-<pre><code>buffer -&gt; allocation B</code></pre>
+<pre><code>buffer↓ allocation B</code></pre>
 <p>A stale pointer may still contain:</p>
 <pre><code>allocation A&#x27;s old address</code></pre>
 <p>The old address might now be:</p>
@@ -476,13 +476,13 @@ which access size.</code></pre>
 <pre><code>enough remaining capacity for length.</code></pre>
 <p>Conceptually:</p>
 <pre><code>base object
-    -&gt;
+   ↓
 offset
-    -&gt;
+   ↓
 location
-    -&gt;
+   ↓
 remaining capacity
-    -&gt;
+   ↓
 access length</code></pre>
 <p>A location cannot be validated independently from its object and its boundary.</p>
 <hr>
@@ -516,11 +516,11 @@ memcpy(p, src, fixed_length);</code></pre>
 <p>moves the destination to an unintended location.</p>
 <p>The chain is:</p>
 <pre><code>attacker-controlled offset
-    -&gt;
+   ↓
 wrong address
-    -&gt;
+   ↓
 fixed-size write
-    -&gt;
+   ↓
 corruption.</code></pre>
 <p>The size did not need to be wrong.</p>
 <p>The location was enough.</p>
@@ -594,13 +594,13 @@ the pointer identifies no valid object.</code></pre>
 <p>A memory operation is safe only when both its location and its amount are correct.</p>
 <p>The chain is now complete:</p>
 <pre><code>integer arithmetic
-    -&gt;
+   ↓
 allocation size
-    -&gt;
+   ↓
 pointer arithmetic
-    -&gt;
+   ↓
 bounds
-    -&gt;
+   ↓
 memory access</code></pre>
 <p>And once that access goes wrong, the next question is no longer merely whether the program has a bug.</p>
 <p>It is what that bug allows an attacker to do.</p>

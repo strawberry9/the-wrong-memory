@@ -181,11 +181,11 @@ memory addresses</code></pre>
 <p>The invalid read can therefore influence subsequent memory operations.</p>
 <p>A useful chain is:</p>
 <pre><code>out-of-bounds read
-    -&gt;
+   ↓
 attacker-controlled or unintended value
-    -&gt;
+   ↓
 derived calculation
-    -&gt;
+   ↓
 later memory operation</code></pre>
 <p>This is another reason to follow data flow rather than classifying bugs solely by the instruction that first went wrong.</p>
 <hr>
@@ -308,9 +308,9 @@ next field</code></pre>
 <p>The visible failure becomes an enormous length.</p>
 <p>Again:</p>
 <pre><code>bounds
-    -&gt;
+   ↓
 arithmetic
-    -&gt;
+   ↓
 memory operation.</code></pre>
 <p>The categories overlap because the underlying reasoning is connected.</p>
 <hr>

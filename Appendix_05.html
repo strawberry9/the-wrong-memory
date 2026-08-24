@@ -401,20 +401,16 @@ inferred in two callers, and not established in one caller.</code></pre>
 <p>The resulting workflow might look like this:</p>
 
 <pre><code>program
-    |
-    v
+    ↓
 observed relationships
-    |
-    v
+    ↓
 candidate invariants
-    |
-    v
+    ↓
 programmer interpretation
     |
     v
 explicit invariant
-    |
-    v
+    ↓
 type, assertion, analysis or test</code></pre>
 
 <p>The important step is the middle one.</p>
@@ -526,21 +522,17 @@ type, assertion, analysis or test</code></pre>
 <p>The division of cognitive labour therefore becomes:</p>
 
 <pre><code>Programmer
-    |
     | intention
-    v
+    ↓
 AI
-    |
     | candidate relationships
-    v
+    ↓
 Programmer
-    |
     | confirmed invariant
-    v
+    ↓
 Language and tools
-    |
     | enforcement
-    v
+    ↓
 Program</code></pre>
 
 <p>This does not eliminate human reasoning.</p>

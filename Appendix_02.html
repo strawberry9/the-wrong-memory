@@ -145,26 +145,20 @@ memcpy(q, source, length);</code></pre>
 <p>Semantically, however, it represents a chain:</p>
 <pre><code>
 count
-  |
-  v
+  ↓
 required size
-  |
-  v
+  ↓
 allocated extent
   |
-  v
+  ↓
 object identity
-  |
-  v
+  ↓
 offset
-  |
-  v
+  ↓
 remaining extent
-  |
-  v
+  ↓
 copy length
-  |
-  v
+  ↓
 valid memory access</code></pre>
 <p>Each relationship represents an invariant.</p>
 <p>For example:</p>
@@ -208,11 +202,9 @@ p = malloc(size);</code></pre>
 <p>The program has crossed a semantic boundary:</p>
 <pre><code>
 mathematical quantity
-        |
-        v
+        ↓
 represented integer
-        |
-        v
+        ↓
 allocation size</code></pre>
 <p>The first incorrect value can therefore create a later memory-safety violation.</p>
 <p>CVE-2019-19590 in radare2 is a useful example. The vulnerability involved an integer overflow in the calculation of a token allocation size, followed by a use-after-free involving the token buffer. The integer error therefore did not remain an isolated arithmetic defect. It propagated into the memory model of the program.</p>
@@ -220,20 +212,15 @@ allocation size</code></pre>
 <p>The CVE categories are different because they describe different observable failures. Semantically, however, they can form a single chain:</p>
 <pre><code>
 attacker-controlled quantity
-        |
-        v
+        ↓
 integer calculation
-        |
-        v
+        ↓
 intended allocation size
-        |
-        v
+        ↓
 incorrect represented size
-        |
-        v
+        ↓
 incorrect memory relationship
-        |
-        v
+        ↓
 memory corruption</code></pre>
 <p>The integer overflow is one manifestation of a broken invariant. The eventual memory corruption is another.</p>
 <hr>
@@ -333,17 +320,13 @@ the object identified by p must still be alive</code></pre>
 <p>This produces a temporal memory-safety failure:</p>
 <pre><code>
 correct object
-      |
-      v
+      ↓
 object lifetime ends
-      |
-      v
+      ↓
 pointer remains available
-      |
-      v
+      ↓
 pointer is used
-      |
-      v
+      ↓
 use-after-free</code></pre>
 <p>CVE-2026-3805, for example, records a use-after-free in curl&#x27;s SMB connection reuse code, where a data pointer could refer to memory that had already been freed.</p>
 <p>The vulnerability is not fundamentally about the numerical value of the pointer.</p>
@@ -392,14 +375,11 @@ pointer whose ownership has already been transferred</code></pre>
 <p>An integer failure can eventually become an ownership and lifetime failure:</p>
 <pre><code>
 integer invariant
-       |
-       v
+       ↓
 memory-state invariant
-       |
-       v
+       ↓
 ownership/lifetime invariant
-       |
-       v
+       ↓
 double free</code></pre>
 <p>Again, the CVE taxonomy identifies multiple weaknesses.</p>
 <p>The semantic-invariant model sees a causal chain.</p>
@@ -421,23 +401,17 @@ CWE-415  Double Free</code></pre>
 <p>A single corrupted assumption can propagate:</p>
 <pre><code>
 wrong integer
-     |
-     v
+     ↓
 wrong allocation
-     |
-     v
+     ↓
 wrong extent
-     |
-     v
+     ↓
 invalid pointer or range
-     |
-     v
+     ↓
 memory corruption
-     |
-     v
+     ↓
 lifetime corruption
-     |
-     v
+     ↓
 use-after-free</code></pre>
 <p>The vulnerability database records the observable manifestations.</p>
 <p>The program&#x27;s semantics reveal the chain connecting them.</p>
@@ -453,14 +427,11 @@ use-after-free</code></pre>
 <p>These systems are particularly exposed to semantic-invariant failures because they repeatedly perform the same transformation:</p>
 <pre><code>
 untrusted external information
-        |
-        v
+        ↓
 integer / length / offset
-        |
-        v
+        ↓
 pointer or allocation
-        |
-        v
+        ↓
 memory operation</code></pre>
 <p>The external value begins as data.</p>
 <p>The program turns it into a claim about memory.</p>
@@ -470,59 +441,49 @@ memory operation</code></pre>
 <p>The following mapping is useful:</p>
 <pre><code>
 CVE manifestation
-        |
-        v
+        ↓
 Immediate failure
-        |
-        v
+        ↓
 Broken semantic invariant</code></pre>
 <p>Integer overflow:</p>
 <pre><code>
 arithmetic result does not represent intended quantity
-        |
-        v
+        ↓
 meaning invariant</code></pre>
 <p>Undersized allocation:</p>
 <pre><code>
 allocated extent does not match logical object
-        |
-        v
+        ↓
 representation and extent invariant</code></pre>
 <p>Buffer overflow:</p>
 <pre><code>
 operation exceeds allocated region
-        |
-        v
+        ↓
 spatial extent invariant</code></pre>
 <p>Out-of-bounds read or write:</p>
 <pre><code>
 access lies outside permitted object range
-        |
-        v
+        ↓
 object and range invariant</code></pre>
 <p>Use-after-free:</p>
 <pre><code>
 access occurs after object lifetime ended
-        |
-        v
+        ↓
 temporal lifetime invariant</code></pre>
 <p>Double free:</p>
 <pre><code>
 lifetime is ended more than once
-        |
-        v
+        ↓
 ownership and lifetime invariant</code></pre>
 <p>Stale pointer:</p>
 <pre><code>
 pointer no longer identifies intended live object
-        |
-        v
+        ↓
 identity and lifetime invariant</code></pre>
 <p>Invalid aliasing:</p>
 <pre><code>
 references violate assumptions about permitted access
-        |
-        v
+        ↓
 aliasing invariant</code></pre>
 <p>These are not interchangeable.</p>
 <p>They should not be collapsed into one undifferentiated category.</p>
@@ -579,20 +540,15 @@ size_t</code></pre>
 <p>For example:</p>
 <pre><code>
 network packet
-      |
-      v
+      ↓
 attacker-controlled length
-      |
-      v
+      ↓
 integer conversion
-      |
-      v
+      ↓
 allocation
-      |
-      v
+      ↓
 pointer arithmetic
-      |
-      v
+      ↓
 copy</code></pre>
 <p>Every step can appear locally reasonable.</p>
 <p>The attacker does not need to make the program execute an obviously forbidden operation.</p>
@@ -661,22 +617,18 @@ this reference must not outlive that object</code></pre>
 C:
 
 programmer establishes invariant
-        |
-        v
+        ↓
 programmer preserves invariant
-        |
-        v
+        ↓
 programmer proves invariant</code></pre>
 <p>versus:</p>
 <pre><code>
 memory-safe language:
 
 language represents invariant
-        |
-        v
+        ↓
 compiler preserves invariant
-        |
-        v
+        ↓
 compiler rejects violations</code></pre>
 <p>No language can encode every semantic property of an arbitrary program.</p>
 <p>But moving important classes of invariants into the language dramatically reduces the space in which these vulnerabilities can occur.</p>
@@ -761,11 +713,9 @@ the intended size invariant?</code></pre>
 <p>The observable failure:</p>
 <pre><code>
 integer overflow
-        |
-        v
+        ↓
 double free
-        |
-        v
+        ↓
 memory corruption</code></pre>
 <p>The deeper question:</p>
 <pre><code>
@@ -803,13 +753,11 @@ use-after-free</code></pre>
                   / OOB       / double free
           |          |          |
           +----------+----------+
-                     |
-                     v
+                     ↓
               memory corruption
                      |
           +----------+----------+
-          |          |          |
-          v          v          v
+          ↓          ↓          ↓
        disclosure  execution   denial</code></pre>
 <p>The vulnerabilities are not all the same.</p>
 <p>They are failure manifestations occurring when different semantic invariants are violated.</p>
@@ -886,23 +834,17 @@ defensive programming</code></pre>
 <p>That produces a characteristic attack pattern:</p>
 <pre><code>
 attacker input
-      |
-      v
+      ↓
 unexpected value
-      |
-      v
+      ↓
 implicit assumption
-      |
-      v
+      ↓
 invariant becomes false
-      |
-      v
+      ↓
 ordinary C operation
-      |
-      v
+      ↓
 invalid memory operation
-      |
-      v
+      ↓
 security consequence</code></pre>
 <p>The attacker does not necessarily need control over the final memory operation.</p>
 <p>They need control over the premise under which that operation is considered safe.</p>
@@ -949,17 +891,13 @@ denial of service</code></pre>
 <p>This gives us a causal model:</p>
 <pre><code>
 semantic assumption
-       |
-       v
+       ↓
 broken invariant
-       |
-       v
+       ↓
 C-level failure
-       |
-       v
+       ↓
 memory corruption
-       |
-       v
+       ↓
 security consequence</code></pre>
 <p>The CVE usually names Level 3.</p>
 <p>The real engineering problem often begins at Level 1.</p>
@@ -998,20 +936,15 @@ whether the arithmetic producing that length was valid</code></pre>
 <p>But they share a common structure:</p>
 <pre><code>
                  SEMANTIC INVARIANT
-                        |
-                        v
+                        ↓
                 programmer assumption
-                        |
-                        v
+                        ↓
                 invariant is violated
-                        |
-                        v
+                        ↓
              program continues executing
-                        |
-                        v
+                        ↓
              invalid memory operation
-                        |
-                        v
+                        ↓
              security vulnerability</code></pre>
 <p>The most important property of the C language in this respect is therefore not simply that it permits pointers, arithmetic, manual allocation, or direct memory manipulation.</p>
 <p>It is that the language frequently permits these operations without carrying forward enough semantic information to establish that the relationships on which their safety depends are still true.</p>

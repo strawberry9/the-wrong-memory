@@ -96,11 +96,11 @@ Does the object still exist?</code></pre>
 <p>The program has obtained storage that can be used for an object, subject to the relevant rules.</p>
 <p>Conceptually:</p>
 <pre><code>allocation
-    -&gt;
+   ↓
 object exists
-    -&gt;
+   ↓
 pointer identifies object
-    -&gt;
+   ↓
 accesses are possible</code></pre>
 <p>The object&#x27;s lifetime begins as part of this process.</p>
 <p>The program must then eventually stop using the object and release its storage.</p>
@@ -215,9 +215,9 @@ p[0] = attacker_value;</code></pre>
 <p>The exact result depends on allocator behavior and object layout.</p>
 <p>But the general pattern is important:</p>
 <pre><code>expired pointer
-    -&gt;
+   ↓
 reused storage
-    -&gt;
+   ↓
 access to a different object.</code></pre>
 <hr>
 <h2>8. The stale pointer can become an information leak</h2>
@@ -407,15 +407,15 @@ free(p);</code></pre>
 <p>Some programs solve shared lifetime problems with reference counting.</p>
 <p>Conceptually:</p>
 <pre><code>acquire reference
-    -&gt;
+   ↓
 reference count increases
 
 release reference
-    -&gt;
+   ↓
 reference count decreases
 
 count reaches zero
-    -&gt;
+   ↓
 object is freed</code></pre>
 <p>The important invariant is:</p>
 <pre><code>object remains alive while references that may use it remain outstanding.</code></pre>
