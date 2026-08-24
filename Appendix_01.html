@@ -585,27 +585,19 @@ stale use detected</code></pre>
 
 <p>They occupy different positions in a larger design space.</p>
 
-<table>
-<thead>
-<tr>
-<th>Safety problem</th>
-<th>Possible language-level response</th>
-</tr>
-</thead>
-<tbody>
-<tr><td>Object lifetime</td><td>Garbage collection, ownership, regions, reference management</td></tr>
-<tr><td>Dangling references</td><td>Borrow checking, ownership, generational references</td></tr>
-<tr><td>Bounds</td><td>Slices, arrays, spans, bounds checking</td></tr>
-<tr><td>Aliasing</td><td>Borrow checking, uniqueness, reference capabilities</td></tr>
-<tr><td>Mutation</td><td>Ownership, capabilities, exclusivity</td></tr>
-<tr><td>Arithmetic affecting memory</td><td>Checked arithmetic, richer numeric types, contracts</td></tr>
-<tr><td>Resource ownership</td><td>RAII, ownership, linear or affine techniques</td></tr>
-<tr><td>Application-specific invariants</td><td>Contracts, refinement and dependent techniques, formal verification</td></tr>
-<tr><td>Low-level escape hatches</td><td><code>unsafe</code>, <code>@system</code>, explicit unsafe APIs</td></tr>
-<tr><td>Foreign-function interfaces</td><td>Checked wrappers, annotations, isolation and explicit unsafe boundaries</td></tr>
-<tr><td>Concurrency</td><td>Ownership, capabilities, actor isolation and data-race checking</td></tr>
-</tbody>
-</table>
+<p>| Safety problem                  | Possible language-level response                                        |<br>
+| ------------------------------- | ----------------------------------------------------------------------- |<br>
+| Object lifetime                 | Garbage collection, ownership, regions, reference management            |<br>
+| Dangling references             | Borrow checking, ownership, generational references                     |<br>
+| Bounds                          | Slices, arrays, spans, bounds checking                                  |<br>
+| Aliasing                        | Borrow checking, uniqueness, reference capabilities                     |<br>
+| Mutation                        | Ownership, capabilities, exclusivity                                    |<br>
+| Arithmetic affecting memory     | Checked arithmetic, richer numeric types, contracts                     |<br>
+| Resource ownership              | RAII, ownership, linear or affine techniques                            |<br>
+| Application-specific invariants | Contracts, refinement and dependent techniques, formal verification     |<br>
+| Low-level escape hatches        | `unsafe`, `@system`, explicit unsafe APIs                               |<br>
+| Foreign-function interfaces     | Checked wrappers, annotations, isolation and explicit unsafe boundaries |<br>
+| Concurrency                     | Ownership, capabilities, actor isolation and data-race checking         |</p>
 
 <p>No single language needs to employ every mechanism.</p>
 
