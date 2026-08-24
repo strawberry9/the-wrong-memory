@@ -74,8 +74,9 @@
     
 </head>
 <body>
+
 <h1>Introduction</h1>
-<h1>The Wrong Memory</h1>
+<h2>The Wrong Memory</h2>
 
 <p>
 The objective of this book is to develop a particular way of understanding
@@ -85,12 +86,14 @@ objects, bounds, storage, and lifetimes.
 </p>
 
 <p>
-C emerged from a design context in which direct manipulation of machine
+C emerged from a design context in which close control over machine
 resources was a feature rather than an anomaly. Its relatively low-level
 memory model permits programmers to manipulate objects through pointers and
 pointer arithmetic, without generally enforcing at the language level that
 each resulting access remains within the bounds and lifetime of the object
-concerned.<sup><a href="#ref-c-history">[1]</a><sup><a href="#ref-c-standard">[2]</a></sup>
+concerned.
+<sup><a href="#ref-c-history">[1]</a></sup>
+<sup><a href="#ref-c-standard">[2]</a></sup>
 </p>
 
 <p>
@@ -271,12 +274,12 @@ space?
 <p>
 The answers to these questions turn a collection of statements into a chain
 of reasoning. They require us to identify the invariants that connect the
-operations and to treat the code as a logical proof that memory is being
+operations and to treat the code as an argument that memory is being
 allocated and addressed correctly.
 </p>
 
 <p>
-A memory-safety bug occurs when an assumption required for that proof no
+A memory-safety bug occurs when an assumption required for that reasoning no
 longer holds.
 </p>
 
@@ -341,7 +344,7 @@ Perhaps a later pointer calculation still used the original logical size.
 </p>
 
 <p>
-Perhaps the copy finally crossed the physical boundary of the allocation.
+Perhaps the copy finally crossed the boundary of the allocation.
 </p>
 
 <p>
@@ -407,8 +410,8 @@ and finally:
 <pre><code>memory access</code></pre>
 
 <p>
-At each stage, the program makes an assumption about what that value means.
-Our job is to determine whether the assumption remains true.
+At each stage, the program relies on an assumption about what that value
+means. Our task is to determine whether that assumption remains true.
 </p>
 
 <p>
