@@ -87,7 +87,7 @@ generally enforcing at the language level that each resulting access
 remains within the bounds and lifetime of the object concerned.<sup><a href="#ref-c-history">[1]</a><sup><a href="#ref-c-standard">[2]</a></sup>
 </p>
 
-<p>This book demonstrates how many of the difficulties we now call memory-safety problems arise from these design choices.</p>
+<p>This book demonstrates how many of the difficulties we now call memory-safety problems can arise when C's low-level memory model leaves important relationships between values, objects, bounds, locations, and lifetimes to be maintained by the programmer.</p>
 
 <p>C provides a low-level model in which memory can be manipulated through an intricate interplay of numbers, addresses, objects, storage, and lifetimes. Programmers must keep the relationships between these elements consistent, because an error in one can propagate through the others. A wrong size can produce an undersized allocation; a pointer calculation can then produce a pointer that appears valid but falls outside that allocation; a subsequent copy can overrun the object. The resulting corruption may remain hidden until much later, when its original cause is difficult to trace.</p>
 <p>There is a simple sentence that captures a recurring pattern in many serious C memory bugs:</p>
