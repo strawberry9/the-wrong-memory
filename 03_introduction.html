@@ -109,13 +109,13 @@ struct item *p = malloc(n * sizeof *p);</code></pre>
   <li>a subsequent access falls within the intended object.</li>
 </ul>
 
-<p>These propositions belong to the program's semantic model, but are not necessarily represented in C's static type model. The types help the compiler determine how operations on values should be translated, while leaving much of the reasoning that connects those operations to valid memory implicit.</p>
+<p>These propositions belong to the program's semantic model, but are not necessarily represented in C's static type model. The types help the compiler determine how operations on values should be translated, while leaving <i>implicit</i> much of the reasoning that connects those operations to valid memory.</p>
 
 <p>This book examines the memory-safety problems that can arise from this design, particularly where important relationships between values, objects, bounds, locations, and lifetimes are left to be maintained by the programmer.</p>
 
 <p>In C, these elements interact through a chain of dependencies. A wrong size can produce an undersized allocation; pointer arithmetic can then produce a pointer outside that allocation; and a subsequent copy can access memory beyond the intended object. The resulting corruption may remain hidden until much later, when its original cause is difficult to trace.</p>
 
-<p>The central difficulty is that the programmer's model of the memory being accessed can diverge from the memory that the program actually accesses. The purpose of this book is to make that divergence visible, and to develop a way of reasoning backwards from an invalid access to the assumptions about values, objects, bounds, locations, and lifetimes that made that access possible.</p>
+<p>The central difficulty is that the programmer's model of the memory being accessed can diverge from the memory that the program actually accesses. Consequently, when something goes wrong, those assumptions can remain invisible. This book seeks to make that divergence visible and to develop a way of reasoning backwards from an invalid access to the assumptions about values, objects, bounds, locations, and lifetimes that made that access possible.</p>
 
 <p>
 There is a simple sentence that captures a recurring pattern in many serious
