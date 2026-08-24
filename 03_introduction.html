@@ -228,13 +228,13 @@ A useful starting point for following such a failure is:
 </p>
 
 <pre><code>integer arithmetic
-    ->
+        ↓
 allocation size
-    ->
+        ↓
 pointer arithmetic
-    ->
+        ↓
 bounds
-    ->
+        ↓
 memory corruption</code></pre>
 
 <p>
@@ -323,19 +323,12 @@ A memory-safety bug occurs when an assumption required for that reasoning no
 longer holds.
 </p>
 
-
-<h2>The wrong amount and the wrong location</h2>
+<h2>The Wrong Amount and the Wrong Location</h2>
 
 <p>
-The phrase at the heart of this book has two particularly important
-dimensions:
+Memory can be wrong in two fundamental ways: the program can access the
+wrong <em>amount</em>, or it can access the wrong <em>location</em>.
 </p>
-
-<pre><code>amount</code></pre>
-
-<p>and:</p>
-
-<pre><code>location</code></pre>
 
 <p>
 A program can use the correct location but the wrong amount of memory. It
@@ -463,34 +456,32 @@ trusted to describe memory.
 </p>
 
 
-<h2>The question to keep asking</h2>
+<h2>The Question to Keep Asking</h2>
 
 <p>
-Throughout the book, when you encounter code that manipulates memory, return
-to the same statement:
+Throughout the book, return to one question whenever code manipulates memory:
 </p>
 
-<pre><code>I calculated, addressed, allocated, copied, or freed the wrong amount or location of memory.</code></pre>
+<pre><code>What memory did the programmer believe this operation referred to,
+and what memory did it actually refer to?</code></pre>
 
 <p>
 Then ask:
 </p>
 
-<pre><code>Which one?
+<pre><code>Which value determines it?
 
-Where?
+How was that value calculated?
 
-Based on which value?
+Which object is involved?
 
-Calculated how?
+What bounds apply?
 
-Relative to which object?
-
-And what happens next?</code></pre>
+What happens next?</code></pre>
 
 <p>
-Those questions are enough to begin tracing many difficult memory bugs. The
-chapters that follow fill in the technical details.
+These questions provide a way to trace an invalid access backwards through
+the assumptions that made it possible.
 </p>
 
 <p>

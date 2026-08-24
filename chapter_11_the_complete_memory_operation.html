@@ -87,10 +87,7 @@ location
 amount
 lifetime
 ownership.</code></pre>
-<p>Remember the phrase introduced at the beginning of this book:</p>
-<p>I calculated, addressed, allocated, copied, or freed the wrong amount or location of memory.</p>
-<p>Each verb describes a stage in a chain.</p>
-<p>A mistake at one stage can become a different-looking mistake at a later stage.</p>
+
 <hr>
 <h2>1. The complete chain</h2>
 <p>Consider a program receiving:</p>
@@ -108,27 +105,29 @@ ownership.</code></pre>
 <pre><code>free(buffer);</code></pre>
 <p>Each operation depends on the correctness of the previous ones.</p>
 <p>Conceptually:</p>
+
 <pre><code>input
-  -&gt;
+   ↓
 integer arithmetic
-  -&gt;
+   ↓
 allocation size
-  -&gt;
+   ↓
 object
-  -&gt;
+   ↓
 pointer arithmetic
-  -&gt;
+   ↓
 location
-  -&gt;
+   ↓
 bounds
-  -&gt;
+   ↓
 copy amount
-  -&gt;
+   ↓
 memory access
-  -&gt;
+   ↓
 lifetime
-  -&gt;
+   ↓
 release</code></pre>
+
 <p>This is the central chain of the book.</p>
 <hr>
 <h2>2. The first error may not be where the crash occurs</h2>
@@ -471,15 +470,17 @@ maximum permitted length.</code></pre>
 <h2>21. From memory bug to vulnerability</h2>
 <p>A memory bug becomes a security vulnerability when an attacker can influence the conditions of the invalid operation and the resulting corruption or disclosure has useful consequences.</p>
 <p>A useful sequence is:</p>
+
 <pre><code>attacker influence
-    -&gt;
-incorrect calculation/location/lifetime
-    -&gt;
+   ↓
+incorrect calculation / location / lifetime
+   ↓
 invalid memory operation
-    -&gt;
+   ↓
 observable effect
-    -&gt;
-security consequence.</code></pre>
+   ↓
+security consequence</code></pre>
+
 <p>The observable effect might be:</p>
 <pre><code>crash
 
@@ -611,31 +612,33 @@ Who owns it?</code></pre>
 <hr>
 <h2>28. The complete chain</h2>
 <p>The central chain can now be written in a more complete form:</p>
+
 <pre><code>integer arithmetic
-    -&gt;
+   ↓
 allocation size
-    -&gt;
+   ↓
 object boundary
-    -&gt;
+   ↓
 pointer arithmetic
-    -&gt;
+   ↓
 object location
-    -&gt;
+   ↓
 bounds
-    -&gt;
+   ↓
 amount accessed
-    -&gt;
+   ↓
 memory operation
-    -&gt;
+   ↓
 object lifetime
-    -&gt;
+   ↓
 ownership
-    -&gt;
+   ↓
 release
-    -&gt;
+   ↓
 possible reuse
-    -&gt;
-possible corruption or disclosure.</code></pre>
+   ↓
+possible corruption or disclosure</code></pre>
+
 <p>The stages are not strictly linear.</p>
 <p>They form a network.</p>
 <p>A bad integer can create a bad allocation.</p>
@@ -671,13 +674,9 @@ OWNERSHIP
 <p>The difficult part of C memory safety is rarely the syntax.</p>
 <p>The syntax is usually simple:</p>
 <pre><code>p[i]
-
 p + offset
-
 malloc(size)
-
 memcpy(dst, src, length)
-
 free(p)</code></pre>
 <p>The difficulty is maintaining the relationships between the values.</p>
 <p>A correct program must preserve relationships such as:</p>
@@ -699,10 +698,7 @@ ownership is transferred before the previous owner releases it</code></pre>
 <p>These are invariants.</p>
 <p>Memory bugs occur when the program assumes an invariant that is no longer true.</p>
 <hr>
-<h2>31. The phrase</h2>
-<p>The phrase that began this book is a compact description of a large class of C memory failures:</p>
-<pre>I calculated, addressed, allocated, copied, or freed the wrong amount or location of memory.</pre>
-<p>It covers several different moments in the life of a memory object.</p>
+<h2>31. The Wrong Memory</h2>
 <p>I calculated the wrong amount:</p>
 <pre><code>integer overflow
 truncation
