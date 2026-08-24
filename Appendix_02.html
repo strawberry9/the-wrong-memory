@@ -1022,6 +1022,71 @@ whether the arithmetic producing that length was valid</code></pre>
 <p>But all can be understood as points at which the program&#x27;s semantic model of memory has diverged from the memory that actually exists.</p>
 <p>And that is perhaps the most fundamental security lesson to draw from decades of C vulnerabilities:</p>
 <p>Memory corruption begins not when the wrong byte is written, but when the program first loses the invariant that tells it which bytes are right.</p>
+
+<hr>
+
+<h2>References</h2>
+
+<ol>
+
+<li id="ref-cve-2019-19590">
+<strong>CVE-2019-19590 — radare2</strong>.
+NIST National Vulnerability Database. The vulnerability involved an integer overflow in the calculation of <code>new_token_size</code> in radare2, resulting in a use-after-free of the token buffer.
+<br>
+<a href="https://nvd.nist.gov/vuln/detail/CVE-2019-19590">https://nvd.nist.gov/vuln/detail/CVE-2019-19590</a>
+</li>
+
+<li id="ref-cve-2022-37454">
+<strong>CVE-2022-37454 — Keccak XKCP SHA-3 reference implementation</strong>.
+CVE/MITRE and NIST National Vulnerability Database. An integer overflow in the Keccak XKCP SHA-3 reference implementation resulted in a buffer overflow.
+<br>
+<a href="https://nvd.nist.gov/vuln/detail/CVE-2022-37454">https://nvd.nist.gov/vuln/detail/CVE-2022-37454</a>
+</li>
+
+<li id="ref-cve-2014-0160">
+<strong>CVE-2014-0160 — OpenSSL Heartbleed</strong>.
+NIST National Vulnerability Database. The OpenSSL TLS/DTLS Heartbeat implementation could perform a buffer over-read, allowing sensitive information to be obtained from process memory.
+<br>
+<a href="https://nvd.nist.gov/vuln/detail/CVE-2014-0160">https://nvd.nist.gov/vuln/detail/CVE-2014-0160</a>
+</li>
+
+<li id="ref-cve-2015-7547">
+<strong>CVE-2015-7547 — GNU C Library (glibc) resolver</strong>.
+NIST National Vulnerability Database. Multiple stack-based buffer overflows in the glibc resolver could be triggered by specially crafted DNS responses.
+<br>
+<a href="https://nvd.nist.gov/vuln/detail/CVE-2015-7547">https://nvd.nist.gov/vuln/detail/CVE-2015-7547</a>
+</li>
+
+<li id="ref-cve-2026-3805">
+<strong>CVE-2026-3805 — curl SMB connection reuse</strong>.
+CVE Program and NIST National Vulnerability Database. A use-after-free occurred when curl performed a subsequent SMB request to the same host and used a pointer into already-freed memory.
+<br>
+<a href="https://nvd.nist.gov/vuln/detail/CVE-2026-3805">https://nvd.nist.gov/vuln/detail/CVE-2026-3805</a>
+</li>
+
+<li id="ref-cve-2006-2026">
+<strong>CVE-2006-2026 — libtiff</strong>.
+NIST National Vulnerability Database. A double-free vulnerability in <code>tif_jpeg.c</code> in libtiff before version 3.8.1 could result in denial of service and potentially arbitrary code execution.
+<br>
+<a href="https://nvd.nist.gov/vuln/detail/CVE-2006-2026">https://nvd.nist.gov/vuln/detail/CVE-2006-2026</a>
+</li>
+
+<li id="ref-cve-2025-5914">
+<strong>CVE-2025-5914 — libarchive</strong>.
+CVE Program and NIST National Vulnerability Database. An integer overflow in libarchive's RAR handling could lead to a double-free and consequent memory corruption.
+<br>
+<a href="https://nvd.nist.gov/vuln/detail/CVE-2025-5914">https://nvd.nist.gov/vuln/detail/CVE-2025-5914</a>
+</li>
+
+<li id="ref-cve-2026-21486">
+<strong>CVE-2026-21486 — iccDEV</strong>.
+NIST National Vulnerability Database. The vulnerability in <code>CIccSparseMatrix::CIccSparseMatrix</code> encompasses integer overflow, heap-based buffer overflow, out-of-bounds write and use-after-free conditions.
+<br>
+<a href="https://nvd.nist.gov/vuln/detail/CVE-2026-21486">https://nvd.nist.gov/vuln/detail/CVE-2026-21486</a>
+</li>
+
+</ol>
+
 <hr>
 
     <div class="book-navigation">
