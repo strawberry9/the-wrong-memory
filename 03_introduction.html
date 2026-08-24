@@ -77,7 +77,17 @@
 <h1>Introduction</h1>
 <h1>The Wrong Memory</h1>
 <p>The objective of this book is to develop a particular way of understanding memory-safety bugs in the C programming language. Memory safety (for the purpose of this book) concerns whether accesses remain valid with respect to objects, bounds, storage, and lifetimes.</p>
-<p>The C programming language (C) emerged from a design context in which direct manipulation of machine resources was a feature rather than an anomaly. Its relatively low-level memory model permits programmers to manipulate memory addresses directly, without generally enforcing that each resulting access remains within the bounds and lifetime of the object concerned. Many of the difficulties we now call memory-safety problems arise from these design choices.</p>
+<p>
+The C programming language (C) emerged from a design context in which
+direct manipulation of machine resources was a feature rather than an
+anomaly. Its relatively low-level memory model permits programmers to
+manipulate pointers to objects and perform pointer arithmetic, without
+generally enforcing at the language level that each resulting access
+remains within the bounds and lifetime of the object concerned.<sup><a href="#ref-c-history">[1]</a><sup><a href="#ref-c-standard">[2]</a></sup>
+</p>
+
+<p>Many of the difficulties we now call memory-safety problems arise from these design choices.</p>
+
 <p>C provides a low-level model in which memory can be manipulated through an intricate interplay of numbers, addresses, objects, storage, and lifetimes. Programmers must keep the relationships between these elements consistent, because an error in one can propagate through the others. A wrong size can produce an undersized allocation; a pointer calculation can then produce a pointer that appears valid but falls outside that allocation; a subsequent copy can overrun the object. The resulting corruption may remain hidden until much later, when its original cause is difficult to trace.</p>
 <p>There is a simple sentence that captures a recurring pattern in many serious C memory bugs:</p>
 <pre>I calculated, addressed, allocated, copied, or freed the wrong amount or location of memory.</pre>
@@ -316,6 +326,30 @@ described another.
         </ul>
     </section>
 </nav>
+
+<h2>References</h2>
+<ol>
+<li id="ref-c-history">
+<strong>Ritchie, Dennis M., "The Development of the C Language"</strong>.
+Dennis Ritchie describes the development of C from BCPL and B and the
+design considerations that shaped its low-level systems-programming
+orientation, including its relationship to the PDP-11 and Unix.
+<br>
+<a href="https://www.bell-labs.com/usr/dmr/www/chist.html">
+The Development of the C Language
+</a>
+</li>
+
+<li id="ref-c-standard">
+<strong>ISO/IEC 9899 — Programming Language C</strong>.
+The C standard specifies C's object, pointer, array, storage-duration
+and pointer-arithmetic semantics. These provisions establish the
+language's relatively direct relationship between pointers, objects
+and memory, while the standard's rules also define circumstances in
+which pointer use becomes undefined behaviour rather than imposing
+automatic runtime bounds or lifetime enforcement.
+</li>
+</ol>
 
 <hr>
 
