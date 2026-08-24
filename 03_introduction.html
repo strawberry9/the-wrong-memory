@@ -108,9 +108,18 @@ object. The resulting corruption may remain hidden until much later, when
 its original cause is difficult to trace.
 </p>
 
-<p>There is a simple sentence that captures a recurring pattern in many serious C memory bugs:</p>
-<pre>I calculated, addressed, allocated, copied, or freed the wrong amount or location of memory.</pre>
-<p>The first central idea of this book is: memory bugs are <i>often</i> chains of incorrect assumptions rather than isolated mistakes.</p>
+<p>
+There is a simple sentence that captures a recurring pattern in many serious
+C memory bugs:
+</p>
+
+<pre><code>I calculated, addressed, allocated, copied, or freed the wrong amount or location of memory.</code></pre>
+
+<p>
+The first central idea of this book is: <strong>memory bugs are often chains
+of incorrect assumptions rather than isolated mistakes.</strong>
+</p>
+
 <p>Memory safety bugs in C are often neatly categorized as:</p>
 <pre><code>integer overflow
 buffer overflow
