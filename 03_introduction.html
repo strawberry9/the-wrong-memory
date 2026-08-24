@@ -84,7 +84,7 @@
 
 <p>Consider:</p>
 
-<pre><code>struct item *p = malloc(n * sizeof *p);</code></pre>
+<pre><code>// Allocate enough storage for n struct item objects and make p point to the first one.<br>struct item *p = malloc(n * sizeof *p);</code></pre>
 
 <p>The compiler can establish a number of facts about the types involved:</p>
 
