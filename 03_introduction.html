@@ -116,122 +116,321 @@ C memory bugs:
 <pre><code>I calculated, addressed, allocated, copied, or freed the wrong amount or location of memory.</code></pre>
 
 <p>
-The first central idea of this book is: <strong>memory bugs are often chains
-of incorrect assumptions rather than isolated mistakes.</strong>
+The central idea of this book is that memory bugs are often chains of
+incorrect assumptions rather than isolated mistakes, and that understanding
+them requires following those chains rather than examining each operation
+in isolation.
 </p>
 
-<p>Memory safety bugs in C are often neatly categorized as:</p>
+<h2>The memory chain</h2>
+
+<p>
+Memory-safety bugs in C are often described using categories such as:
+</p>
+
 <pre><code>integer overflow
 buffer overflow
 out-of-bounds access
 use-after-free
 double free
 memory corruption</code></pre>
-<p>These categories are useful for describing failures, but they can hide the relationship between them. Real-world C bugs are often messy, intertwined failures.</p>
-<p>Consider a program that receives a count, calculates a size from that count, allocates memory, walks through the resulting object, and eventually copies data into it.</p>
-<p>There are many places where something can go wrong.</p>
-<p>The count might be wrong.</p>
-<p>The calculation might be wrong.</p>
-<p>The allocation might be too small.</p>
-<p>The pointer might be calculated from the wrong value.</p>
-<p>The bounds might be wrong.</p>
-<p>The copy might be too large.</p>
-<p>The object might no longer exist.</p>
-<p>The eventual failure might therefore occur several steps away from the original mistake.</p>
-<p>The second central idea of this book is: we should follow the chain rather than examining each operation in isolation.</p>
-<hr>
-<h2>The memory chain</h2>
-<p>A useful starting point is:</p>
+
+<p>
+These categories are useful for describing failures, but they can hide the
+relationships between them. A vulnerability may begin as an error in one
+part of a program and become visible only after that error has propagated
+through several subsequent operations.
+</p>
+
+<p>
+Consider a program that receives a count, calculates a size from that count,
+allocates memory, walks through the resulting object, and eventually copies
+data into it.
+</p>
+
+<p>
+The count might be wrong.
+</p>
+
+<p>
+The calculation might be wrong.
+</p>
+
+<p>
+The allocation might be too small.
+</p>
+
+<p>
+The pointer might be calculated from the wrong value.
+</p>
+
+<p>
+The bounds might be wrong.
+</p>
+
+<p>
+The copy might be too large.
+</p>
+
+<p>
+The object might no longer exist.
+</p>
+
+<p>
+The eventual failure may therefore occur several steps away from the
+original mistake.
+</p>
+
+<p>
+A useful starting point for following such a failure is:
+</p>
+
 <pre><code>integer arithmetic
-    -&gt;
+    ->
 allocation size
-    -&gt;
+    ->
 pointer arithmetic
-    -&gt;
+    ->
 bounds
-    -&gt;
+    ->
 memory corruption</code></pre>
-<p>This is not a rigid sequence. Real programs will skip steps, repeat them, or introduce other operations between them.</p>
-<p>'The memory chain' is a way of thinking.</p>
-<p>When a number is used to describe memory, we should ask where that number came from.</p>
-<p>When an address is calculated, we should ask what object it is intended to identify.</p>
-<p>When memory is allocated, we should ask what logical object the allocation is supposed to contain.</p>
-<p>When a range is accessed, we should ask why the program believes that range is valid.</p>
-<p>And when memory is freed, we should ask whether the pointer still identifies the intended object.</p>
-<p>The answers form a chain.</p>
-<hr>
+
+<p>
+This is not a rigid sequence. Real programs may skip steps, repeat them, or
+introduce other operations between them. The memory chain is a way of
+thinking about the dependencies that connect one operation to the next.
+</p>
+
+<p>
+When a number is used to describe memory, we should ask where that number
+came from.
+</p>
+
+<p>
+When an address is calculated, we should ask what object it is intended to
+identify.
+</p>
+
+<p>
+When memory is allocated, we should ask what logical object the allocation
+is supposed to contain.
+</p>
+
+<p>
+When a range is accessed, we should ask why the program believes that range
+is valid.
+</p>
+
+<p>
+And when memory is freed, we should ask whether the pointer still identifies
+the intended object.
+</p>
+
+<p>
+The answers to these questions form a chain of reasoning.
+</p>
+
 <h2>From code to assumptions</h2>
-<p>C code often looks deceptively local.</p>
-<p>For example:</p>
-<pre><code>
-size = count * element_size; // Calculate the total number of bytes needed
-char *p = malloc(size); // Allocate a block of memory of that total size on the heap
-char *q = p + offset; // Compute a new pointer q by adding an offset
-memcpy(q, src, length); // Copy length bytes from src to the memory beginning at q
-</code></pre>
-<p>Each statement is short.</p>
-<p>The interesting question is not whether each statement looks reasonable by itself.</p>
-<p>The interesting question is whether the assumptions connecting them are true.</p>
-<p>What does `count` represent?</p>
-<p>What does `size` represent?</p>
-<p>What object does `p` point to?</p>
-<p>What does `offset` measure?</p>
-<p>What is the relationship between `length` and the remaining space?</p>
-<p>The answers to those questions turn a collection of statements into a chain of reasoning, forcing you to deduce the global invariants of the system and view the code as a logical proof that memory is allocated and addressed correctly.</p>
-<p>A memory-safety bug is simply what happens when the programmer's assumptions in that proof no longer match the actual state of memory.</p>
-<hr>
+
+<p>
+C code often looks deceptively local. Consider:
+</p>
+
+<pre><code>size = count * element_size; // Calculate the total number of bytes needed
+char *p = malloc(size);       // Allocate that amount of memory
+char *q = p + offset;         // Compute a new pointer
+memcpy(q, src, length);       // Copy length bytes to that location</code></pre>
+
+<p>
+Each statement is short. The interesting question is not whether each
+statement looks reasonable by itself. It is whether the assumptions
+connecting them are true.
+</p>
+
+<p>
+What does <code>count</code> represent?
+</p>
+
+<p>
+What does <code>size</code> represent?
+</p>
+
+<p>
+What object does <code>p</code> point to?
+</p>
+
+<p>
+What does <code>offset</code> measure?
+</p>
+
+<p>
+What is the relationship between <code>length</code> and the remaining
+space?
+</p>
+
+<p>
+The answers to these questions turn a collection of statements into a chain
+of reasoning. They require us to identify the invariants that connect the
+operations and to treat the code as a logical proof that memory is being
+allocated and addressed correctly.
+</p>
+
+<p>
+A memory-safety bug occurs when an assumption required for that proof no
+longer holds.
+</p>
+
 <h2>The wrong amount and the wrong location</h2>
-<p>The phrase at the heart of this book has two particularly important dimensions:</p>
+
+<p>
+The phrase at the heart of this book has two particularly important
+dimensions:
+</p>
+
 <pre><code>amount</code></pre>
-<p>and:</p>
-<pre><code>location.</code></pre>
-<p>A program can use the correct location but the wrong amount of memory.</p>
-<p>It can use the correct amount but the wrong location.</p>
-<p>It can get both wrong.</p>
-<p>These cases lead to different manifestations, but the underlying question is the same:</p>
+
+<p>
+and:
+</p>
+
+<pre><code>location</code></pre>
+
+<p>
+A program can use the correct location but the wrong amount of memory. It
+can use the correct amount but the wrong location. It can get both wrong.
+</p>
+
+<p>
+These cases lead to different manifestations, but the underlying question
+is the same:
+</p>
+
 <pre><code>What memory did the programmer believe this operation referred to,
 and what memory did it actually refer to?</code></pre>
-<p>That question is often more useful than simply asking which bug category applies.</p>
-<hr>
+
+<p>
+That question is often more useful than simply asking which bug category
+applies.
+</p>
+
 <h2>Why follow the chain?</h2>
-<p>Suppose a program crashes during a copy.</p>
-<p>The copy may be where the problem becomes visible, but it may not be where the problem began.</p>
-<p>Perhaps an input value was converted incorrectly.</p>
-<p>Perhaps an arithmetic calculation overflowed.</p>
-<p>Perhaps an allocation was therefore too small.</p>
-<p>Perhaps a later pointer calculation still used the original logical size.</p>
-<p>Perhaps the copy finally crossed the physical boundary of the allocation.</p>
-<p>Looking only at the final copy tells us what went wrong at the end of the chain.</p>
-<p>Following the chain tells us why.</p>
-<p>That distinction matters both for debugging and for security.</p>
-<p>It determines whether we merely patch the operation that happened to fail or repair the assumption that made the failure possible.</p>
-<hr>
+
+<p>
+Suppose a program crashes during a copy.
+</p>
+
+<p>
+The copy may be where the problem becomes visible, but it may not be where
+the problem began.
+</p>
+
+<p>
+Perhaps an input value was converted incorrectly.
+</p>
+
+<p>
+Perhaps an arithmetic calculation overflowed.
+</p>
+
+<p>
+Perhaps an allocation was therefore too small.
+</p>
+
+<p>
+Perhaps a later pointer calculation still used the original logical size.
+</p>
+
+<p>
+Perhaps the copy finally crossed the physical boundary of the allocation.
+</p>
+
+<p>
+Looking only at the final copy tells us what went wrong at the end of the
+chain. Following the chain tells us why.
+</p>
+
+<p>
+That distinction matters both for debugging and for security. It determines
+whether we merely patch the operation that happened to fail or repair the
+assumption that made the failure possible.
+</p>
+
 <h2>A way of reading C</h2>
-<p>The chapters that follow will use this idea as a recurring method of analysis.</p>
-<p>We will not treat integer arithmetic, allocation, pointers, bounds, and memory corruption as unrelated topics.</p>
-<p>Instead, we will follow values as they move through a program.</p>
-<p>A value may begin as:</p>
+
+<p>
+The chapters that follow use this idea as a recurring method of analysis.
+We will not treat integer arithmetic, allocation, pointers, bounds, and
+memory corruption as unrelated topics. Instead, we will follow values as
+they move through a program.
+</p>
+
+<p>
+A value may begin as:
+</p>
+
 <pre><code>input</code></pre>
-<p>become:</p>
+
+<p>
+become:
+</p>
+
 <pre><code>count</code></pre>
-<p>then:</p>
+
+<p>
+then:
+</p>
+
 <pre><code>size</code></pre>
-<p>then:</p>
+
+<p>
+then:
+</p>
+
 <pre><code>allocation</code></pre>
-<p>then:</p>
+
+<p>
+then:
+</p>
+
 <pre><code>offset</code></pre>
-<p>then:</p>
+
+<p>
+then:
+</p>
+
 <pre><code>address</code></pre>
-<p>then:</p>
-<pre><code>memory access.</code></pre>
-<p>At each stage, the program makes an assumption about what that value means.</p>
-<p>Our job is to determine whether the assumption remains true.</p>
-<p>This approach also explains why apparently minor C details can become security vulnerabilities. A small numerical mistake is not necessarily dangerous by itself. It becomes dangerous when the resulting value is trusted to describe memory.</p>
-<hr>
+
+<p>
+and finally:
+</p>
+
+<pre><code>memory access</code></pre>
+
+<p>
+At each stage, the program makes an assumption about what that value means.
+Our job is to determine whether the assumption remains true.
+</p>
+
+<p>
+This approach also explains why apparently minor C details can become
+security vulnerabilities. A small numerical mistake is not necessarily
+dangerous by itself. It becomes dangerous when the resulting value is
+trusted to describe memory.
+</p>
+
 <h2>The question to keep asking</h2>
-<p>Throughout the book, when you encounter code that manipulates memory, return to the same statement:</p>
-<pre>I calculated, addressed, allocated, copied, or freed the wrong amount or location of memory.</pre>
-<p>Then ask:</p>
+
+<p>
+Throughout the book, when you encounter code that manipulates memory, return
+to the same statement:
+</p>
+
+<pre><code>I calculated, addressed, allocated, copied, or freed the wrong amount or location of memory.</code></pre>
+
+<p>
+Then ask:
+</p>
+
 <pre><code>Which one?
 
 Where?
@@ -243,17 +442,30 @@ Calculated how?
 Relative to which object?
 
 And what happens next?</code></pre>
-<p>Those questions are enough to begin tracing many difficult memory bugs.</p>
-<p>The chapters that follow will fill in the technical details.</p>
-<p>The goal is not to memorize a longer list of dangerous C constructs.</p>
-<p>It is to develop a way of seeing the relationships between numbers, objects, addresses, and memory.</p>
-<p>Once those relationships become visible, many apparently different C memory vulnerabilities start to look like variations of the same problem:</p>
-<pre><code>
-the program believed it was operating on one region of memory,
+
+<p>
+Those questions are enough to begin tracing many difficult memory bugs. The
+chapters that follow fill in the technical details.
+</p>
+
+<p>
+The goal is not to memorize a longer list of dangerous C constructs. It is
+to develop a way of seeing the relationships between numbers, objects,
+addresses, and memory.
+</p>
+
+<p>
+Once those relationships become visible, many apparently different C memory
+vulnerabilities start to look like variations of the same problem:
+</p>
+
+<pre><code>the program believed it was operating on one region of memory,
 but the calculation, address, allocation, copy, or lifetime
-described another.
-</code></pre>
-<p>That is the wrong memory.</p>
+described another.</code></pre>
+
+<p>
+That is the wrong memory.
+</p>
 
 <h1>Who Is This Book For?</h1>
 
