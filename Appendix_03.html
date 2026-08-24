@@ -74,186 +74,419 @@
     
 </head>
 <body>
-<h1>APPENDIX III - C may have reached the boundary of what its own design principles permit it to become.</h1>
-<p>Can the C language itself be changed so that the class of problems examined in this book can be prevented by the language?</p>
-<p>There is an obvious objection to asking this question. C is not an unconstrained design exercise. It is an international standard with an established purpose, an existing body of programs and implementations, and a committee with an explicit charter governing how the language is to evolve.</p>
-<p>That charter is therefore the proper place to begin.</p>
-<h2>THE CHARACTER OF C</h2>
-<p>The current C Standard charter describes the work of WG14 as a balancing act. It calls for new ideas to be incorporated without disrupting the basic structure and nature of the language, while also avoiding the invalidation of existing programs. Among its stated principles are maintaining the character of C, keeping the language small and simple, facilitating portability, preserving programming freedom, easing migration to newer editions, and avoiding quiet changes to existing programs.</p>
-<p>At the same time, the charter explicitly identifies software security and safety as areas the committee should address. It states that memory safety, type safety and related properties are prerequisites for reasoning about security and reliability, and calls for the language to enable secure programming. It also calls for the enlargement of analyzable subsets of the language and for the elimination of unbounded undefined behaviours that represent single points of failure.</p>
-<p>These principles do not produce a simple answer.</p>
-<p>They establish a tension.</p>
-<p>The charter asks C to address memory safety while also asking C to remain C. It asks for improvements without abandoning the language&#x27;s character, and for security without turning C into a fundamentally different language. It asks for greater analyzability while preserving programming freedom and portability.</p>
-<p>That tension is not incidental to the question of memory safety.</p>
-<h2>WHAT WOULD MEMORY SAFETY REQUIRE?</h2>
-<p>A language cannot guarantee a property that its semantics do not define.</p>
-<p>For C to provide a language-level memory-safety guarantee, the language would have to define enough information to establish at least the following:</p>
-<p>- which object a memory access concerns;</p>
-<p>- what portion of that object may be accessed;</p>
-<p>- whether the object is currently alive;</p>
-<p>- whether a pointer or reference remains valid;</p>
-<p>- and whether the operations used to obtain those properties preserve them.</p>
-<p>Traditional C does define objects, lifetimes, pointer types, arrays and rules governing access to objects. The problem is that these concepts do not form a comprehensive system in which the validity of every memory access can be established from the program itself.</p>
-<p>Consider a pointer obtained from dynamic allocation.</p>
-<p>The programmer may know:</p>
-<p>- this pointer refers to an array of N objects;</p>
-<p>- the allocation contains exactly N objects;</p>
-<p>- the pointer may be used until the allocation is released;</p>
-<p>- the index must remain within those N objects.</p>
-<p>Traditional C does not require all of that knowledge to travel with the pointer.</p>
-<p>The programmer maintains the relationship.</p>
-<p>The language provides only part of it.</p>
-<p>That is the underlying difficulty exposed throughout this book.</p>
-<h2>THE NECESSARY CHANGE</h2>
-<p>If the language itself is to guarantee memory safety, some of those relationships must become language-level properties.</p>
-<p>This does not necessarily prescribe a particular mechanism. Bounds, ownership, lifetimes, capabilities, contracts and other techniques are different ways of expressing or enforcing such properties.</p>
-<p>But the requirement is unavoidable.</p>
-<p>The language must know enough to distinguish a valid memory operation from an invalid one.</p>
-<p>That immediately creates a problem for the C charter.</p>
-<p>A language with significantly richer semantic relationships between values, objects and pointers is more expressive, but it is also more complex.</p>
-<p>The charter explicitly says that C should remain small and simple and that language issues should be addressed with minimal new machinery. It also says that C should preserve programming freedom and remain broadly portable.</p>
-<p>There is therefore a limit to how much semantic machinery can reasonably be added to C.</p>
-<p>This is not a matter of whether the machinery can be invented.</p>
-<p>It is a matter of whether adding it would still satisfy the principles under which C is maintained.</p>
-<h2>THE EXISTING PROGRAM</h2>
-<p>There is another, more fundamental constraint.</p>
-<p>The charter places considerable importance on existing programs and on migration between language editions. The committee seeks to avoid forcing the bulk of existing C code to change merely to remain acceptable to a conforming implementation.</p>
-<p>Comprehensive memory safety creates an unavoidable difficulty here.</p>
-<p>Some existing C programs perform operations that a memory-safe language cannot permit without additional information or restrictions.</p>
-<p>If a program constructs a pointer whose bounds cannot be established, a memory-safe language cannot simply assume the bounds are correct.</p>
-<p>If a program retains a pointer after the lifetime of its object has ended, a memory-safe language cannot regard that pointer as valid.</p>
-<p>If a program uses an integer as a memory extent without the language being able to establish the relationship between that integer and the object it describes, the language cannot guarantee that the resulting access is valid.</p>
-<p>These are not shortcomings that can be repaired merely by changing the wording of a diagnostic.</p>
-<p>If the language is required to guarantee the property, programs that violate the property must either acquire enough information to establish their correctness or cease to be valid programs under the guarantee.</p>
-<p>This is where memory safety comes directly into conflict with the charter&#x27;s compatibility and migration principles.</p>
-<h2>SAFE AND UNSAFE CODE</h2>
-<p>There is, however, an important distinction that prevents the problem from becoming a simple choice between unrestricted C and a completely different language.</p>
-<p>A language can define a safe subset while retaining operations outside that subset.</p>
-<p>The distinction is already familiar in other programming languages. An unsafe operation is not claimed to be safe. Rather, the language makes clear that its normal safety guarantees do not apply.</p>
-<p>This is particularly relevant to C because programming freedom is one of the principles of the charter.</p>
-<p>C is deliberately capable of expressing machine-dependent operations. Its value as a systems programming language depends partly upon that freedom.</p>
-<p>It would therefore be quite different to say:</p>
-<p>C must no longer permit this operation.</p>
-<p>than to say:</p>
-<p>this operation is outside the guarantees of the safe subset.</p>
-<p>The second approach preserves the operation.</p>
-<p>It does not, however, solve the whole problem.</p>
-<p>The question becomes whether a safe subset can be defined without introducing so much additional machinery that it conflicts with the requirements for simplicity, portability, compatibility and the character of C.</p>
-<p>That is the real constraint.</p>
-<h2>THE ESCAPE HATCH IS NOT THE SOLUTION</h2>
-<p>An unsafe subset therefore cannot simply be used to declare the problem solved.</p>
-<p>If every difficult operation can be placed in an unsafe region, then the language may retain its compatibility but provide little meaningful memory-safety guarantee.</p>
-<p>The safe part must cover enough ordinary C programming that the guarantee has practical value.</p>
-<p>At the same time, the boundary must be meaningful.</p>
-<p>Unsafe code must not be able to produce a value that the safe language blindly accepts as satisfying safety properties that have not actually been established.</p>
-<p>Otherwise the safe subset becomes merely a syntactic convention.</p>
-<p>The language would need a defined semantic boundary between code for which it provides memory-safety guarantees and code for which it does not.</p>
-<p>That boundary itself would become part of C.</p>
-<h2>THE CHARTER MAKES THE QUESTION HARDER</h2>
-<p>The charter therefore produces an unusual situation.</p>
-<p>It does not say that memory safety is outside the scope of C.</p>
-<p>Quite the opposite.</p>
-<p>Security, safety, memory safety and analyzability are explicitly within the areas the committee is expected to consider.</p>
-<p>But the same charter places equally important constraints on how that objective is pursued.</p>
-<p>C is expected to remain simple.</p>
-<p>It is expected to preserve programming freedom.</p>
-<p>It is expected to remain portable.</p>
-<p>It is expected to avoid invalidating existing programs.</p>
-<p>It is expected to make migration practical.</p>
-<p>It is expected to preserve its character.</p>
-<p>And it is expected to avoid adding specialised machinery where the same problem can reasonably be addressed outside the language.</p>
-<p>The consequence is important.</p>
-<p>The fact that a language feature could make C safer is not sufficient reason for that feature to belong in C.</p>
-<p>The feature must also be consistent with what the C committee is trying to make C.</p>
-<p>This eliminates many of the easy answers to the question.</p>
-<h2>COULD C BECOME A MEMORY-SAFE LANGUAGE?</h2>
-<p>If &quot;C&quot; means a language with no unsafe escape hatch, the answer appears difficult to reconcile with the charter.</p>
-<p>Such a change would impose substantial restrictions on existing C programming practices. It would introduce new semantic machinery and would necessarily reject programs that are currently valid C or require them to be rewritten.</p>
-<p>That would conflict with several of the committee&#x27;s established principles.</p>
-<p>If &quot;C&quot; instead means a language with a memory-safe subset and an explicit unsafe subset, the situation is more plausible.</p>
-<p>It would preserve programming freedom.</p>
-<p>It would provide a mechanism for writing code under stronger guarantees.</p>
-<p>It would allow existing low-level techniques to remain expressible.</p>
-<p>And the charter explicitly identifies subsetting the Standard as an area for consideration.</p>
-<p>But even this approach has a cost.</p>
-<p>A genuinely useful safe subset would require enough additional language semantics to establish object bounds, lifetime and related properties. Those additions would have to be evaluated against the charter&#x27;s requirements for simplicity, portability, compatibility and conceptual economy.</p>
-<p>The question therefore cannot be answered merely by pointing to a feature from another language and saying that C could adopt it.</p>
-<p>The feature would have to fit C.</p>
-<h2>THE CHARACTER OF C</h2>
-<p>This may be the most important part of the question.</p>
-<p>The C committee&#x27;s charter does not define C merely as a collection of syntax.</p>
-<p>It refers explicitly to the &quot;character&quot; of the language and to its existing semantics, idioms and habits.</p>
-<p>C has historically provided a relatively direct relationship between the programmer and the machine.</p>
-<p>It gives programmers considerable control over representation and memory.</p>
-<p>It permits machine-dependent programming.</p>
-<p>It is designed to be widely implementable.</p>
-<p>It aims for an economy of concepts rather than a large collection of specialised abstractions.</p>
-<p>Those characteristics are not incidental.</p>
-<p>They are part of what the committee is charged with preserving.</p>
-<p>A memory-safety system that required a pervasive ownership calculus, lifetime annotations, specialised pointer types and extensive static reasoning might provide strong guarantees.</p>
-<p>But if the resulting language required programmers to understand a large new semantic system merely to perform ordinary C programming, the question would no longer be whether the system works.</p>
-<p>It would be whether the system belongs in C.</p>
-<p>That is a much harder question.</p>
-<h2>THE POSSIBILITY OF AN EVOLUTIONARY ANSWER</h2>
-<p>The charter does leave room for evolution.</p>
-<p>It explicitly allows new ideas where they address genuine deficiencies, recognises security and safety as legitimate concerns, permits subsetting, and accepts that the principles are not absolute.</p>
-<p>This means the conclusion cannot simply be that the charter makes memory safety impossible.</p>
-<p>It does not.</p>
-<p>Nor does the charter require the committee to preserve every historical property of C indefinitely.</p>
-<p>What it does require is justification for significant departures from the established character of the language.</p>
-<p>That makes the burden of proof clear.</p>
-<p>A proposal for memory safety in C would need to demonstrate not merely that it prevents memory errors, but that it does so while preserving enough of C&#x27;s simplicity, portability, programming freedom, compatibility and existing programming model to remain recognisably C.</p>
-<p>That is a much more demanding standard.</p>
-<h2>SO CAN C DO IT?</h2>
-<p>There are really two different questions.</p>
-<p>Can a language descended from C provide comprehensive memory safety?</p>
-<p>Yes. There is no fundamental theoretical obstacle.</p>
-<p>Can the C Standard itself acquire comprehensive memory safety while remaining within the principles that govern its evolution?</p>
-<p>That is much less certain.</p>
-<p>The difficulty is not the invention of safe language mechanisms.</p>
-<p>The difficulty is satisfying the competing requirements simultaneously.</p>
-<p>The stronger the guarantee, the more information the language must represent and enforce.</p>
-<p>The more information it represents and enforces, the more constraints it places on programs.</p>
-<p>The more constraints it places on programs, the greater the compatibility and migration cost.</p>
-<p>The more machinery it introduces to manage those constraints, the greater the pressure against C&#x27;s requirements for simplicity and conceptual economy.</p>
-<p>And the more the resulting programming model differs from traditional C, the stronger the argument becomes that the result is a new language rather than an evolution of C.</p>
-<p>This is not a proof that memory-safe C is impossible.</p>
-<p>It is a demonstration that the problem cannot be solved independently of the charter.</p>
-<h2>THE QUESTION THE CHARTER LEAVES US WITH</h2>
-<p>The most interesting conclusion is therefore not that C cannot be made safe.</p>
-<p>Nor is it that C simply needs to adopt the mechanisms used by another language.</p>
-<p>The real question is whether the C committee&#x27;s existing principles leave enough room to make memory safety a language-level property.</p>
-<p>The charter says that C should enable secure and functionally safe programming.</p>
-<p>It also says that C should remain small, simple, portable, interoperable and capable of low-level programming, while preserving programming freedom and avoiding unnecessary disruption to existing code.</p>
-<p>Those objectives are compatible up to a point.</p>
-<p>The question is where that point lies.</p>
-<p>If the memory-safety guarantees can be achieved with a sufficiently small addition to the language, while preserving the existing programming model, then the charter provides a basis for pursuing them.</p>
-<p>If achieving those guarantees requires a fundamentally different type, pointer, ownership and lifetime model, substantial incompatibility with existing programs, or a language substantially more complex than C, then the charter itself becomes an argument against putting the complete solution into C.</p>
-<p>In that case, the appropriate conclusion would not be that memory safety is unimportant.</p>
-<p>It would be that C has reached the boundary of what its own design principles permit it to become.</p>
-<h2>THE QUESTION WORTH ASKING</h2>
-<p>This may be the most useful way to frame the issue.</p>
-<p>The question is not:</p>
-<p>&quot;Can we invent a memory-safe language that looks like C?&quot;</p>
-<p>Of course we can.</p>
-<p>Nor is it:</p>
-<p>&quot;Can we add enough checks around C to make C programs safer?&quot;</p>
-<p>We already know that we can.</p>
-<p>The question is:</p>
-<p>&quot;Can the C programming language itself acquire meaningful memory-safety guarantees without ceasing to satisfy the principles under which the C Standard is maintained?&quot;</p>
-<p>That question has a technical component, but it is not purely technical.</p>
-<p>It requires us to consider what information the language must represent, what guarantees it can make, what restrictions those guarantees require, and whether those restrictions are compatible with C&#x27;s established character.</p>
-<p>The C committee has explicitly accepted memory safety and secure programming as legitimate objectives.</p>
-<p>It has not, however, abandoned the other objectives that define C.</p>
-<p>That leaves an intriguing possibility.</p>
-<p>Perhaps C can become substantially safer while remaining recognisably C.</p>
-<p>Perhaps an explicit distinction between guaranteed-safe and programmer-responsible operations provides enough room to achieve that.</p>
-<p>Or perhaps the guarantees required to solve the problems examined in this book demand changes that are too fundamental for the C Standard to absorb.</p>
-<p>The important point is that this can be argued on technical and charter grounds.</p>
-<p>And that is where the question becomes genuinely interesting.</p>
-<p>If the answer is ultimately &quot;no&quot;, it would not mean that the problems are unsolvable.</p>
-<p>It would mean that they are outside the design space of C.</p>
-<p>And if the answer is &quot;yes&quot;, then the burden is equally clear: the solution must demonstrate not merely that C can be made safer, but that C can become safer while remaining C.</p>
+
+<article>
+  <h1>APPENDIX III — C may have reached the boundary of what its own design principles permit it to become</h1>
+
+  <p>Can the C language itself be changed so that the class of problems examined in this book can be prevented by the language?</p>
+
+  <p>There is an obvious objection to asking this question. C is not an unconstrained design exercise. It is an international programming-language standard with an established purpose, an enormous existing body of programs and implementations, and a committee with an explicit charter governing how the language is to evolve.<sup><a href="#ref-1">[1]</a></sup></p>
+
+  <p>The charter is therefore a useful place to begin. But an important distinction should be made at the outset: the charter is <em>not</em> itself the normative C Standard. It is a statement of the principles that WG14 uses to guide the evolution of the language. Those principles therefore constrain what the committee considers an appropriate evolution of C; they do not, by themselves, constitute technical requirements imposed by ISO/IEC 9899.</p>
+
+  <h2>THE CHARACTER OF C</h2>
+
+  <p>The current WG14 charter describes the maintenance and evolution of C as involving a number of competing objectives. Among its stated principles are upholding the character of the language, keeping the language small and simple, facilitating portability, allowing programming freedom, codifying existing practice, easing migration to newer editions, avoiding quiet changes, and enabling secure and functionally safe programming.<sup><a href="#ref-1">[1]</a></sup></p>
+
+  <p>These principles are not new inventions of the current charter. WG14's own comparison of the current charter with its predecessor shows that several of them are continuations of much older principles: keeping the spirit of C, keeping the language small and simple, trusting the programmer, not preventing the programmer from doing what needs to be done, treating existing code as important, and making migration of existing code bases a consideration.<sup><a href="#ref-2">[2]</a></sup></p>
+
+  <p>At the same time, the current charter explicitly recognises security and safety as legitimate objectives. It identifies memory safety, type safety and related properties as important to security and reliability, and calls for C to enable secure programming. It also discusses increasing the size of analyzable subsets of the language and addressing forms of undefined behaviour that can create significant security or reliability problems.<sup><a href="#ref-1">[1]</a></sup></p>
+
+  <p>These principles do not produce a simple answer.</p>
+
+  <p>They establish a tension.</p>
+
+  <p>The charter asks C to address security and memory safety while also asking C to remain recognisably C. It asks for improvement without abandoning the language's established character, and for stronger guarantees without simply discarding programming freedom, portability, compatibility and the existing programming model.</p>
+
+  <p>That tension is not incidental to the question of memory safety. It is the central question.</p>
+
+  <h2>WHAT WOULD MEMORY SAFETY REQUIRE?</h2>
+
+  <p>It is useful to distinguish between making C <em>safer</em> and making memory safety a <em>language-level guarantee</em>.</p>
+
+  <p>There are many techniques for detecting or mitigating memory errors in C without changing the language itself. Runtime instrumentation, static analysis, sanitizers, hardware capabilities and compiler transformations can all provide useful protection while retaining much of the existing C programming model.<sup><a href="#ref-3">[3]</a><sup><a href="#ref-4">[4]</a></sup></p>
+
+  <p>A language-level guarantee is a stronger proposition. A language must have some defined semantic basis on which the validity of a memory operation can be established. In the literature, memory safety is commonly divided into at least <em>spatial</em> safety—preventing access outside the bounds of an object—and <em>temporal</em> safety—preventing access to an object outside its valid lifetime.<sup><a href="#ref-3">[3]</a><sup><a href="#ref-5">[5]</a></sup></p>
+
+  <p>Consequently, a language attempting to guarantee memory safety needs some way of representing or enforcing relationships such as:</p>
+
+  <ul>
+    <li>which object a memory access concerns;</li>
+    <li>which part of that object may be accessed;</li>
+    <li>whether the object is still alive;</li>
+    <li>whether a pointer or reference remains valid; and</li>
+    <li>whether operations that copy, transform or derive pointers preserve those properties.</li>
+  </ul>
+
+  <p>This does not mean that every one of these properties must be represented by a particular runtime data structure or programmer-visible annotation. Different systems use different mechanisms. Bounds metadata, ownership systems, capabilities, lifetime tracking, static proofs, contracts and runtime checks are all possible approaches.<sup><a href="#ref-3">[3]</a><sup><a href="#ref-5">[5]</a></sup></p>
+
+  <p>The important point is narrower: if the language itself promises that an invalid memory access cannot occur, the language and its implementation must possess sufficient information and enforcement mechanisms to distinguish valid accesses from invalid ones.</p>
+
+  <p>C already has a substantial semantic model of objects, storage duration, arrays, pointers and access to objects. The difficulty is that those concepts do not amount to a single, comprehensive mechanism by which the validity of every memory access can be established automatically.</p>
+
+  <p>This is particularly visible with dynamically allocated objects.</p>
+
+  <p>A programmer may know that a pointer returned from an allocation represents the beginning of an array containing <em>N</em> objects, that the allocation remains valid until it is released, and that indexing must remain within that allocation.</p>
+
+  <p>The C programming model does not ordinarily require all of that information to travel with the pointer as an inseparable safety invariant.</p>
+
+  <p>The programmer maintains the relationship.</p>
+
+  <p>The language provides only part of it.</p>
+
+  <p>Research into C's memory model illustrates why these relationships can become technically subtle. WG14 discussions of pointer provenance, for example, have examined whether pointer values should carry semantic information identifying the allocation from which they originated, and how such information interacts with pointer arithmetic, integer conversions and object lifetime.<sup><a href="#ref-6">[6]</a></p>
+
+  <p>That is important because it demonstrates that the problem is not merely the absence of a bounds check. The semantics of pointers themselves can become part of the safety mechanism.</p>
+
+  <h2>THE NECESSARY CHANGE</h2>
+
+  <p>If C were to provide a comprehensive language-level memory-safety guarantee, some of the relationships currently maintained primarily by programmer discipline would have to become enforceable properties of the language or its implementation.</p>
+
+  <p>That does not prescribe a particular solution. Bounds, ownership, lifetimes, capabilities, contracts, static analysis and runtime enforcement represent different points in the design space.</p>
+
+  <p>But it does establish a constraint.</p>
+
+  <p>The system must have enough information to distinguish an access that is valid from one that is not.</p>
+
+  <p>That immediately raises a question about the character of C.</p>
+
+  <p>A language with richer semantic relationships between values, objects, pointers and lifetimes may be capable of expressing stronger guarantees. But additional semantic relationships can also introduce additional rules that programmers, compilers, analysis tools and implementations must understand.</p>
+
+  <p>The WG14 charter explicitly places value on keeping C small and simple, addressing language issues with minimal new machinery where possible, preserving programming freedom and facilitating portability.<sup><a href="#ref-1">[1]</a></p>
+
+  <p>There is therefore a genuine design trade-off.</p>
+
+  <p>This is not an argument that safety mechanisms are inherently undesirable. Nor is it proof that a particular mechanism would be incompatible with C.</p>
+
+  <p>The question is whether the machinery required to provide the desired guarantee can be introduced without violating the principles that WG14 has identified as important to the continued evolution of C.</p>
+
+  <h2>THE EXISTING PROGRAM</h2>
+
+  <p>There is another constraint, and it is potentially more difficult.</p>
+
+  <p>The history of the C charter places considerable importance on existing programs and on migration between language editions. The current charter retains that concern, while WG14's historical principles explicitly treated existing code as important and migration of existing code bases as an issue.<sup><a href="#ref-1">[1]</a><sup><a href="#ref-2">[2]</a></sup></p>
+
+  <p>This matters because comprehensive memory safety cannot simply be declared into existence by changing the wording of a diagnostic.</p>
+
+  <p>Consider an existing program that constructs or manipulates a pointer in a way for which the language cannot establish the relevant bounds. Or a program that retains a pointer after the lifetime of the object to which it referred has ended. Or a program in which an integer value is used to calculate a memory extent without the language having a semantic relationship connecting that integer to the object being accessed.</p>
+
+  <p>A language that promises comprehensive memory safety cannot simultaneously treat every such operation as valid and guarantee that the resulting access is safe.</p>
+
+  <p>There are only a limited number of possibilities. The program can acquire additional information. The operation can be restricted. The implementation can insert checks or otherwise enforce the necessary property. Or the operation can fall outside the part of the language for which the guarantee applies.</p>
+
+  <p>This is not unique to C. Research attempting to retrofit full spatial and temporal memory safety onto C has repeatedly encountered trade-offs involving compatibility, metadata, runtime checks, source-code changes and the semantics of existing programs.<sup><a href="#ref-3">[3]</a><sup><a href="#ref-4">[4]</a></sup></p>
+
+  <p>The important consequence is that a comprehensive guarantee necessarily has consequences for at least some existing programming practices.</p>
+
+  <p>That creates a direct tension with the charter's emphasis on existing code and practical migration.</p>
+
+  <h2>SAFE AND UNSAFE CODE</h2>
+
+  <p>There is, however, an important distinction that prevents the problem from becoming a simple choice between unrestricted C and an entirely different language.</p>
+
+  <p>A language can define a subset for which stronger safety guarantees apply while retaining operations outside that subset.</p>
+
+  <p>This approach is familiar in systems-language research. A program or operation can be classified as unsafe rather than being claimed to satisfy the same guarantees as the safe portion of the language.<sup><a href="#ref-5">[5]</a></p>
+
+  <p>This distinction is particularly relevant to C because programming freedom is one of the principles explicitly identified by WG14.<sup><a href="#ref-1">[1]</a><sup><a href="#ref-2">[2]</a></sup></p>
+
+  <p>C is deliberately capable of expressing machine-dependent and low-level operations. Its value as a systems programming language depends in part upon that freedom.</p>
+
+  <p>It would therefore be a very different proposition to say:</p>
+
+  <blockquote>
+    <p>C must no longer permit this operation.</p>
+  </blockquote>
+
+  <p>than to say:</p>
+
+  <blockquote>
+    <p>This operation is outside the guarantees provided by the memory-safe subset.</p>
+  </blockquote>
+
+  <p>The second approach preserves more of the existing programming model.</p>
+
+  <p>It does not, however, solve the entire problem.</p>
+
+  <p>The important question becomes whether the safe subset is sufficiently expressive to have practical value, and whether its boundary is sufficiently well-defined that unsafe operations cannot silently manufacture values which the safe portion of the language subsequently treats as satisfying safety invariants.</p>
+
+  <p>If an unsafe operation can freely produce a pointer that the safe portion of the language accepts as carrying valid bounds and lifetime information, then the safety boundary is not a meaningful semantic boundary.</p>
+
+  <p>A useful safe subset therefore needs more than a syntactic label. It needs a defined relationship between the operations permitted within the subset and the guarantees the language makes about them.</p>
+
+  <p>That boundary would itself become part of the language's semantics.</p>
+
+  <h2>THE ESCAPE HATCH IS NOT THE SOLUTION</h2>
+
+  <p>An unsafe subset therefore cannot simply be used to declare the memory-safety problem solved.</p>
+
+  <p>If every operation that makes safety difficult is placed outside the guarantee, then the language may preserve compatibility while providing only a limited memory-safety property.</p>
+
+  <p>The safe portion must cover enough ordinary programming that its guarantees have practical value.</p>
+
+  <p>At the same time, the boundary must be meaningful. The safe part cannot blindly trust information produced by the unsafe part if that information is supposed to establish a safety property.</p>
+
+  <p>This is a familiar problem in systems that combine safe and unsafe components: the interface between them becomes part of the safety argument.</p>
+
+  <p>The result is that an explicit safe/unsafe distinction is best understood as a possible architectural approach, not as a proof that C can acquire comprehensive memory safety without fundamental changes.</p>
+
+  <h2>THE CHARTER MAKES THE QUESTION HARDER</h2>
+
+  <p>The charter therefore produces an unusual situation.</p>
+
+  <p>It does not say that memory safety is outside the scope of C.</p>
+
+  <p>Quite the opposite.</p>
+
+  <p>Security, safety, analyzability and memory safety are explicitly within the concerns that WG14 has identified.<sup><a href="#ref-1">[1]</a></p>
+
+  <p>But the same charter places constraints on how those objectives should be pursued.</p>
+
+  <p>C is expected to remain simple.</p>
+
+  <p>It is expected to preserve programming freedom.</p>
+
+  <p>It is expected to facilitate portability.</p>
+
+  <p>It is expected to take existing programs seriously.</p>
+
+  <p>It is expected to make migration practical.</p>
+
+  <p>It is expected to preserve the character of the language.</p>
+
+  <p>And the committee explicitly recognises that the various principles are not absolute: proposals may depart from them, but greater deviation requires greater justification.<sup><a href="#ref-1">[1]</a></p>
+
+  <p>This is an important qualification.</p>
+
+  <p>The charter does <em>not</em> establish a rule saying that C can never become substantially safer.</p>
+
+  <p>Nor does it establish a numerical limit on the amount of complexity that may be added.</p>
+
+  <p>What it does establish is a framework within which such changes must be evaluated.</p>
+
+  <p>The fact that a feature could make C safer is therefore not, by itself, sufficient reason for that feature to belong in the C Standard.</p>
+
+  <p>The proposal must also be assessed against the other objectives governing the evolution of the language.</p>
+
+  <h2>COULD C BECOME A MEMORY-SAFE LANGUAGE?</h2>
+
+  <p>If by "C becoming memory safe" we mean that essentially all conforming C programs would receive a comprehensive guarantee against spatial and temporal memory errors, the compatibility problem becomes severe.</p>
+
+  <p>Existing C programs contain programming techniques whose safety cannot necessarily be established from the information currently associated with their pointers, objects and lifetimes. Research on retrofitting full spatial and temporal safety onto C demonstrates that achieving such guarantees requires substantial design choices concerning metadata, pointer semantics, object lifetime, instrumentation and compatibility.<sup><a href="#ref-3">[3]</a><sup><a href="#ref-4">[4]</a><sup><a href="#ref-6">[6]</a></sup></p>
+
+  <p>A change of that magnitude could require existing programs to acquire additional information, accept additional restrictions, or operate under a different semantic model.</p>
+
+  <p>That would create tension with several of WG14's established principles concerning existing code, migration, programming freedom and the character of C.<sup><a href="#ref-1">[1]</a><sup><a href="#ref-2">[2]</a></sup></p>
+
+  <p>If, instead, "C becoming memory safe" means that C acquires a well-defined memory-safe subset while retaining an explicitly unsafe portion, the situation is more plausible.</p>
+
+  <p>Such an approach could preserve more programming freedom. It could allow programmers to write code under stronger guarantees where those guarantees are applicable, while retaining low-level techniques where they are genuinely required.</p>
+
+  <p>It is also consistent with the fact that WG14's current charter explicitly recognises subsetting as one possible way of addressing language concerns.<sup><a href="#ref-1">[1]</a></p>
+
+  <p>But this approach has a cost of its own.</p>
+
+  <p>A genuinely useful safe subset must have sufficiently precise semantics to justify its guarantees. The language must somehow establish the relevant object, bounds and lifetime relationships, and must prevent those guarantees from being invalidated across the boundary into unsafe code.</p>
+
+  <p>The more comprehensive those guarantees become, the more significant the additional semantic machinery may become.</p>
+
+  <p>The question therefore cannot be answered simply by pointing to a mechanism used by another language and observing that C could theoretically adopt it.</p>
+
+  <p>The relevant question is whether that mechanism—or an equivalent mechanism—can be incorporated while preserving enough of C's existing programming model to remain recognisably C.</p>
+
+  <h2>THE CHARACTER OF C</h2>
+
+  <p>This may be the most important part of the question.</p>
+
+  <p>The C committee's charter does not describe C merely as a collection of syntax and library functions. It explicitly refers to the <em>character</em> of the language, including its existing semantics, idioms, habits and economy of expression.<sup><a href="#ref-1">[1]</a></p>
+
+  <p>WG14's historical principles make the same point even more directly. The current charter's own mapping to earlier charters identifies "keep the spirit of C", "trust the programmer", "don't prevent the programmer from doing what needs to be done", and "keep the language small and simple" as longstanding principles.<sup><a href="#ref-2">[2]</a></p>
+
+  <p>These principles help explain why C has remained useful for systems programming. The language exposes programmers to representation, memory and machine-level behaviour to an unusual degree, while remaining sufficiently general to be implemented across a wide range of systems.</p>
+
+  <p>That does not mean that every historical characteristic of C is immutable. The charter expressly allows the language to evolve.</p>
+
+  <p>It does mean that a proposal which replaces a substantial portion of C's programming model with a new semantic discipline carries a greater burden of justification than a proposal which merely adds a small, self-contained facility.</p>
+
+  <p>For example, a memory-safety system based on pervasive ownership rules, lifetime tracking, specialised pointer types or extensive static reasoning might provide strong guarantees.</p>
+
+  <p>The technical question would be whether such a system works.</p>
+
+  <p>But there would also be a second question:</p>
+
+  <blockquote>
+    <p>Does a programming model requiring those mechanisms still constitute an evolution of C consistent with the principles by which WG14 maintains C?</p>
+  </blockquote>
+
+  <p>That is a substantially harder question.</p>
+
+  <h2>THE POSSIBILITY OF AN EVOLUTIONARY ANSWER</h2>
+
+  <p>The charter leaves room for evolution.</p>
+
+  <p>It explicitly permits the committee to address deficiencies, recognises security and safety as legitimate concerns, allows subsetting, and states that its principles are not absolute.<sup><a href="#ref-1">[1]</a></p>
+
+  <p>It would therefore be incorrect to conclude that the charter makes memory safety impossible.</p>
+
+  <p>It does not.</p>
+
+  <p>Nor does the charter require WG14 to preserve every historical property of C indefinitely.</p>
+
+  <p>What it does mean is that increasingly fundamental changes require increasingly strong justification.</p>
+
+  <p>A proposal for memory safety in C would therefore need to demonstrate more than the ability to prevent memory errors. It would need to show how the proposed mechanism interacts with C's existing object and pointer model, how existing programs would be affected, how interoperability would work, what restrictions programmers would face, how implementations would support it, and whether the resulting language remained sufficiently simple, portable and recognisably C.</p>
+
+  <p>That is a demanding standard.</p>
+
+  <h2>SO CAN C DO IT?</h2>
+
+  <p>There are really two different questions.</p>
+
+  <p><strong>Can a language descended from C provide comprehensive memory safety?</strong></p>
+
+  <p>There is no obvious theoretical reason why it could not. Research has demonstrated multiple ways of imposing spatial and temporal memory-safety properties on C-like languages and on C implementations themselves.<sup><a href="#ref-3">[3]</a><sup><a href="#ref-4">[4]</a><sup><a href="#ref-5">[5]</a></sup></p>
+
+  <p><strong>Can the C Standard itself acquire comprehensive memory safety while remaining within the principles that govern its evolution?</strong></p>
+
+  <p>That is much less certain.</p>
+
+  <p>The difficulty is not the invention of safe mechanisms.</p>
+
+  <p>The difficulty is satisfying the competing requirements simultaneously.</p>
+
+  <p>The stronger the guarantee, the more completely the language must specify and enforce the information on which that guarantee depends.</p>
+
+  <p>The more completely it specifies and enforces those relationships, the more constraints it may place on existing programs and programming techniques.</p>
+
+  <p>The more constraints it places on existing programs, the greater the potential compatibility and migration cost.</p>
+
+  <p>The more machinery it introduces to represent and enforce those constraints, the greater the pressure against the charter's requirements for simplicity and conceptual economy.</p>
+
+  <p>And the more the resulting programming model differs from traditional C, the stronger the argument becomes that the result is no longer merely an evolution of C but a new language sharing C's syntax, implementation heritage or ecosystem.</p>
+
+  <p>None of this proves that memory-safe C is impossible.</p>
+
+  <p>It establishes something narrower but, in my view, more important: the problem cannot be evaluated independently of the principles under which C is maintained.</p>
+
+  <h2>THE QUESTION THE CHARTER LEAVES US WITH</h2>
+
+  <p>The most interesting conclusion is therefore not that C cannot be made safe.</p>
+
+  <p>Nor is it that C simply needs to adopt mechanisms used by another language.</p>
+
+  <p>The real question is whether the principles that govern the evolution of C leave enough room for memory safety to become a language-level property without requiring changes so fundamental that the resulting language would no longer satisfy those principles.</p>
+
+  <p>The current charter explicitly says that C should enable secure and functionally safe programming. It simultaneously requires attention to simplicity, portability, programming freedom, existing code, migration and the established character of the language.<sup><a href="#ref-1">[1]</a><sup><a href="#ref-2">[2]</a></sup></p>
+
+  <p>Those objectives are compatible up to a point.</p>
+
+  <p>The question is where that point lies.</p>
+
+  <p>If meaningful memory-safety guarantees can be achieved with a sufficiently small addition to the language while preserving the existing programming model, then the charter provides a basis for pursuing them.</p>
+
+  <p>If achieving those guarantees instead requires a fundamentally different treatment of pointers, object identity, ownership, lifetimes or memory access, substantial incompatibility with existing programs, or a programming model substantially more complex than traditional C, then the charter itself becomes part of the argument against incorporating the complete solution into C.</p>
+
+  <p>That would not mean that memory safety is unimportant.</p>
+
+  <p>It would mean that there may be a point beyond which achieving the desired property requires changing so much of the language's character that the resulting system should be regarded as something other than C.</p>
+
+  <p>That is the boundary this appendix is concerned with.</p>
+
+  <h2>THE QUESTION WORTH ASKING</h2>
+
+  <p>The most useful way to frame the problem may therefore be this.</p>
+
+  <p>The question is not:</p>
+
+  <blockquote>
+    <p>Can we invent a memory-safe language that looks like C?</p>
+  </blockquote>
+
+  <p>Of course we can.</p>
+
+  <p>Nor is it:</p>
+
+  <blockquote>
+    <p>Can we add checks around C programs to make them safer?</p>
+  </blockquote>
+
+  <p>We already know that we can. There is a substantial body of research demonstrating runtime instrumentation, static analysis, hardware assistance and compiler-based approaches for detecting or preventing memory errors in C.<sup><a href="#ref-3">[3]</a><sup><a href="#ref-4">[4]</a><sup><a href="#ref-7">[7]</a></sup></p>
+
+  <p>The question is:</p>
+
+  <blockquote>
+    <p><strong>Can the C programming language itself acquire meaningful memory-safety guarantees without ceasing to satisfy the principles under which the C Standard is maintained?</strong></p>
+  </blockquote>
+
+  <p>That question has a technical component, but it is not purely technical.</p>
+
+  <p>It requires us to consider what information the language must represent, what guarantees it can make, what restrictions those guarantees require, what happens to existing programs, and whether those restrictions are compatible with C's established character.</p>
+
+  <p>WG14 has explicitly accepted memory safety and secure programming as legitimate objectives. It has not, however, abandoned the other objectives that have historically defined the evolution of C.<sup><a href="#ref-1">[1]</a><sup><a href="#ref-2">[2]</a></sup></p>
+
+  <p>That leaves an intriguing possibility.</p>
+
+  <p>Perhaps C can become substantially safer while remaining recognisably C.</p>
+
+  <p>Perhaps an explicit distinction between guaranteed-safe and programmer-responsible operations provides enough room to achieve useful language-level guarantees without abandoning C's low-level character.</p>
+
+  <p>Or perhaps the guarantees required to solve the problems examined in this book demand changes to the pointer, object, lifetime and programming model that are too fundamental for the C Standard to absorb.</p>
+
+  <p>If the latter is true, then the conclusion is not that C has failed.</p>
+
+  <p>It is that C's own design principles impose a boundary on what C can become.</p>
+
+  <p>And if comprehensive memory safety lies beyond that boundary, then the engineering question changes. Instead of asking how far C can be transformed, we must ask where C should stop—and where another language, a safer subset, or a different systems-programming model should begin.</p>
+
+  <hr>
+
+  <h2>REFERENCES</h2>
+
+  <ol>
+    <li id="ref-1">
+      <strong>WG14, N3280, <em>The C Standard charter</em></strong>, 12 June 2024.
+      <br>
+      The current WG14 charter and its principles concerning the character of C, simplicity, portability, programming freedom, existing code, migration, secure programming, memory safety and analyzability.
+    </li>
+
+<li id="ref-2">
+  <strong>Jakub Łukasiewicz, WG14 N3279, <em>Relation of charter N3280 to old N2611</em></strong>, 28 February 2024.
+  <br>
+  Documents the relationship between the current charter and earlier C charter principles, including keeping the spirit of C, keeping the language small and simple, trusting the programmer, programming freedom, existing code and migration.
+</li>
+
+<li id="ref-3">
+  <strong>Matthew S. Simpson and Rajeev K. Barua, <em>MemSafe: ensuring the spatial and temporal memory safety of C at runtime</em></strong>, <em>Software: Practice and Experience</em>, 2012.
+  <br>
+  Discusses spatial and temporal memory safety and the technical challenges of enforcing both properties for C programs.
+</li>
+
+<li id="ref-4">
+  <strong>Santosh Nagarakatte, <em>Full Spatial and Temporal Memory Safety for C</em></strong>, <em>IEEE Security &amp; Privacy</em>, vol. 22, no. 4, 2024, pp. 30–39.
+  <br>
+  Examines the design decisions, implementation choices and trade-offs involved in providing full spatial and temporal memory safety for C.
+</li>
+
+<li id="ref-5">
+  <strong>John C. Reynolds, et al., <em>The Meaning of Memory Safety</em></strong>, Springer, 2018.
+  <br>
+  Provides a formal treatment of memory safety and discusses mechanisms including bounds checking and temporal-safety mechanisms for languages with manual memory management.
+</li>
+
+<li id="ref-6">
+  <strong>WG14, N2012, <em>Clarifying the C memory object model: pointer provenance</em></strong>.
+  <br>
+  Explores the semantics of C pointers, object identity, provenance, pointer arithmetic and the relationship between pointer representations and the objects from which pointers originate.
+</li>
+
+<li id="ref-7">
+  <strong>CISA Cybersecurity Advisory Committee, <em>Report to the CISA Director: Memory Safety</em></strong>, 2023.
+  <br>
+  Describes spatial and temporal memory-safety problems and discusses approaches for protecting against them in software and hardware.
+</li>
+  </ol>
+</article>
+
 <hr>
 
     <div class="book-navigation">
