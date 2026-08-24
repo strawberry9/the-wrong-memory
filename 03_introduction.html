@@ -84,7 +84,8 @@
 
 <p>Consider:</p>
 
-<pre><code>// Allocate enough storage for n struct item objects and make p point to the first one.<br>struct item *p = malloc(n * sizeof *p);</code></pre>
+<pre><code><span style="color: #888;">// Allocate enough storage for n struct item objects and make p point to the first one.</span>
+struct item *p = malloc(n * sizeof *p);</code></pre>
 
 <p>The compiler can establish a number of facts about the types involved:</p>
 
@@ -94,9 +95,9 @@
   <li>pointer arithmetic on <code>p</code> is scaled according to that type.</li>
 </ul>
 
-<p>But these facts are only part of the programmer's reasoning that makes the program meaningful.</p>
+<p>But these facts are only part of the programmer's reasoning that makes the program meaningful. What the compiler can establish is constrained by what the language makes expressible and enforceable. C's type system provides part of the vocabulary for describing the intended structure of a program, but leaves many of the relationships that give that structure meaning to be maintained by the programmer.</p>
 
-<p>The compiler generally does not establish that:</p>
+<p>The compiler therefore generally does not establish that:</p>
 
 <ul>
   <li><code>n * sizeof *p</code> did not overflow;</li>
@@ -108,28 +109,13 @@
   <li>a subsequent access falls within the intended object.</li>
 </ul>
 
-<p>Those propositions belong to the program's semantic model, but they are not necessarily represented in C's static type model. C's types provide part of the vocabulary with which the programmer expresses the intended structure of the program, and they help the compiler determine how operations on values should be translated. They do not require the compiler to prove the entire chain of reasoning that connects that structure to the memory accessed at runtime.</p>
+<p>These propositions belong to the program's semantic model, but are not necessarily represented in C's static type model. The types help the compiler determine how operations on values should be translated, while leaving much of the reasoning that connects those operations to valid memory implicit.</p>
 
-<p>This book demonstrates how memory-safety problems can arise from C's design decisions, particularly where they leave important relationships between values, objects, bounds, locations, and lifetimes to be maintained by the programmer.</p>
+<p>This book examines the memory-safety problems that can arise from this design, particularly where important relationships between values, objects, bounds, locations, and lifetimes are left to be maintained by the programmer.</p>
 
 <p>In C, these elements interact through a chain of dependencies. A wrong size can produce an undersized allocation; pointer arithmetic can then produce a pointer outside that allocation; and a subsequent copy can access memory beyond the intended object. The resulting corruption may remain hidden until much later, when its original cause is difficult to trace.</p>
 
 <p>The central difficulty is that the programmer's model of the memory being accessed can diverge from the memory that the program actually accesses. The purpose of this book is to make that divergence visible, and to develop a way of reasoning backwards from an invalid access to the assumptions about values, objects, bounds, locations, and lifetimes that made that access possible.</p>
-
-<p>
-This book demonstrates how memory-safety problems can arise from C's design
-decisions, particularly where they leave important relationships between
-values, objects, bounds, locations, and lifetimes to be maintained by the
-programmer.
-</p>
-
-<p>
-In C, these elements interact through a chain of dependencies. A wrong size
-can produce an undersized allocation; pointer arithmetic can then produce a
-pointer outside that allocation; and a subsequent copy can overrun the
-object. The resulting corruption may remain hidden until much later, when
-its original cause is difficult to trace.
-</p>
 
 <p>
 There is a simple sentence that captures a recurring pattern in many serious
