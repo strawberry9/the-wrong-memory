@@ -4,23 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Introduction</title>
+
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             line-height: 1.6;
-            color: #d1d5db; /* Soft light gray text */
+            color: #d1d5db;
             max-width: 800px;
             margin: 40px auto;
             padding: 0 20px;
-            background-color: #1f2937; /* Dark charcoal/slate background */
+            background-color: #1f2937;
         }
+
         h1, h2 {
-            color: #f3f4f6; /* Bright white-gray for headers */
+            color: #f3f4f6;
             border-bottom: 1px solid #374151;
             padding-bottom: 0.3em;
         }
+
         pre {
-            background-color: #111827; /* Darker background for code blocks */
+            background-color: #111827;
             border: 1px solid #374151;
             border-radius: 6px;
             padding: 16px;
@@ -30,15 +33,18 @@
             line-height: 1.45;
             color: #e5e7eb;
         }
+
         code {
             font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
         }
+
         hr {
             border: 0;
             height: 1px;
             background: #374151;
             margin: 40px 0;
         }
+
         p {
             margin-bottom: 16px;
         }
@@ -54,6 +60,7 @@
             border-top: 1px solid #374151;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
+
         .nav-btn {
             background-color: #374151;
             color: #f3f4f6;
@@ -63,24 +70,37 @@
             font-size: 14px;
             transition: background-color 0.2s;
         }
+
         .nav-btn:hover {
             background-color: #4b5563;
         }
+
         .nav-info {
             color: #9ca3af;
             font-size: 14px;
         }
     </style>
-    
 </head>
+
 <body>
 
 <h1>Introduction</h1>
+
 <h2>The Wrong Memory</h2>
 
-<p>The objective of this book is to develop a particular way of understanding memory-safety bugs in the C programming language. For the purposes of this book, memory safety concerns whether accesses remain valid with respect to objects, bounds, storage, and lifetimes.</p>
+<p>
+The objective of this book is to develop a particular way of understanding
+memory-safety bugs in the C programming language. For the purposes of this
+book, memory safety concerns whether accesses remain valid with respect to
+objects, bounds, storage, and lifetimes.
+</p>
 
-<p>C emerged from a design context in which close control over machine resources was a feature rather than an anomaly. Its relatively low-level memory model permits programmers to manipulate objects through pointers and pointer arithmetic, without generally enforcing at the language level that each resulting access remains within the bounds and lifetime of the object concerned.
+<p>
+C emerged from a design context in which close control over machine resources
+was a feature rather than an anomaly. Its relatively low-level memory model
+allows programmers to manipulate objects through pointers and pointer
+arithmetic without generally requiring the language to enforce that each
+access remains within the bounds and lifetime of the object concerned.
 <sup><a href="#ref-c-history">[1]</a></sup>
 <sup><a href="#ref-c-standard">[2]</a></sup>
 </p>
@@ -90,49 +110,59 @@
 <pre><code><span style="color: #888;">// Allocate enough storage for n struct item objects and make p point to the first one.</span>
 struct item *p = malloc(n * sizeof *p);</code></pre>
 
-<p>The compiler can establish a number of facts about the types involved:</p>
-
-<ul>
-  <li><code>p</code> has type <code>struct item *</code>;</li>
-  <li><code>sizeof *p</code> is the size of a <code>struct item</code>;</li>
-  <li>pointer arithmetic on <code>p</code> is scaled according to that type.</li>
-</ul>
-
-<p>But these facts are only part of the programmer's reasoning that makes the program meaningful. What the compiler can establish is constrained by what the language makes expressible and enforceable. C's type system provides part of the vocabulary for describing the intended structure of a program, but leaves many of the relationships that give that structure meaning to be maintained by the programmer.</p>
-
-<p>The compiler therefore generally does not establish that:</p>
-
-<ul>
-  <li><code>n * sizeof *p</code> did not overflow;</li>
-  <li><code>malloc</code> succeeded;</li>
-  <li>the allocation provides enough storage for <code>n</code> <code>struct item</code> objects;</li>
-  <li><code>p</code> is being used to designate those objects;</li>
-  <li>the programmer's interpretation of <code>n</code> is correct;</li>
-  <li>the objects remain alive; or</li>
-  <li>a subsequent access falls within the intended object.</li>
-</ul>
-
-<p>These propositions belong to the program's semantic model, but are not necessarily represented in C's static type model. The types help the compiler determine how operations on values should be translated, while leaving <i>implicit</i> much of the reasoning that connects those operations to valid memory.</p>
-
-<p>This book examines the memory-safety problems that can arise from this design, particularly where important relationships between values, objects, bounds, locations, and lifetimes are left to be maintained by the programmer.</p>
-
-<p>In C, these elements interact through a chain of dependencies. A wrong size can produce an undersized allocation; pointer arithmetic can then produce a pointer outside that allocation; and a subsequent copy can access memory beyond the intended object. The resulting corruption may remain hidden until much later, when its original cause is difficult to trace.</p>
-
-<p>The central difficulty is that the programmer's model of the memory being accessed can diverge from the memory that the program actually accesses. Consequently, when something goes wrong, those assumptions can remain invisible. This book seeks to make that divergence visible and to develop a way of reasoning backwards from an invalid access to the assumptions about values, objects, bounds, locations, and lifetimes that made that access possible.</p>
-
 <p>
-There is a simple sentence that captures a recurring pattern in many serious
-C memory bugs:
+The compiler can establish facts about the types involved:
 </p>
 
-<pre><code>I calculated, addressed, allocated, copied, or freed the wrong amount or location of memory.</code></pre>
+<ul>
+    <li><code>p</code> has type <code>struct item *</code>;</li>
+    <li><code>sizeof *p</code> is the size of a <code>struct item</code>;</li>
+    <li>pointer arithmetic on <code>p</code> is scaled according to that type.</li>
+</ul>
 
 <p>
-The central idea of this book is that memory bugs are often chains of
-incorrect assumptions rather than isolated mistakes, and that understanding
-them requires following those chains rather than examining each operation
-in isolation.
+But those facts are only part of the reasoning that makes the statement
+meaningful. The language determines what the compiler can be required to
+establish, and C leaves much of the reasoning connecting values and
+operations to valid memory <em>implicit</em>.
 </p>
+
+<p>
+The compiler therefore generally does not establish that:
+</p>
+
+<ul>
+    <li><code>n * sizeof *p</code> did not overflow;</li>
+    <li><code>malloc</code> succeeded;</li>
+    <li>the allocation provides enough storage for <code>n</code> objects;</li>
+    <li><code>p</code> is being used to designate those objects;</li>
+    <li>the programmer's interpretation of <code>n</code> is correct;</li>
+    <li>the objects remain alive; or</li>
+    <li>a subsequent access falls within the intended object.</li>
+</ul>
+
+<p>
+C's types help the compiler determine how operations on values should be
+translated, but they do not require it to prove the entire chain of
+reasoning that connects those operations to valid memory. That responsibility
+remains, to a significant extent, with the programmer.
+</p>
+
+<p>
+Memory-safety problems arise when that reasoning ceases to hold. A value may
+produce the wrong allocation size; a pointer may consequently designate the
+wrong location; a range may extend beyond its intended object; or an object
+may no longer exist when it is accessed.
+</p>
+
+<p>
+The central difficulty is that the programmer's model of the memory being
+accessed can diverge from the memory that the program actually accesses.
+This book seeks to make that divergence visible and to develop a way of
+reasoning backwards from an invalid access to the assumptions about values,
+objects, bounds, locations, and lifetimes that made it possible.
+</p>
+
 
 <h2>The memory chain</h2>
 
@@ -242,6 +272,7 @@ the intended object.
 The answers to these questions form a chain of reasoning.
 </p>
 
+
 <h2>From code to assumptions</h2>
 
 <p>
@@ -292,6 +323,7 @@ A memory-safety bug occurs when an assumption required for that reasoning no
 longer holds.
 </p>
 
+
 <h2>The wrong amount and the wrong location</h2>
 
 <p>
@@ -301,9 +333,7 @@ dimensions:
 
 <pre><code>amount</code></pre>
 
-<p>
-and:
-</p>
+<p>and:</p>
 
 <pre><code>location</code></pre>
 
@@ -324,6 +354,7 @@ and what memory did it actually refer to?</code></pre>
 That question is often more useful than simply asking which bug category
 applies.
 </p>
+
 
 <h2>Why follow the chain?</h2>
 
@@ -366,6 +397,7 @@ That distinction matters both for debugging and for security. It determines
 whether we merely patch the operation that happened to fail or repair the
 assumption that made the failure possible.
 </p>
+
 
 <h2>A way of reading C</h2>
 
@@ -430,6 +462,7 @@ dangerous by itself. It becomes dangerous when the resulting value is
 trusted to describe memory.
 </p>
 
+
 <h2>The question to keep asking</h2>
 
 <p>
@@ -481,146 +514,458 @@ That is the wrong memory.
 
 <h1>Who Is This Book For?</h1>
 
-<p><em>The Wrong Memory</em> is primarily about learning how to reason about C memory-safety problems: not just recognising a vulnerability, but understanding the assumptions that led to it.</p>
+<p>
+<em>The Wrong Memory</em> is for C and systems programmers, security
+engineers, code reviewers, students, and others interested in understanding
+how memory-safety failures arise.
+</p>
 
-<p>It is written for C and systems programmers, security engineers, code reviewers, students, and others interested in how memory-safety failures arise.</p>
+<p>
+It assumes familiarity with C, pointers, arrays, structures, and dynamic
+allocation, but does not require experience in vulnerability research.
+The book is not a catalogue of C vulnerabilities; it develops a way of
+reasoning about the relationships between values, objects, bounds,
+locations, and lifetimes that make those vulnerabilities possible.
+</p>
 
-<h2>C and systems programmers</h2>
+<p>
+Experienced programmers will likely recognise many of the individual rules
+and failure modes discussed here. The aim is to see them not as isolated
+problems, but as different manifestations of the same underlying reasoning.
+</p>
 
-<p>If you write C, you will probably recognise many of the individual problems discussed here: integer overflow, buffer overflow, out-of-bounds access, use-after-free, double-free, and so on.</p>
-
-<p>The book's focus is not on introducing new categories of bugs, but on showing how they are connected. A value can determine a size, a size can determine an allocation, an allocation can determine a valid range, and that range can determine a memory operation. When one of the assumptions in that chain becomes false, the eventual failure may occur much later.</p>
-
-<p>The book provides a framework for tracing those relationships.</p>
-
-<h2>Security engineers and code reviewers</h2>
-
-<p>The same approach can be useful when investigating unfamiliar code. Instead of asking only whether an expression looks dangerous, the book encourages questions such as:</p>
-
-<ul>
-<li>What controls this memory operation?</li>
-<li>What is that value supposed to mean?</li>
-<li>What assumptions must hold?</li>
-<li>Where is the first assumption violated?</li>
-<li>How does that error reach memory?</li>
-</ul>
-
-<p>The goal is to understand the path from the original mistake to the eventual vulnerability.</p>
-
-<h2>Students and experienced programmers</h2>
-
-<p>The book assumes some familiarity with C, pointers, arrays, structures, and dynamic allocation. It is therefore not a beginner's introduction to C, but neither does it require experience in vulnerability research.</p>
-
-<p>For experienced programmers, many individual rules and examples will be familiar. The intended value is in considering them together as a common model of memory safety.</p>
-
-<h2>What this book is not</h2>
-
-<p><em>The Wrong Memory</em> is not an exhaustive reference to C semantics, a catalogue of real-world vulnerabilities, or an exploit-development manual. Its purpose is narrower: to provide a coherent way of thinking about why memory-safety failures occur and how apparently different failures can be related.</p>
-
-<p>The question at its centre is:</p>
+<p>
+The question at its centre is:
+</p>
 
 <blockquote>
-<p>What did the program believe about memory, and where did that belief stop being true?</p>
+    <p>
+        What did the program believe about memory, and where did that belief
+        stop being true?
+    </p>
 </blockquote>
 
 
 <nav class="book-outline" aria-label="Book Outline">
+
     <h2>A Brief Outline of the Book</h2>
 
     <section class="part">
+
         <h3>Part I: Following the Chain</h3>
-        <p>Part I mirrors the pipeline of how a program prepares to interact with memory, tracing how an abstract number transforms into a structured target:</p>
+
+        <p>
+            Part I mirrors the pipeline of how a program prepares to interact
+            with memory, tracing how an abstract number transforms into a
+            structured target:
+        </p>
+
         <ul>
-            <li><strong><a href="chapter_1_integer_arithmetic.html" style="color: inherit; text-decoration: none;" onmouseover="this.style.textDecoration='underline';" onmouseout="this.style.textDecoration='none';">Chapter 1 (Integer Arithmetic):</a></strong> Explores how ordinary integer operations become memory-safety problems through signed/unsigned mismatches, wraparound, truncation, and flawed size calculations, separating a valid number from a valid size.</li>
-            <li><strong><a href="chapter_2_allocation_size.html" style="color: inherit; text-decoration: none;" onmouseover="this.style.textDecoration='underline';" onmouseout="this.style.textDecoration='none';">Chapter 2 (Allocation Size):</a></strong> Examines how that math becomes an object in memory via <code>sizeof</code> expressions, type conversions, undersized or oversized allocations, and recognizing when the allocator itself is innocent of the underlying sizing bug.</li>
-            <li><strong><a href="chapter_3_pointer_arithmetic_and_bounds.html" style="color: inherit; text-decoration: none;" onmouseover="this.style.textDecoration='underline';" onmouseout="this.style.textDecoration='none';">Chapter 3 (Pointer Arithmetic and Bounds):</a></strong> Details how allocated memory becomes addresses and ranges through array indexing, offsets, object boundaries, one-past-the-end pointers, and why possessing a valid pointer never guarantees a valid access.</li>
-            <li><strong><a href="chapter_4_from_bug_to_vulnerability.html" style="color: inherit; text-decoration: none;" onmouseover="this.style.textDecoration='underline';" onmouseout="this.style.textDecoration='none';">Chapter 4 (From Bug to Vulnerability):</a></strong> Bridges ordinary programming errors to security impacts, analyzing how out-of-bounds reads and writes, data/metadata corruption, and control-flow consequences turn incorrectness into exploitability.</li>
+
+            <li>
+                <strong>
+                    <a href="chapter_1_integer_arithmetic.html"
+                       style="color: inherit; text-decoration: none;"
+                       onmouseover="this.style.textDecoration='underline';"
+                       onmouseout="this.style.textDecoration='none';">
+                        Chapter 1 (Integer Arithmetic):
+                    </a>
+                </strong>
+                Explores how ordinary integer operations become
+                memory-safety problems through signed/unsigned mismatches,
+                wraparound, truncation, and flawed size calculations,
+                separating a valid number from a valid size.
+            </li>
+
+            <li>
+                <strong>
+                    <a href="chapter_2_allocation_size.html"
+                       style="color: inherit; text-decoration: none;"
+                       onmouseover="this.style.textDecoration='underline';"
+                       onmouseout="this.style.textDecoration='none';">
+                        Chapter 2 (Allocation Size):
+                    </a>
+                </strong>
+                Examines how that math becomes an object in memory via
+                <code>sizeof</code> expressions, type conversions,
+                undersized or oversized allocations, and recognizing when
+                the allocator itself is innocent of the underlying sizing
+                bug.
+            </li>
+
+            <li>
+                <strong>
+                    <a href="chapter_3_pointer_arithmetic_and_bounds.html"
+                       style="color: inherit; text-decoration: none;"
+                       onmouseover="this.style.textDecoration='underline';"
+                       onmouseout="this.style.textDecoration='none';">
+                        Chapter 3 (Pointer Arithmetic and Bounds):
+                    </a>
+                </strong>
+                Details how allocated memory becomes addresses and ranges
+                through array indexing, offsets, object boundaries,
+                one-past-the-end pointers, and why possessing a valid pointer
+                never guarantees a valid access.
+            </li>
+
+            <li>
+                <strong>
+                    <a href="chapter_4_from_bug_to_vulnerability.html"
+                       style="color: inherit; text-decoration: none;"
+                       onmouseover="this.style.textDecoration='underline';"
+                       onmouseout="this.style.textDecoration='none';">
+                        Chapter 4 (From Bug to Vulnerability):
+                    </a>
+                </strong>
+                Bridges ordinary programming errors to security impacts,
+                analyzing how out-of-bounds reads and writes, data/metadata
+                corruption, and control-flow consequences turn incorrectness
+                into exploitability.
+            </li>
+
         </ul>
+
     </section>
 
+
     <section class="part">
+
         <h3>Part II: The Other Side of the Boundary</h3>
-        <p>Part II pivots from preparation to execution, isolating mechanical failure points by looking closely at how memory is manipulated across ranges, boundaries, and locations:</p>
+
+        <p>
+            Part II pivots from preparation to execution, isolating
+            mechanical failure points by looking closely at how memory is
+            manipulated across ranges, boundaries, and locations:
+        </p>
+
         <ul>
-            <li><strong><a href="chapter_5_copying_the_wrong_amount.html" style="color: inherit; text-decoration: none;" onmouseover="this.style.textDecoration='underline';" onmouseout="this.style.textDecoration='none';">Chapter 5 (Copying the Wrong Amount):</a></strong> Analyzes memory-copy operations (<code>memcpy</code>, <code>memmove</code>, <code>memset</code>) as range operations, investigating source/destination mismatches, overlapping regions, and how innocent copies become corruption primitives.</li>
-            <li><strong><a href="chapter_6_reading_the_wrong_amount.html" style="color: inherit; text-decoration: none;" onmouseover="this.style.textDecoration='underline';" onmouseout="this.style.textDecoration='none';">Chapter 6 (Reading the Wrong Amount):</a></strong> Focuses on unauthorized consumption beyond intended boundaries, addressing length fields, sentinel/terminator assumptions, missing bounds checks, and why out-of-bounds reads are dangerous even without data overwrites.</li>
-            <li><strong><a href="chapter_7_writing_the_wrong_amount.html" style="color: inherit; text-decoration: none;" onmouseover="this.style.textDecoration='underline';" onmouseout="this.style.textDecoration='none';">Chapter 7 (Writing the Wrong Amount):</a></strong> Explores stack and heap corruption, off-by-one errors, struct/array boundary violations, metadata overwrites, and why the object containing the bug is often entirely separate from the object that gets corrupted.</li>
-            <li><strong><a href="chapter_8_addressing_the_wrong_location.html" style="color: inherit; text-decoration: none;" onmouseover="this.style.textDecoration='underline';" onmouseout="this.style.textDecoration='none';">Chapter 8 (Addressing the Wrong Location):</a></strong> Examines cases where the allocated size is correct but the destination is wrong due to incorrect offsets, pointer provenance adjustments, NULL/near-NULL addresses, and misidentified objects.</li>
+
+            <li>
+                <strong>
+                    <a href="chapter_5_copying_the_wrong_amount.html"
+                       style="color: inherit; text-decoration: none;"
+                       onmouseover="this.style.textDecoration='underline';"
+                       onmouseout="this.style.textDecoration='none';">
+                        Chapter 5 (Copying the Wrong Amount):
+                    </a>
+                </strong>
+                Analyzes memory-copy operations
+                (<code>memcpy</code>, <code>memmove</code>, <code>memset</code>)
+                as range operations, investigating source/destination
+                mismatches, overlapping regions, and how innocent copies
+                become corruption primitives.
+            </li>
+
+            <li>
+                <strong>
+                    <a href="chapter_6_reading_the_wrong_amount.html"
+                       style="color: inherit; text-decoration: none;"
+                       onmouseover="this.style.textDecoration='underline';"
+                       onmouseout="this.style.textDecoration='none';">
+                        Chapter 6 (Reading the Wrong Amount):
+                    </a>
+                </strong>
+                Focuses on unauthorized consumption beyond intended
+                boundaries, addressing length fields, sentinel/terminator
+                assumptions, missing bounds checks, and why out-of-bounds
+                reads are dangerous even without data overwrites.
+            </li>
+
+            <li>
+                <strong>
+                    <a href="chapter_7_writing_the_wrong_amount.html"
+                       style="color: inherit; text-decoration: none;"
+                       onmouseover="this.style.textDecoration='underline';"
+                       onmouseout="this.style.textDecoration='none';">
+                        Chapter 7 (Writing the Wrong Amount):
+                    </a>
+                </strong>
+                Explores stack and heap corruption, off-by-one errors,
+                struct/array boundary violations, metadata overwrites, and
+                why the object containing the bug is often entirely separate
+                from the object that gets corrupted.
+            </li>
+
+            <li>
+                <strong>
+                    <a href="chapter_8_addressing_the_wrong_location.html"
+                       style="color: inherit; text-decoration: none;"
+                       onmouseover="this.style.textDecoration='underline';"
+                       onmouseout="this.style.textDecoration='none';">
+                        Chapter 8 (Addressing the Wrong Location):
+                    </a>
+                </strong>
+                Examines cases where the allocated size is correct but the
+                destination is wrong due to incorrect offsets, pointer
+                provenance adjustments, NULL/near-NULL addresses, and
+                misidentified objects.
+            </li>
+
         </ul>
+
     </section>
 
+
     <section class="part">
+
         <h3>Part III: Lifetime</h3>
-        <p>Part III introduces the temporal dimension, moving beyond spatial boundaries to examine how objects age, expire, and get reclaimed across time:</p>
-        <ul>
-            <li><strong><a href="chapter_9_using_memory_after_its_lifetime.html" style="color: inherit; text-decoration: none;" onmouseover="this.style.textDecoration='underline';" onmouseout="this.style.textDecoration='none';">Chapter 9 (Using Memory After Its Lifetime):</a></strong> Tackles temporal safety through use-after-free conditions, dangling pointers, stale aliases, reallocation traps, and how allocator reuse alters the nature of the corruption.</li>
-            <li><strong><a href="chapter_10_freeing_the_wrong_memory.html" style="color: inherit; text-decoration: none;" onmouseover="this.style.textDecoration='underline';" onmouseout="this.style.textDecoration='none';">Chapter 10 (Freeing the Wrong Memory):</a></strong> Looks at invalid lifecycle operations, including double frees, invalid frees, interior pointer releases, ownership confusion, and error paths where cleanup logic goes awry.</li>
-            <li><strong><a href="chapter_11_the_complete_memory_operation.html" style="color: inherit; text-decoration: none;" onmouseover="this.style.textDecoration='underline';" onmouseout="this.style.textDecoration='none';">Chapter 11 (The Complete Memory Operation):</a></strong> Brings all the threads together into unified synthesis, integrating complete operational chains, the five diagnostic questions, boundary proofs, modern defenses, and debugging strategies into a final, comprehensive review.</li>
-        </ul>
-    </section>
-    <section class="part">
-        <h3>Appendices</h3>
-        <p>The five appendices extend the ideas developed in the main chapters beyond the analysis of individual C vulnerabilities. They form a conceptual progression: the first examines how different languages can make memory safety a property of the language; the second develops the theory of semantic invariants that underlies the book's analysis; the third asks whether C itself can become meaningfully memory safe without ceasing to be C; the fourth considers what changes in the programmer's mental model when moving from C to Rust; and the fifth explores AI-assisted invariant analysis.<p>
-        <p>The appendices can be read independently, but they are intended to deepen the questions raised by the main chapters. Together, they move from how memory safety can be achieved, through why C fails to provide it, to whether C can change, to what it means for a programmer to adopt a different model of memory safety, and finally how AI can help programmers discover the "unknown unknowns" - the invariants that exist in the code but have never been explicitly written down, documented, or enforced.</p>
+
+        <p>
+            Part III introduces the temporal dimension, moving beyond spatial
+            boundaries to examine how objects age, expire, and get reclaimed
+            across time:
+        </p>
 
         <ul>
-            <li><strong><a href="Appendix_01.html" style="color: inherit; text-decoration: none;" onmouseover="this.style.textDecoration='underline';" onmouseout="this.style.textDecoration='none';">Appendix I - Making Memory Safety a Property of the Language:</a></strong> Examines the different ways programming languages can make memory-safety guarantees explicit and enforceable, including garbage collection, bounds checking, ownership and borrowing, capabilities, contracts, formal verification, and explicit safe and unsafe boundaries.</li>
-            <li><strong><a href="Appendix_02.html" style="color: inherit; text-decoration: none;" onmouseover="this.style.textDecoration='underline';" onmouseout="this.style.textDecoration='none';">Appendix II - A Theory of Semantic Invariants:</a></strong> Develops a formal model of semantic invariants and shows how it provides a common explanation for the causal relationships underlying different classes of C memory-safety vulnerabilities, from the first broken assumption to the eventual security consequence.</li>
-            <li><strong><a href="Appendix_03.html" style="color: inherit; text-decoration: none;" onmouseover="this.style.textDecoration='underline';" onmouseout="this.style.textDecoration='none';">Appendix III - C may have reached the boundary of what its own design principles permit it to become:</a></strong> Examines whether the C language itself can acquire meaningful memory-safety guarantees while preserving the principles that govern its design and evolution, including simplicity, portability, compatibility, programming freedom, and C's existing programming model.</li>
-            <li><strong><a href="Appendix_04.html" style="color: inherit; text-decoration: none;" onmouseover="this.style.textDecoration='underline';" onmouseout="this.style.textDecoration='none';">Appendix IV - The Psychological Transition From C To Rust:</a></strong> Examines the cognitive shift from C to Rust, focusing on how ownership, borrowing, mutation, aliasing, and lifetime change the way programmers represent and reason about program state.</li>
-            <li><strong><a href="Appendix_05.html" style="color: inherit; text-decoration: none;" onmouseover="this.style.textDecoration='underline';" onmouseout="this.style.textDecoration='none';">Appendix V - AI and the Division of Cognitive Labour:</a></strong> Explores how AI can help programmers discover implicit invariants and make hidden assumptions visible.</li>
+
+            <li>
+                <strong>
+                    <a href="chapter_9_using_memory_after_its_lifetime.html"
+                       style="color: inherit; text-decoration: none;"
+                       onmouseover="this.style.textDecoration='underline';"
+                       onmouseout="this.style.textDecoration='none';">
+                        Chapter 9 (Using Memory After Its Lifetime):
+                    </a>
+                </strong>
+                Tackles temporal safety through use-after-free conditions,
+                dangling pointers, stale aliases, reallocation traps, and how
+                allocator reuse alters the nature of the corruption.
+            </li>
+
+            <li>
+                <strong>
+                    <a href="chapter_10_freeing_the_wrong_memory.html"
+                       style="color: inherit; text-decoration: none;"
+                       onmouseover="this.style.textDecoration='underline';"
+                       onmouseout="this.style.textDecoration='none';">
+                        Chapter 10 (Freeing the Wrong Memory):
+                    </a>
+                </strong>
+                Looks at invalid lifecycle operations, including double
+                frees, invalid frees, interior pointer releases, ownership
+                confusion, and error paths where cleanup logic goes awry.
+            </li>
+
+            <li>
+                <strong>
+                    <a href="chapter_11_the_complete_memory_operation.html"
+                       style="color: inherit; text-decoration: none;"
+                       onmouseover="this.style.textDecoration='underline';"
+                       onmouseout="this.style.textDecoration='none';">
+                        Chapter 11 (The Complete Memory Operation):
+                    </a>
+                </strong>
+                Brings all the threads together into unified synthesis,
+                integrating complete operational chains, the five diagnostic
+                questions, boundary proofs, modern defenses, and debugging
+                strategies into a final, comprehensive review.
+            </li>
+
         </ul>
+
     </section>
+
+
     <section class="part">
-        <h3>Biblioghraphy</h3>
+
+        <h3>Appendices</h3>
+
+        <p>
+            The five appendices extend the ideas developed in the main
+            chapters beyond the analysis of individual C vulnerabilities.
+            They form a conceptual progression: the first examines how
+            different languages can make memory safety a property of the
+            language; the second develops the theory of semantic invariants
+            that underlies the book's analysis; the third asks whether C
+            itself can become meaningfully memory safe without ceasing to be
+            C; the fourth considers what changes in the programmer's mental
+            model when moving from C to Rust; and the fifth explores
+            AI-assisted invariant analysis.
+        </p>
+
+        <p>
+            The appendices can be read independently, but they are intended
+            to deepen the questions raised by the main chapters. Together,
+            they move from how memory safety can be achieved, through why C
+            fails to provide it, to whether C can change, to what it means
+            for a programmer to adopt a different model of memory safety,
+            and finally how AI can help programmers discover the "unknown
+            unknowns" — the invariants that exist in the code but have never
+            been explicitly written down, documented, or enforced.
+        </p>
+
         <ul>
-            <li><strong><a href="Bibliography.html" style="color: inherit; text-decoration: none;" onmouseover="this.style.textDecoration='underline';" onmouseout="this.style.textDecoration='none';">Bibliography</a></strong></li>
+
+            <li>
+                <strong>
+                    <a href="Appendix_01.html"
+                       style="color: inherit; text-decoration: none;"
+                       onmouseover="this.style.textDecoration='underline';"
+                       onmouseout="this.style.textDecoration='none';">
+                        Appendix I - Making Memory Safety a Property of the Language:
+                    </a>
+                </strong>
+                Examines the different ways programming languages can make
+                memory-safety guarantees explicit and enforceable, including
+                garbage collection, bounds checking, ownership and borrowing,
+                capabilities, contracts, formal verification, and explicit
+                safe and unsafe boundaries.
+            </li>
+
+            <li>
+                <strong>
+                    <a href="Appendix_02.html"
+                       style="color: inherit; text-decoration: none;"
+                       onmouseover="this.style.textDecoration='underline';"
+                       onmouseout="this.style.textDecoration='none';">
+                        Appendix II - A Theory of Semantic Invariants:
+                    </a>
+                </strong>
+                Develops a formal model of semantic invariants and shows how
+                it provides a common explanation for the causal relationships
+                underlying different classes of C memory-safety vulnerabilities,
+                from the first broken assumption to the eventual security
+                consequence.
+            </li>
+
+            <li>
+                <strong>
+                    <a href="Appendix_03.html"
+                       style="color: inherit; text-decoration: none;"
+                       onmouseover="this.style.textDecoration='underline';"
+                       onmouseout="this.style.textDecoration='none';">
+                        Appendix III - C may have reached the boundary of what its own design principles permit it to become:
+                    </a>
+                </strong>
+                Examines whether the C language itself can acquire meaningful
+                memory-safety guarantees while preserving the principles that
+                govern its design and evolution, including simplicity,
+                portability, compatibility, programming freedom, and C's
+                existing programming model.
+            </li>
+
+            <li>
+                <strong>
+                    <a href="Appendix_04.html"
+                       style="color: inherit; text-decoration: none;"
+                       onmouseover="this.style.textDecoration='underline';"
+                       onmouseout="this.style.textDecoration='none';">
+                        Appendix IV - The Psychological Transition From C To Rust:
+                    </a>
+                </strong>
+                Examines the cognitive shift from C to Rust, focusing on how
+                ownership, borrowing, mutation, aliasing, and lifetime change
+                the way programmers represent and reason about program state.
+            </li>
+
+            <li>
+                <strong>
+                    <a href="Appendix_05.html"
+                       style="color: inherit; text-decoration: none;"
+                       onmouseover="this.style.textDecoration='underline';"
+                       onmouseout="this.style.textDecoration='none';">
+                        Appendix V - AI and the Division of Cognitive Labour:
+                    </a>
+                </strong>
+                Explores how AI can help programmers discover implicit
+                invariants and make hidden assumptions visible.
+            </li>
+
         </ul>
+
     </section>
+
+
+    <section class="part">
+
+        <h3>Bibliography</h3>
+
+        <ul>
+            <li>
+                <strong>
+                    <a href="Bibliography.html"
+                       style="color: inherit; text-decoration: none;"
+                       onmouseover="this.style.textDecoration='underline';"
+                       onmouseout="this.style.textDecoration='none';">
+                        Bibliography
+                    </a>
+                </strong>
+            </li>
+        </ul>
+
+    </section>
+
 </nav>
 
-<p><small><strong>References:</strong><br>
+
+<p><strong>References:</strong></p>
 
 <ol>
-  <li id="ref-c-history">
-    <strong>Ritchie, Dennis M., "The Development of the C Language"</strong>.
-    Dennis Ritchie describes the development of C from BCPL and B and the
-    design considerations that shaped its low-level systems-programming
-    orientation, including its relationship to the PDP-11 and Unix.
-    <br>
-    <a href="https://www.bell-labs.com/usr/dmr/www/chist.html">
-      The Development of the C Language
-    </a>
-  </li>
 
-  <li id="ref-c-standard">
-    <strong>ISO/IEC 9899 — Programming Language C</strong>.
-    The C standard specifies C's object, pointer, array, storage-duration
-    and pointer-arithmetic semantics. These provisions establish the
-    language's relatively direct relationship between pointers, objects
-    and memory, while the standard's rules also define circumstances in
-    which pointer use becomes undefined behaviour rather than imposing
-    automatic runtime bounds or lifetime enforcement.
-    <br>
-    <a href="https://www.iso.org/standard/74528.html">
-      ISO/IEC 9899 — Programming Language C
-    </a>
-  </li>
+    <li id="ref-c-history">
+        <strong>
+            Ritchie, Dennis M., "The Development of the C Language"
+        </strong>.
+        Dennis Ritchie describes the development of C from BCPL and B and the
+        design considerations that shaped its low-level systems-programming
+        orientation, including its relationship to the PDP-11 and Unix.
+        <br>
+        <a href="https://www.bell-labs.com/usr/dmr/www/chist.html">
+            The Development of the C Language
+        </a>
+    </li>
+
+    <li id="ref-c-standard">
+        <strong>
+            ISO/IEC 9899 — Programming Language C
+        </strong>.
+        The C standard specifies C's object, pointer, array, storage-duration
+        and pointer-arithmetic semantics. These provisions establish the
+        language's relatively direct relationship between pointers, objects
+        and memory, while the standard's rules also define circumstances in
+        which pointer use becomes undefined behaviour rather than imposing
+        automatic runtime bounds or lifetime enforcement.
+        <br>
+        <a href="https://www.iso.org/standard/74528.html">
+            ISO/IEC 9899 — Programming Language C
+        </a>
+    </li>
+
 </ol>
+
 
 <hr>
 
-    <div class="book-navigation">
-        <a href="02_preface.html" class="nav-btn">&larr; Previous</a> <span class="nav-info">1 of 12</span> <a href="chapter_1_integer_arithmetic.html" class="nav-btn">Next &rarr;</a>
-    </div>
-    
+
+<div class="book-navigation">
+
+    <a href="02_preface.html" class="nav-btn">
+        &larr; Previous
+    </a>
+
+    <span class="nav-info">
+        1 of 12
+    </span>
+
+    <a href="chapter_1_integer_arithmetic.html" class="nav-btn">
+        Next &rarr;
+    </a>
+
+</div>
+
+
 <footer>
-  <p>
-    This work is licensed under a 
-    <a rel="license" href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" rel="noopener">
-      Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License
-    </a>.
-  </p>
+
+    <p>
+        This work is licensed under a
+        <a rel="license noopener"
+           href="https://creativecommons.org/licenses/by-nc-nd/4.0/"
+           target="_blank">
+            Creative Commons Attribution-NonCommercial-NoDerivatives 4.0
+            International License
+        </a>.
+    </p>
+
 </footer>
 
 </body>
