@@ -506,7 +506,7 @@ void process(char *buffer, int length)
 <p>A negative signed length passed to a function expecting a `size_t` is converted to an unsigned value.</p>
 <p>A small negative number can therefore become a very large positive size.</p>
 <p>For example, conceptually:</p>
-<pre><code>-1 ->  conversion to size_t -> SIZE_MAX</code></pre>
+<pre><code>-1 →  conversion to size_t → SIZE_MAX</code></pre>
 <p>The security lesson is not simply:</p>
 <pre><code>&quot;signed/unsigned conversions are dangerous.&quot;</code></pre>
 <p>It is:</p>
