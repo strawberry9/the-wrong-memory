@@ -360,6 +360,7 @@ use again</code></pre>
 <p><code>@system</code> - unrestricted D code, where memory safety is the programmer's responsibility.<sup>
 <a href="#ref-21">[21]</a>
 <a href="#ref-22">[22]</a>
+<a href="#ref-23">[23]</a>
 </sup></p>
 
 <p>The crucial qualification is that <code>@safe</code> is not D's default. An ordinary function without a safety attribute is <code>@system</code>. The programmer must explicitly write:</p>
@@ -450,14 +451,6 @@ Rust:
 <p>Do not merely provide a safe subset. Make the safe subset the normal place in which programs live, and make departures from it explicit, local and reviewable.</p>
 
 <p>D shows the usefulness of a <code>@safe</code>/<code>@trusted</code>/<code>@system</code> boundary. Rust demonstrates the stronger alternative of making that boundary safe by default.</p>
-
-<p>Attributes are powerful mechanism for adding compiler-enforced semantic information.</p>
-
-<p>While D is not unique in using attributes to give code additional semantic meaning (Rust, for example, has a very extensive attribute mechanism), D has a particularly broad and coherent use of attributes to express semantic properties. Its attribute system includes things such as <code>@safe</code>, <code>@trusted</code>, <code>@system</code>, <code>@nogc</code>, <code>pure</code>, <code>nothrow</code>, <code>scope</code>, <code>return</code>, <code>@disable</code>, and <code>@mustuse</code>. These aren't merely metadata for tools; many of them change what the compiler permits and what it can prove about the program.<sup><a href="#ref-23">[23]</a></sup></p>
-
-<p>This is, perhaps, one of D's most attractive qualities: its attribute system provides a natural way to enrich otherwise ordinary code with additional compiler-enforced semantics, without requiring those semantics to become part of the program's runtime representation.</p>
-
-<p>D has gradually moved toward a generalized @-attribute namespace (AtAttribute) for semantic properties that don't need to become fundamental language keywords.</p>
 
 <hr>
 
@@ -1196,9 +1189,9 @@ cannot be expressed in safe code</code></pre>
   </li>
 
   <li id="ref-23">
-    <strong>D Programming Language — Attributes</strong>.
-    Documents D's semantic attributes and their effect on compilation and program properties.
-    <a href="https://dlang.org/spec/attribute.html" target="_blank" rel="noopener noreferrer">https://dlang.org/spec/attribute.html</a>
+    <strong>D Programming Language — Function Declarations</strong>.
+    Documents D's @safe, @trusted, and @systemn attributes and their effect on functions.
+    <a href="https://dlang.org/spec/function.html#function-safety" target="_blank" rel="noopener noreferrer">https://dlang.org/spec/function.html#function-safety</a>
   </li>
 
   <li id="ref-24">
@@ -1264,7 +1257,7 @@ cannot be expressed in safe code</code></pre>
   <li id="ref-34">
     <strong>Apple — The Swift Programming Language, Memory Safety</strong>.
     The documentation explicitly distinguishes memory safety from the broader correctness of a program: memory safety concerns invalid memory operations rather than whether the program implements the intended application logic.
-    <a href="https://developer.apple.com/library/mac/documentation/Swift/Conceptual/Swift_Programming_Language/TheBasics.html" target="_blank" rel="noopener noreferrer">https://developer.apple.com/library/mac/documentation/Swift/Conceptual/Swift_Programming_Language/TheBasics.html</a>
+    <a href="https://docs.swift.org/swift-book/documentation/the-swift-programming-language/thebasics" target="_blank" rel="noopener noreferrer">https://developer.apple.com/library/mac/documentation/Swift/Conceptual/Swift_Programming_Language/TheBasics.html</a>
   </li>
 
   <li id="ref-35">
