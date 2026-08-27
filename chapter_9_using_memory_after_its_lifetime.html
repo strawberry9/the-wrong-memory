@@ -148,10 +148,11 @@ memcpy(dst, p, 10);</code></pre>
 <h2>4. Why this bug is called use-after-free</h2>
 <p>The pattern is:</p>
 <pre><code>use
--&gt;
+ ↓
 free
--&gt;
-use again</code></pre>
+ ↓
+use again
+</code></pre>
 <p>The second use occurs after the lifetime has ended.</p>
 <p>The operation might be:</p>
 <pre><code>read
@@ -413,7 +414,7 @@ reference count increases
 release reference
    ↓
 reference count decreases
-
+   
 count reaches zero
    ↓
 object is freed</code></pre>
