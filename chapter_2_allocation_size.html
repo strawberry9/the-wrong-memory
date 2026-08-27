@@ -136,13 +136,12 @@ How was length calculated?</code></pre>
 <pre><code>&quot;Can the values reaching this operation violate the object&#x27;s bounds?&quot;</code></pre>
 <h2>2. First example: an obvious vulnerability</h2>
 <p>Consider:</p>
-<pre><code>
-// Define a function to copy a specified length of data from source to destination
+<pre><code><span style="color: #888;">// Define a function to copy a specified length of data from source to destination</span>
 void copy_data(char *dst, const char *src, size_t len)
 {
-    // Perform a memory copy operation using the provided pointers and length
-    // (potentially vulnerable if 'dst' or 'src' lack sufficient capacity or
-    // buffers overlap improperly, though memcpy handles size safely via len)
+    <span style="color: #888;">// Perform a memory copy operation using the provided pointers and length</span>
+    <span style="color: #888;">// (potentially vulnerable if 'dst' or 'src' lack sufficient capacity or</span>
+    <span style="color: #888;">// buffers overlap improperly, though memcpy handles size safely via len)</span>
     memcpy(dst, src, len);
 }
 </code></pre>
@@ -153,25 +152,23 @@ void copy_data(char *dst, const char *src, size_t len)
 <p>It is:</p>
 <pre><code>Where is destination_size established?</code></pre>
 <p>If the caller does this:</p>
-<pre><code>
-// Declare a fixed-size character buffer on the stack with a capacity of 1024 bytes
+<pre><code><span style="color: #888;">// Declare a fixed-size character buffer on the stack with a capacity of 1024 bytes</span>
 char buffer[1024];
 
-// Check if the length to copy is less than or equal to the buffer's size 
-// to ensure the operation is bounds-safe and prevent a stack buffer overflow
-if (len <= sizeof(buffer))
-    // Safely copy data from the input into the stack buffer using the validated length
+<span style="color: #888;">// Check if the length to copy is less than or equal to the buffer's size</span>
+<span style="color: #888;">// to ensure the operation is bounds-safe and prevent a stack buffer overflow</span>
+if (len &lt;= sizeof(buffer))
+    <span style="color: #888;">// Safely copy data from the input into the stack buffer using the validated length</span>
     copy_data(buffer, input, len);
 </code></pre>
 <p>then the relationship is explicit.</p>
 <p>If instead the caller does this:</p>
-<pre><code>
-// Declare a fixed-size character buffer on the stack with a capacity of 1024 bytes
+<pre><code><span style="color: #888;">// Declare a fixed-size character buffer on the stack with a capacity of 1024 bytes</span>
 char buffer[1024];
 
-// Copy data from the input into the fixed-size stack buffer 
-// (vulnerable to a classic stack-based buffer overflow if input_length exceeds 1024 bytes, 
-// as there is no bounds checking before the copy operation)
+<span style="color: #888;">// Copy data from the input into the fixed-size stack buffer</span>
+<span style="color: #888;">// (vulnerable to a classic stack-based buffer overflow if input_length exceeds 1024 bytes,</span>
+<span style="color: #888;">// as there is no bounds checking before the copy operation)</span>
 copy_data(buffer, input, input_length);
 </code></pre>
 <p>and `input_length` comes directly from an untrusted source, the review needs to continue.</p>
@@ -257,27 +254,25 @@ memcpy(..., length)</code></pre>
 <pre><code>Where is each part of this equation established?</code></pre>
 <h2>6. Example: multiplication hidden in a helper</h2>
 <p>Consider:</p>
-<pre><code>
-// Define a static helper function to allocate memory for
-// a specified number of items of a given size
+<pre><code><span style="color: #888;">// Define a static helper function to allocate memory for</span>
+<span style="color: #888;">// a specified number of items of a given size</span>
 static void *allocate_items(size_t count, size_t item_size)
 {
-    // Return a memory allocation by multiplying count and item_size 
-    // (vulnerable to an integer overflow if the product exceeds SIZE_MAX, 
-    // which wraps around to a small value and causes malloc to allocate insufficient memory)
+    <span style="color: #888;">// Return a memory allocation by multiplying count and item_size</span>
+    <span style="color: #888;">// (vulnerable to an integer overflow if the product exceeds SIZE_MAX,</span>
+    <span style="color: #888;">// which wraps around to a small value and causes malloc to allocate insufficient memory)</span>
     return malloc(count * item_size);
 }
 </code></pre>
 <p>and:</p>
-<pre><code>
-// Define a function to create and allocate an array of items
-// given a specific count
+<pre><code><span style="color: #888;">// Define a function to create and allocate an array of items</span>
+<span style="color: #888;">// given a specific count</span>
 struct item *create_items(size_t count)
 {
-    // Call the helper function to allocate memory, passing the
-    // count and the size of the item struct
-    // (vulnerable to an integer overflow during multiplication
-    // inside allocate_items if count is sufficiently large)
+    <span style="color: #888;">// Call the helper function to allocate memory, passing the</span>
+    <span style="color: #888;">// count and the size of the item struct</span>
+    <span style="color: #888;">// (vulnerable to an integer overflow during multiplication</span>
+    <span style="color: #888;">// inside allocate_items if count is sufficiently large)</span>
     return allocate_items(count, sizeof(struct item));
 }
 </code></pre>
@@ -300,16 +295,15 @@ item access</code></pre>
 <p>This is one reason security review cannot be reduced to simple textual searches.</p>
 <h2>7. Example: a checked allocation that is still wrong</h2>
 <p>Consider:</p>
-<pre><code>
-// Check if the item count exceeds the maximum allowed items limit
-if (count > MAX_ITEMS)
-    // Return an error if the count is too large to handle safely
+<pre><code><span style="color: #888;">// Check if the item count exceeds the maximum allowed items limit</span>
+if (count &gt; MAX_ITEMS)
+    <span style="color: #888;">// Return an error if the count is too large to handle safely</span>
     return ERROR;
 
-// Allocate memory for the items array by multiplying count by the item size
-// (vulnerable to an integer overflow if count is large enough to
-// wrap the multiplication product, since checking against MAX_ITEMS alone
-// does not guarantee that count * sizeof(*items) won't overflow SIZE_MAX)
+<span style="color: #888;">// Allocate memory for the items array by multiplying count by the item size</span>
+<span style="color: #888;">// (vulnerable to an integer overflow if count is large enough to</span>
+<span style="color: #888;">// wrap the multiplication product, since checking against MAX_ITEMS alone</span>
+<span style="color: #888;">// does not guarantee that count * sizeof(*items) won't overflow SIZE_MAX)</span>
 items = malloc(count * sizeof(*items));
 </code></pre>
 <p>Not withstanding the comments, the reviewer may see the check and move on.</p>
@@ -327,37 +321,35 @@ What is the maximum value of count?
 Does their product fit?</code></pre>
 <p>If the answer depends on the implementation, the code may be portable on one platform and unsafe on another.</p>
 <p>A stronger pattern is:</p>
-<pre><code>
-// Check if multiplying count by the size of each item
-// would exceed SIZE_MAX to prevent integer overflow
-if (count > SIZE_MAX / sizeof(*items))
-    // Return an error if an integer overflow would occur
-    // during allocation size calculation
+<pre><code><span style="color: #888;">// Check if multiplying count by the size of each item</span>
+<span style="color: #888;">// would exceed SIZE_MAX to prevent integer overflow</span>
+if (count &gt; SIZE_MAX / sizeof(*items))
+    <span style="color: #888;">// Return an error if an integer overflow would occur</span>
+    <span style="color: #888;">// during allocation size calculation</span>
     return ERROR;
 
-// Safely allocate memory for the items array since the
-// multiplication is now guaranteed not to overflow
+<span style="color: #888;">// Safely allocate memory for the items array since the</span>
+<span style="color: #888;">// multiplication is now guaranteed not to overflow</span>
 items = malloc(count * sizeof(*items));
 </code></pre>
 <p>The check directly proves the property required by the multiplication.</p>
 <h2>8. Example: the loop bound looks correct</h2>
 <p>Consider:</p>
-<pre><code>
-// Retrieve the number of items to allocate and process
+<pre><code><span style="color: #888;">// Retrieve the number of items to allocate and process</span>
 size_t count = get_count();
 
-// Allocate memory for the items array by multiplying count by the item size 
-// (vulnerable to an integer overflow if count is large enough to wrap the
-// multiplication product, 
-// resulting in a smaller-than-expected buffer allocation)
+<span style="color: #888;">// Allocate memory for the items array by multiplying count by the item size</span>
+<span style="color: #888;">// (vulnerable to an integer overflow if count is large enough to wrap the</span>
+<span style="color: #888;">// multiplication product,</span>
+<span style="color: #888;">// resulting in a smaller-than-expected buffer allocation)</span>
 items = malloc(count * sizeof(*items));
 
-// Loop through each item index up to count 
-// (vulnerable to a severe heap buffer overflow because the loop executes
-// 'count' times while malloc only allocated a truncated amount of memory
-// due to the unchecked integer overflow)
-for (size_t i = 0; i < count; ++i)
-    process(&items[i]);
+<span style="color: #888;">// Loop through each item index up to count</span>
+<span style="color: #888;">// (vulnerable to a severe heap buffer overflow because the loop executes</span>
+<span style="color: #888;">// 'count' times while malloc only allocated a truncated amount of memory</span>
+<span style="color: #888;">// due to the unchecked integer overflow)</span>
+for (size_t i = 0; i &lt; count; ++i)
+    process(&amp;items[i]);
 </code></pre>
 <p>Notwithstanding the comments, the loop is perfectly conventional.</p>
 <p>The condition:</p>
@@ -376,13 +368,12 @@ physical bounds</code></pre>
 <p>A program can have a perfectly correct loop over an incorrectly sized allocation.</p>
 <h2>9. Example: checking the endpoint rather than the range</h2>
 <p>Consider:</p>
-<pre><code>
-// Check if the starting offset is strictly less than the total buffer size
-if (offset < size)
-    // Copy data into the buffer at the calculated position 
-    // (vulnerable to an out-of-bounds write or buffer overflow because the
-    // check only validates that the starting offset is within bounds,
-    // but does not check if offset + length exceeds size)
+<pre><code><span style="color: #888;">// Check if the starting offset is strictly less than the total buffer size</span>
+if (offset &lt; size)
+    <span style="color: #888;">// Copy data into the buffer at the calculated position</span>
+    <span style="color: #888;">// (vulnerable to an out-of-bounds write or buffer overflow because the</span>
+    <span style="color: #888;">// check only validates that the starting offset is within bounds,</span>
+    <span style="color: #888;">// but does not check if offset + length exceeds size)</span>
     memcpy(buffer + offset, input, length);
 </code></pre>
 <p>This checks that the starting point is inside the buffer.</p>
@@ -393,21 +384,20 @@ if (offset < size)
 <pre><code>offset + length</code></pre>
 <p>can itself overflow.</p>
 <p>A safe conceptual check is:</p>
-<pre><code>
-// Check if the starting offset exceeds the total buffer size
-// to prevent out-of-bounds positioning
-if (offset > size)
-    // Return an error if the offset is invalid
+<pre><code><span style="color: #888;">// Check if the starting offset exceeds the total buffer size</span>
+<span style="color: #888;">// to prevent out-of-bounds positioning</span>
+if (offset &gt; size)
+    <span style="color: #888;">// Return an error if the offset is invalid</span>
     return ERROR;
 
-// Check if the copy length exceeds the remaining space in the
-// buffer starting from the offset to prevent an overflow
-if (length > size - offset)
-    // Return an error if the write would exceed the buffer boundaries
+<span style="color: #888;">// Check if the copy length exceeds the remaining space in the</span>
+<span style="color: #888;">// buffer starting from the offset to prevent an overflow</span>
+if (length &gt; size - offset)
+    <span style="color: #888;">// Return an error if the write would exceed the buffer boundaries</span>
     return ERROR;
 
-// Safely copy data into the buffer at the specified offset using
-// the bounds-checked length
+<span style="color: #888;">// Safely copy data into the buffer at the specified offset using</span>
+<span style="color: #888;">// the bounds-checked length</span>
 memcpy(buffer + offset, input, length);
 </code></pre>
 <p>The subtraction is performed only after establishing that `offset &lt;= size`.</p>
@@ -416,12 +406,11 @@ memcpy(buffer + offset, input, length);
 the arithmetic that could overflow.</code></pre>
 <h2>10. Example: multiplication followed by addition</h2>
 <p>Real code often contains more complicated size expressions:</p>
-<pre><code>
-// Calculate the total allocation size by adding a fixed header
-// size to the product of count and element size (vulnerable to
-// multiple integer overflow risks: first during the multiplication
-// of count and element_size, and second during the addition of
-// header_size, which can cause the total to wrap around to a small value)
+<pre><code><span style="color: #888;">// Calculate the total allocation size by adding a fixed header</span>
+<span style="color: #888;">// size to the product of count and element size (vulnerable to</span>
+<span style="color: #888;">// multiple integer overflow risks: first during the multiplication</span>
+<span style="color: #888;">// of count and element_size, and second during the addition of</span>
+<span style="color: #888;">// header_size, which can cause the total to wrap around to a small value)</span>
 total = header_size + count * element_size;
 </code></pre>
 <p>The required invariant is:</p>
@@ -442,17 +431,16 @@ total = header_size + count * element_size;
 <p>This is a common point where apparently careful code remains vulnerable.</p>
 <h2>11. Example: two-dimensional sizes</h2>
 <p>Consider image processing code:</p>
-<pre><code>
-// Calculate the total number of bytes required for a pixel buffer by
-// multiplying width, height, and channels (vulnerable to a multi-variable
-// integer overflow if the product exceeds SIZE_MAX, causing the resulting
-// byte count to wrap around to a small value)
+<pre><code><span style="color: #888;">// Calculate the total number of bytes required for a pixel buffer by</span>
+<span style="color: #888;">// multiplying width, height, and channels (vulnerable to a multi-variable</span>
+<span style="color: #888;">// integer overflow if the product exceeds SIZE_MAX, causing the resulting</span>
+<span style="color: #888;">// byte count to wrap around to a small value)</span>
 size_t bytes = width * height * channels;
 
-// Allocate memory for the pixel buffer using the potentially wrapped
-// 'bytes' value (vulnerable to a heap buffer overflow or out-of-bounds
-// write during subsequent pixel processing because malloc allocated
-// insufficient memory due to the integer overflow)
+<span style="color: #888;">// Allocate memory for the pixel buffer using the potentially wrapped</span>
+<span style="color: #888;">// 'bytes' value (vulnerable to a heap buffer overflow or out-of-bounds</span>
+<span style="color: #888;">// write during subsequent pixel processing because malloc allocated</span>
+<span style="color: #888;">// insufficient memory due to the integer overflow)</span>
 unsigned char *pixels = malloc(bytes);
 </code></pre>
 <p>This expression contains a chain of multiplications.</p>
@@ -475,31 +463,29 @@ allocation</code></pre>
 <pre><code>Can this operation exceed SIZE_MAX?</code></pre>
 <h2>12. Signed and unsigned values</h2>
 <p>Now consider:</p>
-<pre><code>
-// Retrieve an integer length from an external or untrusted function
+<pre><code><span style="color: #888;">// Retrieve an integer length from an external or untrusted function</span>
 int length = get_length();
 
-// Check if the length is strictly less than the maximum allowed length limit
-if (length < MAX_LENGTH)
-    // Process the buffer using the validated length 
-    // (vulnerable to a signed integer overflow or out-of-bounds error
-    // if 'length' can be a negative value, as many checks like '< MAX_LENGTH'
-    // allow negative numbers which may bypass size validations 
-    // or cast improperly to unsigned values during buffer processing)
+<span style="color: #888;">// Check if the length is strictly less than the maximum allowed length limit</span>
+if (length &lt; MAX_LENGTH)
+    <span style="color: #888;">// Process the buffer using the validated length</span>
+    <span style="color: #888;">// (vulnerable to a signed integer overflow or out-of-bounds error</span>
+    <span style="color: #888;">// if 'length' can be a negative value, as many checks like '&lt; MAX_LENGTH'</span>
+    <span style="color: #888;">// allow negative numbers which may bypass size validations</span>
+    <span style="color: #888;">// or cast improperly to unsigned values during buffer processing)</span>
     process(buffer, length);
 </code></pre>
 <p>Notwithstanding the comments, this may look reasonable.</p>
 <p>But what happens if `length` is negative?</p>
 <p>The answer depends on what `process` does with it.</p>
 <p>Suppose:</p>
-<pre><code>
-// Define a function to process a buffer by copying input data into it using a specified length
+<pre><code><span style="color: #888;">// Define a function to process a buffer by copying input data into it using a specified length</span>
 void process(char *buffer, int length)
 {
-    // Copy data from the input source into the destination buffer using the provided length
-    // (vulnerable to a buffer overflow if 'length' is negative—since it is a signed int, 
-    // it can be interpreted as a massive positive value when cast to size_t by memcpy—or if 
-    // 'length' exceeds the actual allocated capacity of the destination buffer)
+    <span style="color: #888;">// Copy data from the input source into the destination buffer using the provided length</span>
+    <span style="color: #888;">// (vulnerable to a buffer overflow if 'length' is negative—since it is a signed int,</span>
+    <span style="color: #888;">// it can be interpreted as a massive positive value when cast to size_t by memcpy—or if</span>
+    <span style="color: #888;">// 'length' exceeds the actual allocated capacity of the destination buffer)</span>
     memcpy(buffer, input, length);
 }
 </code></pre>
@@ -514,30 +500,28 @@ void process(char *buffer, int length)
 <p>When auditing a size or index, record its type at every important stage.</p>
 <h2>13. Do not trust a validation performed before conversion</h2>
 <p>Consider:</p>
-<pre><code>
-// Read a signed integer number from an input or untrusted source
+<pre><code><span style="color: #888;">// Read a signed integer number from an input or untrusted source</span>
 int n = read_number();
 
-// Check if the number is within the valid non-negative range up to MAX
-if (n >= 0 && n <= MAX)
-    // Cast the validated non-negative integer to size_t and pass it
-    // to a size-consuming function (safe from negative-to-unsigned
-    // conversion issues due to the explicit lower bound check 'n >= 0')
+<span style="color: #888;">// Check if the number is within the valid non-negative range up to MAX</span>
+if (n &gt;= 0 &amp;&amp; n &lt;= MAX)
+    <span style="color: #888;">// Cast the validated non-negative integer to size_t and pass it</span>
+    <span style="color: #888;">// to a size-consuming function (safe from negative-to-unsigned</span>
+    <span style="color: #888;">// conversion issues due to the explicit lower bound check 'n &gt;= 0')</span>
     use_size((size_t)n);
 </code></pre>
 <p>This is much easier to reason about because the validation establishes that `n` is nonnegative before conversion.</p>
 <p>Compare it with:</p>
-<pre><code>
-// Read an unsigned size_t value from an input or untrusted source
+<pre><code><span style="color: #888;">// Read an unsigned size_t value from an input or untrusted source</span>
 size_t n = read_number();
 
-// Check if the read value is less than or equal to the maximum allowed limit
-if (n <= MAX)
-    // Perform operations using the validated size 
-    // (vulnerable or potentially problematic if 'read_number()'
-    // returns a signed type that undergoes an implicit conversion to
-    // size_t before the comparison, or if negative values wrap around to 
-    // very large positive numbers because a standard size_t is unsigned)
+<span style="color: #888;">// Check if the read value is less than or equal to the maximum allowed limit</span>
+if (n &lt;= MAX)
+    <span style="color: #888;">// Perform operations using the validated size</span>
+    <span style="color: #888;">// (vulnerable or potentially problematic if 'read_number()'</span>
+    <span style="color: #888;">// returns a signed type that undergoes an implicit conversion to</span>
+    <span style="color: #888;">// size_t before the comparison, or if negative values wrap around to</span>
+    <span style="color: #888;">// very large positive numbers because a standard size_t is unsigned)</span>
 ...
 </code></pre>
 <p>Here the parsing function&#x27;s behavior matters.</p>
@@ -554,21 +538,20 @@ if (length &gt; 0)
 used for the memory calculation, and validate there.</code></pre>
 <h2>14. `realloc` introduces another version of the chain</h2>
 <p>Consider:</p>
-<pre><code>
-// Calculate the new item count by adding the additional count to the existing count
-// (vulnerable to an integer overflow if the addition exceeds the maximum capacity
-// of the count type, causing the value to wrap around to a smaller number)
+<pre><code><span style="color: #888;">// Calculate the new item count by adding the additional count to the existing count</span>
+<span style="color: #888;">// (vulnerable to an integer overflow if the addition exceeds the maximum capacity</span>
+<span style="color: #888;">// of the count type, causing the value to wrap around to a smaller number)</span>
 new_count = count + additional;
 
-// Calculate the new byte size required for realloc by multiplying the new count by
-// the item size (vulnerable to a secondary integer overflow if the wrapped
-// new_count multiplied by sizeof(*items) exceeds SIZE_MAX, wrapping around to
-// a small value)
+<span style="color: #888;">// Calculate the new byte size required for realloc by multiplying the new count by</span>
+<span style="color: #888;">// the item size (vulnerable to a secondary integer overflow if the wrapped</span>
+<span style="color: #888;">// new_count multiplied by sizeof(*items) exceeds SIZE_MAX, wrapping around to</span>
+<span style="color: #888;">// a small value)</span>
 new_size = new_count * sizeof(*items);
 
-// Resize the existing memory allocation using the potentially wrapped new_size
-// (vulnerable to a heap buffer overflow because realloc allocates insufficient memory, 
-// leading to out-of-bounds writes when subsequent code populates up to new_count items)
+<span style="color: #888;">// Resize the existing memory allocation using the potentially wrapped new_size</span>
+<span style="color: #888;">// (vulnerable to a heap buffer overflow because realloc allocates insufficient memory,</span>
+<span style="color: #888;">// leading to out-of-bounds writes when subsequent code populates up to new_count items)</span>
 items = realloc(items, new_size);
 </code></pre>
 <p>Notwithstanding the comments, the obvious question is whether the multiplication can overflow.</p>
@@ -577,31 +560,29 @@ items = realloc(items, new_size);
 <p>Both operations must be safe.</p>
 <p>Then there is the lifetime question.</p>
 <p>This is dangerous:</p>
-<pre><code>
-// Resize the existing memory allocation using a previously calculated
-// new_size (vulnerable to a potential memory leak or null pointer
-// assignment if realloc fails and returns NULL, as overwriting the
-// original 'items' pointer directly with the result of realloc loses
-// the original reference, preventing proper cleanup of the existing buffer)
+<pre><code><span style="color: #888;">// Resize the existing memory allocation using a previously calculated</span>
+<span style="color: #888;">// new_size (vulnerable to a potential memory leak or null pointer</span>
+<span style="color: #888;">// assignment if realloc fails and returns NULL, as overwriting the</span>
+<span style="color: #888;">// original 'items' pointer directly with the result of realloc loses</span>
+<span style="color: #888;">// the original reference, preventing proper cleanup of the existing buffer)</span>
 items = realloc(items, new_size);
 </code></pre>
 <p>because if `realloc` fails, the original allocation remains valid, but the original pointer has been overwritten by `NULL`.</p>
 <p>A safer pattern is:</p>
-<pre><code>
-// Attempt to resize the memory allocation by passing the existing
-// pointer and new size to realloc, storing the result in a temporary
-// pointer to prevent memory leaks if the allocation fails
+<pre><code><span style="color: #888;">// Attempt to resize the memory allocation by passing the existing</span>
+<span style="color: #888;">// pointer and new size to realloc, storing the result in a temporary</span>
+<span style="color: #888;">// pointer to prevent memory leaks if the allocation fails</span>
 tmp = realloc(items, new_size);
 
-// Check if the temporary pointer is NULL, indicating that the realloc
-// operation failed due to insufficient memory
+<span style="color: #888;">// Check if the temporary pointer is NULL, indicating that the realloc</span>
+<span style="color: #888;">// operation failed due to insufficient memory</span>
 if (tmp == NULL)
-    // Return an error to handle the allocation failure safely while
-    // preserving the original 'items' pointer
+    <span style="color: #888;">// Return an error to handle the allocation failure safely while</span>
+    <span style="color: #888;">// preserving the original 'items' pointer</span>
     return ERROR;
 
-// Safely update the original items pointer with the successfully
-// resized memory block stored in 'tmp'
+<span style="color: #888;">// Safely update the original items pointer with the successfully</span>
+<span style="color: #888;">// resized memory block stored in 'tmp'</span>
 items = tmp;
 </code></pre>
 <p>The arithmetic chain and the pointer-lifetime chain meet here.</p>
@@ -648,22 +629,21 @@ payload</code></pre>
 <h2>16. Parser code deserves special attention</h2>
 <p>C parsers are especially fertile ground for this vulnerability chain because they repeatedly convert external numbers into memory operations.</p>
 <p>A typical parser might do:</p>
-<pre><code>
-// Read a 32-bit unsigned integer representing the length
-// from the input stream or buffer
+<pre><code><span style="color: #888;">// Read a 32-bit unsigned integer representing the length</span>
+<span style="color: #888;">// from the input stream or buffer</span>
 length = read_u32(input);
 
-// Allocate memory for the buffer using the untrusted length
-// read from the input (vulnerable to an integer overflow or
-// excessive memory allocation if 'length' is extremely large,
-// or vulnerable to a zero-size allocation depending on how malloc
-// handles a length of 0)
+<span style="color: #888;">// Allocate memory for the buffer using the untrusted length</span>
+<span style="color: #888;">// read from the input (vulnerable to an integer overflow or</span>
+<span style="color: #888;">// excessive memory allocation if 'length' is extremely large,</span>
+<span style="color: #888;">// or vulnerable to a zero-size allocation depending on how malloc</span>
+<span style="color: #888;">// handles a length of 0)</span>
 buffer = malloc(length);
 
-// Read data from the input stream into the allocated buffer using
-// the untrusted length (vulnerable to a heap buffer overflow if
-// malloc failed and returned NULL, or if the underlying read
-// implementation does not correctly enforce the specified length)
+<span style="color: #888;">// Read data from the input stream into the allocated buffer using</span>
+<span style="color: #888;">// the untrusted length (vulnerable to a heap buffer overflow if</span>
+<span style="color: #888;">// malloc failed and returned NULL, or if the underlying read</span>
+<span style="color: #888;">// implementation does not correctly enforce the specified length)</span>
 read_bytes(input, buffer, length);
 </code></pre>
 <p>That is already a chain:</p>
@@ -677,30 +657,29 @@ pointer
  ↓
 read length bytes</code></pre>
 <p>Now consider a slightly more complicated format:</p>
-<pre><code>
-// Read a 32-bit unsigned integer representing the total number of items
-// from the input stream
+<pre><code><span style="color: #888;">// Read a 32-bit unsigned integer representing the total number of items</span>
+<span style="color: #888;">// from the input stream</span>
 count = read_u32(input);
 
-// Read a 32-bit unsigned integer representing the size (in bytes) of 
-// a single item from the input stream
+<span style="color: #888;">// Read a 32-bit unsigned integer representing the size (in bytes) of</span>
+<span style="color: #888;">// a single item from the input stream</span>
 item_size = read_u32(input);
 
-// Calculate the total memory required by multiplying the item count 
-// and item size (vulnerable to an integer overflow if the product 
-// exceeds the maximum capacity of the integer type)
+<span style="color: #888;">// Calculate the total memory required by multiplying the item count</span>
+<span style="color: #888;">// and item size (vulnerable to an integer overflow if the product</span>
+<span style="color: #888;">// exceeds the maximum capacity of the integer type)</span>
 total = count * item_size;
 
-// Allocate a contiguous heap buffer of the calculated total size 
-// to store all the parsed items (vulnerable to an out-of-memory crash 
-// if allocation fails and returns NULL, or vulnerable to security issues 
-// if an integer overflow resulted in a small allocation size)
+<span style="color: #888;">// Allocate a contiguous heap buffer of the calculated total size</span>
+<span style="color: #888;">// to store all the parsed items (vulnerable to an out-of-memory crash</span>
+<span style="color: #888;">// if allocation fails and returns NULL, or vulnerable to security issues</span>
+<span style="color: #888;">// if an integer overflow resulted in a small allocation size)</span>
 items = malloc(total);
 
-// Iterate through the input stream to parse each item individually, 
-// using pointer arithmetic to calculate the exact byte offset for 
-// storing each item in the buffer
-for (i = 0; i < count; ++i)
+<span style="color: #888;">// Iterate through the input stream to parse each item individually,</span>
+<span style="color: #888;">// using pointer arithmetic to calculate the exact byte offset for</span>
+<span style="color: #888;">// storing each item in the buffer</span>
+for (i = 0; i &lt; count; ++i)
     parse_item(items + i * item_size);
 </code></pre>
 <p>The number of arithmetic operations has increased.</p>
@@ -716,21 +695,20 @@ for (i = 0; i < count; ++i)
 <h2>17. The parser's second boundary</h2>
 <p>A common mistake is to validate the output allocation but forget the input buffer.</p>
 <p>For example:</p>
-<pre><code>
-// Check if the requested item count exceeds the predefined maximum 
-// allowed limit to prevent excessive resource consumption or overflows
-if (count > MAX_COUNT)
+<pre><code><span style="color: #888;">// Check if the requested item count exceeds the predefined maximum</span>
+<span style="color: #888;">// allowed limit to prevent excessive resource consumption or overflows</span>
+if (count &gt; MAX_COUNT)
     return ERROR;
 
-// Allocate memory for an array of items based on the validated count 
-// and the size of each item (vulnerable to an integer overflow if 
-// count * sizeof(*items) exceeds the maximum capacity of the allocation size type)
+<span style="color: #888;">// Allocate memory for an array of items based on the validated count</span>
+<span style="color: #888;">// and the size of each item (vulnerable to an integer overflow if</span>
+<span style="color: #888;">// count * sizeof(*items) exceeds the maximum capacity of the allocation size type)</span>
 items = malloc(count * sizeof(*items));
 
-// Iterate through the input stream to parse each item and store it 
-// directly into the corresponding index of the allocated array
-for (i = 0; i < count; ++i)
-    parse_item(input, &items[i]);
+<span style="color: #888;">// Iterate through the input stream to parse each item and store it</span>
+<span style="color: #888;">// directly into the corresponding index of the allocated array</span>
+for (i = 0; i &lt; count; ++i)
+    parse_item(input, &amp;items[i]);
 </code></pre>
 <p>The allocation may be perfectly safe.</p>
 <p>But the parser may still read beyond `input` if the input does not contain enough bytes for all `count` items.</p>
@@ -785,39 +763,37 @@ validate next item</code></pre>
 <p>rather than calculating a large final size and hoping it fits.</p>
 <h2>19. Pointer ranges are often easier to reason about than indexes</h2>
 <p>Consider:</p>
-<pre><code>
-// Iterate through a collection or buffer a specified number of times 
-// determined by the 'count' variable
-for (i = 0; i < count; ++i)
-    // Process the data at a calculated memory offset by advancing the base 
-    // pointer by the specified stride for each iteration (vulnerable to an 
-    // integer overflow during the 'i * stride' calculation or a buffer 
-    // out-of-bounds access if 'count' or 'stride' exceeds the actual 
-    // valid size of the allocated buffer)
+<pre><code><span style="color: #888;">// Iterate through a collection or buffer a specified number of times</span>
+<span style="color: #888;">// determined by the 'count' variable</span>
+for (i = 0; i &lt; count; ++i)
+    <span style="color: #888;">// Process the data at a calculated memory offset by advancing the base</span>
+    <span style="color: #888;">// pointer by the specified stride for each iteration (vulnerable to an</span>
+    <span style="color: #888;">// integer overflow during the 'i * stride' calculation or a buffer</span>
+    <span style="color: #888;">// out-of-bounds access if 'count' or 'stride' exceeds the actual</span>
+    <span style="color: #888;">// valid size of the allocated buffer)</span>
     process(buffer + i * stride);
 </code></pre>
 <p>The multiplication:</p>
 <pre><code>i * stride</code></pre>
 <p>must be safe and the resulting pointer must remain within the intended object.</p>
 <p>Sometimes a range-based representation makes the invariant clearer:</p>
-<pre><code>
-// Initialize a pointer to the beginning of the buffer
+<pre><code><span style="color: #888;">// Initialize a pointer to the beginning of the buffer</span>
 char *begin = buffer;
 
-// Calculate and set a pointer to the exact end boundary of the buffer 
-// by adding the total size in bytes to the base pointer
+<span style="color: #888;">// Calculate and set a pointer to the exact end boundary of the buffer</span>
+<span style="color: #888;">// by adding the total size in bytes to the base pointer</span>
 char *end = buffer + size;
 
-// Loop through the buffer as long as the current position pointer 
-// remains strictly before the end boundary
-while (begin < end) {
+<span style="color: #888;">// Loop through the buffer as long as the current position pointer</span>
+<span style="color: #888;">// remains strictly before the end boundary</span>
+while (begin &lt; end) {
     ...
-    
-    // Advance the current position pointer by the specified stride value 
-    // for the next iteration (vulnerable to an infinite loop if the stride 
-    // is zero or negative, or potential buffer over-read/undefined behavior 
-    // if the stride causes the pointer to overshoot the end boundary rather 
-    // than landing on it exactly)
+
+    <span style="color: #888;">// Advance the current position pointer by the specified stride value</span>
+    <span style="color: #888;">// for the next iteration (vulnerable to an infinite loop if the stride</span>
+    <span style="color: #888;">// is zero or negative, or potential buffer over-read/undefined behavior</span>
+    <span style="color: #888;">// if the stride causes the pointer to overshoot the end boundary rather</span>
+    <span style="color: #888;">// than landing on it exactly)</span>
     begin += stride;
 }
 </code></pre>
@@ -831,29 +807,27 @@ remaining bytes</code></pre>
 <h2>20. Beware of "clever" overflow checks</h2>
 <p>A particularly dangerous review pattern is code that tries to detect overflow after it has already occurred.</p>
 <p>For example:</p>
-<pre><code>
-// Calculate the total required size in bytes by multiplying the 
-// number of elements by the size of each individual element
+<pre><code><span style="color: #888;">// Calculate the total required size in bytes by multiplying the</span>
+<span style="color: #888;">// number of elements by the size of each individual element</span>
 size = count * element_size;
 
-// Check for an integer overflow resulting from the multiplication 
-// (if the product wrapped around, the resulting size will be smaller 
-// than the original count, assuming element_size is at least 1; if an 
-// overflow is detected, aborts execution and returns an error)
-if (size < count)
+<span style="color: #888;">// Check for an integer overflow resulting from the multiplication</span>
+<span style="color: #888;">// (if the product wrapped around, the resulting size will be smaller</span>
+<span style="color: #888;">// than the original count, assuming element_size is at least 1; if an</span>
+<span style="color: #888;">// overflow is detected, aborts execution and returns an error)</span>
+if (size &lt; count)
     return ERROR;
 </code></pre>
 <p>This is not a general overflow check.</p>
 <p>It depends on assumptions about the operands and the operation.</p>
 <p>Likewise:</p>
-<pre><code>
-// Calculate the sum of two integer values ('a' and 'b')
+<pre><code><span style="color: #888;">// Calculate the sum of two integer values ('a' and 'b')</span>
 total = a + b;
 
-// Check for an unsigned integer addition overflow (if the sum wrapped 
-// around and became smaller than the original operand 'a', an overflow 
-// has occurred; if detected, aborts execution and returns an error)
-if (total < a)
+<span style="color: #888;">// Check for an unsigned integer addition overflow (if the sum wrapped</span>
+<span style="color: #888;">// around and became smaller than the original operand 'a', an overflow</span>
+<span style="color: #888;">// has occurred; if detected, aborts execution and returns an error)</span>
+if (total &lt; a)
     return ERROR;
 </code></pre>
 <p>can be meaningful for certain unsigned calculations, but it is not a universal substitute for reasoning about the operation and its types.</p>
@@ -1092,48 +1066,48 @@ Failure:
 <p>This forces the review to follow the entire chain.</p>
 <h2>29. A complete review example</h2>
 <p>Consider:</p>
-<pre><code>
-// Define a structure representing a message header containing the 
-// total number of items and the size of each individual item
+<pre><code><span style="color: #888;">// Define a structure representing a message header containing the</span>
+<span style="color: #888;">// total number of items and the size of each individual item</span>
 struct message {
     uint32_t count;
     uint32_t item_size;
 };
 
-// Function to load and parse items based on the metadata in the message struct
+<span style="color: #888;">// Function to load and parse items based on the metadata in the message struct</span>
 void *load_items(const struct message *m)
 {
     size_t total;
     unsigned char *items;
 
-    // Calculate the total memory required by multiplying the item count 
-    // and item size (vulnerable to an integer overflow if the product 
-    // exceeds the maximum capacity of size_t/uint32_t, which can result 
-    // in allocating a buffer much smaller than expected)
-    total = m->count * m->item_size;
+    <span style="color: #888;">// Calculate the total memory required by multiplying the item count</span>
+    <span style="color: #888;">// and item size (vulnerable to an integer overflow if the product</span>
+    <span style="color: #888;">// exceeds the maximum capacity of size_t/uint32_t, which can result</span>
+    <span style="color: #888;">// in allocating a buffer much smaller than expected)</span>
+    total = m-&gt;count * m-&gt;item_size;
 
-    // Allocate a contiguous heap buffer for the calculated total size
+    <span style="color: #888;">// Allocate a contiguous heap buffer for the calculated total size</span>
     items = malloc(total);
-    
-    // Check if the memory allocation failed and return NULL if it did 
-    // (vulnerable to a NULL pointer dereference or undefined behavior 
-    // in subsequent operations if malloc returns NULL due to memory exhaustion 
-    // or an extremely small/zero allocation size from an overflow)
+
+    <span style="color: #888;">// Check if the memory allocation failed and return NULL if it did</span>
+    <span style="color: #888;">// (vulnerable to a NULL pointer dereference or undefined behavior</span>
+    <span style="color: #888;">// in subsequent operations if malloc returns NULL due to memory exhaustion</span>
+    <span style="color: #888;">// or an extremely small/zero allocation size from an overflow)</span>
     if (items == NULL)
         return NULL;
 
-    // Iterate through the specified item count to parse each item 
-    // directly into its calculated offset within the buffer
-    for (uint32_t i = 0; i < m->count; ++i) {
-        // Parse the item using pointer arithmetic to find its position 
-        // (vulnerable to a heap buffer overflow if an integer overflow 
-        // occurred during the 'total' calculation, causing the allocated 
-        // buffer to be smaller than the space required for all items 
-        // written by the loop, or if 'i * m->item_size' overflows)
-        parse_item(items + i * m->item_size);
+    <span style="color: #888;">// Iterate through the specified item count to parse each item</span>
+    <span style="color: #888;">// directly into its calculated offset within the buffer</span>
+    for (uint32_t i = 0; i &lt; m-&gt;count; ++i)
+    {
+        <span style="color: #888;">// Parse the item using pointer arithmetic to find its position</span>
+        <span style="color: #888;">// (vulnerable to a heap buffer overflow if an integer overflow</span>
+        <span style="color: #888;">// occurred during the 'total' calculation, causing the allocated</span>
+        <span style="color: #888;">// buffer to be smaller than the space required for all items</span>
+        <span style="color: #888;">// written by the loop, or if 'i * m-&gt;item_size' overflows)</span>
+        parse_item(items + i * m-&gt;item_size);
     }
 
-    // Return the pointer to the populated items buffer
+    <span style="color: #888;">// Return the pointer to the populated items buffer</span>
     return items;
 }
 </code></pre>
@@ -1240,11 +1214,10 @@ memory error</code></pre>
 <h2>33. The "huge value" trap</h2>
 <p>Unsigned wraparound often produces a value that looks absurdly large.</p>
 <p>For example, conceptually:</p>
-<pre><code>
-// Perform subtraction using unsigned types (vulnerable to an integer 
-// underflow since the subtrahend 20 is greater than the minuend 10, 
-// causing the result to wrap around to a very large positive number 
-// near the maximum limit of the unsigned type instead of returning a negative value)
+<pre><code><span style="color: #888;">// Perform subtraction using unsigned types (vulnerable to an integer</span>
+<span style="color: #888;">// underflow since the subtrahend 20 is greater than the minuend 10,</span>
+<span style="color: #888;">// causing the result to wrap around to a very large positive number</span>
+<span style="color: #888;">// near the maximum limit of the unsigned type instead of returning a negative value)</span>
 10 - 20
 </code></pre>
 <p>in an unsigned type does not produce negative ten.</p>
@@ -1308,7 +1281,8 @@ information disclosure or crash</code></pre>
 size</code></pre>
 <p>through many unrelated functions, use an abstraction that keeps them associated.</p>
 <p>For example:</p>
-<pre><code>struct buffer {
+<pre><code>struct buffer
+{
     unsigned char *data;
     size_t size;
 };</code></pre>

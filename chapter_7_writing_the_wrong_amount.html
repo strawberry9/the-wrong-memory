@@ -465,18 +465,23 @@ what values are written.</code></pre>
 <pre><code>what that corruption can affect.</code></pre>
 <hr>
 <h2>22. Review the complete destination range</h2>
-<p>When reviewing a write, write down:</p>
+<p>When reviewing a write, identify:</p>
 <pre><code>destination object
-destination start
+destination base address
+destination offset (if any)
 destination capacity
 write length</code></pre>
-<p>Then determine:</p>
-<pre><code>[destination, destination + length)</code></pre>
-<p>and compare it with the object&#x27;s valid range.</p>
-<p>For an offset destination:</p>
-<pre><code>[buffer + offset,
- buffer + offset + length)</code></pre>
-<p>This simple representation removes much of the ambiguity from pointer-heavy code.</p>
+
+<p>Convert the destination into a resolved address:</p>
+<pre><code>destination_address = buffer + offset</code></pre>
+
+<p>Then check that the complete write range:</p>
+<pre><code>[destination_address, destination_address + length)</code></pre>
+<p>is contained within the object's valid range:</p>
+
+<pre><code>[buffer, buffer + capacity)</code></pre>
+
+<p>This simple representation removes much of the ambiguity from pointer-heavy code by making it clear that the entire write interval must remain within the object's valid memory range.</p>
 <hr>
 <h2>23. The central lesson</h2>
 <p>A write is safe only when the complete destination range belongs to the intended writable object.</p>

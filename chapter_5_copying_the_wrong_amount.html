@@ -281,9 +281,7 @@ amount consumed</code></pre>
 <hr>
 <h2>10. Two-dimensional bounds</h2>
 <p>With a copy involving offsets on both sides:</p>
-<pre><code>memcpy(dst + dst_offset,
-       src + src_offset,
-       length);</code></pre>
+<pre><code>memcpy(dst + dst_offset, src + src_offset, length);</code></pre>
 <p>there are now two range calculations.</p>
 <p>The source requires:</p>
 <pre><code>src_offset + length &lt;= src_capacity</code></pre>
@@ -302,7 +300,8 @@ amount consumed</code></pre>
 <p>It tells us the size of the type or expression being measured.</p>
 <p>It does not tell us whether that is the correct amount to copy.</p>
 <p>For example:</p>
-<pre><code>struct packet {
+<pre><code>struct packet
+{
     size_t length;
     char data[1];
 };</code></pre>
@@ -345,7 +344,8 @@ struct header dst;</code></pre>
 <p>The size corresponds to the complete object.</p>
 <p>But problems appear when a structure contains pointers.</p>
 <p>For example:</p>
-<pre><code>struct record {
+<pre><code>struct record
+{
     char *name;
     size_t length;
 };</code></pre>
@@ -362,7 +362,8 @@ struct header dst;</code></pre>
 <hr>
 <h2>14. Shallow copies and deep copies</h2>
 <p>Consider:</p>
-<pre><code>struct object {
+<pre><code>struct object
+{
     size_t length;
     char *data;
 };</code></pre>
@@ -502,7 +503,8 @@ stale metadata</code></pre>
 <h2>22. Copying structured input</h2>
 <p>Network protocols and file formats often contain a length followed by variable-sized data.</p>
 <p>For example:</p>
-<pre><code>struct message {
+<pre><code>struct message
+{
     uint32_t length;
     unsigned char data[];
 };</code></pre>
@@ -848,7 +850,8 @@ Can any calculation producing it overflow or truncate?</code></pre>
 <hr>
 <h2>41. A practical example</h2>
 <p>Consider:</p>
-<pre><code>struct item {
+<pre><code>struct item
+{
     uint32_t id;
     uint32_t value;
 };

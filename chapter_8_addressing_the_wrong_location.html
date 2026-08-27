@@ -493,8 +493,7 @@ access length</code></pre>
 <p>followed by a write of:</p>
 <pre><code>length</code></pre>
 <p>bytes, think:</p>
-<pre><code>[buffer + offset,
- buffer + offset + length)</code></pre>
+<pre><code>[buffer + offset, buffer + offset + length)</code></pre>
 <p>Then ask:</p>
 <pre><code>Does this entire range belong to the intended object?</code></pre>
 <p>This immediately exposes several classes of bugs:</p>

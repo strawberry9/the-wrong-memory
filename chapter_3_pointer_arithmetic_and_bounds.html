@@ -99,7 +99,8 @@ memory corruption</code></pre>
 <hr>
 <h2>Exercise 1: The obvious multiplication</h2>
 <p>Consider:</p>
-<pre><code>struct item {
+<pre><code>struct item
+{
     uint32_t type;
     uint32_t value;
 };
@@ -232,9 +233,7 @@ memcpy(buffer + offset, data, length);</code></pre>
 <hr>
 <h1>Exercise 4: Two arithmetic operations</h1>
 <p>Consider:</p>
-<pre><code>void *allocate_buffer(size_t count,
-                      size_t element_size,
-                      size_t header_size)
+<pre><code>void *allocate_buffer(size_t count, size_t element_size, size_t header_size)
 {
     size_t total;
 
@@ -313,7 +312,8 @@ memcpy(buffer, input, (size_t)length);</code></pre>
 <hr>
 <h1>Exercise 6: The parser with a trusted-looking count</h1>
 <p>Consider:</p>
-<pre><code>struct file_header {
+<pre><code>struct file_header
+{
     uint32_t count;
 };
 
@@ -428,14 +428,11 @@ source bounds</code></pre>
 <hr>
 <h1>Exercise 8: The apparently safe `realloc`</h1>
 <p>Consider:</p>
-<pre><code>int grow(struct item **items,
-         size_t count,
-         size_t additional)
+<pre><code>int grow(struct item **items, size_t count, size_t additional)
 {
     count += additional;
 
-    *items = realloc(*items,
-                     count * sizeof(**items));
+    *items = realloc(*items, count * sizeof(**items));
 
     if (*items == NULL)
         return -1;
@@ -481,7 +478,8 @@ if (tmp == NULL)
 <hr>
 <h1>Exercise 9: Derived pointers and `realloc`</h1>
 <p>Consider:</p>
-<pre><code>struct buffer {
+<pre><code>struct buffer
+{
     unsigned char *data;
     size_t size;
 };
@@ -535,9 +533,7 @@ int extend(struct buffer *b, size_t extra)
 <hr>
 <h1>Exercise 10: The parser with subtraction</h1>
 <p>Consider:</p>
-<pre><code>int parse_payload(const unsigned char *packet,
-                  size_t packet_size,
-                  size_t header_size)
+<pre><code>int parse_payload(const unsigned char *packet, size_t packet_size, size_t header_size)
 {
     size_t payload_size;
     unsigned char *payload;
@@ -587,11 +583,10 @@ ask what ordering relationship makes that subtraction valid.</code></pre>
 <hr>
 <h1>Exercise 11: The stride calculation</h1>
 <p>Consider:</p>
-<pre><code>void process(unsigned char *buffer,
-             size_t count,
-             size_t stride)
+<pre><code>void process(unsigned char *buffer, size_t count, size_t stride)
 {
-    for (size_t i = 0; i &lt; count; ++i) {
+    for (size_t i = 0; i &lt; count; ++i)
+    {
         unsigned char *p = buffer + i * stride;
         process_record(p);
     }
@@ -631,7 +626,8 @@ callee access bound</code></pre>
 <hr>
 <h1>Exercise 12: The duplicated size calculation</h1>
 <p>Consider:</p>
-<pre><code>struct item {
+<pre><code>struct item
+{
     uint32_t type;
     uint64_t value;
 };
@@ -643,7 +639,8 @@ size_t allocate_size(size_t count)
 
 void initialize(void *buffer, size_t count)
 {
-    for (size_t i = 0; i &lt; count; ++i) {
+    for (size_t i = 0; i &lt; count; ++i)
+    {
         unsigned char *p =
             (unsigned char *)buffer + i * 12;
 
@@ -680,9 +677,7 @@ initialize_item(&amp;items[i]);</code></pre>
 <hr>
 <h1>Exercise 13: The validation happens too early</h1>
 <p>Consider:</p>
-<pre><code>int process(unsigned char *buffer,
-            size_t capacity,
-            size_t length)
+<pre><code>int process(unsigned char *buffer, size_t capacity, size_t length)
 {
     if (length &gt; capacity)
         return -1;
@@ -724,16 +719,16 @@ the operation it justifies.</code></pre>
 <hr>
 <h1>Exercise 14: The loop has a hidden unit conversion</h1>
 <p>Consider:</p>
-<pre><code>struct record {
+<pre><code>struct record
+{
     uint64_t timestamp;
     uint32_t value;
 };
 
-void process_records(unsigned char *buffer,
-                     size_t bytes,
-                     size_t count)
+void process_records(unsigned char *buffer, size_t bytes, size_t count)
 {
-    for (size_t i = 0; i &lt; count; ++i) {
+    for (size_t i = 0; i &lt; count; ++i)
+    {
         struct record *r =
             (struct record *)(buffer + i);
 
@@ -778,13 +773,13 @@ memory error</code></pre>
 <hr>
 <h1>Exercise 15: The complete chain</h1>
 <p>Consider the following simplified parser:</p>
-<pre><code>struct header {
+<pre><code>struct header
+{
     uint32_t count;
     uint32_t item_size;
 };
 
-int load(const unsigned char *data,
-         size_t data_size)
+int load(const unsigned char *data, size_t data_size)
 {
     const struct header *h;
     unsigned char *items;
@@ -806,7 +801,8 @@ int load(const unsigned char *data,
     if (items == NULL)
         return -1;
 
-    for (size_t i = 0; i &lt; count; ++i) {
+    for (size_t i = 0; i &lt; count; ++i)
+    {
         unsigned char *item =
             items + i * item_size;
 
@@ -1089,10 +1085,7 @@ access validity</code></pre>
 <hr>
 <h1>Final Exercise: Find the First Broken Link</h1>
 <p>Consider:</p>
-<pre><code>int decode(const unsigned char *input,
-           size_t input_size,
-           uint32_t count,
-           uint32_t width)
+<pre><code>int decode(const unsigned char *input, size_t input_size, uint32_t count, uint32_t width)
 {
     size_t bytes;
     unsigned char *out;
@@ -1109,12 +1102,11 @@ access validity</code></pre>
     if (out == NULL)
         return -1;
 
-    for (uint32_t i = 0; i &lt; count; ++i) {
+    for (uint32_t i = 0; i &lt; count; ++i)
+    {
         unsigned char *p = out + i * width;
 
-        memcpy(p,
-               input + i * width,
-               width);
+        memcpy(p, input + i * width, width);
     }
 
     return 0;

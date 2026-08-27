@@ -387,7 +387,8 @@ free(p);</code></pre>
 <hr>
 <h2>18. Lifetime and copies interact</h2>
 <p>Consider:</p>
-<pre><code>struct object {
+<pre><code>struct object
+{
     char *data;
     size_t length;
 };</code></pre>

