@@ -149,7 +149,7 @@ memcpy(dst, src, n);</code></pre>
  ↓
 count * sizeof(*src)
  ↓
-n
+ n
  ↓
 memcpy</code></pre>
 <p>If `count` is wrong, `n` may be wrong.</p>
@@ -917,9 +917,9 @@ manual copy loops</code></pre>
 <hr>
 <h2>44. The central lesson</h2>
 <p>A memory copy is not:</p>
-<pre><code>pointer A↓ pointer B</code></pre>
+<pre><code>pointer A → pointer B</code></pre>
 <p>It is:</p>
-<pre><code>range A↓ range B</code></pre>
+<pre><code>range A → range B</code></pre>
 <p>The range has a location and a size.</p>
 <p>Both matter.</p>
 <p>And the size is rarely an isolated constant.</p>
