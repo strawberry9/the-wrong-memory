@@ -407,8 +407,7 @@ observed relationships
 candidate invariants
     ↓
 programmer interpretation
-    |
-    v
+    ↓
 explicit invariant
     ↓
 type, assertion, analysis or test</code></pre>
@@ -521,19 +520,26 @@ type, assertion, analysis or test</code></pre>
 
 <p>The division of cognitive labour therefore becomes:</p>
 
-<pre><code>Programmer
-    | intention
-    ↓
-AI
-    | candidate relationships
-    ↓
+<pre><code>
 Programmer
-    | confirmed invariant
-    ↓
-Language and tools
-    | enforcement
-    ↓
-Program</code></pre>
+    │
+    │ intended property
+    ▼
+AI-assisted analysis
+    │
+    │ candidate invariants / relationships
+    ▼
+Programmer
+    │
+    │ validated invariant
+    ▼
+Language + verification tools
+    │
+    │ compile-time / runtime enforcement
+    ▼
+Program
+
+</code></pre>
 
 <p>This does not eliminate human reasoning.</p>
 
