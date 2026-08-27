@@ -358,9 +358,9 @@ the beginning of a subobject</code></pre>
 <hr>
 <h2>17. Reallocation changes the map</h2>
 <p>Before:</p>
-<pre><code>buffer↓ allocation A</code></pre>
+<pre><code>buffer → allocation A</code></pre>
 <p>After a successful reallocation, the program may have:</p>
-<pre><code>buffer↓ allocation B</code></pre>
+<pre><code>buffer → allocation B</code></pre>
 <p>A stale pointer may still contain:</p>
 <pre><code>allocation A&#x27;s old address</code></pre>
 <p>The old address might now be:</p>
