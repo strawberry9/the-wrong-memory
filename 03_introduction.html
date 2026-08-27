@@ -279,10 +279,10 @@ The answers to these questions form a chain of reasoning.
 C code often looks deceptively local. Consider:
 </p>
 
-<pre><code>size = count * element_size; // Calculate the total number of bytes needed
-char *p = malloc(size);       // Allocate that amount of memory
-char *q = p + offset;         // Compute a new pointer
-memcpy(q, src, length);       // Copy length bytes to that location</code></pre>
+<pre><code>size = count * element_size; <span style="color: #6a737d;">// Calculate the total number of bytes needed</span>
+char *p = malloc(size);      <span style="color: #888;">// Allocate that amount of memory</span>
+char *q = p + offset;        <span style="color: #888;">// Compute a new pointer</span>
+memcpy(q, src, length);      <span style="color: #888;">// Copy length bytes to that location</span></code></pre>
 
 <p>
 Each statement is short. The interesting question is not whether each
