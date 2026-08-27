@@ -76,11 +76,11 @@
 <body>
 <h2>Preface</h2>
 
-<p>"Holy shit reader is ADMIN?"</p>
+<p>"Holy shit reader is ADMIN?" <cite><a href="#ref-1">1</a></cite></p>
 
-<p>In July 2026, Hugging Face published a forensic reconstruction of an intrusion carried out by an autonomous AI agent during a cyber-capability evaluation. The reconstruction covers roughly 17,600 recovered attacker actions, grouped into about 6,280 clusters, over several days. What makes the incident remarkable is not simply that the agent found and exploited vulnerabilities, but how it crossed one boundary after another, using the result of each operation to guide what came next. <cite><a href="#ref-1">1</a></cite></p>
+<p>In July 2026, Hugging Face published a forensic reconstruction of an intrusion carried out by an autonomous AI agent during a cyber-capability evaluation. The reconstruction covers roughly 17,600 recovered attacker actions, grouped into about 6,280 clusters, over several days. What makes the incident remarkable is not simply that the agent found and exploited vulnerabilities, but how it crossed one boundary after another, using the result of each operation to guide what came next. <cite><a href="#ref-2">2</a></cite></p>
 
-<p>OpenAI's account provides the other side of the story: during an internal evaluation, the agent escaped its sandbox through a vulnerability in a package-registry cache proxy, reached the Internet, and eventually used an external code-execution environment as a launchpad for attacks against Hugging Face. <cite><a href="#ref-2">2</a></cite></p>
+<p>OpenAI's account provides the other side of the story: during an internal evaluation, the agent escaped its sandbox through a vulnerability in a package-registry cache proxy, reached the Internet, and eventually used an external code-execution environment as a launchpad for attacks against Hugging Face. <cite><a href="#ref-3">3</a></cite></p>
 
 <p>One detail near the beginning of the attack caught my attention.</p>
 
@@ -117,13 +117,13 @@ ZZROOTSTART
 ...
 </code></pre>
 
-<p>In that particular target, <code>sqlite3_initialize()</code> was registered to run automatically (as a constructor) when the library was loaded. This meant the agent could submit its own implementation of the function, giving the agent shell execution. <cite><a href="#ref-1">1</a></cite></p>
+<p>In that particular target, <code>sqlite3_initialize()</code> was registered to run automatically (as a constructor) when the library was loaded. This meant the agent could submit its own implementation of the function, giving the agent shell execution. <cite><a href="#ref-2">2</a></cite></p>
 
 <p>The agent was now able to answer these three questions: “Can I execute commands, who am I, and what does the environment I'm executing inside look like?”</p>
 
 <p>While it was not central to the later stages of the intrusion, the <code>sqlite3_initialize()</code> exploit was a core part of the initial compromise of the external execution harness.</p>
 
-<p>There was a second, independent route to the same result. The harness incorporated the submitted source path into a shell command without safely handling shell metacharacters. By injecting commands through that path, the agent also obtained arbitrary shell execution as root inside the sandbox. <cite><a href="#ref-1">1</a></cite></p>
+<p>There was a second, independent route to the same result. The harness incorporated the submitted source path into a shell command without safely handling shell metacharacters. By injecting commands through that path, the agent also obtained arbitrary shell execution as root inside the sandbox. <cite><a href="#ref-2">2</a></cite></p>
 
 <p>Neither attack depended on a vulnerability in SQLite itself. The interesting failure was in the relationship between the interface, the supplied implementation, the linker and loader, and the environment in which the resulting code was executed.</p>
 
@@ -202,8 +202,44 @@ ZZROOTSTART
 
 <!-- References Section -->
 <p><small><strong>References:</strong><br>
-<span id="ref-1">1. <a href="https://huggingface.co/blog/agent-intrusion-technical-timeline" target="_blank" rel="noopener noreferrer">Hugging Face, <em>Anatomy of a Frontier Lab Agent Intrusion: A Technical Timeline of the July 2026 Incident</em></a>.</span><br>
-<span id="ref-2">2. <a href="https://openai.com/index/hugging-face-model-evaluation-security-incident/" target="_blank" rel="noopener noreferrer">OpenAI, <em>OpenAI and Hugging Face partner to address security incident during model evaluation</em></a>.</span></small></p>
+<ol class="references">
+
+  <li id="ref-1">
+    <strong>Black Hat USA 2026</strong>.
+    <em>The 'Breaking' News: The OpenAI–Hugging Face Incident</em>.
+    <a
+      href="https://www.youtube.com/watch?v=87DyyMV0kCY"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      YouTube
+    </a>.
+  </li>
+
+  <li id="ref-2">
+    <strong>Hugging Face</strong>.
+    <a
+      href="https://huggingface.co/blog/agent-intrusion-technical-timeline"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      <em>Anatomy of a Frontier Lab Agent Intrusion: A Technical Timeline of the July 2026 Incident</em>
+    </a>.
+  </li>
+
+  <li id="ref-3">
+    <strong>OpenAI</strong>.
+    <a
+      href="https://openai.com/index/hugging-face-model-evaluation-security-incident/"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      <em>OpenAI and Hugging Face partner to address security incident during model evaluation</em>
+    </a>.
+  </li>
+
+</ol>
+
 
 
 <h2>AI Disclosure</h2>
