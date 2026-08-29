@@ -79,7 +79,10 @@
 <p>**Status:** Design Specification<br>
 **Language family:** C-like systems programming language<br>
 **Primary goals:** memory safety, predictable performance, C interoperability, explicit low-level escape hatches</p>
-<hr>
+
+<h1>Notation</h1>
+<p>Cobalt's syntax is intentionally familiar to programmers coming from C, C++, and Rust. Where appropriate, the specification uses notation similar to Rust for concepts such as references and lifetimes. This is intended to make the underlying relationships immediately recognisable; it does not imply that Cobalt's semantics are identical to Rust's.</p>
+
 <h1>1. Language Definition</h1>
 <p>Cobalt is a statically typed, compiled, C-like systems programming language.</p>
 <p>Cobalt is designed to prevent the following classes of memory errors in safe code:</p>
