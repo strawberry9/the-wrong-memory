@@ -1,0 +1,2192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Appendix V - AI and the Division of Cognitive Labour</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #d1d5db; /* Soft light gray text */
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 0 20px;
+            background-color: #1f2937; /* Dark charcoal/slate background */
+        }
+        h1, h2 {
+            color: #f3f4f6; /* Bright white-gray for headers */
+            border-bottom: 1px solid #374151;
+            padding-bottom: 0.3em;
+        }
+        pre {
+            background-color: #111827; /* Darker background for code blocks */
+            border: 1px solid #374151;
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+            font-size: 85%;
+            line-height: 1.45;
+            color: #e5e7eb;
+        }
+        code {
+            font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+        }
+        hr {
+            border: 0;
+            height: 1px;
+            background: #374151;
+            margin: 40px 0;
+        }
+        p {
+            margin-bottom: 16px;
+        }
+    </style>
+
+    <style>
+        .book-navigation {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #374151;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        .nav-btn {
+            background-color: #374151;
+            color: #f3f4f6;
+            padding: 8px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        .nav-btn:hover {
+            background-color: #4b5563;
+        }
+        .nav-info {
+            color: #9ca3af;
+            font-size: 14px;
+        }
+    </style>
+    
+</head>
+<body>
+<h1>Appendix VI - Cobalt Language Specification</h1>
+<h2>Version 1.0 — Complete Draft</h2>
+<p>**Status:** Design Specification<br>
+**Language family:** C-like systems programming language<br>
+**Primary goals:** memory safety, predictable performance, C interoperability, explicit low-level escape hatches</p>
+<hr>
+<h1>1. Language Definition</h1>
+<p>Cobalt is a statically typed, compiled, C-like systems programming language.</p>
+<p>Cobalt is designed to prevent the following classes of memory errors in safe code:</p>
+<p>* integer overflow leading to invalid memory sizes<br>
+* integer truncation affecting memory operations<br>
+* allocation-size mismatches<br>
+* out-of-bounds indexing<br>
+* out-of-bounds pointer arithmetic<br>
+* invalid memory reads<br>
+* invalid memory writes<br>
+* stale-pointer access<br>
+* use-after-free<br>
+* double free<br>
+* invalid free<br>
+* freeing through the wrong allocator<br>
+* ownership confusion<br>
+* lifetime violations<br>
+* data races</p>
+<p>The fundamental safety model is:</p>
+<pre><code>OBJECT
+    +
+LOCATION
+    +
+AMOUNT
+    +
+LIFETIME
+    +
+OWNERSHIP
+    =
+VALID MEMORY OPERATION</code></pre>
+<p>This directly reflects the central model developed throughout *The Wrong Memory*.</p>
+<hr>
+<h1>2. Design Philosophy</h1>
+<p>Cobalt deliberately resembles C in syntax.</p>
+<p>A C programmer should recognize:</p>
+<pre><code>if (condition) {
+}
+
+for (...) {
+}
+
+while (...) {
+}
+
+struct Point {
+    int x;
+    int y;
+};
+
+Point p;
+
+p.x = 10;</code></pre>
+<p>However, Cobalt changes the semantic defaults.</p>
+<p>In particular:</p>
+<pre><code>Cobalt safe code:
+    memory validity is the default.
+
+Cobalt unsafe code:
+    explicit programmer responsibility.
+
+C interoperability:
+    explicitly isolated boundary.</code></pre>
+<p>The language does not require programmers to manually reconstruct memory-safety proofs for ordinary operations.</p>
+<hr>
+<h1>3. Safety Modes</h1>
+<p>Cobalt has two semantic modes.</p>
+<h2>3.1 Safe</h2>
+<p>All ordinary Cobalt code is safe.</p>
+<p>Safe code cannot:</p>
+<p>* dereference arbitrary raw pointers<br>
+* perform unchecked pointer arithmetic<br>
+* access memory outside an object&#x27;s bounds<br>
+* access an object after its lifetime<br>
+* free memory it does not own<br>
+* free memory twice<br>
+* perform unchecked integer operations that could invalidate memory-safety assumptions<br>
+* create data races through ordinary references</p>
+<h2>3.2 Unsafe</h2>
+<p>Unsafe operations require:</p>
+<pre><code>unsafe {
+    ...
+}</code></pre>
+<p>An unsafe block is an explicit boundary.</p>
+<p>Unsafe code may perform operations unavailable to safe code, including:</p>
+<pre><code>raw pointer dereference
+raw pointer arithmetic
+manual allocation
+manual deallocation
+FFI calls
+representation-level access
+uninitialized-memory operations
+unchecked numeric operations</code></pre>
+<p>Unsafe code remains subject to the language&#x27;s defined semantics. It does not mean &quot;anything the CPU happens to do is valid.&quot;</p>
+<hr>
+<h1>4. Undefined Behavior</h1>
+<p>Cobalt safe code has no language-level undefined behavior resulting from ordinary memory misuse.</p>
+<p>In particular, the following are never silently undefined in safe code:</p>
+<pre><code>integer overflow
+out-of-bounds indexing
+use-after-free
+double free
+invalid free
+null dereference
+dangling reference
+invalid pointer arithmetic
+data race</code></pre>
+<p>An operation either:</p>
+<p>1. is proven valid,<br>
+2. produces a defined failure such as an error or panic,<br>
+3. or is rejected by the compiler.</p>
+<p>Undefined behavior is permitted only within explicitly unsafe operations and only where the specification explicitly identifies an operation as having unsafe preconditions.</p>
+<hr>
+<h1>5. Compilation Pipeline</h1>
+<p>A conforming implementation conceptually performs:</p>
+<pre><code>source
+  ↓
+lexing
+  ↓
+parsing
+  ↓
+AST
+  ↓
+name resolution
+  ↓
+type checking
+  ↓
+constant evaluation
+  ↓
+ownership analysis
+  ↓
+borrow checking
+  ↓
+lifetime checking
+  ↓
+bounds checking analysis
+  ↓
+unsafe verification
+  ↓
+lowering
+  ↓
+code generation</code></pre>
+<p>Optimizations must preserve the observable semantics of valid programs.</p>
+<hr>
+<h1>6. Lexical Structure</h1>
+<p>Identifiers follow:</p>
+<pre><code>identifier:
+    letter
+    _
+    identifier letter
+    identifier digit</code></pre>
+<p>Examples:</p>
+<pre><code>buffer
+packet_length
+Point
+MAX_SIZE</code></pre>
+<p>Keywords include:</p>
+<pre><code>as
+break
+const
+continue
+else
+enum
+extern
+false
+fn
+for
+if
+impl
+import
+in
+let
+match
+module
+move
+mut
+public
+return
+static
+struct
+trait
+true
+type
+unsafe
+union
+use
+while</code></pre>
+<p>Implementations may reserve additional keywords beginning with `__`.</p>
+<hr>
+<h1>7. Primitive Types</h1>
+<p>Cobalt defines fixed-width integer types:</p>
+<pre><code>i8    i16    i32    i64    i128
+u8    u16    u32    u64    u128</code></pre>
+<p>It also defines:</p>
+<pre><code>isize
+usize</code></pre>
+<p>`usize` is capable of representing every valid object size on the target.</p>
+<p>Other primitive types:</p>
+<pre><code>bool
+char
+f32
+f64</code></pre>
+<hr>
+<h1>8. Integer Semantics</h1>
+<p>Integer operations are checked by default.</p>
+<p>For example:</p>
+<pre><code>u32 x = UINT32_MAX;
+u32 y = x + 1;</code></pre>
+<p>does not silently wrap.</p>
+<p>The operation produces a defined overflow failure.</p>
+<p>For operations where wrapping is explicitly intended, the programmer must request it:</p>
+<pre><code>u32 y = x.wrapping_add(1);</code></pre>
+<p>or:</p>
+<pre><code>u32 y = wrapping(x + 1);</code></pre>
+<p>depending on the library/API style.</p>
+<hr>
+<h1>9. Checked Arithmetic</h1>
+<p>The standard integer API provides:</p>
+<pre><code>checked_add()
+checked_sub()
+checked_mul()
+checked_div()
+checked_shl()
+checked_shr()</code></pre>
+<p>Conceptually:</p>
+<pre><code>Result&lt;u64, ArithmeticError&gt; checked_mul(u64 a, u64 b);</code></pre>
+<p>The language also provides checked arithmetic operators where required by context.</p>
+<hr>
+<h1>10. Saturating Arithmetic</h1>
+<p>Saturating operations are explicit:</p>
+<pre><code>x.saturating_add(y);
+x.saturating_sub(y);
+x.saturating_mul(y);</code></pre>
+<hr>
+<h1>11. Wrapping Arithmetic</h1>
+<p>Wrapping operations are explicit:</p>
+<pre><code>x.wrapping_add(y);
+x.wrapping_sub(y);
+x.wrapping_mul(y);</code></pre>
+<p>This prevents accidental wrapping from silently changing an allocation size, offset, or access range.</p>
+<p>The need for this distinction follows directly from the integer-to-allocation failure chain described in Chapter 1.</p>
+<hr>
+<h1>12. Integer Conversions</h1>
+<p>Numeric conversions are explicit when they can lose information.</p>
+<p>For example:</p>
+<pre><code>u64 x = ...;
+u32 y = x;</code></pre>
+<p>is rejected if the conversion cannot be proven safe.</p>
+<p>Instead:</p>
+<pre><code>u32 y = try_cast&lt;u32&gt;(x)?;</code></pre>
+<p>or:</p>
+<pre><code>u32 y = checked_cast&lt;u32&gt;(x);</code></pre>
+<p>may be used.</p>
+<p>Lossy conversion is never implicit.</p>
+<hr>
+<h1>13. Widening Conversions</h1>
+<p>A conversion that is mathematically lossless may be implicit where the target type can represent every source value.</p>
+<p>Example:</p>
+<pre><code>u32 x = 10;
+u64 y = x;</code></pre>
+<p>is permitted.</p>
+<hr>
+<h1>14. Signed/Unsigned Conversion</h1>
+<p>Signed and unsigned conversions are never performed implicitly when they can change the value.</p>
+<p>This specifically prevents the class of bugs where a negative signed value becomes a very large unsigned size.</p>
+<hr>
+<h1>15. Memory-Sized Quantities</h1>
+<p>`usize` represents memory sizes and indexes.</p>
+<p>The following APIs use `usize`:</p>
+<pre><code>allocation sizes
+array indexes
+slice lengths
+slice offsets
+object sizes
+alignment values</code></pre>
+<p>A memory size cannot silently change meaning through a narrowing conversion.</p>
+<hr>
+<h1>16. Size and Alignment</h1>
+<p>The compiler provides:</p>
+<pre><code>sizeof(T)
+alignof(T)</code></pre>
+<p>`sizeof(T)` is a compile-time constant for statically sized types.</p>
+<p>Size calculations used by allocation operations must themselves be checked.</p>
+<hr>
+<h1>17. Checked Size Calculations</h1>
+<p>The standard library provides:</p>
+<pre><code>checked_size_mul(count, sizeof(T))
+checked_size_add(a, b)</code></pre>
+<p>However, ordinary typed containers should make these APIs unnecessary in most code.</p>
+<p>For example:</p>
+<pre><code>Vec&lt;Point&gt; points = Vec&lt;Point&gt;::with_capacity(count);</code></pre>
+<p>is preferable to:</p>
+<pre><code>malloc(count * sizeof(Point));</code></pre>
+<p>because the container owns the relationship between element count and byte capacity.</p>
+<hr>
+<h1>18. Objects</h1>
+<p>Every stored value belongs to an object.</p>
+<p>An object has:</p>
+<pre><code>type
+storage
+size
+alignment
+lifetime
+ownership state</code></pre>
+<p>A pointer or reference does not itself create an object.</p>
+<p>An address existing in the machine address space does not imply that a Cobalt object exists there.</p>
+<p>This explicitly preserves the distinction between:</p>
+<pre><code>address exists</code></pre>
+<p>and:</p>
+<pre><code>object exists</code></pre>
+<p>highlighted in the source material.</p>
+<hr>
+<h1>19. Stack Values</h1>
+<p>Local values normally have automatic storage:</p>
+<pre><code>fn process() {
+    Point p;
+}</code></pre>
+<p>`p` remains alive until its scope ends unless moved earlier.</p>
+<hr>
+<h1>20. Heap Values</h1>
+<p>Heap ownership is represented by an owning type.</p>
+<p>Primary owning pointer:</p>
+<pre><code>Box&lt;T&gt;</code></pre>
+<p>Example:</p>
+<pre><code>Box&lt;Point&gt; p = Box&lt;Point&gt;::new(Point{});</code></pre>
+<p>The owner is responsible for destroying the object.</p>
+<hr>
+<h1>21. No General `free()`</h1>
+<p>Safe Cobalt code does not expose:</p>
+<pre><code>free(pointer);</code></pre>
+<p>for ordinary owned objects.</p>
+<p>Instead:</p>
+<pre><code>Box&lt;Point&gt; p = ...;</code></pre>
+<p>automatically destroys the object when its owner leaves scope.</p>
+<p>This makes allocation and destruction a matched type-level relationship rather than an unrelated pair of function calls.</p>
+<p>The source chapters identify wrong allocator, double free, premature free, interior-pointer free, and wrong-owner free as distinct failure modes.</p>
+<hr>
+<h1>22. Ownership</h1>
+<p>Every non-copyable value has exactly one logical owner.</p>
+<p>Example:</p>
+<pre><code>Box&lt;Data&gt; a = create();
+
+Box&lt;Data&gt; b = move a;</code></pre>
+<p>After the move:</p>
+<pre><code>b owns Data
+a is moved-from</code></pre>
+<p>Using `a` afterward is rejected.</p>
+<hr>
+<h1>23. Copy Semantics</h1>
+<p>A type is copyable only if its definition explicitly permits copying.</p>
+<p>Primitive scalar values are normally copyable.</p>
+<p>Resource-owning types are normally move-only.</p>
+<p>For example:</p>
+<pre><code>Box&lt;File&gt; a = ...;
+Box&lt;File&gt; b = a;</code></pre>
+<p>is invalid.</p>
+<p>Instead:</p>
+<pre><code>Box&lt;File&gt; b = move a;</code></pre>
+<p>transfers ownership.</p>
+<hr>
+<h1>24. Destruction</h1>
+<p>Every owning value has a deterministic destruction point.</p>
+<p>Conceptually:</p>
+<pre><code>construct
+    ↓
+owned
+    ↓
+move / borrow
+    ↓
+last owner leaves scope
+    ↓
+destructor
+    ↓
+lifetime ends</code></pre>
+<p>Destructors run exactly once for each owned object.</p>
+<hr>
+<h1>25. Lifetime</h1>
+<p>Every object has a lifetime:</p>
+<pre><code>creation ---------------- destruction</code></pre>
+<p>A reference must not outlive the object it refers to.</p>
+<p>This turns temporal memory safety into a language rule rather than a programmer convention. The source material explicitly describes lifetime validity as a temporal analogue of spatial bounds.</p>
+<hr>
+<h1>26. References</h1>
+<p>Cobalt has:</p>
+<pre><code>&amp;T
+&amp;mut T</code></pre>
+<p>Example:</p>
+<pre><code>fn print_point(&amp;Point p) {
+    ...
+}</code></pre>
+<p>A shared reference:</p>
+<pre><code>&amp; T</code></pre>
+<p>permits reading but not mutation.</p>
+<p>A mutable reference:</p>
+<pre><code>&amp;mut T</code></pre>
+<p>permits mutation.</p>
+<hr>
+<h1>27. Borrowing</h1>
+<p>Borrowing does not transfer ownership.</p>
+<pre><code>fn inspect(&amp;Data data) {
+    ...
+}
+
+Data d = create();
+
+inspect(&amp;d);
+
+// d still belongs to caller</code></pre>
+<hr>
+<h1>28. Mutable Borrowing</h1>
+<pre><code>fn update(&amp;mut Data data) {
+    data.value += 1;
+}</code></pre>
+<p>At most one active mutable reference may exist for a given object region.</p>
+<p>A mutable reference cannot coexist with incompatible shared references.</p>
+<hr>
+<h1>29. Borrow Checker</h1>
+<p>The compiler verifies:</p>
+<pre><code>references remain within their source lifetime
+mutable aliases do not conflict
+moved values are not subsequently used
+destroyed objects have no live references</code></pre>
+<p>The programmer therefore does not need manual lifetime bookkeeping for normal code.</p>
+<hr>
+<h1>30. Lifetime Elision</h1>
+<p>Common lifetimes need not be written explicitly.</p>
+<p>Example:</p>
+<pre><code>fn first(&amp;Slice&lt;int&gt; values) -&gt; &amp;int;</code></pre>
+<p>The compiler infers that the returned reference is tied to `values`.</p>
+<p>When inference is ambiguous, an explicit lifetime may be required.</p>
+<hr>
+<h1>31. Explicit Lifetimes</h1>
+<p>Cobalt may use C-like lifetime syntax:</p>
+<pre><code>fn first&lt;'a&gt;(&amp;'a Slice&lt;int&gt; values) -&gt; &amp;'a int;</code></pre>
+<p>Lifetimes are compile-time entities.</p>
+<p>They do not necessarily exist at runtime.</p>
+<hr>
+<h1>32. References Are Not Integers</h1>
+<p>A reference cannot be converted into an integer in safe code.</p>
+<p>This prevents the language from reducing an object identity to an arbitrary address.</p>
+<hr>
+<h1>33. Raw Pointers</h1>
+<p>Cobalt supports:</p>
+<pre><code>*const T
+*mut T</code></pre>
+<p>Raw pointers exist primarily for:</p>
+<pre><code>FFI
+device memory
+custom allocators
+OS interfaces
+hardware access
+low-level runtime code</code></pre>
+<p>They are unsafe to dereference.</p>
+<hr>
+<h1>34. Raw Pointer Creation</h1>
+<p>A reference may be converted to a raw pointer:</p>
+<pre><code>*const T p = raw(&amp;value);</code></pre>
+<p>This does not extend the lifetime of `value`.</p>
+<hr>
+<h1>35. Raw Pointer Dereference</h1>
+<p>Raw pointer dereference requires unsafe:</p>
+<pre><code>unsafe {
+    value = *p;
+}</code></pre>
+<p>The programmer is responsible for proving:</p>
+<pre><code>pointer is valid
+object is live
+location is aligned
+object type is correct
+access is permitted
+access size is valid</code></pre>
+<hr>
+<h1>36. Pointer Arithmetic</h1>
+<p>Safe Cobalt does not permit arbitrary raw pointer arithmetic.</p>
+<p>Instead of:</p>
+<pre><code>p + offset</code></pre>
+<p>safe code uses slices or indexed views.</p>
+<p>For example:</p>
+<pre><code>Slice&lt;int&gt; values = ...;
+
+int x = values[index];</code></pre>
+<p>The compiler owns the relationship between:</p>
+<pre><code>base
+element size
+length
+index</code></pre>
+<p>This directly addresses the source chapter&#x27;s observation that an address being calculable does not imply that the corresponding object belongs to the allocation.</p>
+<hr>
+<h1>37. Pointer Arithmetic in Unsafe Code</h1>
+<p>Unsafe code may perform:</p>
+<pre><code>p.add(offset)</code></pre>
+<p>but the resulting pointer is only valid under explicit conditions.</p>
+<p>The implementation must define pointer arithmetic in terms of the allocation/object from which the pointer originated.</p>
+<p>Integer-to-pointer arithmetic is not permitted to manufacture a valid Cobalt reference.</p>
+<hr>
+<h1>38. Arrays</h1>
+<p>Fixed-size arrays use:</p>
+<pre><code>T[N]</code></pre>
+<p>Example:</p>
+<pre><code>int[10] values;</code></pre>
+<p>The compiler knows the exact element count.</p>
+<hr>
+<h1>39. Array Indexing</h1>
+<pre><code>values[index]</code></pre>
+<p>is bounds checked.</p>
+<p>The compiler may eliminate a check only when it can prove:</p>
+<pre><code>0 &lt;= index &lt; N</code></pre>
+<p>If the condition cannot be proven statically, a runtime bounds check is inserted.</p>
+<hr>
+<h1>40. Slice</h1>
+<p>A slice is a non-owning view:</p>
+<pre><code>Slice&lt;T&gt;</code></pre>
+<p>It represents:</p>
+<pre><code>object
+starting position
+element count
+lifetime
+access permissions</code></pre>
+<p>A slice does not own its elements.</p>
+<hr>
+<h1>41. Mutable Slice</h1>
+<pre><code>MutSlice&lt;T&gt;</code></pre>
+<p>is a mutable view.</p>
+<p>Example:</p>
+<pre><code>fn clear(MutSlice&lt;u8&gt; data) {
+    for (usize i = 0; i &lt; data.len(); i++) {
+        data[i] = 0;
+    }
+}</code></pre>
+<p>The slice itself establishes the valid range.</p>
+<hr>
+<h1>42. Slice Invariant</h1>
+<p>For a slice:</p>
+<pre><code>0 &lt;= index &lt; length</code></pre>
+<p>and:</p>
+<pre><code>length &lt;= available object elements</code></pre>
+<p>must hold.</p>
+<p>The programmer cannot construct an ordinary safe slice with a larger logical range than the underlying object.</p>
+<hr>
+<h1>43. Sub-Slicing</h1>
+<pre><code>Slice&lt;T&gt; tail = values.subslice(start, count)?;</code></pre>
+<p>The operation verifies:</p>
+<pre><code>start &lt;= length
+count &lt;= length - start</code></pre>
+<p>The subtraction-first form avoids overflow in:</p>
+<pre><code>start + count</code></pre>
+<p>and mirrors the defensive invariant emphasized by the source material.</p>
+<hr>
+<h1>44. Capacity and Length</h1>
+<p>Dynamic containers distinguish:</p>
+<pre><code>length
+capacity</code></pre>
+<p>`length` is the number of initialized logical elements.</p>
+<p>`capacity` is the number of elements for which storage has been reserved.</p>
+<p>They are never interchangeable.</p>
+<p>The source material explicitly identifies confusion between logical length and physical capacity as a recurring source of errors.</p>
+<hr>
+<h1>45. Vector</h1>
+<p>The standard dynamic array is:</p>
+<pre><code>Vec&lt;T&gt;</code></pre>
+<p>Example:</p>
+<pre><code>Vec&lt;int&gt; values;
+
+values.push(10);
+values.push(20);</code></pre>
+<p>The vector maintains:</p>
+<pre><code>pointer
+length
+capacity
+element type
+allocation ownership</code></pre>
+<p>as one abstraction.</p>
+<hr>
+<h1>46. Vector Growth</h1>
+<p>A vector&#x27;s growth algorithm must establish:</p>
+<pre><code>new_capacity &gt;= required_length</code></pre>
+<p>and:</p>
+<pre><code>new_capacity * sizeof(T)</code></pre>
+<p>must be representable.</p>
+<p>Growth arithmetic cannot silently wrap.</p>
+<hr>
+<h1>47. Reserve</h1>
+<pre><code>values.reserve(additional)?;</code></pre>
+<p>establishes enough capacity for `additional` new elements before insertion.</p>
+<p>The conceptual invariant is:</p>
+<pre><code>additional &lt;= capacity - length</code></pre>
+<p>after successful reservation.</p>
+<p>This centralizes the arithmetic and allocation relationship rather than scattering checks throughout callers.</p>
+<hr>
+<h1>48. Reallocation</h1>
+<p>A vector may move its underlying storage when it grows.</p>
+<p>Any references or slices into the vector are therefore invalidated unless the operation&#x27;s API explicitly guarantees otherwise.</p>
+<p>The borrow checker prevents use of invalidated references.</p>
+<hr>
+<h1>49. Memory Copying</h1>
+<p>Cobalt does not expose raw `memcpy` as the normal copying primitive.</p>
+<p>For typed objects:</p>
+<pre><code>copy(destination, source);</code></pre>
+<p>requires compatible types and ranges.</p>
+<p>For byte ranges:</p>
+<pre><code>copy_bytes(destination, source);</code></pre>
+<p>requires both source and destination byte ranges to be valid.</p>
+<hr>
+<h1>50. Copy as Range-to-Range Operation</h1>
+<p>A memory copy is defined as:</p>
+<pre><code>source range
+        ↓
+destination range</code></pre>
+<p>not:</p>
+<pre><code>pointer A
+        ↓
+pointer B</code></pre>
+<p>Both ranges must be established.</p>
+<p>This follows the central lesson of Chapter 5.</p>
+<hr>
+<h1>51. Typed Copy</h1>
+<p>For:</p>
+<pre><code>copy(dst, src);</code></pre>
+<p>the compiler verifies:</p>
+<pre><code>source contains enough initialized T objects
+destination contains enough writable T slots
+source and destination lifetimes are valid
+types are compatible</code></pre>
+<hr>
+<h1>52. Byte Copy</h1>
+<p>Byte-level copying uses:</p>
+<pre><code>ByteSlice
+MutByteSlice</code></pre>
+<p>rather than arbitrary pointer-plus-length combinations.</p>
+<p>Example:</p>
+<pre><code>copy_bytes(dst.bytes(), src.bytes());</code></pre>
+<p>The ranges themselves carry the available size.</p>
+<hr>
+<h1>53. Copy Length</h1>
+<p>A normal safe copy does not accept an independent arbitrary length:</p>
+<pre><code>memcpy(dst, src, attacker_length);</code></pre>
+<p>Instead:</p>
+<pre><code>copy(dst, src);</code></pre>
+<p>derives the amount from the validated ranges.</p>
+<p>If copying a deliberately smaller amount:</p>
+<pre><code>copy_prefix(dst, src, count)?;</code></pre>
+<p>the operation checks both:</p>
+<pre><code>count &lt;= source.length
+count &lt;= destination.length</code></pre>
+<p>The source material identifies both source and destination bounds as necessary.</p>
+<hr>
+<h1>54. Overlapping Copy</h1>
+<p>For potentially overlapping ranges:</p>
+<pre><code>move_range(dst, src);</code></pre>
+<p>is used.</p>
+<p>For non-overlapping ranges:</p>
+<pre><code>copy(dst, src);</code></pre>
+<p>may provide stronger optimization guarantees.</p>
+<hr>
+<h1>55. Reading Memory</h1>
+<p>A read requires a valid source range.</p>
+<p>For example:</p>
+<pre><code>u32 value = read_u32(input)?;</code></pre>
+<p>requires enough bytes in `input`.</p>
+<p>The parser cannot merely trust a length field contained in the input.</p>
+<p>A length field is treated as a claim until validated against the actual available range.</p>
+<hr>
+<h1>56. Typed Reads</h1>
+<p>Reading a typed object from bytes requires:</p>
+<pre><code>sufficient size
+alignment if required
+valid representation
+correct type
+initialized storage</code></pre>
+<p>A buffer containing enough bytes does not automatically become a valid object of every type.</p>
+<p>This distinction is explicitly highlighted in Chapter 6.</p>
+<hr>
+<h1>57. Uninitialized Memory</h1>
+<p>Cobalt distinguishes:</p>
+<pre><code>allocated
+initialized
+live</code></pre>
+<p>storage.</p>
+<p>An allocation may contain storage that has not yet been initialized as a `T`.</p>
+<p>Safe code cannot read an uninitialized `T`.</p>
+<hr>
+<h1>58. MaybeUninit</h1>
+<p>Low-level code may use:</p>
+<pre><code>MaybeUninit&lt;T&gt;</code></pre>
+<p>to represent allocated but uninitialized storage.</p>
+<p>Example:</p>
+<pre><code>MaybeUninit&lt;T&gt; slot;</code></pre>
+<p>A value can only be converted to `T` after initialization has been established.</p>
+<hr>
+<h1>59. Writing Memory</h1>
+<p>A typed write requires a valid writable destination.</p>
+<pre><code>buffer[index] = value;</code></pre>
+<p>is valid only if:</p>
+<pre><code>buffer is live
+index is in bounds
+destination is writable
+value has compatible type</code></pre>
+<hr>
+<h1>60. Complete Write Range</h1>
+<p>For a write beginning at offset `o` with size `n`, validity requires:</p>
+<pre><code>o &lt;= capacity
+n &lt;= capacity - o</code></pre>
+<p>rather than calculating:</p>
+<pre><code>o + n</code></pre>
+<p>first and hoping it does not overflow.</p>
+<p>This captures the complete-range requirement described in Chapters 1 and 7.</p>
+<hr>
+<h1>61. Location Safety</h1>
+<p>Every safe memory operation has an object identity.</p>
+<p>The language does not define safety merely in terms of numerical addresses.</p>
+<p>A valid operation must establish:</p>
+<pre><code>intended object
++
+location within object
++
+valid range</code></pre>
+<p>A correct size at an incorrect location is still invalid.</p>
+<p>Chapter 8 explicitly identifies wrong base, wrong offset, wrong unit, wrong index, overflow, stale pointer, and wrong object as independent ways to obtain a wrong location.</p>
+<hr>
+<h1>62. Units</h1>
+<p>Memory-related quantities have semantic units.</p>
+<p>Examples:</p>
+<pre><code>elements
+bytes
+bits
+characters
+records</code></pre>
+<p>The type system should prevent accidental interchange where practical.</p>
+<p>For example:</p>
+<pre><code>ElementCount
+ByteCount</code></pre>
+<p>may be distinct standard-library types for APIs where unit confusion would be dangerous.</p>
+<hr>
+<h1>63. Object Identity</h1>
+<p>Every allocation has a unique logical identity.</p>
+<p>An address does not identify an allocation independently of its lifetime.</p>
+<p>After destruction:</p>
+<pre><code>old pointer</code></pre>
+<p>does not become a pointer to a new object merely because an allocator later reuses the same numerical address.</p>
+<hr>
+<h1>64. Use After Free</h1>
+<p>Safe Cobalt cannot produce:</p>
+<pre><code>Box&lt;T&gt; p = ...;
+
+&amp;T ref = p.borrow();
+
+drop(p);
+
+use(ref);</code></pre>
+<p>because `ref` prevents destruction while it remains live.</p>
+<hr>
+<h1>65. Ownership and Destruction</h1>
+<p>An object may be destroyed only when:</p>
+<pre><code>its owner is being destroyed</code></pre>
+<p>or through an explicitly defined ownership-consuming operation.</p>
+<p>No ordinary function may arbitrarily destroy an object through a borrowed reference.</p>
+<hr>
+<h1>66. Reference Counting</h1>
+<p>Shared ownership is represented by an explicit type:</p>
+<pre><code>Rc&lt;T&gt;
+Arc&lt;T&gt;</code></pre>
+<p>`Rc&lt;T&gt;` is for single-threaded shared ownership.</p>
+<p>`Arc&lt;T&gt;` is for thread-safe shared ownership.</p>
+<p>The reference-count implementation guarantees that the object remains alive while valid owners exist.</p>
+<p>Reference counting does not automatically solve cycles; cyclic structures require weak references or another strategy.</p>
+<p>The source material identifies explicit lifetime management as the purpose of reference counting.</p>
+<hr>
+<h1>67. Weak References</h1>
+<pre><code>Weak&lt;T&gt;</code></pre>
+<p>does not keep an object alive.</p>
+<p>Upgrading a weak reference produces:</p>
+<pre><code>Option&lt;StrongReference&gt;</code></pre>
+<p>rather than an invalid reference.</p>
+<hr>
+<h1>68. Nullability</h1>
+<p>Ordinary references cannot be null.</p>
+<p>Optional references use:</p>
+<pre><code>Option&lt;&amp;T&gt;
+Option&lt;&amp;mut T&gt;</code></pre>
+<p>Pointers that may be absent use:</p>
+<pre><code>Option&lt;*const T&gt;
+Option&lt;*mut T&gt;</code></pre>
+<p>or a dedicated nullable pointer representation where ABI requires it.</p>
+<hr>
+<h1>69. No Null Dereference in Safe Code</h1>
+<p>Because ordinary references are non-null, this is impossible in safe code:</p>
+<pre><code>*T</code></pre>
+<p>where `T` is absent.</p>
+<hr>
+<h1>70. Structs</h1>
+<p>C-like structures:</p>
+<pre><code>struct Point {
+    int x;
+    int y;
+}</code></pre>
+<p>Fields are initialized according to the type&#x27;s initialization rules.</p>
+<p>Uninitialized fields are not silently permitted.</p>
+<hr>
+<h1>71. Enums</h1>
+<p>Enums provide tagged alternatives:</p>
+<pre><code>enum Result&lt;T, E&gt; {
+    Ok(T),
+    Err(E)
+}</code></pre>
+<p>The compiler ensures that only valid variants are constructed.</p>
+<hr>
+<h1>72. Tagged Unions</h1>
+<p>Cobalt may provide:</p>
+<pre><code>union Value {
+    int i;
+    float f;
+}</code></pre>
+<p>but safe access requires a valid active representation.</p>
+<p>For unrestricted representation-level union access, unsafe code may be required.</p>
+<hr>
+<h1>73. Type Representation</h1>
+<p>Every type has:</p>
+<pre><code>size
+alignment
+layout
+valid bit patterns</code></pre>
+<p>The compiler may add padding according to target ABI rules.</p>
+<p>The language does not permit arbitrary reinterpretation of a value as another type merely because their sizes match.</p>
+<hr>
+<h1>74. Bit-Level Access</h1>
+<p>Explicit byte/bit operations are provided through:</p>
+<pre><code>Byte
+ByteSlice
+bit_cast&lt;T&gt;()</code></pre>
+<p>`bit_cast` is legal only when both types have compatible representation requirements.</p>
+<hr>
+<h1>75. `char` and Strings</h1>
+<p>Strings are not raw C character arrays.</p>
+<p>Primary types:</p>
+<pre><code>String
+StringView</code></pre>
+<p>A `String` owns its contents.</p>
+<p>A `StringView` borrows them.</p>
+<p>UTF-8 validity is maintained by the string abstraction.</p>
+<p>Raw bytes use:</p>
+<pre><code>ByteSlice</code></pre>
+<p>rather than `StringView`.</p>
+<hr>
+<h1>76. Functions</h1>
+<p>Functions use C-like syntax:</p>
+<pre><code>fn add(int a, int b) -&gt; int {
+    return a + b;
+}</code></pre>
+<p>Function types are first-class where supported.</p>
+<hr>
+<h1>77. Error Handling</h1>
+<p>Recoverable failures use:</p>
+<pre><code>Result&lt;T, E&gt;</code></pre>
+<p>Optional values use:</p>
+<pre><code>Option&lt;T&gt;</code></pre>
+<p>The `?` operator propagates errors:</p>
+<pre><code>fn load() -&gt; Result&lt;Data, Error&gt; {
+    Data d = read_data()?;
+    return Ok(d);
+}</code></pre>
+<hr>
+<h1>78. Panics</h1>
+<p>A panic is a controlled runtime failure.</p>
+<p>Examples include:</p>
+<pre><code>unrecoverable bounds failure
+explicit panic
+assertion failure</code></pre>
+<p>Implementations may configure panic behavior as:</p>
+<pre><code>abort
+unwind</code></pre>
+<p>subject to ABI/runtime restrictions.</p>
+<hr>
+<h1>79. Bounds Failure</h1>
+<p>A dynamic bounds violation in safe code produces a defined failure.</p>
+<p>It cannot become arbitrary memory corruption.</p>
+<hr>
+<h1>80. Compile-Time Bounds Elimination</h1>
+<p>The compiler may remove a runtime bounds check when static analysis proves the index valid.</p>
+<p>For example:</p>
+<pre><code>for (usize i = 0; i &lt; values.len(); i++) {
+    process(values[i]);
+}</code></pre>
+<p>may compile without repeated bounds checks.</p>
+<p>Optimization must preserve semantics.</p>
+<hr>
+<h1>81. Generics</h1>
+<p>Cobalt supports parametric generics:</p>
+<pre><code>struct Box&lt;T&gt; {
+    T value;
+}</code></pre>
+<p>Generic constraints use traits:</p>
+<pre><code>fn print&lt;T: Display&gt;(T value) {
+    ...
+}</code></pre>
+<hr>
+<h1>82. Traits</h1>
+<p>Traits define behavior:</p>
+<pre><code>trait Display {
+    fn display(&amp;self) -&gt; String;
+}</code></pre>
+<p>Implementations:</p>
+<pre><code>impl Display for Point {
+    fn display(&amp;self) -&gt; String {
+        ...
+    }
+}</code></pre>
+<hr>
+<h1>83. Generic Memory Safety</h1>
+<p>Generic code receives the same memory guarantees as concrete code.</p>
+<p>A generic function cannot assume that:</p>
+<pre><code>T is Copy
+T has trivial destruction
+T has a fixed runtime size
+T may be aliased</code></pre>
+<p>unless its constraints establish those properties.</p>
+<hr>
+<h1>84. Sized and Dynamically Sized Types</h1>
+<p>Types may be:</p>
+<pre><code>Sized
+Dynamically sized</code></pre>
+<p>A generic parameter is `Sized` by default unless explicitly declared otherwise.</p>
+<hr>
+<h1>85. `unsafe` Trait Contracts</h1>
+<p>A trait may declare operations requiring an unsafe implementation.</p>
+<p>Example:</p>
+<pre><code>unsafe trait RawAllocator {
+    ...
+}</code></pre>
+<p>The implementation is responsible for satisfying the documented invariants.</p>
+<hr>
+<h1>86. Modules</h1>
+<p>Modules use:</p>
+<pre><code>module graphics {
+    ...
+}</code></pre>
+<p>Imports:</p>
+<pre><code>import graphics::Point;</code></pre>
+<p>Aliases:</p>
+<pre><code>import graphics as gfx;</code></pre>
+<p>Visibility is explicit:</p>
+<pre><code>public struct Point {
+    ...
+}</code></pre>
+<hr>
+<h1>87. Name Resolution</h1>
+<p>Name resolution occurs before type checking.</p>
+<p>Each local binding has a unique compiler identity.</p>
+<p>Thus:</p>
+<pre><code>let value = 10;
+
+{
+    let value = 20;
+    use(value);
+}
+
+use(value);</code></pre>
+<p>contains two distinct bindings.</p>
+<hr>
+<h1>88. Visibility</h1>
+<p>Declarations are private by default.</p>
+<p>Public declarations require:</p>
+<pre><code>public</code></pre>
+<p>A public API cannot expose inaccessible private implementation types.</p>
+<hr>
+<h1>89. Pattern Matching</h1>
+<p>Cobalt supports:</p>
+<pre><code>match result {
+    Ok(value) =&gt; process(value),
+    Err(error) =&gt; report(error)
+}</code></pre>
+<p>Pattern bindings are scoped to their match arm.</p>
+<p>The compiler verifies exhaustiveness where required.</p>
+<hr>
+<h1>90. `let`</h1>
+<p>Local declarations:</p>
+<pre><code>let value = expression;
+let mut value = expression;</code></pre>
+<p>A mutable binding permits reassignment.</p>
+<p>Mutability is distinct from ownership.</p>
+<hr>
+<h1>91. Assignment</h1>
+<p>Assignment:</p>
+<pre><code>value = expression;</code></pre>
+<p>is permitted only when `value` is mutable.</p>
+<p>Assignment to a borrowed shared reference is forbidden.</p>
+<hr>
+<h1>92. Move Expression</h1>
+<p>Explicit moves use:</p>
+<pre><code>move value</code></pre>
+<p>Some contexts may infer moves automatically when the type is move-only.</p>
+<hr>
+<h1>93. Closures</h1>
+<p>Closures capture variables according to ownership rules.</p>
+<p>A closure may capture by:</p>
+<pre><code>shared borrow
+mutable borrow
+move</code></pre>
+<p>The compiler selects or requires the appropriate capture mode.</p>
+<p>A closure cannot outlive a borrowed variable it captures.</p>
+<hr>
+<h1>94. Iteration</h1>
+<p>Iteration uses:</p>
+<pre><code>for (item in collection) {
+    ...
+}</code></pre>
+<p>The iterator API defines whether iteration:</p>
+<pre><code>moves elements
+borrows elements
+mutably borrows elements</code></pre>
+<hr>
+<h1>95. Concurrency</h1>
+<p>Cobalt&#x27;s concurrency model is ownership-aware.</p>
+<p>A value may be transferred between threads only when its type satisfies the required thread-safety traits.</p>
+<hr>
+<h1>96. Data Races</h1>
+<p>Safe Cobalt cannot contain a data race.</p>
+<p>The compiler prevents unsynchronized concurrent mutable access.</p>
+<p>Shared mutable state requires explicit synchronization.</p>
+<hr>
+<h1>97. Atomics</h1>
+<p>The standard library provides:</p>
+<pre><code>Atomic&lt;T&gt;
+AtomicBool
+AtomicInt
+AtomicPtr</code></pre>
+<p>where supported by the target.</p>
+<p>Memory ordering is explicit:</p>
+<pre><code>relaxed
+acquire
+release
+acq_rel
+seq_cst</code></pre>
+<hr>
+<h1>98. Mutexes</h1>
+<p>Synchronization primitives provide scoped guards:</p>
+<pre><code>lock(mutex) {
+    shared_state.update();
+}</code></pre>
+<p>The guard automatically releases the lock when leaving scope.</p>
+<hr>
+<h1>99. FFI</h1>
+<p>Cobalt supports C interoperability through:</p>
+<pre><code>extern "C" {
+    fn c_function(...);
+}</code></pre>
+<p>FFI calls are unsafe unless wrapped by a safe abstraction whose invariants have been established.</p>
+<hr>
+<h1>100. C Pointers</h1>
+<p>C pointer parameters are represented explicitly:</p>
+<pre><code>extern "C" fn process(*mut CData);</code></pre>
+<p>The compiler does not assume that an arbitrary C pointer is safe.</p>
+<hr>
+<h1>101. C Strings</h1>
+<p>C strings use explicit types:</p>
+<pre><code>CStr
+CString</code></pre>
+<p>rather than treating arbitrary `char*` as safe strings.</p>
+<p>A C string wrapper must establish:</p>
+<pre><code>valid address
+valid lifetime
+terminating NUL
+maximum search range</code></pre>
+<hr>
+<h1>102. FFI Ownership</h1>
+<p>FFI declarations must specify ownership where necessary.</p>
+<p>For example, APIs may distinguish:</p>
+<pre><code>borrowed pointer
+owned pointer
+callee-owned result
+caller-owned result</code></pre>
+<p>Safe wrappers must encode those rules.</p>
+<hr>
+<h1>103. Foreign Allocation</h1>
+<p>Memory allocated by a foreign allocator cannot be released using an unrelated Cobalt allocator.</p>
+<p>The corresponding release function must be used.</p>
+<p>This prevents allocator-mismatch bugs identified in the source material.</p>
+<hr>
+<h1>104. Allocator API</h1>
+<p>Advanced code may define:</p>
+<pre><code>trait Allocator {
+    fn allocate(Layout layout) -&gt; Result&lt;Allocation, AllocError&gt;;
+    fn deallocate(Allocation allocation);
+}</code></pre>
+<p>The `Allocation` object records the allocation identity and layout.</p>
+<p>An interior pointer cannot be supplied where an `Allocation` is required.</p>
+<hr>
+<h1>105. Allocation Identity</h1>
+<p>An allocation consists conceptually of:</p>
+<pre><code>allocation_id
+base
+size
+alignment
+allocator
+lifetime</code></pre>
+<p>The allocator may use any physical representation.</p>
+<p>The logical identity is maintained by the language/runtime model.</p>
+<hr>
+<h1>106. Deallocation</h1>
+<p>An allocation may be deallocated only when:</p>
+<pre><code>caller owns allocation
+allocation is live
+allocator matches
+pointer/handle identifies the allocation itself
+no required references remain</code></pre>
+<p>Double deallocation is rejected by ownership rules in safe abstractions.</p>
+<hr>
+<h1>107. Secure Erasure</h1>
+<p>Destroying an object does not imply that its physical bytes are erased.</p>
+<p>Explicit secure erasure is a separate operation:</p>
+<pre><code>secure_zero(bytes);</code></pre>
+<p>The source material explicitly distinguishes lifetime termination from physical erasure.</p>
+<hr>
+<h1>108. Memory-Mapped and Device Memory</h1>
+<p>Device and memory-mapped regions are represented by explicit unsafe abstractions.</p>
+<p>The implementation may provide:</p>
+<pre><code>Volatile&lt;T&gt;
+Mmio&lt;T&gt;</code></pre>
+<p>to prevent ordinary compiler transformations from violating hardware semantics.</p>
+<hr>
+<h1>109. Volatile</h1>
+<p>`volatile` access is not a general memory-safety mechanism.</p>
+<p>It specifies observable access behavior for special memory.</p>
+<p>It does not disable:</p>
+<pre><code>bounds checking
+ownership
+lifetimes
+type checking</code></pre>
+<hr>
+<h1>110. Compiler Intrinsics</h1>
+<p>Compiler intrinsics may exist for:</p>
+<pre><code>SIMD
+atomics
+CPU instructions
+memory barriers
+ABI operations</code></pre>
+<p>Unsafe intrinsics require explicit unsafe context unless wrapped in a safe abstraction.</p>
+<hr>
+<h1>111. Constants</h1>
+<p>Constants:</p>
+<pre><code>const usize MAX_PACKET = 4096;</code></pre>
+<p>must be initialized with compile-time evaluable expressions.</p>
+<hr>
+<h1>112. Compile-Time Arithmetic</h1>
+<p>Compile-time arithmetic is checked.</p>
+<p>An overflowing constant expression is a compile-time error unless explicitly using a wrapping operation.</p>
+<hr>
+<h1>113. Array Dimensions</h1>
+<p>Array dimensions must be representable and non-negative.</p>
+<p>For:</p>
+<pre><code>T[N]</code></pre>
+<p>the compiler must ensure:</p>
+<pre><code>N * sizeof(T)</code></pre>
+<p>is representable.</p>
+<hr>
+<h1>114. Layout Overflow</h1>
+<p>A type whose layout cannot be represented on the target is rejected.</p>
+<p>This includes:</p>
+<pre><code>array size overflow
+struct layout overflow
+alignment overflow
+padding overflow</code></pre>
+<hr>
+<h1>115. Struct Layout</h1>
+<p>By default, the compiler controls field layout.</p>
+<p>An explicit C-compatible layout may be requested:</p>
+<pre><code>@repr(C)
+struct Header {
+    u32 length;
+    u16 type;
+}</code></pre>
+<hr>
+<h1>116. Packed Layout</h1>
+<p>Packed structures require explicit annotation:</p>
+<pre><code>@repr(packed)</code></pre>
+<p>Access to misaligned fields may require special operations or unsafe code.</p>
+<p>The compiler must not silently create invalid aligned references.</p>
+<hr>
+<h1>117. Serialization</h1>
+<p>Safe serialization APIs operate on explicit byte ranges.</p>
+<p>A serializer establishes:</p>
+<pre><code>output capacity
+encoded size
+representation validity</code></pre>
+<p>before writing.</p>
+<hr>
+<h1>118. Deserialization</h1>
+<p>Deserialization treats external lengths and counts as untrusted.</p>
+<p>For:</p>
+<pre><code>u32 length = read_u32(input)?;</code></pre>
+<p>`length` is initially merely an input claim.</p>
+<p>The parser must establish its relationship to:</p>
+<pre><code>remaining input
+available output
+maximum permitted size</code></pre>
+<p>before using it as a memory boundary.</p>
+<p>This is a direct application of the source&#x27;s &quot;length fields are claims, not facts&quot; principle.</p>
+<hr>
+<h1>119. Arithmetic-to-Memory Invariant</h1>
+<p>Whenever a quantity influences memory, the compiler and/or API must preserve the relationship:</p>
+<pre><code>external value
+    ↓
+interpretation
+    ↓
+conversion
+    ↓
+arithmetic
+    ↓
+size / offset
+    ↓
+object
+    ↓
+range
+    ↓
+memory operation</code></pre>
+<p>An earlier validation does not automatically validate a later transformed quantity.</p>
+<hr>
+<h1>120. Security-Critical Quantities</h1>
+<p>The following are treated as memory-relevant:</p>
+<pre><code>count
+length
+size
+capacity
+offset
+stride
+index
+width
+height
+element_size
+alignment</code></pre>
+<p>Their types and transformations must remain explicit.</p>
+<p>The source material repeatedly emphasizes following such quantities through the complete chain rather than inspecting individual operations in isolation.</p>
+<hr>
+<h1>121. Complete Memory Operation Rule</h1>
+<p>Every safe memory operation must establish five properties:</p>
+<pre><code>1. OBJECT
+   Which object is involved?
+
+2. LOCATION
+   Where within that object?
+
+3. AMOUNT
+   How much memory?
+
+4. LIFETIME
+   Is the object currently alive?
+
+5. OWNERSHIP / AUTHORITY
+   Does this operation have the right to access it?</code></pre>
+<p>This is the fundamental Cobalt memory rule.</p>
+<hr>
+<h1>122. Read Rule</h1>
+<p>A read is valid only if:</p>
+<pre><code>source object is live
+source location is within object
+source range is readable
+source representation is valid
+source value is initialized</code></pre>
+<hr>
+<h1>123. Write Rule</h1>
+<p>A write is valid only if:</p>
+<pre><code>destination object is live
+destination location is within object
+destination range is writable
+destination representation is valid
+caller has appropriate ownership/borrow authority</code></pre>
+<hr>
+<h1>124. Copy Rule</h1>
+<p>A copy is valid only if:</p>
+<pre><code>source object is live
+destination object is live
+source range is readable
+destination range is writable
+source amount is valid
+destination amount is sufficient
+types/representations are compatible
+overlap rules are satisfied</code></pre>
+<hr>
+<h1>125. Address Rule</h1>
+<p>A pointer/reference derivation is valid only if:</p>
+<pre><code>base identifies a live object
+offset is expressed in the correct unit
+offset is representable
+result remains within the permitted object range</code></pre>
+<p>A pointer calculation cannot create authority to access another object.</p>
+<hr>
+<h1>126. Lifetime Rule</h1>
+<p>An access is invalid if:</p>
+<pre><code>object lifetime ended</code></pre>
+<p>regardless of whether:</p>
+<pre><code>old address still contains bytes</code></pre>
+<p>or:</p>
+<pre><code>allocator has reused the address.</code></pre>
+<hr>
+<h1>127. Ownership Rule</h1>
+<p>Destruction is valid only if:</p>
+<pre><code>caller owns the object</code></pre>
+<p>or:</p>
+<pre><code>caller possesses an explicitly defined destruction capability.</code></pre>
+<p>A borrowed reference never implies ownership.</p>
+<hr>
+<h1>128. Bounds Rule</h1>
+<p>For a range:</p>
+<pre><code>[start, start + length)</code></pre>
+<p>the compiler/runtime must establish:</p>
+<pre><code>start &lt;= capacity
+length &lt;= capacity - start</code></pre>
+<p>rather than relying on an unchecked sum.</p>
+<hr>
+<h1>129. Integer-to-Memory Rule</h1>
+<p>A checked integer operation does not automatically make a memory operation safe.</p>
+<p>The resulting quantity must still correspond to the actual object&#x27;s capacity.</p>
+<p>Likewise, a valid allocation does not prove that later code is using the allocation correctly.</p>
+<p>This distinction is central to the source material&#x27;s treatment of allocators.</p>
+<hr>
+<h1>130. Allocation Invariant</h1>
+<p>For a container:</p>
+<pre><code>length &lt;= capacity</code></pre>
+<p>and:</p>
+<pre><code>capacity * sizeof(T) &lt;= maximum representable allocation size</code></pre>
+<p>must hold.</p>
+<hr>
+<h1>131. Mutation Invariant</h1>
+<p>If an operation adds `additional` elements:</p>
+<p>Without reallocation:</p>
+<pre><code>additional &lt;= capacity - length</code></pre>
+<p>With reallocation:</p>
+<pre><code>new_capacity &gt;= length + additional</code></pre>
+<p>and the new capacity must fit the target representation.</p>
+<hr>
+<h1>132. No Independent Metadata Obligation</h1>
+<p>A safe container should not expose mutable independent:</p>
+<pre><code>pointer
+length
+capacity</code></pre>
+<p>fields to ordinary code.</p>
+<p>These values must be maintained together by the container abstraction.</p>
+<p>This is a deliberate structural response to the source material&#x27;s recommendation to centralize resizing and preserve related invariants.</p>
+<hr>
+<h1>133. Borrowed Range Invalidation</h1>
+<p>Operations that can invalidate storage must be rejected while incompatible borrows exist.</p>
+<p>Example:</p>
+<pre><code>Vec&lt;int&gt; v;
+
+Slice&lt;int&gt; s = v.slice();
+
+v.push(10);      // potentially reallocating
+
+use(s);          // rejected</code></pre>
+<hr>
+<h1>134. Stable Storage</h1>
+<p>A container may explicitly provide stable references:</p>
+<pre><code>StableVec&lt;T&gt;</code></pre>
+<p>if its implementation guarantees that inserting elements does not invalidate existing object locations.</p>
+<hr>
+<h1>135. Iterator Invalidation</h1>
+<p>Every collection API must document which operations invalidate:</p>
+<pre><code>references
+slices
+iterators
+pointers</code></pre>
+<p>The compiler must enforce invalidation rules where they can be represented statically.</p>
+<hr>
+<h1>136. Aliasing</h1>
+<p>Safe mutable access follows:</p>
+<pre><code>many readers
+OR
+one writer</code></pre>
+<p>but not both simultaneously for overlapping memory.</p>
+<p>This applies to:</p>
+<pre><code>references
+slices
+iterators
+views</code></pre>
+<hr>
+<h1>137. Partial Borrowing</h1>
+<p>Cobalt may borrow disjoint fields independently:</p>
+<pre><code>&amp;mut point.x
+&amp;mut point.y</code></pre>
+<p>because the compiler can prove that the memory regions do not overlap.</p>
+<hr>
+<h1>138. Array Element Borrowing</h1>
+<p>Distinct array elements may be mutably borrowed simultaneously when the compiler can establish distinct indexes.</p>
+<p>For dynamically computed indexes, an API may require a checked splitting operation:</p>
+<pre><code>(left, right) = slice.split_at(index)?;</code></pre>
+<hr>
+<h1>139. Unsafe Escape Hatch</h1>
+<p>The language must make unsafe operations visually obvious:</p>
+<pre><code>unsafe {
+    *raw = value;
+}</code></pre>
+<p>Unsafe code cannot silently contaminate an entire module.</p>
+<p>The boundary is lexical and reviewable.</p>
+<hr>
+<h1>140. Unsafe Contracts</h1>
+<p>An unsafe function documents preconditions.</p>
+<p>Example:</p>
+<pre><code>unsafe fn from_raw_parts(
+    *mut T pointer,
+    usize length
+) -&gt; MutSlice&lt;T&gt;;</code></pre>
+<p>Its contract may require:</p>
+<pre><code>pointer identifies a live allocation
+pointer is correctly aligned
+length does not exceed allocation capacity
+elements are initialized</code></pre>
+<p>The compiler does not prove these conditions; the caller assumes responsibility.</p>
+<hr>
+<h1>141. Safe Wrappers</h1>
+<p>Unsafe functionality should normally be encapsulated:</p>
+<pre><code>public fn parse_packet(ByteSlice input)
+    -&gt; Result&lt;Packet, ParseError&gt;
+{
+    ...
+}</code></pre>
+<p>The unsafe portion is minimized and surrounded by checked invariants.</p>
+<hr>
+<h1>142. Unsafe Does Not Mean Unspecified</h1>
+<p>Every unsafe operation still has specified behavior where its preconditions are satisfied.</p>
+<p>Violating an unsafe precondition constitutes a programmer error outside the guarantees of safe Cobalt.</p>
+<hr>
+<h1>143. Diagnostics</h1>
+<p>Diagnostics should identify the violated invariant.</p>
+<p>For example:</p>
+<pre><code>error[E0421]: index out of bounds
+
+  values[index]
+        ^^^^^
+
+index has type usize
+index may be 10
+values contains 10 elements
+valid indexes are 0..10</code></pre>
+<hr>
+<h1>144. Use-After-Move Diagnostic</h1>
+<p>Example:</p>
+<pre><code>error[E0310]: use of moved value
+
+  Box&lt;Data&gt; b = move a;
+                    ^ value moved here
+
+  use(a);
+      ^ value used after move</code></pre>
+<hr>
+<h1>145. Borrow Diagnostic</h1>
+<p>Example:</p>
+<pre><code>error[E0412]: cannot mutably borrow while shared borrow exists</code></pre>
+<p>Diagnostics should identify both borrow sites.</p>
+<hr>
+<h1>146. Integer Overflow Diagnostic</h1>
+<p>Compile-time:</p>
+<pre><code>error[E0201]: integer overflow in constant expression</code></pre>
+<p>Runtime checked arithmetic produces a defined arithmetic failure rather than memory corruption.</p>
+<hr>
+<h1>147. Invalid Conversion Diagnostic</h1>
+<pre><code>error[E0204]: narrowing conversion requires explicit checked conversion</code></pre>
+<p>The compiler should explain the possible range loss.</p>
+<hr>
+<h1>148. Unsafe Diagnostic</h1>
+<p>Attempting:</p>
+<pre><code>*p</code></pre>
+<p>outside unsafe code produces:</p>
+<pre><code>error[E0501]: raw pointer dereference requires unsafe context</code></pre>
+<hr>
+<h1>149. Invalid Free Diagnostic</h1>
+<p>Safe APIs should make ordinary invalid frees unrepresentable.</p>
+<p>If low-level allocator APIs are used incorrectly:</p>
+<pre><code>error: allocation ownership does not match deallocation</code></pre>
+<p>where statically detectable.</p>
+<hr>
+<h1>150. Standard Library Memory Types</h1>
+<p>A conforming standard library should provide at least:</p>
+<pre><code>Box&lt;T&gt;
+Rc&lt;T&gt;
+Arc&lt;T&gt;
+Weak&lt;T&gt;
+
+Slice&lt;T&gt;
+MutSlice&lt;T&gt;
+
+Vec&lt;T&gt;
+
+String
+StringView
+
+ByteSlice
+MutByteSlice
+
+MaybeUninit&lt;T&gt;
+
+Result&lt;T,E&gt;
+Option&lt;T&gt;</code></pre>
+<hr>
+<h1>151. Standard Checked Memory Operations</h1>
+<p>The standard library should provide safe equivalents of common C operations:</p>
+<pre><code>copy
+move_range
+fill
+compare
+search
+split
+subslice
+read
+write</code></pre>
+<p>These APIs operate on typed ranges rather than independent raw pointers and lengths wherever possible.</p>
+<hr>
+<h1>152. C Library Compatibility</h1>
+<p>Cobalt may expose wrappers:</p>
+<pre><code>c_memcpy
+c_memmove
+c_memset</code></pre>
+<p>but they remain unsafe when called with raw pointers.</p>
+<p>The preferred API is the Cobalt range-aware equivalent.</p>
+<hr>
+<h1>153. No Safe `memcpy(void*, void*, size_t)`</h1>
+<p>A generic function with the conceptual signature:</p>
+<pre><code>memcpy(void* dst, void* src, usize size)</code></pre>
+<p>cannot be a safe primitive.</p>
+<p>Its safety requires independent proofs of:</p>
+<pre><code>source validity
+destination validity
+source size
+destination size
+size arithmetic
+lifetime
+aliasing</code></pre>
+<p>The language therefore uses richer types to carry those facts.</p>
+<hr>
+<h1>154. Memory Safety and Performance</h1>
+<p>Memory safety does not require every access to perform a runtime check.</p>
+<p>The implementation may use:</p>
+<pre><code>static proofs
+range analysis
+loop analysis
+inlining
+ownership analysis
+bounds-check elimination</code></pre>
+<p>to remove checks.</p>
+<p>The semantic guarantee remains unchanged.</p>
+<hr>
+<h1>155. Zero-Cost Principle</h1>
+<p>When a safety property is statically provable, no runtime cost is required for that property.</p>
+<p>Example:</p>
+<pre><code>for (usize i = 0; i &lt; array.length; i++) {
+    sum += array[i];
+}</code></pre>
+<p>may compile to the same machine-level loop a careful C programmer would write.</p>
+<hr>
+<h1>156. Runtime Checks</h1>
+<p>When a property cannot be proven statically, the implementation may insert a runtime check.</p>
+<p>Failure is defined.</p>
+<p>It cannot become memory corruption.</p>
+<hr>
+<h1>157. Optimizer Rule</h1>
+<p>The optimizer may assume all safe-language invariants hold.</p>
+<p>It may not transform a safe program into one whose behavior violates those invariants.</p>
+<hr>
+<h1>158. Sanitizers</h1>
+<p>Implementations should provide optional instrumentation for:</p>
+<pre><code>bounds
+ownership
+borrow/lifetime
+integer overflow
+uninitialized memory
+FFI boundaries</code></pre>
+<p>Sanitizers are diagnostic tools, not substitutes for the language&#x27;s safety model.</p>
+<hr>
+<h1>159. Fuzzing</h1>
+<p>The standard toolchain should support fuzzing of:</p>
+<pre><code>parsers
+deserializers
+allocators
+unsafe wrappers
+FFI boundaries</code></pre>
+<p>The language&#x27;s defined failure semantics make fuzzing failures distinguishable from arbitrary memory corruption.</p>
+<hr>
+<h1>160. Formal Memory Model</h1>
+<p>The abstract memory model is:</p>
+<pre><code>Allocation {
+    identity
+    type/representation
+    base
+    size
+    alignment
+    lifetime
+    permissions
+}</code></pre>
+<p>An access consists of:</p>
+<pre><code>object
+location
+amount
+access mode</code></pre>
+<p>An access is valid only if all corresponding constraints hold.</p>
+<hr>
+<h1>161. Access Modes</h1>
+<p>Memory permissions are conceptually:</p>
+<pre><code>Read
+Write
+ReadWrite
+Move
+Destroy</code></pre>
+<p>A borrow grants only the minimum required permission.</p>
+<hr>
+<h1>162. Read Permission</h1>
+<p>A shared reference grants:</p>
+<pre><code>Read</code></pre>
+<p>for its lifetime.</p>
+<hr>
+<h1>163. Write Permission</h1>
+<p>A mutable reference grants:</p>
+<pre><code>ReadWrite</code></pre>
+<p>for its lifetime.</p>
+<p>It excludes incompatible aliases.</p>
+<hr>
+<h1>164. Move Permission</h1>
+<p>Ownership grants:</p>
+<pre><code>Move
+Destroy</code></pre>
+<p>subject to the object&#x27;s type semantics.</p>
+<hr>
+<h1>165. Destroy Permission</h1>
+<p>Only the owner, or an explicitly designated destruction mechanism, may end the object&#x27;s lifetime.</p>
+<hr>
+<h1>166. Lifetime + Spatial Safety</h1>
+<p>A valid access must satisfy both:</p>
+<pre><code>spatial:
+    location + amount is inside object
+
+temporal:
+    object is alive</code></pre>
+<p>Neither property substitutes for the other.</p>
+<p>This is the combined model explicitly developed in Chapter 9.</p>
+<hr>
+<h1>167. Security Boundary</h1>
+<p>Cobalt considers these independent security properties:</p>
+<pre><code>arithmetic correctness
+allocation correctness
+object identity
+location correctness
+range correctness
+initialization correctness
+lifetime correctness
+ownership correctness</code></pre>
+<p>A program must preserve all of them.</p>
+<hr>
+<h1>168. First-Broken-Invariant Principle</h1>
+<p>Compiler diagnostics, static analyzers, and security tooling should prefer identifying the earliest violated invariant.</p>
+<p>For example:</p>
+<pre><code>overflow
+    ↓
+wrong allocation
+    ↓
+wrong pointer
+    ↓
+wrong range
+    ↓
+out-of-bounds write</code></pre>
+<p>The preferred diagnostic is the earliest provable violation, not merely the final crash.</p>
+<p>This reflects the central analytical approach of the source material.</p>
+<hr>
+<h1>169. Security Invariant Ledger</h1>
+<p>For complex APIs, implementations may expose contracts such as:</p>
+<pre><code>count:
+    source = input
+    type = usize
+    invariant = count &lt;= max_count
+
+size:
+    derived = count * sizeof(T)
+    invariant = representable
+
+allocation:
+    size = size
+
+offset:
+    derived = index * sizeof(T)
+    invariant = offset &lt;= capacity
+
+access:
+    amount = sizeof(T)
+    invariant = amount &lt;= capacity - offset</code></pre>
+<p>This is especially useful for static analysis and formal verification.</p>
+<hr>
+<h1>170. API Design Principle</h1>
+<p>Cobalt libraries should prefer:</p>
+<pre><code>types that carry invariants</code></pre>
+<p>over:</p>
+<pre><code>integers that require callers to remember invariants.</code></pre>
+<p>Prefer:</p>
+<pre><code>ByteSlice</code></pre>
+<p>over:</p>
+<pre><code>void* + usize</code></pre>
+<p>Prefer:</p>
+<pre><code>Vec&lt;T&gt;</code></pre>
+<p>over:</p>
+<pre><code>T* + length + capacity</code></pre>
+<p>Prefer:</p>
+<pre><code>Box&lt;T&gt;</code></pre>
+<p>over:</p>
+<pre><code>T* + manually managed lifetime</code></pre>
+<hr>
+<h1>171. Security-Critical API Principle</h1>
+<p>An API should make invalid states difficult or impossible to represent.</p>
+<p>For example:</p>
+<pre><code>copy(dst, src);</code></pre>
+<p>is preferable to:</p>
+<pre><code>memcpy(dst.ptr, src.ptr, length);</code></pre>
+<p>because the former keeps:</p>
+<pre><code>object
+location
+amount
+lifetime
+ownership</code></pre>
+<p>closer together.</p>
+<hr>
+<h1>172. C-Like Syntax, Non-C-Like Semantics</h1>
+<p>Cobalt intentionally retains:</p>
+<pre><code>if (...)
+for (...)
+while (...)
+struct
+enum
+fn
+return
+x[i]
+x.field
+x-&gt;field</code></pre>
+<p>but changes their relationship to memory.</p>
+<p>In particular:</p>
+<pre><code>[]        → checked range operation
+&amp;         → borrow
+move      → explicit ownership transfer
+Box&lt;T&gt;    → owning heap object
+Slice&lt;T&gt;  → bounded borrowed range
+*mut T    → explicitly unsafe raw pointer</code></pre>
+<hr>
+<h1>173. Example: Safe Dynamic Buffer</h1>
+<pre><code>struct Packet {
+    Vec&lt;u8&gt; data;
+}
+
+fn append(Packet&amp;mut packet, ByteSlice input)
+    -&gt; Result&lt;(), Error&gt;
+{
+    packet.data.reserve(input.len())?;
+
+    for (u8 byte in input) {
+        packet.data.push(byte);
+    }
+
+    return Ok(());
+}</code></pre>
+<p>There is no separate:</p>
+<pre><code>pointer
+length
+capacity
+allocation size</code></pre>
+<p>that callers must keep synchronized.</p>
+<hr>
+<h1>174. Example: Safe Packet Parsing</h1>
+<pre><code>fn parse(ByteSlice input) -&gt; Result&lt;Packet, ParseError&gt;
+{
+    u32 count = input.read_u32()?;
+
+    if (count &gt; MAX_ENTRIES) {
+        return Err(ParseError::TooManyEntries);
+    }
+
+    Vec&lt;Entry&gt; entries =
+        Vec&lt;Entry&gt;::with_capacity(checked_cast&lt;usize&gt;(count))?;
+
+    for (usize i = 0; i &lt; count; i++) {
+        Entry entry = parse_entry(input)?;
+        entries.push(move entry);
+    }
+
+    return Ok(Packet{ entries });
+}</code></pre>
+<p>The parser never treats an external count as automatically authoritative.</p>
+<hr>
+<h1>175. Example: Safe Copy</h1>
+<pre><code>fn duplicate(ByteSlice input)
+    -&gt; Result&lt;Vec&lt;u8&gt;, Error&gt;
+{
+    Vec&lt;u8&gt; result =
+        Vec&lt;u8&gt;::with_capacity(input.len())?;
+
+    result.extend(input)?;
+
+    return Ok(result);
+}</code></pre>
+<p>There is no independent destination pointer plus arbitrary copy length.</p>
+<hr>
+<h1>176. Example: Safe Borrowing</h1>
+<pre><code>fn first(ByteSlice input) -&gt; Option&lt;&amp;u8&gt;
+{
+    if (input.len() == 0) {
+        return None;
+    }
+
+    return Some(&amp;input[0]);
+}</code></pre>
+<p>The returned reference cannot outlive `input`.</p>
+<hr>
+<h1>177. Example: Ownership Transfer</h1>
+<pre><code>fn consume(Box&lt;Resource&gt; resource) {
+    resource.use();
+}
+
+fn process() {
+    Box&lt;Resource&gt; r = acquire();
+
+    consume(move r);
+
+    // r cannot be used here
+}</code></pre>
+<p>The compiler enforces the transfer.</p>
+<hr>
+<h1>178. Example: Unsafe FFI</h1>
+<pre><code>extern "C" {
+    fn c_process(*const u8, usize);
+}
+
+fn process(ByteSlice input) {
+    unsafe {
+        c_process(input.ptr(), input.len());
+    }
+}</code></pre>
+<p>The safe wrapper is responsible for proving that the C function&#x27;s contract is satisfied.</p>
+<hr>
+<h1>179. Example: Safe Wrapper Around Unsafe Code</h1>
+<pre><code>fn call_c(ByteSlice input)
+    -&gt; Result&lt;(), Error&gt;
+{
+    if (input.len() &gt; MAX_INPUT) {
+        return Err(Error::TooLarge);
+    }
+
+    unsafe {
+        c_process(input.ptr(), input.len());
+    }
+
+    return Ok(());
+}</code></pre>
+<p>The unsafe region is intentionally small.</p>
+<hr>
+<h1>180. What Cobalt Prevents</h1>
+<p>In safe Cobalt, the following conceptual C patterns are rejected or replaced:</p>
+<pre><code>count * sizeof(T)
+        ↓
+wraparound
+        ↓
+small allocation
+        ↓
+large loop
+        ↓
+overflow</code></pre>
+<pre><code>pointer + attacker_offset
+        ↓
+wrong location
+        ↓
+write</code></pre>
+<pre><code>pointer + offset
+        ↓
+copy(pointer, length)
+        ↓
+offset + length &gt; capacity</code></pre>
+<pre><code>pointer
+  ↓
+free
+  ↓
+stale pointer
+  ↓
+use</code></pre>
+<pre><code>pointer
+  ↓
+free
+  ↓
+free again</code></pre>
+<pre><code>pointer
+  ↓
+wrong allocator
+  ↓
+release</code></pre>
+<p>These are not merely discouraged patterns; safe Cobalt&#x27;s types and semantics are designed to prevent them.</p>
+<hr>
+<h1>181. What Unsafe Code Is For</h1>
+<p>Unsafe code exists for legitimate systems-level requirements:</p>
+<pre><code>operating-system interfaces
+device drivers
+custom allocators
+hardware registers
+FFI
+specialized memory pools
+SIMD
+lock-free structures
+runtime implementation
+embedded systems</code></pre>
+<p>Unsafe code is not intended to be necessary for ordinary:</p>
+<pre><code>arrays
+strings
+network parsing
+file parsing
+serialization
+dynamic containers
+business logic</code></pre>
+<hr>
+<h1>182. Unsafe Review Requirements</h1>
+<p>An unsafe function should document:</p>
+<pre><code>Safety:
+    required caller invariants</code></pre>
+<p>Example:</p>
+<pre><code>// Safety:
+// `ptr` must refer to a live allocation containing at least
+// `len` initialized T objects and must be correctly aligned.
+unsafe fn from_raw_parts(...) -&gt; Slice&lt;T&gt;;</code></pre>
+<hr>
+<h1>183. Conformance</h1>
+<p>A conforming implementation must:</p>
+<p>1. reject programs violating static safety rules;<br>
+2. preserve ownership and lifetime semantics;<br>
+3. implement checked integer semantics;<br>
+4. enforce safe bounds;<br>
+5. prevent invalid safe memory access;<br>
+6. preserve Cobalt&#x27;s defined failure behavior;<br>
+7. implement specified ABI rules;<br>
+8. provide required standard types and operations.</p>
+<hr>
+<h1>184. Implementation Freedom</h1>
+<p>The specification does not mandate:</p>
+<pre><code>reference counting vs tracing GC
+specific CPU
+specific allocator
+specific register allocation
+specific optimizer
+specific garbage collector for future GC types</code></pre>
+<p>provided the observable semantics and safety guarantees remain intact.</p>
+<p>Cobalt&#x27;s core ownership model is deterministic and does not require garbage collection.</p>
+<hr>
+<h1>185. Garbage Collection</h1>
+<p>A future garbage-collected type system may be added, but GC-managed references must remain distinguishable from ordinary ownership and borrowing.</p>
+<p>GC cannot be used to weaken:</p>
+<pre><code>bounds
+type safety
+data-race safety
+representation validity</code></pre>
+<hr>
+<h1>186. ABI Stability</h1>
+<p>Cobalt-native ABI is implementation-defined within a compiler release family unless explicitly marked stable.</p>
+<p>C ABI compatibility is available through:</p>
+<pre><code>@repr(C)
+extern "C"</code></pre>
+<p>and related annotations.</p>
+<hr>
+<h1>187. Versioning</h1>
+<p>Language versions follow:</p>
+<pre><code>MAJOR.MINOR</code></pre>
+<p>Breaking semantic changes require a major version.</p>
+<p>Additive syntax or library features may use minor versions where compatibility is preserved.</p>
+<hr>
+<h1>188. Safety Compatibility</h1>
+<p>A compiler may not introduce a new language feature that silently weakens existing safe-code guarantees.</p>
+<p>Any feature capable of bypassing those guarantees must be:</p>
+<pre><code>unsafe</code></pre>
+<p>or otherwise explicitly constrained.</p>
+<hr>
+<h1>189. Formal Safe-Code Guarantee</h1>
+<p>For every successfully compiled safe program, the implementation guarantees:</p>
+<pre><code>No out-of-bounds memory access
+No use-after-free
+No double free
+No invalid free
+No dangling reference
+No null reference dereference
+No safe raw-pointer dereference
+No data race
+No unchecked integer overflow
+No invalid typed read
+No invalid typed write</code></pre>
+<p>subject to explicitly documented implementation bugs, hardware faults, or violations at unsafe/foreign boundaries.</p>
+<hr>
+<h1>190. Complete Memory Safety Theorem — Informal</h1>
+<p>For a valid safe Cobalt memory operation:</p>
+<pre><code>Object O
+Location L
+Amount N
+Lifetime T
+Authority A</code></pre>
+<p>the compiler/runtime establishes:</p>
+<pre><code>O is live
+L belongs to O
+L + N belongs to O
+the operation is permitted by A
+the representation is valid
+the access does not violate aliasing rules</code></pre>
+<p>Therefore the operation cannot access unrelated or dead memory through ordinary safe semantics.</p>
+<hr>
+<h1>191. Relationship to the Eleven Failure Classes</h1>
+<p>The language design maps to the source chapters as follows:</p>
+<p>| Failure                  | Cobalt mechanism                         |<br>
+| ------------------------ | ---------------------------------------- |<br>
+| Integer overflow         | checked arithmetic                       |<br>
+| Truncation               | explicit checked conversion              |<br>
+| Wrong allocation size    | typed containers + checked layout        |<br>
+| Wrong pointer arithmetic | bounded slices/restricted raw pointers   |<br>
+| Wrong copy amount        | range-based copy                         |<br>
+| Wrong read amount        | validated source ranges                  |<br>
+| Wrong write amount       | validated destination ranges             |<br>
+| Wrong location           | object-associated references/slices      |<br>
+| Use-after-free           | ownership + borrow checker               |<br>
+| Double free              | unique ownership                         |<br>
+| Invalid free             | typed allocation ownership               |<br>
+| Wrong allocator          | allocator-associated allocation identity |<br>
+| Uninitialized read       | initialization tracking                  |<br>
+| Data race                | ownership + concurrency rules            |</p>
+<p>The source material&#x27;s final model identifies these errors as interacting rather than independent categories; Cobalt therefore treats them as one memory model rather than eleven unrelated checks.</p>
+<hr>
+<h1>192. The Cobalt Memory Model in One Diagram</h1>
+<pre><code>EXTERNAL DATA
+                       │
+                       ▼
+                 typed value
+                       │
+                       ▼
+             checked arithmetic
+                       │
+                       ▼
+              size / count / offset
+                       │
+                       ▼
+                  allocation
+                       │
+                       ▼
+                    object
+                       │
+             ┌─────────┴─────────┐
+             ▼                   ▼
+          location             lifetime
+             │                   │
+             └─────────┬─────────┘
+                       ▼
+                    range
+                       │
+                       ▼
+                 access rights
+                       │
+                       ▼
+                  READ/WRITE</code></pre>
+<p>At every transition, Cobalt attempts to preserve the invariant.</p>
+<hr>
+<h1>193. Core Principle</h1>
+<p>Cobalt does not define memory as:</p>
+<pre><code>address + number of bytes</code></pre>
+<p>It defines memory as:</p>
+<pre><code>object
++
+location
++
+amount
++
+lifetime
++
+ownership</code></pre>
+<p>This is the fundamental design decision of the language.</p>
+<hr>
+<h1>194. Final Language Principle</h1>
+<p>The central rule of Cobalt is:</p>
+<p>&gt; **A value that describes memory must remain connected to the memory it describes.**</p>
+<p>An integer is not automatically a size.</p>
+<p>A size is not automatically an allocation.</p>
+<p>An address is not automatically an object.</p>
+<p>A pointer is not automatically valid.</p>
+<p>A valid location is not automatically a valid range.</p>
+<p>A valid range is not automatically live.</p>
+<p>A reference is not ownership.</p>
+<p>Ownership cannot be silently duplicated.</p>
+<p>A successful allocation does not prove that later accesses are correct.</p>
+<p>A successful arithmetic operation does not prove that its result describes the intended memory.</p>
+<p>The language therefore attempts to preserve the relationship from:</p>
+<pre><code>value
+  ↓
+meaning
+  ↓
+object
+  ↓
+range
+  ↓
+lifetime
+  ↓
+authority
+  ↓
+access</code></pre>
+<p>through the type system, ownership system, borrow checker, runtime checks, and explicit unsafe boundaries.</p>
+<p>That is the foundation of Cobalt 1.0.</p>
+
+<hr>
+
+    <div class="book-navigation">
+        <a href="Appendix_05.html" class="nav-btn">&larr; Previous</a> <a href="Bibliography.html" class="nav-btn">Bibliography &rarr;</a>
+    </div>
+
+<footer>
+  <p>
+    This work is licensed under a 
+    <a rel="license" href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" rel="noopener">
+      Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License
+    </a>.
+  </p>
+</footer>
+
+</body>
+</html>
