@@ -115,16 +115,20 @@ VALID MEMORY OPERATION</code></pre>
 <h1>2. Design Philosophy</h1>
 <p>Cobalt deliberately resembles C in syntax.</p>
 <p>A C programmer should recognize:</p>
-<pre><code>if (condition) {
+<pre><code>if (condition)
+{
 }
 
-for (...) {
+for (...)
+{
 }
 
-while (...) {
+while (...)
+{
 }
 
-struct Point {
+struct Point
+{
     int x;
     int y;
 };
@@ -159,7 +163,8 @@ C interoperability:
 * create data races through ordinary references</p>
 <h2>3.2 Unsafe</h2>
 <p>Unsafe operations require:</p>
-<pre><code>unsafe {
+<pre><code>unsafe
+{
     ...
 }</code></pre>
 <p>An unsafe block is an explicit boundary.</p>
@@ -393,7 +398,8 @@ ownership state</code></pre>
 <hr>
 <h1>19. Stack Values</h1>
 <p>Local values normally have automatic storage:</p>
-<pre><code>fn process() {
+<pre><code>fn process()
+{
     Point p;
 }</code></pre>
 <p>`p` remains alive until its scope ends unless moved earlier.</p>
@@ -466,7 +472,8 @@ lifetime ends</code></pre>
 <pre><code>&amp;T
 &amp;mut T</code></pre>
 <p>Example:</p>
-<pre><code>fn print_point(&amp;Point p) {
+<pre><code>fn print_point(&amp;Point p)
+{
     ...
 }</code></pre>
 <p>A shared reference:</p>
@@ -478,7 +485,8 @@ lifetime ends</code></pre>
 <hr>
 <h1>27. Borrowing</h1>
 <p>Borrowing does not transfer ownership.</p>
-<pre><code>fn inspect(&amp;Data data) {
+<pre><code>fn inspect(&amp;Data data)
+{
     ...
 }
 
@@ -489,7 +497,8 @@ inspect(&amp;d);
 // d still belongs to caller</code></pre>
 <hr>
 <h1>28. Mutable Borrowing</h1>
-<pre><code>fn update(&amp;mut Data data) {
+<pre><code>fn update(&amp;mut Data data)
+{
     data.value += 1;
 }</code></pre>
 <p>At most one active mutable reference may exist for a given object region.</p>
@@ -540,7 +549,8 @@ low-level runtime code</code></pre>
 <hr>
 <h1>35. Raw Pointer Dereference</h1>
 <p>Raw pointer dereference requires unsafe:</p>
-<pre><code>unsafe {
+<pre><code>unsafe
+{
     value = *p;
 }</code></pre>
 <p>The programmer is responsible for proving:</p>
@@ -603,8 +613,10 @@ access permissions</code></pre>
 <pre><code>MutSlice&lt;T&gt;</code></pre>
 <p>is a mutable view.</p>
 <p>Example:</p>
-<pre><code>fn clear(MutSlice&lt;u8&gt; data) {
-    for (usize i = 0; i &lt; data.len(); i++) {
+<pre><code>fn clear(MutSlice&lt;u8&gt; data)
+{
+    for (usize i = 0; i &lt; data.len(); i++)
+    {
         data[i] = 0;
     }
 }</code></pre>
@@ -870,7 +882,8 @@ Option&lt;*mut T&gt;</code></pre>
 <hr>
 <h1>70. Structs</h1>
 <p>C-like structures:</p>
-<pre><code>struct Point {
+<pre><code>struct Point
+{
     int x;
     int y;
 }</code></pre>
@@ -879,7 +892,8 @@ Option&lt;*mut T&gt;</code></pre>
 <hr>
 <h1>71. Enums</h1>
 <p>Enums provide tagged alternatives:</p>
-<pre><code>enum Result&lt;T, E&gt; {
+<pre><code>enum Result&lt;T, E&gt;
+{
     Ok(T),
     Err(E)
 }</code></pre>
@@ -887,7 +901,8 @@ Option&lt;*mut T&gt;</code></pre>
 <hr>
 <h1>72. Tagged Unions</h1>
 <p>Cobalt may provide:</p>
-<pre><code>union Value {
+<pre><code>union Value
+{
     int i;
     float f;
 }</code></pre>
@@ -924,7 +939,8 @@ StringView</code></pre>
 <hr>
 <h1>76. Functions</h1>
 <p>Functions use C-like syntax:</p>
-<pre><code>fn add(int a, int b) -&gt; int {
+<pre><code>fn add(int a, int b) -&gt; int
+{
     return a + b;
 }</code></pre>
 <p>Function types are first-class where supported.</p>
@@ -935,7 +951,8 @@ StringView</code></pre>
 <p>Optional values use:</p>
 <pre><code>Option&lt;T&gt;</code></pre>
 <p>The `?` operator propagates errors:</p>
-<pre><code>fn load() -&gt; Result&lt;Data, Error&gt; {
+<pre><code>fn load() -&gt; Result&lt;Data, Error&gt;
+{
     Data d = read_data()?;
     return Ok(d);
 }</code></pre>
@@ -958,7 +975,8 @@ unwind</code></pre>
 <h1>80. Compile-Time Bounds Elimination</h1>
 <p>The compiler may remove a runtime bounds check when static analysis proves the index valid.</p>
 <p>For example:</p>
-<pre><code>for (usize i = 0; i &lt; values.len(); i++) {
+<pre><code>for (usize i = 0; i &lt; values.len(); i++)
+{
     process(values[i]);
 }</code></pre>
 <p>may compile without repeated bounds checks.</p>
@@ -966,22 +984,27 @@ unwind</code></pre>
 <hr>
 <h1>81. Generics</h1>
 <p>Cobalt supports parametric generics:</p>
-<pre><code>struct Box&lt;T&gt; {
+<pre><code>struct Box&lt;T&gt;
+{
     T value;
 }</code></pre>
 <p>Generic constraints use traits:</p>
-<pre><code>fn print&lt;T: Display&gt;(T value) {
+<pre><code>fn print&lt;T: Display&gt;(T value)
+{
     ...
 }</code></pre>
 <hr>
 <h1>82. Traits</h1>
 <p>Traits define behavior:</p>
-<pre><code>trait Display {
+<pre><code>trait Display
+{
     fn display(&amp;self) -&gt; String;
 }</code></pre>
 <p>Implementations:</p>
-<pre><code>impl Display for Point {
-    fn display(&amp;self) -&gt; String {
+<pre><code>impl Display for Point
+{
+    fn display(&amp;self) -&gt; String
+    {
         ...
     }
 }</code></pre>
@@ -1004,14 +1027,16 @@ Dynamically sized</code></pre>
 <h1>85. `unsafe` Trait Contracts</h1>
 <p>A trait may declare operations requiring an unsafe implementation.</p>
 <p>Example:</p>
-<pre><code>unsafe trait RawAllocator {
+<pre><code>unsafe trait RawAllocator
+{
     ...
 }</code></pre>
 <p>The implementation is responsible for satisfying the documented invariants.</p>
 <hr>
 <h1>86. Modules</h1>
 <p>Modules use:</p>
-<pre><code>module graphics {
+<pre><code>module graphics
+{
     ...
 }</code></pre>
 <p>Imports:</p>
@@ -1019,7 +1044,8 @@ Dynamically sized</code></pre>
 <p>Aliases:</p>
 <pre><code>import graphics as gfx;</code></pre>
 <p>Visibility is explicit:</p>
-<pre><code>public struct Point {
+<pre><code>public struct Point
+{
     ...
 }</code></pre>
 <hr>
@@ -1045,7 +1071,8 @@ use(value);</code></pre>
 <hr>
 <h1>89. Pattern Matching</h1>
 <p>Cobalt supports:</p>
-<pre><code>match result {
+<pre><code>match result
+{
     Ok(value) =&gt; process(value),
     Err(error) =&gt; report(error)
 }</code></pre>
@@ -1081,7 +1108,8 @@ move</code></pre>
 <hr>
 <h1>94. Iteration</h1>
 <p>Iteration uses:</p>
-<pre><code>for (item in collection) {
+<pre><code>for (item in collection)
+{
     ...
 }</code></pre>
 <p>The iterator API defines whether iteration:</p>
@@ -1114,14 +1142,16 @@ seq_cst</code></pre>
 <hr>
 <h1>98. Mutexes</h1>
 <p>Synchronization primitives provide scoped guards:</p>
-<pre><code>lock(mutex) {
+<pre><code>lock(mutex)
+{
     shared_state.update();
 }</code></pre>
 <p>The guard automatically releases the lock when leaving scope.</p>
 <hr>
 <h1>99. FFI</h1>
 <p>Cobalt supports C interoperability through:</p>
-<pre><code>extern "C" {
+<pre><code>extern "C"
+{
     fn c_function(...);
 }</code></pre>
 <p>FFI calls are unsafe unless wrapped by a safe abstraction whose invariants have been established.</p>
@@ -1158,7 +1188,8 @@ caller-owned result</code></pre>
 <hr>
 <h1>104. Allocator API</h1>
 <p>Advanced code may define:</p>
-<pre><code>trait Allocator {
+<pre><code>trait Allocator
+{
     fn allocate(Layout layout) -&gt; Result&lt;Allocation, AllocError&gt;;
     fn deallocate(Allocation allocation);
 }</code></pre>
@@ -1245,7 +1276,8 @@ padding overflow</code></pre>
 <p>By default, the compiler controls field layout.</p>
 <p>An explicit C-compatible layout may be requested:</p>
 <pre><code>@repr(C)
-struct Header {
+struct Header
+{
     u32 length;
     u16 type;
 }</code></pre>
@@ -1466,7 +1498,8 @@ views</code></pre>
 <hr>
 <h1>139. Unsafe Escape Hatch</h1>
 <p>The language must make unsafe operations visually obvious:</p>
-<pre><code>unsafe {
+<pre><code>unsafe
+{
     *raw = value;
 }</code></pre>
 <p>Unsafe code cannot silently contaminate an entire module.</p>
@@ -1475,10 +1508,7 @@ views</code></pre>
 <h1>140. Unsafe Contracts</h1>
 <p>An unsafe function documents preconditions.</p>
 <p>Example:</p>
-<pre><code>unsafe fn from_raw_parts(
-    *mut T pointer,
-    usize length
-) -&gt; MutSlice&lt;T&gt;;</code></pre>
+<pre><code>unsafe fn from_raw_parts(*mut T pointer, usize length) -&gt; MutSlice&lt;T&gt;;</code></pre>
 <p>Its contract may require:</p>
 <pre><code>pointer identifies a live allocation
 pointer is correctly aligned
@@ -1488,8 +1518,7 @@ elements are initialized</code></pre>
 <hr>
 <h1>141. Safe Wrappers</h1>
 <p>Unsafe functionality should normally be encapsulated:</p>
-<pre><code>public fn parse_packet(ByteSlice input)
-    -&gt; Result&lt;Packet, ParseError&gt;
+<pre><code>public fn parse_packet(ByteSlice input) -&gt; Result&lt;Packet, ParseError&gt;
 {
     ...
 }</code></pre>
@@ -1621,7 +1650,8 @@ bounds-check elimination</code></pre>
 <h1>155. Zero-Cost Principle</h1>
 <p>When a safety property is statically provable, no runtime cost is required for that property.</p>
 <p>Example:</p>
-<pre><code>for (usize i = 0; i &lt; array.length; i++) {
+<pre><code>for (usize i = 0; i &lt; array.length; i++)
+{
     sum += array[i];
 }</code></pre>
 <p>may compile to the same machine-level loop a careful C programmer would write.</p>
@@ -1656,7 +1686,8 @@ FFI boundaries</code></pre>
 <hr>
 <h1>160. Formal Memory Model</h1>
 <p>The abstract memory model is:</p>
-<pre><code>Allocation {
+<pre><code>Allocation
+{
     identity
     type/representation
     base
@@ -1815,16 +1846,17 @@ Slice&lt;T&gt;  → bounded borrowed range
 *mut T    → explicitly unsafe raw pointer</code></pre>
 <hr>
 <h1>173. Example: Safe Dynamic Buffer</h1>
-<pre><code>struct Packet {
+<pre><code>struct Packet
+{
     Vec&lt;u8&gt; data;
 }
 
-fn append(Packet&amp;mut packet, ByteSlice input)
-    -&gt; Result&lt;(), Error&gt;
+fn append(Packet&amp;mut packet, ByteSlice input) -&gt; Result&lt;(), Error&gt;
 {
     packet.data.reserve(input.len())?;
 
-    for (u8 byte in input) {
+    for (u8 byte in input)
+    {
         packet.data.push(byte);
     }
 
@@ -1842,14 +1874,15 @@ allocation size</code></pre>
 {
     u32 count = input.read_u32()?;
 
-    if (count &gt; MAX_ENTRIES) {
+    if (count &gt; MAX_ENTRIES)
+    {
         return Err(ParseError::TooManyEntries);
     }
 
-    Vec&lt;Entry&gt; entries =
-        Vec&lt;Entry&gt;::with_capacity(checked_cast&lt;usize&gt;(count))?;
+    Vec&lt;Entry&gt; entries = Vec&lt;Entry&gt;::with_capacity(checked_cast&lt;usize&gt;(count))?;
 
-    for (usize i = 0; i &lt; count; i++) {
+    for (usize i = 0; i &lt; count; i++)
+    {
         Entry entry = parse_entry(input)?;
         entries.push(move entry);
     }
@@ -1859,11 +1892,9 @@ allocation size</code></pre>
 <p>The parser never treats an external count as automatically authoritative.</p>
 <hr>
 <h1>175. Example: Safe Copy</h1>
-<pre><code>fn duplicate(ByteSlice input)
-    -&gt; Result&lt;Vec&lt;u8&gt;, Error&gt;
+<pre><code>fn duplicate(ByteSlice input) -&gt; Result&lt;Vec&lt;u8&gt;, Error&gt;
 {
-    Vec&lt;u8&gt; result =
-        Vec&lt;u8&gt;::with_capacity(input.len())?;
+    Vec&lt;u8&gt; result = Vec&lt;u8&gt;::with_capacity(input.len())?;
 
     result.extend(input)?;
 
@@ -1874,7 +1905,8 @@ allocation size</code></pre>
 <h1>176. Example: Safe Borrowing</h1>
 <pre><code>fn first(ByteSlice input) -&gt; Option&lt;&amp;u8&gt;
 {
-    if (input.len() == 0) {
+    if (input.len() == 0)
+    {
         return None;
     }
 
@@ -1883,11 +1915,13 @@ allocation size</code></pre>
 <p>The returned reference cannot outlive `input`.</p>
 <hr>
 <h1>177. Example: Ownership Transfer</h1>
-<pre><code>fn consume(Box&lt;Resource&gt; resource) {
+<pre><code>fn consume(Box&lt;Resource&gt; resource)
+{
     resource.use();
 }
 
-fn process() {
+fn process()
+{
     Box&lt;Resource&gt; r = acquire();
 
     consume(move r);
@@ -1897,26 +1931,30 @@ fn process() {
 <p>The compiler enforces the transfer.</p>
 <hr>
 <h1>178. Example: Unsafe FFI</h1>
-<pre><code>extern "C" {
+<pre><code>extern "C"
+{
     fn c_process(*const u8, usize);
 }
 
-fn process(ByteSlice input) {
-    unsafe {
+fn process(ByteSlice input)
+{
+    unsafe
+    {
         c_process(input.ptr(), input.len());
     }
 }</code></pre>
 <p>The safe wrapper is responsible for proving that the C function&#x27;s contract is satisfied.</p>
 <hr>
 <h1>179. Example: Safe Wrapper Around Unsafe Code</h1>
-<pre><code>fn call_c(ByteSlice input)
-    -&gt; Result&lt;(), Error&gt;
+<pre><code>fn call_c(ByteSlice input) -&gt; Result&lt;(), Error&gt;
 {
-    if (input.len() &gt; MAX_INPUT) {
+    if (input.len() &gt; MAX_INPUT)
+    {
         return Err(Error::TooLarge);
     }
 
-    unsafe {
+    unsafe
+    {
         c_process(input.ptr(), input.len());
     }
 
