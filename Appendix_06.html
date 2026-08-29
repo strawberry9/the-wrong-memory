@@ -283,13 +283,16 @@ u8    u16    u32    u64    u128</code></pre>
 <p>It also defines:</p>
 <pre><code>usize
 isize</code></pre>
-<p><code>usize</code> is an unsigned integer type whose width is sufficient to represent every valid object size on the target.</p>
-<p><code>isize</code> is a signed integer type whose width is sufficient to represent signed offsets within the target's addressable memory model.</p>
+`usize` represents a size or index within the addressable memory model.<br>
+`isize` is the signed pointer-sized integer.
 <p>Other primitive types:</p>
-<pre><code>bool
-char
+<pre><code>bool (has exactly two values: true or false)<br>
+char (represents a Unicode scalar value. Raw bytes are represented by: u8)<br>
 f32
-f64</code></pre>
+f64
+Floating-point behavior follows the implementation's documented IEEE-754 model.
+Floating-point values are not implicitly interchangeable with integer types.
+</code></pre>
 <hr>
 <h1>8. Integer Semantics</h1>
 <p>Integer operations are checked by default.</p>
