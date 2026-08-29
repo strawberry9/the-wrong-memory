@@ -282,15 +282,22 @@ while</code></pre>
 u8    u16    u32    u64    u128</code></pre>
 <p>It also defines:</p>
 <pre><code>usize
-isize</code></pre>
-<p><code>usize</code> is the unsigned integer type used for sizes and indexes within the addressable memory model.</p>
-<p><code>isize</code> is the signed integer type with the same width as <code>usize</code>.</p>
+isize
+
+usize is the unsigned integer type used for sizes and indexes within
+the addressable memory model.
+isize is the signed integer type with the same width as usize.
+</code></pre>
 <p>Other primitive types:</p>
-<pre><code>bool (has exactly two values: true or false)<br>
-char (represents a Unicode scalar value. Raw bytes are represented by: u8)<br>
+<pre><code>bool
+char
 f32
 f64
-Floating-point behavior follows the implementation's documented IEEE-754 model.
+
+bool has exactly two values: true and false.
+char represents a Unicode scalar value. Raw bytes are represented by u8.
+Floating-point behavior, including rounding, NaN handling, and exceptional values,
+follows the implementation's documented IEEE-754 model.
 Floating-point values are not implicitly interchangeable with integer types.
 </code></pre>
 <hr>
