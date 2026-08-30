@@ -266,6 +266,7 @@ move
 mut
 public
 return
+self
 static
 struct
 trait
@@ -305,7 +306,7 @@ Floating-point values are not implicitly interchangeable with integer types.
 <h1>8. Integer Semantics</h1>
 <p>Integer operations are checked by default.</p>
 <p>For example:</p>
-<pre><code>u32 x = UINT32_MAX;
+<pre><code>u32 x = u32::MAX;
 u32 y = x + 1;</code></pre>
 <p>does not silently wrap.</p>
 <p>The operation produces a defined overflow failure.</p>
@@ -919,7 +920,7 @@ Option&lt;*mut T&gt;</code></pre>
 <pre><code>union Value
 {
     i32 i;
-    float f;
+    f32 f;
 }</code></pre>
 <p>but safe access requires a valid active representation.</p>
 <p>For unrestricted representation-level union access, unsafe code may be required.</p>
@@ -1895,7 +1896,7 @@ allocation size</code></pre>
 
     Vec&lt;Entry&gt; entries = Vec&lt;Entry&gt;::with_capacity(checked_cast&lt;usize&gt;(count))?;
 
-    for (usize i = 0; i &lt; count; i++)
+    for (usize i = 0; i &lt; checked_cast<usize>(count); i++)
     {
         Entry entry = parse_entry(input)?;
         entries.push(move entry);
