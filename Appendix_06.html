@@ -1103,17 +1103,18 @@ use(value);</code></pre>
 <p>Pattern bindings are scoped to their match arm.</p>
 <p>The compiler verifies exhaustiveness where required.</p>
 <hr>
-<h1>90. `!`</h1>
-<p>The `!` modifier makes a binding mutable, permitting reassignment:</p>
+
+<h1>90. <code>!</code></h1>
+<p>The <code>!</code> modifier makes a binding mutable, permitting reassignment:</p>
 <pre><code>u32 x = expression;      // explicitly typed declaration
-u32 !x = expression;  // explicitly typed declaration + mutable binding
+u32 x! = expression;     // explicitly typed declaration + mutable binding
 
 auto x = expression;     // inferred type
-auto !x = expression; // inferred type + mutable binding
-</code></pre>
-<p>! applies to the binding, not the value itself.</p>
-<p>**Mutability of a binding is distinct from ownership of its value.</p>
+auto x! = expression;    // inferred type + mutable binding</code></pre>
+<p><code>!</code> applies to the binding, not the value itself.</p>
+<p><strong>Mutability of a binding is distinct from ownership of its value.</strong></p>
 <hr>
+
 <h1>91. Assignment</h1>
 <p>Assignment:</p>
 <pre><code>value = expression;</code></pre>
@@ -2284,7 +2285,7 @@ import my_stack::Stack;
 
 fn main()
 {
-    Stack !stack; // stack is a mutable binding
+    Stack stack!; // stack is a mutable binding
     stack = Stack::new();
 
     print("Empty? {}\n", stack.is_empty());
