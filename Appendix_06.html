@@ -1115,13 +1115,13 @@ u32 set x = expression;  // explicitly typed declaration + mutable binding
 auto x = expression;     // inferred type
 auto set x = expression; // inferred type + mutable binding
 </code></pre>
+<p>set applies to the binding, not the value itself.</p>
 <p>**Mutability of a binding is distinct from ownership of its value.</p>
 <hr>
 <h1>91. Assignment</h1>
 <p>Assignment:</p>
 <pre><code>value = expression;</code></pre>
-<p>is permitted only when `value` is mutable.</p>
-<p>Assignment to a borrowed shared reference is forbidden.</p>
+<p>is permitted only when `value` is a mutable binding.</p>
 <hr>
 <h1>92. Move Expression</h1>
 <p>Explicit moves use:</p>
