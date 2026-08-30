@@ -245,6 +245,7 @@ Point
 MAX_SIZE</code></pre>
 <p>Keywords include:</p>
 <pre><code>as
+auto
 break
 const
 continue
@@ -258,7 +259,6 @@ if
 impl
 import
 in
-let
 lock
 match
 module
@@ -333,12 +333,24 @@ checked_shr()</code></pre>
 <pre><code>x.saturating_add(y);
 x.saturating_sub(y);
 x.saturating_mul(y);</code></pre>
+<p>For example:</p>
+<pre><code>u8 x = 250;
+u8 y = 20;
+auto result = x.saturating_add(y); // Returns 255</code></pre>
+<p>Standard addition (250 + 20) overflows a u8 and wraps around.</p>
+<p>Saturating addition safely caps the result at the maximum limit.</p>
 <hr>
 <h1>11. Wrapping Arithmetic</h1>
 <p>Wrapping operations are explicit:</p>
 <pre><code>x.wrapping_add(y);
 x.wrapping_sub(y);
 x.wrapping_mul(y);</code></pre>
+<p>For example:</p>
+<pre><code>u8 x = 250;
+u8 y = 20;
+
+// 250 + 20 = 270. Since 270 exceeds 255 by 15, it wraps around past 0:
+auto result = x.wrapping_add(y); // Returns 14 (270 - 256)</code></pre>
 <p>This prevents accidental wrapping from silently changing an allocation size, offset, or access range.</p>
 <p>The need for this distinction follows directly from the integer-to-allocation failure chain described in Chapter 1.</p>
 <hr>
@@ -1095,10 +1107,10 @@ use(value);</code></pre>
 <p>Pattern bindings are scoped to their match arm.</p>
 <p>The compiler verifies exhaustiveness where required.</p>
 <hr>
-<h1>90. `let`</h1>
+<h1>90. `auto`</h1>
 <p>Local declarations:</p>
-<pre><code>value = expression;
-mut value = expression;</code></pre>
+<pre><code>auto value = expression;
+auto mut value = expression;</code></pre>
 <p>A mutable binding permits reassignment.</p>
 <p>Mutability is distinct from ownership.</p>
 <hr>
