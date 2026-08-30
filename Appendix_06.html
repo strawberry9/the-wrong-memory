@@ -1109,8 +1109,12 @@ use(value);</code></pre>
 <hr>
 <h1>90. `auto`</h1>
 <p>Local declarations:</p>
-<pre><code>auto value = expression;
-auto mut value = expression;</code></pre>
+<pre><code>u32 x = expression;      // explicitly typed declaration
+u32 mut x = expression;  // explicitly typed declaration + mutable binding
+
+auto x = expression;     // inferred type
+auto mut x = expression; // inferred type + mutable binding
+</code></pre>
 <p>A mutable binding permits reassignment.</p>
 <p>Mutability is distinct from ownership.</p>
 <hr>
