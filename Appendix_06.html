@@ -263,10 +263,10 @@ lock
 match
 module
 move
-mut
 public
 return
 self
+set
 static
 struct
 trait
@@ -1107,16 +1107,15 @@ use(value);</code></pre>
 <p>Pattern bindings are scoped to their match arm.</p>
 <p>The compiler verifies exhaustiveness where required.</p>
 <hr>
-<h1>90. `auto`</h1>
-<p>Local declarations:</p>
+<h1>90. `set`</h1>
+<p>The `set` modifier makes a binding mutable, permitting reassignment:</p>
 <pre><code>u32 x = expression;      // explicitly typed declaration
-u32 mut x = expression;  // explicitly typed declaration + mutable binding
+u32 set x = expression;  // explicitly typed declaration + mutable binding
 
 auto x = expression;     // inferred type
-auto mut x = expression; // inferred type + mutable binding
+auto set x = expression; // inferred type + mutable binding
 </code></pre>
-<p>A mutable binding permits reassignment.</p>
-<p>Mutability is distinct from ownership.</p>
+<p>**Mutability of a binding is distinct from ownership of its value.</p>
 <hr>
 <h1>91. Assignment</h1>
 <p>Assignment:</p>
