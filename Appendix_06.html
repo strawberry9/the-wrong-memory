@@ -132,8 +132,8 @@ while (...)
 
 struct Point
 {
-    int x;
-    int y;
+    i32 x;
+    i32 y;
 };
 
 Point p;
@@ -529,13 +529,13 @@ destroyed objects have no live references</code></pre>
 <h1>30. Lifetime Elision</h1>
 <p>Common lifetimes need not be written explicitly.</p>
 <p>Example:</p>
-<pre><code>fn first(&amp;Slice&lt;int&gt; values) -&gt; &amp;int;</code></pre>
+<pre><code>fn first(&amp;Slice&lt;i32&gt; values) -&gt; &amp;i32;</code></pre>
 <p>The compiler infers that the returned reference is tied to `values`.</p>
 <p>When inference is ambiguous, an explicit lifetime may be required.</p>
 <hr>
 <h1>31. Explicit Lifetimes</h1>
 <p>Cobalt may use C-like lifetime syntax:</p>
-<pre><code>fn first&lt;'a&gt;(&amp;'a Slice&lt;int&gt; values) -&gt; &amp;'a int;</code></pre>
+<pre><code>fn first&lt;'a&gt;(&amp;'a Slice&lt;i32&gt; values) -&gt; &amp;'a i32;</code></pre>
 <p>Lifetimes are compile-time entities.</p>
 <p>They do not necessarily exist at runtime.</p>
 <hr>
@@ -581,7 +581,7 @@ access size is valid</code></pre>
 <pre><code>p + offset</code></pre>
 <p>safe code uses slices or indexed views.</p>
 <p>For example:</p>
-<pre><code>Slice&lt;int&gt; values = ...;
+<pre><code>Slice&lt;i32&gt; values = ...;
 
 int x = values[index];</code></pre>
 <p>The compiler owns the relationship between:</p>
@@ -666,7 +666,7 @@ capacity</code></pre>
 <p>The standard dynamic array is:</p>
 <pre><code>Vec&lt;T&gt;</code></pre>
 <p>Example:</p>
-<pre><code>Vec&lt;int&gt; values;
+<pre><code>Vec&lt;i32&gt; values;
 
 values.push(10);
 values.push(20);</code></pre>
@@ -898,8 +898,8 @@ Option&lt;*mut T&gt;</code></pre>
 <p>C-like structures:</p>
 <pre><code>struct Point
 {
-    int x;
-    int y;
+    i32 x;
+    i32 y;
 }</code></pre>
 <p>Fields are initialized according to the type&#x27;s initialization rules.</p>
 <p>Uninitialized fields are not silently permitted.</p>
@@ -917,7 +917,7 @@ Option&lt;*mut T&gt;</code></pre>
 <p>Cobalt may provide:</p>
 <pre><code>union Value
 {
-    int i;
+    i32 i;
     float f;
 }</code></pre>
 <p>but safe access requires a valid active representation.</p>
@@ -953,7 +953,7 @@ StringView</code></pre>
 <hr>
 <h1>76. Functions</h1>
 <p>Functions use C-like syntax:</p>
-<pre><code>fn add(int a, int b) -&gt; int
+<pre><code>fn add(i32 a, i32 b) -&gt; i32
 {
     return a + b;
 }</code></pre>
@@ -1067,10 +1067,10 @@ Dynamically sized</code></pre>
 <p>Name resolution occurs before type checking.</p>
 <p>Each local binding has a unique compiler identity.</p>
 <p>Thus:</p>
-<pre><code>let value = 10;
+<pre><code>value = 10;
 
 {
-    let value = 20;
+    value = 20;
     use(value);
 }
 
@@ -1095,8 +1095,8 @@ use(value);</code></pre>
 <hr>
 <h1>90. `let`</h1>
 <p>Local declarations:</p>
-<pre><code>let value = expression;
-let mut value = expression;</code></pre>
+<pre><code>value = expression;
+mut value = expression;</code></pre>
 <p>A mutable binding permits reassignment.</p>
 <p>Mutability is distinct from ownership.</p>
 <hr>
@@ -1466,9 +1466,9 @@ capacity</code></pre>
 <h1>133. Borrowed Range Invalidation</h1>
 <p>Operations that can invalidate storage must be rejected while incompatible borrows exist.</p>
 <p>Example:</p>
-<pre><code>Vec&lt;int&gt; v;
+<pre><code>Vec&lt;i32&gt; v;
 
-Slice&lt;int&gt; s = v.slice();
+Slice&lt;i32&gt; s = v.slice();
 
 v.push(10);      // potentially reallocating
 
@@ -1864,7 +1864,7 @@ Slice&lt;T&gt;  → bounded borrowed range
     Vec&lt;u8&gt; data;
 }
 
-fn append(Packet&amp;mut packet, ByteSlice input) -&gt; Result&lt;(), Error&gt;
+fn append(&amp;mut Packet packet, ByteSlice input) -&gt; Result&lt;(), Error&gt;
 {
     packet.data.reserve(input.len())?;
 
