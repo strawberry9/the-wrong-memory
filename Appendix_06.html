@@ -266,7 +266,6 @@ move
 public
 return
 self
-set
 static
 struct
 trait
@@ -1104,15 +1103,15 @@ use(value);</code></pre>
 <p>Pattern bindings are scoped to their match arm.</p>
 <p>The compiler verifies exhaustiveness where required.</p>
 <hr>
-<h1>90. `set`</h1>
-<p>The `set` modifier makes a binding mutable, permitting reassignment:</p>
+<h1>90. `!`</h1>
+<p>The `!` modifier makes a binding mutable, permitting reassignment:</p>
 <pre><code>u32 x = expression;      // explicitly typed declaration
-u32 set x = expression;  // explicitly typed declaration + mutable binding
+u32 !x = expression;  // explicitly typed declaration + mutable binding
 
 auto x = expression;     // inferred type
-auto set x = expression; // inferred type + mutable binding
+auto !x = expression; // inferred type + mutable binding
 </code></pre>
-<p>set applies to the binding, not the value itself.</p>
+<p>! applies to the binding, not the value itself.</p>
 <p>**Mutability of a binding is distinct from ownership of its value.</p>
 <hr>
 <h1>91. Assignment</h1>
@@ -2285,7 +2284,7 @@ import my_stack::Stack;
 
 fn main()
 {
-    Stack set stack;
+    Stack !stack; // stack is a mutable binding
     stack = Stack::new();
 
     print("Empty? {}\n", stack.is_empty());
