@@ -256,7 +256,6 @@ false
 fn
 for
 if
-impl
 import
 in
 lock
@@ -2249,35 +2248,32 @@ module my_stack
         Vec&lt;i32&gt; items;
     }
 
-    impl Stack
+    public fn Stack::new() -&gt; Stack
     {
-        public fn new() -&gt; Stack
+        return Stack
         {
-            return Stack
-            {
-                items = Vec&lt;i32&gt;::new()
-            };
-        }
+            items = Vec&lt;i32&gt;::new()
+        };
+    }
 
-        public fn push(&amp;mut Stack self, i32 value)
-        {
-            self.items.push(value);
-        }
+    public fn Stack::push(&amp;mut Stack self, i32 value)
+    {
+        self.items.push(value);
+    }
 
-        public fn pop(&amp;mut Stack self) -&gt; Option&lt;i32&gt;
-        {
-            return self.items.pop();
-        }
+    public fn Stack::pop(&amp;mut Stack self) -&gt; Option&lt;i32&gt;
+    {
+        return self.items.pop();
+    }
 
-        public fn len(&amp;Stack self) -&gt; usize
-        {
-            return self.items.len();
-        }
+    public fn Stack::len(&amp;Stack self) -&gt; usize
+    {
+        return self.items.len();
+    }
 
-        public fn is_empty(&amp;Stack self) -&gt; bool
-        {
-            return self.items.is_empty();
-        }
+    public fn Stack::is_empty(&amp;Stack self) -&gt; bool
+    {
+        return self.items.is_empty();
     }
 }
 
