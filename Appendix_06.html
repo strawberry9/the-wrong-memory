@@ -2238,6 +2238,92 @@ access</code></pre>
 <p>through the type system, ownership system, borrow checker, runtime checks, and explicit unsafe boundaries.</p>
 <p>That is the foundation of Cobalt 1.0.</p>
 
+<h1>Example Program</h1>
+<p>The following example illustrates these principles in a small stack implementation:</p>
+
+<pre><code>
+module my_stack
+{
+    public struct Stack
+    {
+        Vec&lt;i32&gt; items;
+    }
+
+    impl Stack
+    {
+        public fn new() -&gt; Stack
+        {
+            return Stack
+            {
+                items = Vec&lt;i32&gt;::new()
+            };
+        }
+
+        public fn push(&amp;mut Stack self, i32 value)
+        {
+            self.items.push(value);
+        }
+
+        public fn pop(&amp;mut Stack self) -&gt; Option&lt;i32&gt;
+        {
+            return self.items.pop();
+        }
+
+        public fn len(&amp;Stack self) -&gt; usize
+        {
+            return self.items.len();
+        }
+
+        public fn is_empty(&amp;Stack self) -&gt; bool
+        {
+            return self.items.is_empty();
+        }
+    }
+}
+
+import my_stack::Stack;
+
+fn main()
+{
+    Stack set stack;
+    stack = Stack::new();
+
+    print("Empty? {}\n", stack.is_empty());
+
+    stack.push(66);
+    stack.push(77);
+
+    print("Length: {}\n", stack.len());
+    print("Stack: {}\n", stack);
+
+    auto value = stack.pop();
+
+    print("Popped: {}\n", value);
+    print("Length: {}\n", stack.len());
+
+    match stack.pop()
+    {
+        Some(value) =&gt; print("Popped: {}\n", value),
+        None =&gt; print("Stack was empty\n")
+    }
+
+    match stack.pop()
+    {
+        Some(value) =&gt; print("Popped: {}\n", value),
+        None =&gt; print("Stack was empty\n")
+    }
+
+    print("Empty? {}\n", stack.is_empty());
+
+    stack.push(123);
+
+    match stack.pop()
+    {
+        Some(value) =&gt; print("Popped: {}\n", value),
+        None =&gt; {}
+    }
+}</code></pre>
+
 <hr>
 
     <div class="book-navigation">
