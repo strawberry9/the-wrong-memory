@@ -504,13 +504,10 @@ lifetime ends</code></pre>
 {
     ...
 }</code></pre>
-<p>A shared reference:</p>
-<pre><code>&amp; T</code></pre>
-<p>permits reading but not mutation.</p>
-<p>A mutable reference:</p>
-<pre><code>&amp;mut T</code></pre>
-<p>permits mutation.</p>
+<p>A shared reference (<code>&amp;T</code>) permits access to its referent for reading, but not for mutation.</p>
+<p>A mutable reference (<code>&amp;mut T</code>) permits access to its referent for mutation.</p>
 <hr>
+
 <h1>27. Borrowing</h1>
 <p>Borrowing does not transfer ownership.</p>
 <pre><code>fn inspect(&amp;Data data)
