@@ -259,6 +259,7 @@ impl
 import
 in
 let
+lock
 match
 module
 move
@@ -1545,7 +1546,7 @@ elements are initialized</code></pre>
 <h1>143. Diagnostics</h1>
 <p>Diagnostics should identify the violated invariant.</p>
 <p>For example:</p>
-<pre><code>error[E0421]: index out of bounds
+<pre><code>error[C0421]: index out of bounds
 
   values[index]
         ^^^^^
@@ -1557,7 +1558,7 @@ valid indexes are 0..10</code></pre>
 <hr>
 <h1>144. Use-After-Move Diagnostic</h1>
 <p>Example:</p>
-<pre><code>error[E0310]: use of moved value
+<pre><code>error[C0310]: use of moved value
 
   Box&lt;Data&gt; b = move a;
                     ^ value moved here
@@ -1567,23 +1568,23 @@ valid indexes are 0..10</code></pre>
 <hr>
 <h1>145. Borrow Diagnostic</h1>
 <p>Example:</p>
-<pre><code>error[E0412]: cannot mutably borrow while shared borrow exists</code></pre>
+<pre><code>error[C0412]: cannot mutably borrow while shared borrow exists</code></pre>
 <p>Diagnostics should identify both borrow sites.</p>
 <hr>
 <h1>146. Integer Overflow Diagnostic</h1>
 <p>Compile-time:</p>
-<pre><code>error[E0201]: integer overflow in constant expression</code></pre>
+<pre><code>error[C0201]: integer overflow in constant expression</code></pre>
 <p>Runtime checked arithmetic produces a defined arithmetic failure rather than memory corruption.</p>
 <hr>
 <h1>147. Invalid Conversion Diagnostic</h1>
-<pre><code>error[E0204]: narrowing conversion requires explicit checked conversion</code></pre>
+<pre><code>error[C0204]: narrowing conversion requires explicit checked conversion</code></pre>
 <p>The compiler should explain the possible range loss.</p>
 <hr>
 <h1>148. Unsafe Diagnostic</h1>
 <p>Attempting:</p>
 <pre><code>*p</code></pre>
 <p>outside unsafe code produces:</p>
-<pre><code>error[E0501]: raw pointer dereference requires unsafe context</code></pre>
+<pre><code>error[C0501]: raw pointer dereference requires unsafe context</code></pre>
 <hr>
 <h1>149. Invalid Free Diagnostic</h1>
 <p>Safe APIs should make ordinary invalid frees unrepresentable.</p>
