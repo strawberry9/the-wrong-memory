@@ -4,11 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>Cobalt Programming Language Specification 1.0.0</title>
+  <title>CobaltC Programming Language Specification 1.0.0</title>
 
   <meta
     name="description"
-    content="Cobalt Programming Language Specification — Cobalt 1.0 — Specification 1.0.0"
+    content="CobaltC Programming Language Specification — CobaltC 1.0 — Specification 1.0.0"
   >
 
   <style>
@@ -563,10 +563,10 @@
 
     <div class="status">Final</div>
 
-    <h1>Cobalt Programming Language Specification</h1>
+    <h1>CobaltC Programming Language Specification</h1>
 
     <p class="subtitle">
-      Cobalt 1.0 &mdash; Specification version 1.0.0
+      CobaltC 1.0 &mdash; Specification version 1.0.0
     </p>
 
     <div class="metadata">
@@ -578,7 +578,7 @@
 
       <div class="metadata-item">
         <span class="metadata-label">Edition</span>
-        <span class="metadata-value">Cobalt 1.0</span>
+        <span class="metadata-value">CobaltC 1.0</span>
       </div>
 
       <div class="metadata-item">
@@ -707,7 +707,7 @@
       <h2>1. Introduction</h2>
 
       <p>
-        Cobalt is a statically typed systems programming language providing:
+        CobaltC is a statically typed systems programming language providing:
       </p>
 
       <ul>
@@ -730,7 +730,7 @@
       </p>
 
       <p>
-        Cobalt does not require tracing garbage collection.
+        CobaltC does not require tracing garbage collection.
       </p>
     </section>
 
@@ -749,7 +749,7 @@
 
       <p>
         Undefined behavior is behavior for which this specification imposes
-        no requirements. Safe Cobalt operations MUST NOT introduce undefined
+        no requirements. Safe CobaltC operations MUST NOT introduce undefined
         behavior merely through ordinary use.
       </p>
     </section>
@@ -759,7 +759,7 @@
       <h2>3. Source Files</h2>
 
       <p>
-        A Cobalt program consists of one or more source modules.
+        A CobaltC program consists of one or more source modules.
       </p>
 
       <p>
@@ -780,7 +780,7 @@
     <section id="section-4">
       <h2>4. Comments</h2>
 
-      <p>Cobalt supports line comments:</p>
+      <p>CobaltC supports line comments:</p>
 
       <pre><code>// comment</code></pre>
 
@@ -831,7 +831,7 @@ unsafe
 while</code></pre>
 
       <p>
-        <code>let</code> is not a Cobalt 1.0 keyword.
+        <code>let</code> is not a CobaltC 1.0 keyword.
       </p>
     </section>
 
@@ -861,7 +861,7 @@ VALUE</code></pre>
     <section id="section-7">
       <h2>7. Literals</h2>
 
-      <p>Cobalt provides:</p>
+      <p>CobaltC provides:</p>
 
       <ul>
         <li>integer literals;</li>
@@ -909,7 +909,7 @@ VALUE</code></pre>
     <section id="section-9">
       <h2>9. Declarations</h2>
 
-      <p>Cobalt provides:</p>
+      <p>CobaltC provides:</p>
 
       <pre><code>const
 static
@@ -972,7 +972,7 @@ fn</code></pre>
     <section id="section-12">
       <h2>12. Primitive Types</h2>
 
-      <p>Cobalt defines:</p>
+      <p>CobaltC defines:</p>
 
       <pre><code>bool
 char
@@ -1009,7 +1009,7 @@ f64</code></pre>
     <section id="section-13">
       <h2>13. Compound Types</h2>
 
-      <p>Cobalt supports:</p>
+      <p>CobaltC supports:</p>
 
       <ul>
         <li>structs</li>
@@ -1128,7 +1128,7 @@ f64</code></pre>
       <h2>18. Type Inference</h2>
 
       <p>
-        Cobalt permits inference where the language grammar and context
+        CobaltC permits inference where the language grammar and context
         establish a unique type.
       </p>
 
@@ -1450,7 +1450,7 @@ f64</code></pre>
       <h2>32. Conditional Execution</h2>
 
       <p>
-        Cobalt provides:
+        CobaltC provides:
       </p>
 
       <pre><code>if condition
@@ -1472,7 +1472,7 @@ else
       <h2>33. Loops</h2>
 
       <p>
-        Cobalt provides:
+        CobaltC provides:
       </p>
 
       <pre><code>while
@@ -1595,7 +1595,7 @@ print(value);</code></pre>
       <h2>38. Ownership</h2>
 
       <p>
-        Ownership is a fundamental part of Cobalt's type and runtime model.
+        Ownership is a fundamental part of CobaltC's type and runtime model.
       </p>
 
       <p>
@@ -2059,7 +2059,7 @@ values.push(10);</code></pre>
       <h2>63. Threads</h2>
 
       <p>
-        Cobalt supports concurrent execution through threads.
+        CobaltC supports concurrent execution through threads.
       </p>
 
       <p>
@@ -2170,7 +2170,7 @@ Channel</code></pre>
       <h2>69. Data Races</h2>
 
       <p>
-        Safe Cobalt code MUST NOT contain an ordinary unsynchronized data
+        Safe CobaltC code MUST NOT contain an ordinary unsynchronized data
         race.
       </p>
 
@@ -2228,7 +2228,7 @@ Channel</code></pre>
 
       <p>
         An implementation MUST NOT treat arbitrary raw memory as
-        automatically satisfying Cobalt's type, lifetime or ownership
+        automatically satisfying CobaltC's type, lifetime or ownership
         requirements.
       </p>
     </section>
@@ -2260,7 +2260,7 @@ Channel</code></pre>
       </p>
 
       <p>
-        Foreign functions are not assumed to obey Cobalt ownership, lifetime
+        Foreign functions are not assumed to obey CobaltC ownership, lifetime
         or safety rules.
       </p>
     </section>
@@ -2322,7 +2322,7 @@ Channel</code></pre>
       <h2>77. Runtime</h2>
 
       <p>
-        A hosted Cobalt program begins through <code>main</code>.
+        A hosted CobaltC program begins through <code>main</code>.
       </p>
 
       <p>
@@ -2371,7 +2371,7 @@ Channel</code></pre>
       <p>
         An implementation MAY unwind or terminate according to its runtime
         configuration, provided the selected behavior conforms to the
-        applicable Cobalt rules.
+        applicable CobaltC rules.
       </p>
     </section>
 
@@ -2424,7 +2424,7 @@ Arc</code></pre>
       <h2>82. Security and Safety Boundary</h2>
 
       <p>
-        Cobalt's safety guarantees apply to conforming safe code.
+        CobaltC's safety guarantees apply to conforming safe code.
       </p>
 
       <p>
@@ -2502,11 +2502,11 @@ invalid assignment</code></pre>
       </p>
 
       <p>
-        Extensions MUST be distinguishable from standard Cobalt behavior.
+        Extensions MUST be distinguishable from standard CobaltC behavior.
       </p>
 
       <p>
-        An extension MUST NOT silently change the semantics of a valid Cobalt
+        An extension MUST NOT silently change the semantics of a valid CobaltC
         1.0.0 program.
       </p>
     </section>
@@ -2592,7 +2592,7 @@ regressions</code></pre>
       <h2>88. Compatibility</h2>
 
       <p>
-        A Cobalt 1.0.0 program has stable meaning under conforming
+        A CobaltC 1.0.0 program has stable meaning under conforming
         implementations.
       </p>
 
@@ -2612,7 +2612,7 @@ regressions</code></pre>
       <h2>89. Versioning</h2>
 
       <p>
-        Cobalt 1.0.0 is a closed language edition.
+        CobaltC 1.0.0 is a closed language edition.
       </p>
 
       <p>
@@ -2626,7 +2626,7 @@ regressions</code></pre>
       </ul>
 
       <p>
-        A semantic change MUST NOT be silently presented as Cobalt 1.0.0
+        A semantic change MUST NOT be silently presented as CobaltC 1.0.0
         behavior.
       </p>
     </section>
@@ -2636,14 +2636,14 @@ regressions</code></pre>
       <h2>90. Final Safety Theorem</h2>
 
       <p>
-        The central semantic guarantee of Cobalt is:
+        The central semantic guarantee of CobaltC is:
       </p>
 
       <div class="final-box">
 
         <p>
           <strong>
-            A conforming implementation executing conforming safe Cobalt code
+            A conforming implementation executing conforming safe CobaltC code
             MUST preserve ownership, initialization, borrowing, lifetime,
             nullability, bounds and synchronization requirements defined by
             this specification.
@@ -2653,7 +2653,7 @@ regressions</code></pre>
       </div>
 
       <p>
-        In particular, ordinary safe Cobalt operations cannot be used to
+        In particular, ordinary safe CobaltC operations cannot be used to
         create:
       </p>
 
@@ -2735,7 +2735,7 @@ regressions</code></pre>
       <div class="final-box">
 
         <p>
-          <strong>Cobalt Programming Language Specification 1.0.0</strong>
+          <strong>CobaltC Programming Language Specification 1.0.0</strong>
         </p>
 
         <p>
@@ -2848,7 +2848,7 @@ fn main() -&gt; i32
 
   <p>
     The example intentionally exercises several of the normative semantic
-    rules established by the Cobalt 1.0 specification.
+    rules established by the CobaltC 1.0 specification.
   </p>
 
   <ul>
@@ -2867,7 +2867,7 @@ fn main() -&gt; i32
     <li>
       <strong>Deterministic destruction:</strong>
       when <code>stack</code> leaves its scope, its owned contents are
-      destroyed according to Cobalt's deterministic destruction rules.
+      destroyed according to CobaltC's deterministic destruction rules.
     </li>
 
     <li>
@@ -2881,7 +2881,7 @@ fn main() -&gt; i32
       <strong>Mutable borrowing:</strong>
       the <code>mut Stack&lt;T&gt;*</code> parameter permits the called
       function to modify the borrowed stack while remaining subject to
-      Cobalt's aliasing rules.
+      CobaltC's aliasing rules.
     </li>
 
     <li>
