@@ -191,6 +191,8 @@
       <li><a href="#section-95">Final Safety Theorem</a></li>
       <li><a href="#section-96">Final Reference Model</a></li>
       <li><a href="#section-97">Final Status</a></li>
+      <li><a href="#section-98">Complete Errata & Additions</a></li>
+
     </ol>
 
   </nav>
@@ -2150,7 +2152,133 @@ regressions</code></pre>
       </div>
     </section>
 
+<br><br><br>
+<hr>
+<section id="section-98">
+<h2>CobaltC Formal Language Specification: Complete Errata & Additions</h2>
 
+<p>This errata provides the exhaustive formal semantics, syntactic grammar rules, and typing judgments required to complete the CobaltC language standard implementation.</p>
+
+<h2>30. Lifetime Inference and Region Subtyping Mechanics</h2>
+<p>Lifetimes track reference validity across control flow boundaries using static region variables. Region subtyping and containment rules determine whether a reference expression is well-formed.</p>
+
+<h3>30.1 Region Containment and Outlives Judgments</h3>
+<div class="rule">
+    <p><strong>Rule [Outlives-Transitivity]:</strong> Region containment forms a strict partial order over the control flow graph execution tree.</p>
+    <pre>Gamma ? <span class="math">'a</span> : <span class="math">'b</span>    and    Gamma ? <span class="math">'b</span> : <span class="math">'c</span>
+---------------------------------------------
+        Gamma ? <span class="math">'a</span> : <span class="math">'c</span></pre>
+</div>
+
+<div class="rule">
+    <p><strong>Rule [Reference-Subtyping]:</strong> Immutable references are covariant over both type parameters and lifetimes.</p>
+    <pre>Sub <: Super    and    <span class="math">'a</span> : <span class="math">'b</span>
+---------------------------------------------
+     <span class="math">&amp;'a</span> Sub  &lt;:  <span class="math">&amp;'b</span> Super</pre>
+</div>
+
+<h3>30.2 Lifetime Elision Grammar & Rules</h3>
+<pre>
+ElisionRule ::= SingleInput  ? OutputLifetime = InputLifetime
+              | ReceiverSelf ? OutputLifetime = SelfLifetime
+              | Multiple     ? CompileError("Explicit lifetime required")
+</pre>
+
+<h2>31. Dynamic Indexing and Aliasing Restrictions</h2>
+<p>Containers supporting runtime dynamic indexing must uphold strict alias-exclusion constraints enforced via path access graphs.</p>
+
+<div class="rule">
+    <p><strong>Rule [Disjoint-Access]:</strong> A mutable dynamic index access <span class="math">C[i]</span> is legal if and only if its index path does not overlap with any active borrow set.</p>
+    <pre>? v ? ActiveBorrows(G), PathOverlap(v, C[i]) == False
+------------------------------------------------------
+        TypeCheck(C[i]) ? ValidMutableBorrow</pre>
+</div>
+
+<h2>32. Generics and Monomorphization Architecture</h2>
+<p>Generic definitions undergo a two-phase check: preliminary signature validation followed by monomorphized instantiation expansion.</p>
+
+<pre>
+GenericDef  ::= <span class="math">fn</span> Ident &lt; GenericParamList &gt; ( ParamList ) TypeConstraintClause
+Monomorph   ::= Substitute(GenericDef, TypeBindingMap) ? ConcreteAST
+</pre>
+
+<h2>33. Error Propagation, Panics, and Unwinding Semantics</h2>
+<p>Recoverable errors utilize explicit union structures, while systemic faults trigger call-stack unwinding.</p>
+
+<pre>
+Result<T, E> ::= Ok(T) | Err(E)
+TryOperator  ::= Expr <span class="math">?</span>  // Desugars to early-return match on Result::Err(e)
+PanicRoutine ::= UnwindStack() ? DropResources() ? AbortOrExit()
+</pre>
+
+<h2>34. Concurrency, Thread Safety, and Send/Sync Bounds</h2>
+<p>Cross-thread data safety is statically enforced via marker traits checked during compilation.</p>
+
+<div class="rule">
+    <p><strong>Rule [Send-Sync-Bounds]:</strong> Type <span class="math">T</span> is <span class="math">Send</span> if all component types implement <span class="math">Send</span>. Type <span class="math">T</span> is <span class="math">Sync</span> iff <span class="math">&amp;'a T</span> is <span class="math">Send</span>.</p>
+    <pre>? f ? Fields(T), Gamma ? f : Send
+----------------------------------
+          Gamma ? T : Send</pre>
+</div>
+
+<h2>35. Diagnostics, Source Spans, and Error Recovery</h2>
+<p>Compilers must track source positions via <code>Span</code> structs and synchronize error recovery at block and statement boundaries.</p>
+
+<pre>
+Span        ::= Struct { file_id: u32, start_offset: usize, end_offset: usize }
+SyncToken   ::= ';' | '}' | 'fn' | 'struct' | 'let'
+</pre>
+
+<h2>36. Low-Level Layout, ABI, and Code Generation</h2>
+<p>Aggregate layouts follow standard C ABI rules, and safe references are lowered into raw pointer targets.</p>
+
+<pre>
+Lowering    ::= &amp;'a T   ?   T* (LLVM Target Pointer)
+CallingConv ::= extern "C" { ... } // Standard native platform interop
+</pre>
+
+<h2>37. Module System, Path Resolution, and Visibility Rules</h2>
+<p>Modules map file directory trees to explicit visibility namespaces controlled by <code>pub</code> modifiers.</p>
+
+<pre>
+ModuleDecl  ::= <span class="math">mod</span> Ident <span class="math">;</span>  // Resolves to Ident.cc or Ident/mod.cc
+Path        ::= <span class="math">crate::</span> | <span class="math">self::</span> | <span class="math">super::</span> | Ident PathSegments*
+Visibility  ::= <span class="math">pub</span> | <span class="math">pub(crate)</span> | <span class="math">pub(super)</span> | Private (Default)
+</pre>
+
+<h2>38. Trait Objects, Object Safety, and Dynamic Dispatch</h2>
+<p>Dynamic polymorphism is supported via fat pointers combining data pointers and virtual method tables.</p>
+
+<div class="rule">
+    <p><strong>Rule [Object-Safety]:</strong> A trait is object-safe if all methods exclude generic parameters and enforce <code>Self: Sized</code> bounds where applicable.</p>
+    <pre>? m ? Methods(Trait), GenericParams(m) == Ø ? (IsSized(Self) ? ReceiverIsReference(m))
+-------------------------------------------------------------------------------------
+                        IsObjectSafe(Trait) == True</pre>
+</div>
+
+<pre>
+FatPointer  ::= Struct { data_ptr: *mut (), vtable_ptr: *const VTable }
+VTable      ::= Struct { destructor: fn(*mut ()), size: usize, align: usize, methods: [fn(); N] }
+</pre>
+
+<h2>39. Heap Allocation, Owned Boxes, and Interior Mutability</h2>
+<p>Heap ownership is handled via unique smart pointers, while interior mutability wraps dynamic access rules.</p>
+
+<pre>
+Box<T>      ::= Struct { ptr: *mut T } // Unique heap owner; drops on scope exit
+Cell<T>     ::= Struct { value: T }  // Copy-based replacement interior mutability
+RefCell<T>  ::= Struct { value: T, borrow_flag: isize } // Dynamic runtime borrow check
+</pre>
+
+<h2>40. Metaprogramming, Macro Expansion, and Hygiene</h2>
+<p>Declarative macros expand token trees prior to name resolution, maintaining lexical identifier hygiene.</p>
+
+<pre>
+MacroExpand ::= ParseTokenTree(Input) ? MacroRulesPatternMatch ? SubstituteAST
+Hygiene     ::= ScopeID(LocalIdentifier) != ScopeID(MacroDefinitionSite)
+</pre>
+
+<hr>
 <section class="cobalt-example">
   <h2>A Conformance/Example-Program Example</h2>
 
