@@ -641,57 +641,64 @@
       <li><a href="#section-39">Move Semantics</a></li>
       <li><a href="#section-40">Copy Semantics</a></li>
       <li><a href="#section-41">Partial Moves</a></li>
+
       <li><a href="#section-42">Borrowing</a></li>
-      <li><a href="#section-43">Borrow Lifetime</a></li>
-      <li><a href="#section-44">Reborrowing</a></li>
-      <li><a href="#section-45">Aliasing</a></li>
-      <li><a href="#section-46">Collection Borrowing</a></li>
-      <li><a href="#section-47">Destruction</a></li>
-      <li><a href="#section-48">Scope Destruction</a></li>
-      <li><a href="#section-49">Unwinding</a></li>
-      <li><a href="#section-50">Abort</a></li>
-      <li><a href="#section-51">Nullability</a></li>
-      <li><a href="#section-52">Bounds Safety</a></li>
-      <li><a href="#section-53">Option&lt;T&gt;</a></li>
-      <li><a href="#section-54">Result&lt;T,E&gt;</a></li>
-      <li><a href="#section-55">Error Propagation</a></li>
-      <li><a href="#section-56">Strings</a></li>
-      <li><a href="#section-57">Vec&lt;T&gt;</a></li>
-      <li><a href="#section-58">Slices</a></li>
-      <li><a href="#section-59">Box&lt;T&gt;</a></li>
-      <li><a href="#section-60">Rc&lt;T&gt;</a></li>
-      <li><a href="#section-61">Arc&lt;T&gt;</a></li>
-      <li><a href="#section-62">Weak&lt;T&gt;</a></li>
-      <li><a href="#section-63">Threads</a></li>
-      <li><a href="#section-64">Synchronization</a></li>
-      <li><a href="#section-65">Mutex</a></li>
-      <li><a href="#section-66">RwLock</a></li>
-      <li><a href="#section-67">Atomics</a></li>
-      <li><a href="#section-68">Channels</a></li>
-      <li><a href="#section-69">Data Races</a></li>
-      <li><a href="#section-70">Memory Model</a></li>
-      <li><a href="#section-71">Unsafe Blocks</a></li>
-      <li><a href="#section-72">Raw Memory</a></li>
-      <li><a href="#section-73">Safe Abstractions over Unsafe Code</a></li>
-      <li><a href="#section-74">Foreign Functions</a></li>
-      <li><a href="#section-75">FFI Ownership</a></li>
-      <li><a href="#section-76">ABI Profiles</a></li>
-      <li><a href="#section-77">Runtime</a></li>
-      <li><a href="#section-78">Allocation</a></li>
-      <li><a href="#section-79">Panic</a></li>
-      <li><a href="#section-80">Standard I/O</a></li>
-      <li><a href="#section-81">Standard Concurrency Types</a></li>
-      <li><a href="#section-82">Security and Safety Boundary</a></li>
-      <li><a href="#section-83">Diagnostics</a></li>
-      <li><a href="#section-84">Implementation-Defined Behavior</a></li>
-      <li><a href="#section-85">Extensions</a></li>
-      <li><a href="#section-86">Conformance Levels</a></li>
-      <li><a href="#section-87">Conformance Testing</a></li>
-      <li><a href="#section-88">Compatibility</a></li>
-      <li><a href="#section-89">Versioning</a></li>
-      <li><a href="#section-90">Final Safety Theorem</a></li>
-      <li><a href="#section-91">Final Reference Model</a></li>
-      <li><a href="#section-92">Final Status</a></li>
+      <li><a href="#section-43">Shared Borrows</a></li>
+      <li><a href="#section-44">Mutable Borrows</a></li>
+      <li><a href="#section-45">Borrow Lifetime</a></li>
+      <li><a href="#section-46">Function Parameters and Returned Borrows</a></li>
+      <li><a href="#section-47">Reborrowing</a></li>
+      <li><a href="#section-48">Field and Partial Borrows</a></li>
+      <li><a href="#section-49">Aliasing</a></li>
+      <li><a href="#section-50">Collection Borrowing</a></li>
+      <li><a href="#section-51">Borrow Invalidation</a></li>
+
+      <li><a href="#section-52">Destruction</a></li>
+      <li><a href="#section-53">Scope Destruction</a></li>
+      <li><a href="#section-54">Unwinding</a></li>
+      <li><a href="#section-55">Abort</a></li>
+      <li><a href="#section-56">Nullability</a></li>
+      <li><a href="#section-57">Bounds Safety</a></li>
+      <li><a href="#section-58">Option&lt;T&gt;</a></li>
+      <li><a href="#section-59">Result&lt;T,E&gt;</a></li>
+      <li><a href="#section-60">Error Propagation</a></li>
+      <li><a href="#section-61">Strings</a></li>
+      <li><a href="#section-62">Vec&lt;T&gt;</a></li>
+      <li><a href="#section-63">Slices</a></li>
+      <li><a href="#section-64">Box&lt;T&gt;</a></li>
+      <li><a href="#section-65">Rc&lt;T&gt;</a></li>
+      <li><a href="#section-66">Arc&lt;T&gt;</a></li>
+      <li><a href="#section-67">Weak&lt;T&gt;</a></li>
+      <li><a href="#section-68">Threads</a></li>
+      <li><a href="#section-69">Synchronization</a></li>
+      <li><a href="#section-70">Mutex</a></li>
+      <li><a href="#section-71">RwLock</a></li>
+      <li><a href="#section-72">Atomics</a></li>
+      <li><a href="#section-73">Channels</a></li>
+      <li><a href="#section-74">Data Races</a></li>
+      <li><a href="#section-75">Memory Model</a></li>
+      <li><a href="#section-76">Unsafe Blocks</a></li>
+      <li><a href="#section-77">Raw Memory</a></li>
+      <li><a href="#section-78">Safe Abstractions over Unsafe Code</a></li>
+      <li><a href="#section-79">Foreign Functions</a></li>
+      <li><a href="#section-80">FFI Ownership</a></li>
+      <li><a href="#section-81">ABI Profiles</a></li>
+      <li><a href="#section-82">Runtime</a></li>
+      <li><a href="#section-83">Allocation</a></li>
+      <li><a href="#section-84">Panic</a></li>
+      <li><a href="#section-85">Standard I/O</a></li>
+      <li><a href="#section-86">Standard Concurrency Types</a></li>
+      <li><a href="#section-87">Security and Safety Boundary</a></li>
+      <li><a href="#section-88">Diagnostics</a></li>
+      <li><a href="#section-89">Implementation-Defined Behavior</a></li>
+      <li><a href="#section-90">Extensions</a></li>
+      <li><a href="#section-91">Conformance Levels</a></li>
+      <li><a href="#section-92">Conformance Testing</a></li>
+      <li><a href="#section-93">Compatibility</a></li>
+      <li><a href="#section-94">Versioning</a></li>
+      <li><a href="#section-95">Final Safety Theorem</a></li>
+      <li><a href="#section-96">Final Reference Model</a></li>
+      <li><a href="#section-97">Final Status</a></li>
     </ol>
 
   </nav>
@@ -1673,7 +1680,7 @@ File b = move a;</code></pre>
       </p>
     </section>
 
-
+    <section id="section-42">
     <h2 id="section-42-borrowing">42. Borrowing</h2>
 
 <p>
@@ -1731,7 +1738,7 @@ print(*reference);   // ERROR: `value` was moved while borrowed</code></pre>
   A borrow MUST NOT outlive its referent.
 </p>
 
-
+<section id="section-43">
 <h2 id="section-43-shared-borrows">43. Shared Borrows</h2>
 
 <p>
@@ -1789,7 +1796,7 @@ append(*mutable, "!");</code></pre>
   reject conflicting mutable access.
 </p>
 
-
+<section id="section-44">
 <h2 id="section-44-mutable-borrows">44. Mutable Borrows</h2>
 
 <p>
@@ -1854,7 +1861,7 @@ print(*shared);</code></pre>
   mutable borrow.
 </p>
 
-
+<section id="section-45">
 <h2 id="section-45-borrow-lifetime">45. Borrow Lifetime</h2>
 
 <p>
@@ -1909,7 +1916,7 @@ append(*mutable, " world");</code></pre>
   reference is used.
 </p>
 
-
+<section id="section-46">
 <h2 id="section-46-function-parameters-and-returned-borrows">
   46. Function Parameters and Returned Borrows
 </h2>
@@ -1982,7 +1989,7 @@ String value = "hello";
   unless an explicitly defined ownership operation is used.
 </p>
 
-
+<section id="section-47">
 <h2 id="section-47-reborrowing">47. Reborrowing</h2>
 
 <p>
@@ -2034,7 +2041,7 @@ append(*reborrow, "?");</code></pre>
   Reborrowing does not transfer ownership of the underlying value.
 </p>
 
-
+<section id="section-48">
 <h2 id="section-48-field-and-partial-borrows">
   48. Field and Partial Borrows
 </h2>
@@ -2100,7 +2107,7 @@ use(*whole);  // ERROR: conflicting borrow</code></pre>
   as borrowing an entire value.
 </p>
 
-
+<section id="section-49">
 <h2 id="section-49-aliasing">49. Aliasing</h2>
 
 <p>
@@ -2165,7 +2172,7 @@ mutable</code></pre>
   borrows.
 </p>
 
-
+<section id="section-50">
 <h2 id="section-50-collection-borrowing">
   50. Collection Borrowing
 </h2>
@@ -2227,7 +2234,7 @@ print(*first);</code></pre>
   required to preserve ownership, lifetime, aliasing, or storage validity.
 </p>
 
-
+<section id="section-51">
 <h2 id="section-51-borrow-invalidation">
   51. Borrow Invalidation
 </h2>
@@ -2302,53 +2309,11 @@ print(*reference);  // ERROR: referent has been destroyed</code></pre>
 
 
 
-    <section id="section-45">
-      <h2>45. Aliasing</h2>
-
-      <p>
-        Safe code MUST NOT create an aliasing configuration that violates the
-        ownership model.
-      </p>
-
-      <p>
-        A mutable access cannot coexist with an incompatible shared or
-        mutable access.
-      </p>
-
-      <p>
-        This rule applies across library abstractions as well as direct
-        language operations.
-      </p>
-    </section>
+    
 
 
-    <section id="section-46">
-      <h2>46. Collection Borrowing</h2>
-
-      <p>
-        If a collection operation may invalidate references into the
-        collection, the operation MUST NOT occur while an incompatible
-        borrow remains live.
-      </p>
-
-      <p>
-        For example:
-      </p>
-
-      <pre><code>mut Vec&lt;i32&gt; values = Vec&lt;i32&gt;::new();
-
-i32* first = &amp;values[0];
-
-values.push(10);</code></pre>
-
-      <p>
-        is rejected when the operation may invalidate <code>first</code>.
-      </p>
-    </section>
-
-
-    <section id="section-47">
-      <h2>47. Destruction</h2>
+    <section id="section-52">
+      <h2>52. Destruction</h2>
 
       <p>
         Owned values are destroyed deterministically.
@@ -2364,8 +2329,8 @@ values.push(10);</code></pre>
     </section>
 
 
-    <section id="section-48">
-      <h2>48. Scope Destruction</h2>
+    <section id="section-53">
+      <h2>53. Scope Destruction</h2>
 
       <p>
         For ordinary scope exit:
@@ -2384,8 +2349,8 @@ values.push(10);</code></pre>
     </section>
 
 
-    <section id="section-49">
-      <h2>49. Unwinding</h2>
+    <section id="section-54">
+      <h2>54. Unwinding</h2>
 
       <p>
         If the implementation supports unwinding, scopes exited by supported
@@ -2399,8 +2364,8 @@ values.push(10);</code></pre>
     </section>
 
 
-    <section id="section-50">
-      <h2>50. Abort</h2>
+    <section id="section-55">
+      <h2>55. Abort</h2>
 
       <p>
         An abort terminates execution immediately.
@@ -2412,8 +2377,8 @@ values.push(10);</code></pre>
     </section>
 
 
-    <section id="section-51">
-      <h2>51. Nullability</h2>
+    <section id="section-56">
+      <h2>56. Nullability</h2>
 
       <p>
         Nullable values are explicitly represented by nullable types.
@@ -2434,8 +2399,8 @@ values.push(10);</code></pre>
     </section>
 
 
-    <section id="section-52">
-      <h2>52. Bounds Safety</h2>
+    <section id="section-57">
+      <h2>57. Bounds Safety</h2>
 
       <p>
         Safe indexing MUST remain within valid bounds.
@@ -2452,8 +2417,8 @@ values.push(10);</code></pre>
     </section>
 
 
-    <section id="section-53">
-      <h2>53. Option&lt;T&gt;</h2>
+    <section id="section-58">
+      <h2>58. Option&lt;T&gt;</h2>
 
       <p>
         The canonical optional-value type is:
@@ -2472,8 +2437,8 @@ values.push(10);</code></pre>
     </section>
 
 
-    <section id="section-54">
-      <h2>54. Result&lt;T,E&gt;</h2>
+    <section id="section-59">
+      <h2>59. Result&lt;T,E&gt;</h2>
 
       <p>
         The canonical recoverable-error type is:
@@ -2492,8 +2457,8 @@ values.push(10);</code></pre>
     </section>
 
 
-    <section id="section-55">
-      <h2>55. Error Propagation</h2>
+    <section id="section-60">
+      <h2>60. Error Propagation</h2>
 
       <p>
         The <code>?</code> operator propagates a compatible error from the
@@ -2506,8 +2471,8 @@ values.push(10);</code></pre>
     </section>
 
 
-    <section id="section-56">
-      <h2>56. Strings</h2>
+    <section id="section-61">
+      <h2>61. Strings</h2>
 
       <p>
         <code>String</code> owns UTF-8 text storage.
@@ -2527,8 +2492,8 @@ values.push(10);</code></pre>
     </section>
 
 
-    <section id="section-57">
-      <h2>57. Vec&lt;T&gt;</h2>
+    <section id="section-62">
+      <h2>62. Vec&lt;T&gt;</h2>
 
       <p>
         <code>Vec&lt;T&gt;</code> owns dynamically allocated contiguous
@@ -2546,8 +2511,8 @@ values.push(10);</code></pre>
     </section>
 
 
-    <section id="section-58">
-      <h2>58. Slices</h2>
+    <section id="section-63">
+      <h2>63. Slices</h2>
 
       <p>
         A slice provides borrowed access to contiguous storage.
@@ -2564,8 +2529,8 @@ values.push(10);</code></pre>
     </section>
 
 
-    <section id="section-59">
-      <h2>59. Box&lt;T&gt;</h2>
+    <section id="section-64">
+      <h2>64. Box&lt;T&gt;</h2>
 
       <p>
         <code>Box&lt;T&gt;</code> represents unique heap ownership.
@@ -2578,8 +2543,8 @@ values.push(10);</code></pre>
     </section>
 
 
-    <section id="section-60">
-      <h2>60. Rc&lt;T&gt;</h2>
+    <section id="section-65">
+      <h2>65. Rc&lt;T&gt;</h2>
 
       <p>
         <code>Rc&lt;T&gt;</code> provides reference-counted shared ownership
@@ -2592,8 +2557,8 @@ values.push(10);</code></pre>
     </section>
 
 
-    <section id="section-61">
-      <h2>61. Arc&lt;T&gt;</h2>
+    <section id="section-66">
+      <h2>66. Arc&lt;T&gt;</h2>
 
       <p>
         <code>Arc&lt;T&gt;</code> provides shared ownership suitable for
@@ -2608,8 +2573,8 @@ values.push(10);</code></pre>
     </section>
 
 
-    <section id="section-62">
-      <h2>62. Weak&lt;T&gt;</h2>
+    <section id="section-67">
+      <h2>67. Weak&lt;T&gt;</h2>
 
       <p>
         <code>Weak&lt;T&gt;</code> provides non-owning access to
@@ -2622,8 +2587,8 @@ values.push(10);</code></pre>
     </section>
 
 
-    <section id="section-63">
-      <h2>63. Threads</h2>
+    <section id="section-68">
+      <h2>68. Threads</h2>
 
       <p>
         CobaltC supports concurrent execution through threads.
@@ -2641,8 +2606,8 @@ values.push(10);</code></pre>
     </section>
 
 
-    <section id="section-64">
-      <h2>64. Synchronization</h2>
+    <section id="section-69">
+      <h2>69. Synchronization</h2>
 
       <p>
         Shared mutable state requires synchronization.
@@ -2664,8 +2629,8 @@ Channel</code></pre>
     </section>
 
 
-    <section id="section-65">
-      <h2>65. Mutex</h2>
+    <section id="section-70">
+      <h2>70. Mutex</h2>
 
       <p>
         A mutex provides exclusive synchronized access.
@@ -2682,8 +2647,8 @@ Channel</code></pre>
     </section>
 
 
-    <section id="section-66">
-      <h2>66. RwLock</h2>
+    <section id="section-71">
+      <h2>71. RwLock</h2>
 
       <p>
         A read/write lock permits:
@@ -2700,8 +2665,8 @@ Channel</code></pre>
     </section>
 
 
-    <section id="section-67">
-      <h2>67. Atomics</h2>
+    <section id="section-72">
+      <h2>72. Atomics</h2>
 
       <p>
         Atomic operations are indivisible according to the specified atomic
@@ -2715,8 +2680,8 @@ Channel</code></pre>
     </section>
 
 
-    <section id="section-68">
-      <h2>68. Channels</h2>
+    <section id="section-73">
+      <h2>73. Channels</h2>
 
       <p>
         Channels provide communication between execution contexts.
@@ -2733,8 +2698,8 @@ Channel</code></pre>
     </section>
 
 
-    <section id="section-69">
-      <h2>69. Data Races</h2>
+    <section id="section-74">
+      <h2>74. Data Races</h2>
 
       <p>
         Safe CobaltC code MUST NOT contain an ordinary unsynchronized data
@@ -2748,8 +2713,8 @@ Channel</code></pre>
     </section>
 
 
-    <section id="section-70">
-      <h2>70. Memory Model</h2>
+    <section id="section-75">
+      <h2>75. Memory Model</h2>
 
       <p>
         The memory model defines the ordering guarantees of synchronization
@@ -2763,8 +2728,8 @@ Channel</code></pre>
     </section>
 
 
-    <section id="section-71">
-      <h2>71. Unsafe Blocks</h2>
+    <section id="section-76">
+      <h2>76. Unsafe Blocks</h2>
 
       <p>
         Unsafe operations require an explicit unsafe context:
@@ -2785,8 +2750,8 @@ Channel</code></pre>
     </section>
 
 
-    <section id="section-72">
-      <h2>72. Raw Memory</h2>
+    <section id="section-77">
+      <h2>77. Raw Memory</h2>
 
       <p>
         Raw-pointer dereference, unchecked memory manipulation and manual
@@ -2801,8 +2766,8 @@ Channel</code></pre>
     </section>
 
 
-    <section id="section-73">
-      <h2>73. Safe Abstractions over Unsafe Code</h2>
+    <section id="section-78">
+      <h2>78. Safe Abstractions over Unsafe Code</h2>
 
       <p>
         Unsafe implementation code MAY be encapsulated by a safe API.
@@ -2815,8 +2780,8 @@ Channel</code></pre>
     </section>
 
 
-    <section id="section-74">
-      <h2>74. Foreign Functions</h2>
+    <section id="section-79">
+      <h2>79. Foreign Functions</h2>
 
       <p>
         Foreign functions require explicit declarations.
@@ -2833,8 +2798,8 @@ Channel</code></pre>
     </section>
 
 
-    <section id="section-75">
-      <h2>75. FFI Ownership</h2>
+    <section id="section-80">
+      <h2>80. FFI Ownership</h2>
 
       <p>
         Ownership crossing an FFI boundary MUST be defined by the API
@@ -2859,8 +2824,8 @@ Channel</code></pre>
     </section>
 
 
-    <section id="section-76">
-      <h2>76. ABI Profiles</h2>
+    <section id="section-81">
+      <h2>81. ABI Profiles</h2>
 
       <p>
         A target ABI profile specifies at minimum:
@@ -2885,8 +2850,8 @@ Channel</code></pre>
     </section>
 
 
-    <section id="section-77">
-      <h2>77. Runtime</h2>
+    <section id="section-82">
+      <h2>82. Runtime</h2>
 
       <p>
         A hosted CobaltC program begins through <code>main</code>.
@@ -2913,8 +2878,8 @@ Channel</code></pre>
     </section>
 
 
-    <section id="section-78">
-      <h2>78. Allocation</h2>
+    <section id="section-83">
+      <h2>83. Allocation</h2>
 
       <p>
         Managed allocation must either produce a valid allocation or produce
@@ -2928,8 +2893,8 @@ Channel</code></pre>
     </section>
 
 
-    <section id="section-79">
-      <h2>79. Panic</h2>
+    <section id="section-84">
+      <h2>84 Panic</h2>
 
       <p>
         A panic represents an unrecoverable program/runtime failure.
@@ -2943,8 +2908,8 @@ Channel</code></pre>
     </section>
 
 
-    <section id="section-80">
-      <h2>80. Standard I/O</h2>
+    <section id="section-85">
+      <h2>85. Standard I/O</h2>
 
       <p>
         Expected I/O failures are represented using <code>Result</code>-style
@@ -2966,8 +2931,8 @@ close</code></pre>
     </section>
 
 
-    <section id="section-81">
-      <h2>81. Standard Concurrency Types</h2>
+    <section id="section-86">
+      <h2>86. Standard Concurrency Types</h2>
 
       <p>
         The standard library baseline includes facilities corresponding to:
@@ -2987,8 +2952,8 @@ Arc</code></pre>
     </section>
 
 
-    <section id="section-82">
-      <h2>82. Security and Safety Boundary</h2>
+    <section id="section-87">
+      <h2>87. Security and Safety Boundary</h2>
 
       <p>
         CobaltC's safety guarantees apply to conforming safe code.
@@ -3010,8 +2975,8 @@ Arc</code></pre>
     </section>
 
 
-    <section id="section-83">
-      <h2>83. Diagnostics</h2>
+    <section id="section-88">
+      <h2>88. Diagnostics</h2>
 
       <p>
         A conforming compiler MUST reject programs violating normative
@@ -3047,8 +3012,8 @@ invalid assignment</code></pre>
     </section>
 
 
-    <section id="section-84">
-      <h2>84. Implementation-Defined Behavior</h2>
+    <section id="section-89">
+      <h2>89. Implementation-Defined Behavior</h2>
 
       <p>
         Any implementation-defined property MUST be documented.
@@ -3061,8 +3026,8 @@ invalid assignment</code></pre>
     </section>
 
 
-    <section id="section-85">
-      <h2>85. Extensions</h2>
+    <section id="section-90">
+      <h2>90. Extensions</h2>
 
       <p>
         An implementation MAY provide extensions.
@@ -3079,8 +3044,8 @@ invalid assignment</code></pre>
     </section>
 
 
-    <section id="section-86">
-      <h2>86. Conformance Levels</h2>
+    <section id="section-91">
+      <h2>91. Conformance Levels</h2>
 
       <h3>Core Conformance</h3>
 
@@ -3108,8 +3073,8 @@ invalid assignment</code></pre>
     </section>
 
 
-    <section id="section-87">
-      <h2>87. Conformance Testing</h2>
+    <section id="section-92">
+      <h2>92. Conformance Testing</h2>
 
       <p>
         A conformance suite MUST contain positive and negative tests covering:
@@ -3155,8 +3120,8 @@ regressions</code></pre>
     </section>
 
 
-    <section id="section-88">
-      <h2>88. Compatibility</h2>
+    <section id="section-93">
+      <h2>93. Compatibility</h2>
 
       <p>
         A CobaltC 1.0.0 program has stable meaning under conforming
@@ -3175,8 +3140,8 @@ regressions</code></pre>
     </section>
 
 
-    <section id="section-89">
-      <h2>89. Versioning</h2>
+    <section id="section-94">
+      <h2>94. Versioning</h2>
 
       <p>
         CobaltC 1.0.0 is a closed language edition.
@@ -3199,8 +3164,8 @@ regressions</code></pre>
     </section>
 
 
-    <section id="section-90">
-      <h2>90. Final Safety Theorem</h2>
+    <section id="section-95">
+      <h2>95. Final Safety Theorem</h2>
 
       <p>
         The central semantic guarantee of CobaltC is:
@@ -3241,8 +3206,8 @@ regressions</code></pre>
     </section>
 
 
-    <section id="section-91">
-      <h2>91. Final Reference Model</h2>
+    <section id="section-96">
+      <h2>96. Final Reference Model</h2>
 
       <p>
         The complete language model is:
@@ -3296,8 +3261,8 @@ regressions</code></pre>
     </section>
 
 
-    <section id="section-92">
-      <h2>92. Final Status</h2>
+    <section id="section-97">
+      <h2>97. Final Status</h2>
 
       <div class="final-box">
 
