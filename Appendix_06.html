@@ -2757,7 +2757,7 @@ fn main() -&gt; i32
   <h3>Conformance Significance</h3>
 
   <p>
-    This is useful as a conformance/example-program example because it
+    This is useful as a conformance/example program example because it
     exercises the interaction between several parts of the specification
     rather than testing an isolated feature. In particular, it combines
     generic types, owned values, borrowing, mutable access, collection
@@ -2772,6 +2772,28 @@ fn main() -&gt; i32
             <h1>CobaltC Compiler Implementation Roadmap</h1>
             <p class="subtitle">AI-Assisted Specification Execution Plan</p>
         </header>
+
+<p>The spec and errata are sufficient to begin planning — and probably implementing — a compiler.<br>
+Unspecified implementation details are left to the implementor.</p>
+
+<pre><code>
+                 CobaltC specification
+                         │
+          ┌──────────────┴──────────────┐
+          │                             │
+     MUST be defined              MAY be chosen
+     by the language              by implementor
+          │                             │
+          ▼                             ▼
+ syntax                         borrow algorithm
+ typing                         AST representation
+ ownership                      IR design
+ borrowing                      GC/allocation strategy
+ observable behavior            optimization
+ ABI requirements               internal data structures
+ safety guarantees              compiler architecture
+</code></pre>
+
 
         <p>If you were to leverage AI to create a production-ready implementation of the CobaltC language specification (incorporating recent errata and memory invariants), a structured, phased execution plan is essential to prevent context degradation and ensure correctness.</p>
 
