@@ -2155,129 +2155,408 @@ regressions</code></pre>
 <br><br><br>
 <hr>
 <section id="section-98">
-<h2>CobaltC Formal Language Specification: Complete Errata & Additions</h2>
+<h1>98. CobaltC 1.0.0 Specification Errata and Clarifications</h1>
+<p>This section records corrections, clarifications, and formalizations of the CobaltC 1.0.0 specification.</p>
+<p>The purpose of this section is to remove ambiguity in the existing specification without changing the language defined by Sections 1?97.</p>
+<p>This section is normative only where it clarifies an existing normative requirement.</p>
+<p>This section MUST NOT be interpreted as introducing:</p>
+<p>* new keywords;<br>
+* new declaration forms;<br>
+* new expression forms;<br>
+* new type categories;<br>
+* new ownership mechanisms;<br>
+* new borrowing mechanisms;<br>
+* new lifetime syntax;<br>
+* new concurrency primitives;<br>
+* new module syntax;<br>
+* new visibility syntax;<br>
+* new macro facilities;<br>
+* new dynamic-dispatch facilities; or<br>
+* new observable runtime behavior.</p>
+<p>Where an implementation technique is described, that description is non-normative unless explicitly stated otherwise.</p>
+<p>CobaltC 1.0.0 remains a closed language edition as specified by Section 94.</p>
+<hr>
+<h2>98.1 General Interpretation Rule</h2>
+<p>The existing normative sections of this specification take precedence over any implementation-specific interpretation of this section.</p>
+<p>An erratum MUST be interpreted as a clarification of an existing rule rather than as an extension of that rule.</p>
+<p>If an apparent interpretation of this section would cause a previously valid CobaltC 1.0.0 program to become invalid, or would cause a previously invalid program to become valid, that interpretation MUST NOT be applied unless the change is already required by another normative section of the specification.</p>
+<p>Similarly, an implementation MUST NOT use this section to introduce syntax that is absent from the CobaltC 1.0.0 grammar.</p>
+<hr>
+<h2>98.2 Managed Reference and Lifetime Terminology</h2>
+<p>CobaltC uses the managed-reference notation defined in Section 14:</p>
+<pre><code>T*
+T*?</code></pre>
+<p>`T*` represents a managed non-null reference.</p>
+<p>`T*?` represents a nullable managed reference.</p>
+<p>CobaltC does not expose explicit lifetime parameters as part of the 1.0.0 source-language syntax.</p>
+<p>Lifetime information is inferred by the compiler as specified by Sections 18 and 45?47.</p>
+<p>Accordingly, the following are equivalent concepts for purposes of the static model:</p>
+<p>* the lifetime of a borrow;<br>
+* the interval during which a managed reference remains valid; and<br>
+* the set of program points at which the borrowing relationship must remain established.</p>
+<p>An implementation MAY represent these relationships internally using region variables, constraints, graphs, or another equivalent representation.</p>
+<p>Such internal representations MUST NOT become additional CobaltC source syntax.</p>
+<p>### 98.2.1 Lifetime Ordering</p>
+<p>Where the compiler determines that one borrow must remain valid for at least as long as another borrow, the compiler MAY represent that relationship internally as a lifetime containment or outlives constraint.</p>
+<p>For example, if a returned `T*` is derived from an input `T*`, the returned reference MUST NOT remain usable after the source borrow becomes invalid.</p>
+<p>No explicit lifetime annotation is required from the programmer.</p>
+<p>### 98.2.2 Lifetime Inference</p>
+<p>The compiler MUST infer sufficient lifetime information to determine whether:</p>
+<p>* a reference outlives its referent;<br>
+* a returned reference outlives the borrow from which it was derived;<br>
+* a borrow conflicts with another borrow;<br>
+* a move invalidates a live reference;<br>
+* a collection operation invalidates an active reference; or<br>
+* a reference is used after the storage on which it depends ceases to be valid.</p>
+<p>If the compiler cannot establish the required lifetime relationship, it MUST reject the program.</p>
+<p>The compiler MUST NOT assume that an unproven lifetime relationship is valid merely because the referenced memory happens to remain allocated in a particular implementation.</p>
+<hr>
+<h2>98.3 Borrow Lifetime End Points</h2>
+<p>Section 45 permits a borrow to cease being live before the end of its lexical scope.</p>
+<p>For purposes of this rule, a borrow is considered live when a subsequent operation may require the associated reference to remain valid or when the borrowing restrictions associated with that reference remain necessary.</p>
+<p>A compiler MAY determine that a borrow has ended when it can prove that no subsequent operation can use the reference in a manner requiring the borrow to remain active.</p>
+<p>This is an analysis rule, not a requirement that the implementation expose borrow lifetime information to the programmer.</p>
+<p>The compiler MUST remain conservative when it cannot establish that a borrow has ended.</p>
+<hr>
+<h2>98.4 Reference Compatibility</h2>
+<p>The type compatibility rules for managed references are those already established by Sections 14, 16, 17, 42?47, and the applicable function and generic rules.</p>
+<p>A managed reference MUST retain the semantic distinctions associated with:</p>
+<p>* nullability;<br>
+* mutability;<br>
+* ownership;<br>
+* borrowing; and<br>
+* lifetime.</p>
+<p>An implementation MUST NOT treat two managed-reference types as interchangeable merely because their machine representation is identical.</p>
+<p>In particular:</p>
+<pre><code>T*</code></pre>
+<p>MUST NOT implicitly become:</p>
+<pre><code>T*?</code></pre>
+<p>or vice versa where doing so would violate the nullability rules.</p>
+<p>Likewise, an implementation MUST NOT use representation-level pointer compatibility to bypass CobaltC&#x27;s ownership or borrowing rules.</p>
+<hr>
+<h2>98.5 Dynamic Indexing and Borrow Checking</h2>
+<p>Collection operations involving dynamic indexes remain subject to the ordinary borrowing, aliasing, lifetime, and collection-borrowing rules.</p>
+<p>For an operation such as:</p>
+<pre><code>values[i]</code></pre>
+<p>the compiler MUST determine whether the access is compatible with all active borrows.</p>
+<p>If an operation may access storage that overlaps an active incompatible borrow, the operation MUST be rejected unless the compiler can establish that the accesses are in fact disjoint.</p>
+<p>The compiler MAY use any sound internal representation to establish disjointness, including:</p>
+<p>* field paths;<br>
+* index information;<br>
+* range information;<br>
+* control-flow analysis;<br>
+* symbolic constraints; or<br>
+* implementation-specific alias analysis.</p>
+<p>The representation used by the compiler is not part of the CobaltC language.</p>
+<p>### 98.5.1 Unknown Dynamic Aliasing</p>
+<p>If two dynamic accesses cannot be proven disjoint, the compiler MAY conservatively treat them as potentially overlapping.</p>
+<p>For example, where two mutable accesses depend on runtime indexes and the compiler cannot prove that the indexes identify distinct storage, it MUST NOT assume that they are disjoint merely because the programmer expects them to be.</p>
+<p>This rule follows directly from the aliasing and mutable-borrow requirements of Sections 42?50.</p>
+<hr>
+<h2>98.6 Generic Type Checking</h2>
+<p>Generic declarations are statically checked according to Section 19.</p>
+<p>A compiler MUST verify the validity of a generic declaration and its constraints before accepting a use that depends upon those requirements.</p>
+<p>A compiler MAY perform generic checking in multiple implementation phases.</p>
+<p>For example, an implementation MAY:</p>
+<p>1. parse and construct an internal representation of the generic declaration;<br>
+2. validate its declaration-level requirements;<br>
+3. substitute concrete types at an instantiation;<br>
+4. perform additional type and ownership checking for the instantiated form; and<br>
+5. generate target code.</p>
+<p>These phases are implementation details.</p>
+<p>CobaltC 1.0.0 does not require a particular generic implementation strategy.</p>
+<p>### 98.6.1 Generic Constraints</p>
+<p>Every use of a generic entity MUST satisfy its declared type constraints.</p>
+<p>Failure to satisfy a generic constraint is a compile-time error.</p>
+<p>Generic instantiation MUST NOT weaken:</p>
+<p>* ownership rules;<br>
+* borrowing rules;<br>
+* lifetime rules;<br>
+* nullability rules;<br>
+* initialization rules;<br>
+* bounds rules; or<br>
+* concurrency-safety requirements.</p>
+<hr>
+<h2>98.7 `Result` and the `?` Operator</h2>
+<p>The canonical recoverable-error type is the `Result&lt;T,E&gt;` type defined in Section 59.</p>
+<p>The `?` operator is defined by Section 60 as error propagation.</p>
+<p>For purposes of static reasoning, an expression of the form:</p>
+<pre><code>expression?</code></pre>
+<p>may be understood as performing the equivalent logical operation of:</p>
+<p>1. evaluating `expression`;<br>
+2. determining whether the result represents success or failure;<br>
+3. continuing with the successful value; or<br>
+4. returning the compatible error from the current function.</p>
+<p>The exact lowering is implementation-defined provided the observable behavior conforms to Section 60.</p>
+<p>The `?` operator MUST NOT be treated as a panic, exception, or implicit unwinding mechanism.</p>
+<p>A recoverable `Result` failure and an unrecoverable panic are distinct mechanisms.</p>
+<hr>
+<h2>98.8 Panic and Unwinding</h2>
+<p>Section 84 permits an implementation to unwind or terminate according to its runtime configuration.</p>
+<p>Accordingly, no particular internal panic mechanism is required by CobaltC 1.0.0.</p>
+<p>If an implementation performs supported panic unwinding, the destruction requirements of Sections 52?54 apply to scopes exited by that unwinding.</p>
+<p>In particular, an implementation supporting unwinding MUST preserve the specified destruction semantics for owned values and deferred operations in scopes that are actually unwound.</p>
+<p>If the implementation terminates without unwinding, normal destruction is not guaranteed after termination, consistent with the abort semantics of Section 55.</p>
+<p>The implementation MUST NOT expose a panic implementation strategy as additional CobaltC source-language semantics.</p>
+<hr>
+<h2>98.9 Concurrency Safety</h2>
+<p>Section 68 requires values transferred between threads to satisfy the applicable ownership and thread-transfer constraints.</p>
+<p>Section 69 requires synchronization for shared mutable state.</p>
+<p>These requirements are semantic requirements of CobaltC and do not require particular source-level marker traits or interfaces.</p>
+<p>An implementation MAY internally classify types according to whether they may safely be transferred between threads or accessed concurrently.</p>
+<p>Such classifications MAY be derived from:</p>
+<p>* the type&#x27;s fields;<br>
+* ownership properties;<br>
+* borrowing properties;<br>
+* synchronization types;<br>
+* atomic types;<br>
+* implementation-defined runtime properties; or<br>
+* other sound static analysis.</p>
+<p>The internal classification MUST produce behavior consistent with Sections 68?75.</p>
+<p>### 98.9.1 Thread Transfer</p>
+<p>A value transferred to another thread MUST satisfy all ownership and lifetime requirements applicable to the transfer.</p>
+<p>An ordinary borrow of a local value MUST NOT be transferred to a thread if the referent may cease to exist before the borrow can no longer be used.</p>
+<p>An implementation MUST reject such a transfer when the required lifetime cannot be established.</p>
+<p>### 98.9.2 Synchronization</p>
+<p>The existence of shared ownership does not by itself provide synchronization.</p>
+<p>In particular, reference-counted ownership does not permit unsynchronized conflicting mutation.</p>
+<p>Shared mutable state MUST continue to obey the synchronization requirements of Sections 69?74.</p>
+<hr>
+<h2>98.10 Diagnostics and Source Locations</h2>
+<p>A conforming compiler MUST reject programs that violate normative static rules, as specified by Section 88.</p>
+<p>The compiler SHOULD associate diagnostics with useful source locations.</p>
+<p>An implementation MAY internally represent source locations using a structure containing information such as:</p>
+<p>* source file identity;<br>
+* starting position;<br>
+* ending position;<br>
+* line number; and<br>
+* column number.</p>
+<p>The exact internal representation is not normative.</p>
+<p>### 98.10.1 Error Recovery</p>
+<p>A compiler MAY continue parsing after a syntax error in order to report additional diagnostics.</p>
+<p>Error recovery MUST NOT cause the compiler to accept a program that violates a normative syntax or semantic rule.</p>
+<p>A compiler MAY synchronize at tokens such as:</p>
+<pre><code>;
+}</code></pre>
+<p>or at declaration boundaries such as:</p>
+<pre><code>fn
+struct</code></pre>
+<p>provided that the recovery strategy does not alter the interpretation of a conforming program.</p>
+<p>No additional keyword is implied by the use of a token as an error-recovery boundary.</p>
+<p>In particular, `let` is not a CobaltC 1.0.0 keyword.</p>
+<hr>
+<h2>98.11 Layout and ABI</h2>
+<p>The CobaltC source-language semantics do not require a particular internal representation of managed references.</p>
+<p>An implementation MAY represent a managed reference using a machine pointer or another representation appropriate to the target, provided that the representation preserves all required CobaltC semantics.</p>
+<p>The representation of a managed reference MUST NOT cause the implementation to bypass:</p>
+<p>* lifetime checking;<br>
+* ownership checking;<br>
+* nullability checking;<br>
+* borrowing rules; or<br>
+* aliasing rules.</p>
+<p>### 98.11.1 Aggregate Layout</p>
+<p>Aggregate layout is determined by the applicable ABI profile described in Section 81.</p>
+<p>An implementation MUST document implementation-defined layout properties where required by that profile.</p>
+<p>The CobaltC 1.0.0 specification does not require all aggregates to use the layout rules of any particular compiler, intermediate representation, or target architecture.</p>
+<p>### 98.11.2 Foreign Functions</p>
+<p>The baseline foreign ABI is the C ABI, as specified by Section 79.</p>
+<p>An `extern` declaration and its associated ABI behavior MUST conform to the applicable ABI profile.</p>
+<p>The ABI does not by itself determine ownership.</p>
+<p>Ownership crossing an FFI boundary MUST continue to be defined by the API contract as specified by Section 80.</p>
+<hr>
+<h2>98.12 Module and Name Resolution Clarification</h2>
+<p>CobaltC 1.0.0 uses the module syntax defined in Section 8:</p>
+<pre><code>module example;</code></pre>
+<p>and imports declarations using:</p>
+<pre><code>import io;</code></pre>
+<p>These forms are normative.</p>
+<p>An implementation MUST NOT replace them with an alternative module declaration syntax while claiming that the alternative syntax is standard CobaltC 1.0.0.</p>
+<p>Module names establish namespaces.</p>
+<p>Name resolution is lexical and module-aware.</p>
+<p>An unresolved name is a compile-time error.</p>
+<p>An implementation MAY map modules to source files, directories, packages, compilation units, or another internal representation, provided that the resulting name-resolution behavior conforms to Section 8.</p>
+<p>### 98.12.1 Visibility</p>
+<p>CobaltC 1.0.0 does not define additional visibility modifiers beyond those specified elsewhere in this document.</p>
+<p>An implementation MAY provide visibility mechanisms as extensions, but such mechanisms MUST be distinguishable from standard CobaltC behavior and MUST NOT silently alter the semantics of a valid CobaltC 1.0.0 program.</p>
+<hr>
+<h2>98.13 Interfaces</h2>
+<p>CobaltC uses `interface` as the language construct for defining required operations.</p>
+<p>For example:</p>
+<pre><code>interface Printable
+{
+    fn print();
+}</code></pre>
+<p>Generic constraints may require an implementation of an interface:</p>
+<pre><code>T: Printable</code></pre>
+<p>The compiler MUST verify that all required interface operations exist and satisfy their declared requirements.</p>
+<p>This specification does not define a separate language construct named `trait`.</p>
+<p>An implementation MAY use terminology such as &quot;trait,&quot; &quot;interface descriptor,&quot; &quot;dispatch table,&quot; or similar terminology internally, but such terminology MUST NOT be interpreted as introducing a new CobaltC language feature.</p>
+<p>### 98.13.1 Dynamic Dispatch</p>
+<p>The existence of interfaces does not by itself require a particular implementation strategy.</p>
+<p>An implementation MAY use:</p>
+<p>* static dispatch;<br>
+* generated wrapper functions;<br>
+* function tables;<br>
+* virtual dispatch;<br>
+* monomorphization; or<br>
+* another implementation technique.</p>
+<p>The selected strategy MUST preserve the observable semantics of the interface system.</p>
+<p>CobaltC 1.0.0 does not prescribe a particular fat-pointer representation or virtual-table layout.</p>
+<hr>
+<h2>98.14 Heap Ownership</h2>
+<p>`Box&lt;T&gt;` is the standard unique heap-ownership abstraction defined in Section 64.</p>
+<p>Destroying a `Box&lt;T&gt;` releases its owned allocation and contained value according to the ordinary destruction rules.</p>
+<p>An implementation MAY represent `Box&lt;T&gt;` using a raw machine pointer internally.</p>
+<p>Such an internal representation MUST NOT make the pointer directly accessible through safe CobaltC operations.</p>
+<p>Raw-pointer operations remain subject to Sections 15 and 76?78.</p>
+<hr>
+<h2>98.15 Shared Ownership and Interior Access</h2>
+<p>`Rc&lt;T&gt;` and `Arc&lt;T&gt;` provide shared ownership as specified in Sections 65 and 66.</p>
+<p>Reference counting alone does not grant mutable access through otherwise immutable references.</p>
+<p>In particular, shared ownership MUST NOT be interpreted as permission to bypass the ordinary borrowing and aliasing rules.</p>
+<p>Mutable shared state MUST use an applicable synchronization mechanism where required by Sections 69?74.</p>
+<p>CobaltC 1.0.0 does not define a separate general-purpose interior-mutability type in its core language specification.</p>
+<p>An implementation or standard-library extension MAY provide such facilities, but their semantics MUST be explicitly specified and MUST NOT weaken the language&#x27;s safety guarantees.</p>
+<hr>
+<h2>98.16 Macro and Metaprogramming Boundary</h2>
+<p>CobaltC 1.0.0 does not define a general-purpose macro-expansion system in its normative language syntax.</p>
+<p>An implementation MAY provide preprocessing, code generation, templates, source transformation, or other metaprogramming facilities as extensions.</p>
+<p>Such facilities MUST NOT alter the semantics of standard CobaltC in a manner that is invisible to the programmer or incompatible with the normative specification.</p>
+<p>A source transformation that produces CobaltC 1.0.0 code MAY be used before compilation, provided that the resulting program is itself processed according to this specification.</p>
+<p>No macro syntax is implied by this errata section.</p>
+<hr>
+<h2>98.17 Collection Borrowing Clarification</h2>
+<p>Collection types such as `Vec&lt;T&gt;` are subject to the ordinary borrowing and invalidation requirements.</p>
+<p>An operation that may reallocate, resize, move, or otherwise invalidate storage MUST NOT be performed while an active reference would be invalidated by that operation.</p>
+<p>For example:</p>
+<pre><code>mut Vec&lt;String&gt; values = ["hello"];
+String* reference = &amp;values[0];
 
-<p>This errata provides the exhaustive formal semantics, syntactic grammar rules, and typing judgments required to complete the CobaltC language standard implementation.</p>
+values.push("world"); // ERROR if this operation may invalidate `reference`
 
-<h2>30. Lifetime Inference and Region Subtyping Mechanics</h2>
-<p>Lifetimes track reference validity across control flow boundaries using static region variables. Region subtyping and containment rules determine whether a reference expression is well-formed.</p>
+print(*reference);</code></pre>
+<p>The compiler MUST reject an operation when it can establish that the operation invalidates a live reference.</p>
+<p>An implementation MAY permit an operation when it can establish that the operation cannot invalidate the particular reference involved.</p>
+<p>The implementation MAY use static or runtime techniques to establish this fact, provided that safe programs retain the guarantees required by the specification.</p>
+<hr>
+<h2>98.18 Destruction and Ownership Clarification</h2>
+<p>An owned value has one responsible ownership path unless its type explicitly provides shared ownership.</p>
+<p>A move transfers the relevant ownership responsibility.</p>
+<p>A moved-from binding MUST NOT cause a second destruction of the moved value.</p>
+<p>For aggregate values, partial moves are valid only where the compiler can independently track the moved and remaining components.</p>
+<p>At scope exit, the destruction ordering specified by Section 53 remains authoritative:</p>
+<p>1. deferred blocks execute;<br>
+2. owned locals are destroyed in reverse declaration order; and<br>
+3. control proceeds to the enclosing scope.</p>
+<p>An implementation MAY use a different internal mechanism to achieve this behavior.</p>
+<hr>
+<h2>98.19 Nullability Clarification</h2>
+<p>A nullable managed reference is represented using:</p>
+<pre><code>T*?</code></pre>
+<p>A non-null managed reference is represented using:</p>
+<pre><code>T*</code></pre>
+<p>A nullable reference MUST NOT be dereferenced until the compiler has established that it is non-null.</p>
+<p>The compiler MAY perform flow-sensitive nullability refinement.</p>
+<p>For example, after a condition that establishes that a `T*?` value is not null, subsequent operations within the proven region MAY treat the value as non-null for purposes of dereference checking.</p>
+<p>Such refinement MUST NOT outlive the condition that establishes it if later control flow can invalidate the proof.</p>
+<hr>
+<h2>98.20 Bounds Checking Clarification</h2>
+<p>Safe indexing MUST remain within valid bounds.</p>
+<p>A compiler MAY eliminate a runtime bounds check when it can prove statically that the index is valid.</p>
+<p>This optimization MUST preserve the observable semantics of the program.</p>
+<p>The compiler MUST NOT eliminate a required bounds check merely because an out-of-bounds access is unlikely.</p>
+<p>Unchecked indexing and equivalent unchecked memory operations remain unsafe facilities.</p>
+<hr>
+<h2>98.21 Unsafe Code Boundary</h2>
+<p>Unsafe operations remain subject to the explicit `unsafe` context defined by Section 76.</p>
+<p>An unsafe context permits operations for which the programmer is responsible for maintaining additional invariants.</p>
+<p>It does not change the meaning of safe CobaltC.</p>
+<p>In particular, placing an operation inside `unsafe` MUST NOT cause safe operations elsewhere in the program to lose their specified ownership, lifetime, nullability, bounds, or concurrency guarantees.</p>
+<p>Unsafe code MAY establish abstractions that are subsequently exposed through safe interfaces only when those interfaces preserve their documented invariants.</p>
+<hr>
+<h2>98.22 Implementation Techniques Are Non-Normative</h2>
+<p>The following implementation techniques are expressly permitted but are not required by CobaltC 1.0.0:</p>
+<p>* region-based lifetime inference;<br>
+* constraint-based borrow checking;<br>
+* control-flow graphs;<br>
+* path-sensitive alias analysis;<br>
+* monomorphization;<br>
+* generic specialization;<br>
+* virtual dispatch;<br>
+* function tables;<br>
+* pointer-based managed-reference representations;<br>
+* LLVM;<br>
+* Cranelift;<br>
+* other intermediate representations;<br>
+* generated destruction code;<br>
+* compiler-generated bounds checks; and<br>
+* compiler-generated synchronization code.</p>
+<p>An implementation MAY use these techniques individually or in combination.</p>
+<p>No implementation technique becomes part of the CobaltC language merely because an implementation uses it.</p>
+<hr>
+<h2>98.23 Conformance Requirement</h2>
+<p>A conforming implementation MUST implement the observable semantics established by Sections 1?97 together with the clarifications in this section.</p>
+<p>A clarification in this section MUST be applied only to the extent that it resolves an ambiguity or makes an existing requirement precise.</p>
+<p>If two interpretations are possible and one interpretation would introduce a new language feature while the other preserves the existing CobaltC 1.0.0 model, the interpretation preserving the existing model MUST be used.</p>
+<hr>
+<h2>98.24 No New Language Features</h2>
+<p>For avoidance of doubt, the following are not part of CobaltC 1.0.0 as a result of this errata section:</p>
+<pre><code>let
+mod
+crate::
+self::
+super::
+pub
+pub(crate)
+pub(super)
 
-<h3>30.1 Region Containment and Outlives Judgments</h3>
-<div class="rule">
-    <p><strong>Rule [Outlives-Transitivity]:</strong> Region containment forms a strict partial order over the control flow graph execution tree.</p>
-    <pre>Gamma ? <span class="math">'a</span> : <span class="math">'b</span>    and    Gamma ? <span class="math">'b</span> : <span class="math">'c</span>
----------------------------------------------
-        Gamma ? <span class="math">'a</span> : <span class="math">'c</span></pre>
-</div>
-
-<div class="rule">
-    <p><strong>Rule [Reference-Subtyping]:</strong> Immutable references are covariant over both type parameters and lifetimes.</p>
-    <pre>Sub <: Super    and    <span class="math">'a</span> : <span class="math">'b</span>
----------------------------------------------
-     <span class="math">&amp;'a</span> Sub  &lt;:  <span class="math">&amp;'b</span> Super</pre>
-</div>
-
-<h3>30.2 Lifetime Elision Grammar & Rules</h3>
-<pre>
-ElisionRule ::= SingleInput  ? OutputLifetime = InputLifetime
-              | ReceiverSelf ? OutputLifetime = SelfLifetime
-              | Multiple     ? CompileError("Explicit lifetime required")
-</pre>
-
-<h2>31. Dynamic Indexing and Aliasing Restrictions</h2>
-<p>Containers supporting runtime dynamic indexing must uphold strict alias-exclusion constraints enforced via path access graphs.</p>
-
-<div class="rule">
-    <p><strong>Rule [Disjoint-Access]:</strong> A mutable dynamic index access <span class="math">C[i]</span> is legal if and only if its index path does not overlap with any active borrow set.</p>
-    <pre>? v ? ActiveBorrows(G), PathOverlap(v, C[i]) == False
-------------------------------------------------------
-        TypeCheck(C[i]) ? ValidMutableBorrow</pre>
-</div>
-
-<h2>32. Generics and Monomorphization Architecture</h2>
-<p>Generic definitions undergo a two-phase check: preliminary signature validation followed by monomorphized instantiation expansion.</p>
-
-<pre>
-GenericDef  ::= <span class="math">fn</span> Ident &lt; GenericParamList &gt; ( ParamList ) TypeConstraintClause
-Monomorph   ::= Substitute(GenericDef, TypeBindingMap) ? ConcreteAST
-</pre>
-
-<h2>33. Error Propagation, Panics, and Unwinding Semantics</h2>
-<p>Recoverable errors utilize explicit union structures, while systemic faults trigger call-stack unwinding.</p>
-
-<pre>
-Result<T, E> ::= Ok(T) | Err(E)
-TryOperator  ::= Expr <span class="math">?</span>  // Desugars to early-return match on Result::Err(e)
-PanicRoutine ::= UnwindStack() ? DropResources() ? AbortOrExit()
-</pre>
-
-<h2>34. Concurrency, Thread Safety, and Send/Sync Bounds</h2>
-<p>Cross-thread data safety is statically enforced via marker traits checked during compilation.</p>
-
-<div class="rule">
-    <p><strong>Rule [Send-Sync-Bounds]:</strong> Type <span class="math">T</span> is <span class="math">Send</span> if all component types implement <span class="math">Send</span>. Type <span class="math">T</span> is <span class="math">Sync</span> iff <span class="math">&amp;'a T</span> is <span class="math">Send</span>.</p>
-    <pre>? f ? Fields(T), Gamma ? f : Send
-----------------------------------
-          Gamma ? T : Send</pre>
-</div>
-
-<h2>35. Diagnostics, Source Spans, and Error Recovery</h2>
-<p>Compilers must track source positions via <code>Span</code> structs and synchronize error recovery at block and statement boundaries.</p>
-
-<pre>
-Span        ::= Struct { file_id: u32, start_offset: usize, end_offset: usize }
-SyncToken   ::= ';' | '}' | 'fn' | 'struct' | 'let'
-</pre>
-
-<h2>36. Low-Level Layout, ABI, and Code Generation</h2>
-<p>Aggregate layouts follow standard C ABI rules, and safe references are lowered into raw pointer targets.</p>
-
-<pre>
-Lowering    ::= &amp;'a T   ?   T* (LLVM Target Pointer)
-CallingConv ::= extern "C" { ... } // Standard native platform interop
-</pre>
-
-<h2>37. Module System, Path Resolution, and Visibility Rules</h2>
-<p>Modules map file directory trees to explicit visibility namespaces controlled by <code>pub</code> modifiers.</p>
-<p>NOTE: The module system borrows its structural design directly from Rust because that model successfully solves the fragile, global include-file mess found in C and C++.</p>
-
-<pre>
-ModuleDecl  ::= <span class="math">mod</span> Ident <span class="math">;</span>  // Resolves to Ident.cc or Ident/mod.cc
-Path        ::= <span class="math">crate::</span> | <span class="math">self::</span> | <span class="math">super::</span> | Ident PathSegments*
-Visibility  ::= <span class="math">pub</span> | <span class="math">pub(crate)</span> | <span class="math">pub(super)</span> | Private (Default)
-</pre>
-
-<h2>38. Trait Objects, Object Safety, and Dynamic Dispatch</h2>
-<p>Dynamic polymorphism is supported via fat pointers combining data pointers and virtual method tables.</p>
-
-<div class="rule">
-    <p><strong>Rule [Object-Safety]:</strong> A trait is object-safe if all methods exclude generic parameters and enforce <code>Self: Sized</code> bounds where applicable.</p>
-    <pre>? m ? Methods(Trait), GenericParams(m) == Ø ? (IsSized(Self) ? ReceiverIsReference(m))
--------------------------------------------------------------------------------------
-                        IsObjectSafe(Trait) == True</pre>
-</div>
-
-<pre>
-FatPointer  ::= Struct { data_ptr: *mut (), vtable_ptr: *const VTable }
-VTable      ::= Struct { destructor: fn(*mut ()), size: usize, align: usize, methods: [fn(); N] }
-</pre>
-
-<h2>39. Heap Allocation, Owned Boxes, and Interior Mutability</h2>
-<p>Heap ownership is handled via unique smart pointers, while interior mutability wraps dynamic access rules.</p>
-
-<pre>
-Box<T>      ::= Struct { ptr: *mut T } // Unique heap owner; drops on scope exit
-Cell<T>     ::= Struct { value: T }  // Copy-based replacement interior mutability
-RefCell<T>  ::= Struct { value: T, borrow_flag: isize } // Dynamic runtime borrow check
-</pre>
-
-<h2>40. Metaprogramming, Macro Expansion, and Hygiene</h2>
-<p>Declarative macros expand token trees prior to name resolution, maintaining lexical identifier hygiene.</p>
-
-<pre>
-MacroExpand ::= ParseTokenTree(Input) ? MacroRulesPatternMatch ? SubstituteAST
-Hygiene     ::= ScopeID(LocalIdentifier) != ScopeID(MacroDefinitionSite)
-</pre>
+explicit lifetime parameters
+trait
+trait objects
+Self: Sized
+Send
+Sync
+Cell
+RefCell
+declarative macros
+macro_rules
+fat-pointer syntax
+virtual-table syntax
+explicit lifetime annotations</code></pre>
+<p>An implementation MAY provide equivalent facilities as extensions where permitted by Section 90, but those facilities MUST NOT be represented as normative CobaltC 1.0.0 language features.</p>
+<hr>
+<h2>98.25 Relationship to the Final Safety Theorem</h2>
+<p>Nothing in this errata section weakens the Final Safety Theorem of Section 95.</p>
+<p>In particular, conforming safe CobaltC code MUST continue to prevent:</p>
+<p>* use-before-initialization;<br>
+* use-after-move;<br>
+* double ownership;<br>
+* invalid borrow lifetimes;<br>
+* conflicting mutable aliasing;<br>
+* unchecked nullable dereference;<br>
+* unchecked safe out-of-bounds access; and<br>
+* ordinary unsynchronized data races.</p>
+<p>Where an implementation&#x27;s internal analysis is more conservative than strictly necessary, the implementation MAY reject a program that it cannot prove safe, subject to the conformance requirements of this specification.</p>
+<p>An implementation MUST NOT accept an unsafe program merely because its internal representation cannot detect the violation.</p>
+<hr>
+<h2>98.26 Status of This Section</h2>
+<p>This section is an errata and clarification section for CobaltC 1.0.0.</p>
+<p>It does not reopen the CobaltC 1.0 language design.</p>
+<p>The following principles are therefore normative:</p>
+<p>1. CobaltC 1.0.0 remains a closed language edition.<br>
+2. Existing CobaltC syntax remains authoritative.<br>
+3. Existing ownership, borrowing, lifetime, nullability, bounds, destruction, and concurrency rules remain authoritative.<br>
+4. Internal compiler mechanisms are not automatically language features.<br>
+5. Extensions remain extensions.<br>
+6. New language features belong in a subsequent language edition rather than in 1.0.0 errata.<br>
+7. Where this section merely formalizes an existing rule, the formalization MUST be interpreted consistently with the existing normative text.</p>
+<p>The purpose of this section is therefore precision and implementation guidance, not language expansion.</p>
+<hr>
+<h2>98.27 Errata Completeness</h2>
+<p>This section supersedes any previous version of the CobaltC 1.0.0 &quot;Complete Errata &amp; Additions&quot; material.</p>
+<p>Any previous errata text that introduces alternative module syntax, explicit lifetime syntax, new keywords, trait objects, marker traits, interior-mutability primitives, macro syntax, implementation-specific ABI requirements, or other language features is withdrawn from the CobaltC 1.0.0 specification.</p>
+<p>Such facilities, if desired, MUST be specified separately as future-version proposals or explicitly identified implementation extensions.</p>
+<p>The normative CobaltC 1.0.0 language remains the language defined by Sections 1?97 together with the clarifications in this Section 98.</p>
 
 <hr>
 <section class="cobalt-example">
