@@ -2239,6 +2239,7 @@ CallingConv ::= extern "C" { ... } // Standard native platform interop
 
 <h2>37. Module System, Path Resolution, and Visibility Rules</h2>
 <p>Modules map file directory trees to explicit visibility namespaces controlled by <code>pub</code> modifiers.</p>
+<p>NOTE: The module system borrows its structural design directly from Rust because that model successfully solves the fragile, global include-file mess found in C and C++.</p>
 
 <pre>
 ModuleDecl  ::= <span class="math">mod</span> Ident <span class="math">;</span>  // Resolves to Ident.cc or Ident/mod.cc
