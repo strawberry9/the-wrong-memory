@@ -2158,7 +2158,7 @@ regressions</code></pre>
 <section id="section-98">
 <h1>98. CobaltC 1.0.0 Specification Errata and Clarifications</h1>
 <p>This section records corrections, clarifications, and formalizations of the CobaltC 1.0.0 specification.</p>
-<p>The purpose of this section is to remove ambiguity in the existing specification without changing the language defined by Sections 1?97.</p>
+<p>The purpose of this section is to remove ambiguity in the existing specification without changing the language defined by Sections 1-97.</p>
 <p>This section is normative only where it clarifies an existing normative requirement.</p>
 <p>This section MUST NOT be interpreted as introducing:</p>
 <p>* new keywords;<br>
@@ -2190,7 +2190,7 @@ T*?</code></pre>
 <p>`T*` represents a managed non-null reference.</p>
 <p>`T*?` represents a nullable managed reference.</p>
 <p>CobaltC does not expose explicit lifetime parameters as part of the 1.0.0 source-language syntax.</p>
-<p>Lifetime information is inferred by the compiler as specified by Sections 18 and 45?47.</p>
+<p>Lifetime information is inferred by the compiler as specified by Sections 18 and 45-47.</p>
 <p>Accordingly, the following are equivalent concepts for purposes of the static model:</p>
 <p>* the lifetime of a borrow;<br>
 * the interval during which a managed reference remains valid; and<br>
@@ -2220,7 +2220,7 @@ T*?</code></pre>
 <p>The compiler MUST remain conservative when it cannot establish that a borrow has ended.</p>
 <hr>
 <h2>98.4 Reference Compatibility</h2>
-<p>The type compatibility rules for managed references are those already established by Sections 14, 16, 17, 42?47, and the applicable function and generic rules.</p>
+<p>The type compatibility rules for managed references are those already established by Sections 14, 16, 17, 42-47, and the applicable function and generic rules.</p>
 <p>A managed reference MUST retain the semantic distinctions associated with:</p>
 <p>* nullability;<br>
 * mutability;<br>
@@ -2252,7 +2252,7 @@ T*?</code></pre>
 <p>### 98.5.1 Unknown Dynamic Aliasing</p>
 <p>If two dynamic accesses cannot be proven disjoint, the compiler MAY conservatively treat them as potentially overlapping.</p>
 <p>For example, where two mutable accesses depend on runtime indexes and the compiler cannot prove that the indexes identify distinct storage, it MUST NOT assume that they are disjoint merely because the programmer expects them to be.</p>
-<p>This rule follows directly from the aliasing and mutable-borrow requirements of Sections 42?50.</p>
+<p>This rule follows directly from the aliasing and mutable-borrow requirements of Sections 42-50.</p>
 <hr>
 <h2>98.6 Generic Type Checking</h2>
 <p>Generic declarations are statically checked according to Section 19.</p>
@@ -2295,7 +2295,7 @@ T*?</code></pre>
 <h2>98.8 Panic and Unwinding</h2>
 <p>Section 84 permits an implementation to unwind or terminate according to its runtime configuration.</p>
 <p>Accordingly, no particular internal panic mechanism is required by CobaltC 1.0.0.</p>
-<p>If an implementation performs supported panic unwinding, the destruction requirements of Sections 52?54 apply to scopes exited by that unwinding.</p>
+<p>If an implementation performs supported panic unwinding, the destruction requirements of Sections 52-54 apply to scopes exited by that unwinding.</p>
 <p>In particular, an implementation supporting unwinding MUST preserve the specified destruction semantics for owned values and deferred operations in scopes that are actually unwound.</p>
 <p>If the implementation terminates without unwinding, normal destruction is not guaranteed after termination, consistent with the abort semantics of Section 55.</p>
 <p>The implementation MUST NOT expose a panic implementation strategy as additional CobaltC source-language semantics.</p>
@@ -2313,7 +2313,7 @@ T*?</code></pre>
 * atomic types;<br>
 * implementation-defined runtime properties; or<br>
 * other sound static analysis.</p>
-<p>The internal classification MUST produce behavior consistent with Sections 68?75.</p>
+<p>The internal classification MUST produce behavior consistent with Sections 68-75.</p>
 <p>### 98.9.1 Thread Transfer</p>
 <p>A value transferred to another thread MUST satisfy all ownership and lifetime requirements applicable to the transfer.</p>
 <p>An ordinary borrow of a local value MUST NOT be transferred to a thread if the referent may cease to exist before the borrow can no longer be used.</p>
@@ -2321,7 +2321,7 @@ T*?</code></pre>
 <p>### 98.9.2 Synchronization</p>
 <p>The existence of shared ownership does not by itself provide synchronization.</p>
 <p>In particular, reference-counted ownership does not permit unsynchronized conflicting mutation.</p>
-<p>Shared mutable state MUST continue to obey the synchronization requirements of Sections 69?74.</p>
+<p>Shared mutable state MUST continue to obey the synchronization requirements of Sections 69-74.</p>
 <hr>
 <h2>98.10 Diagnostics and Source Locations</h2>
 <p>A conforming compiler MUST reject programs that violate normative static rules, as specified by Section 88.</p>
@@ -2409,13 +2409,13 @@ struct</code></pre>
 <p>Destroying a `Box&lt;T&gt;` releases its owned allocation and contained value according to the ordinary destruction rules.</p>
 <p>An implementation MAY represent `Box&lt;T&gt;` using a raw machine pointer internally.</p>
 <p>Such an internal representation MUST NOT make the pointer directly accessible through safe CobaltC operations.</p>
-<p>Raw-pointer operations remain subject to Sections 15 and 76?78.</p>
+<p>Raw-pointer operations remain subject to Sections 15 and 76-78.</p>
 <hr>
 <h2>98.15 Shared Ownership and Interior Access</h2>
 <p>`Rc&lt;T&gt;` and `Arc&lt;T&gt;` provide shared ownership as specified in Sections 65 and 66.</p>
 <p>Reference counting alone does not grant mutable access through otherwise immutable references.</p>
 <p>In particular, shared ownership MUST NOT be interpreted as permission to bypass the ordinary borrowing and aliasing rules.</p>
-<p>Mutable shared state MUST use an applicable synchronization mechanism where required by Sections 69?74.</p>
+<p>Mutable shared state MUST use an applicable synchronization mechanism where required by Sections 69-74.</p>
 <p>CobaltC 1.0.0 does not define a separate general-purpose interior-mutability type in its core language specification.</p>
 <p>An implementation or standard-library extension MAY provide such facilities, but their semantics MUST be explicitly specified and MUST NOT weaken the language&#x27;s safety guarantees.</p>
 <hr>
@@ -2496,7 +2496,7 @@ print(*reference);</code></pre>
 <p>No implementation technique becomes part of the CobaltC language merely because an implementation uses it.</p>
 <hr>
 <h2>98.23 Conformance Requirement</h2>
-<p>A conforming implementation MUST implement the observable semantics established by Sections 1?97 together with the clarifications in this section.</p>
+<p>A conforming implementation MUST implement the observable semantics established by Sections 1-97 together with the clarifications in this section.</p>
 <p>A clarification in this section MUST be applied only to the extent that it resolves an ambiguity or makes an existing requirement precise.</p>
 <p>If two interpretations are possible and one interpretation would introduce a new language feature while the other preserves the existing CobaltC 1.0.0 model, the interpretation preserving the existing model MUST be used.</p>
 <hr>
@@ -2557,7 +2557,7 @@ explicit lifetime annotations</code></pre>
 <p>This section supersedes any previous version of the CobaltC 1.0.0 &quot;Complete Errata &amp; Additions&quot; material.</p>
 <p>Any previous errata text that introduces alternative module syntax, explicit lifetime syntax, new keywords, trait objects, marker traits, interior-mutability primitives, macro syntax, implementation-specific ABI requirements, or other language features is withdrawn from the CobaltC 1.0.0 specification.</p>
 <p>Such facilities, if desired, MUST be specified separately as future-version proposals or explicitly identified implementation extensions.</p>
-<p>The normative CobaltC 1.0.0 language remains the language defined by Sections 1?97 together with the clarifications in this Section 98.</p>
+<p>The normative CobaltC 1.0.0 language remains the language defined by Sections 1-97 together with the clarifications in this Section 98.</p>
 
 <hr>
 <section class="cobalt-example">
