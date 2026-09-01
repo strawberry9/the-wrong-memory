@@ -58,7 +58,7 @@
     <h1>CobaltC Programming Language Specification</h1>
 
     <p class="subtitle">
-      CobaltC 1.0 &mdash; Specification version 1.0.0
+      CobaltC 1.0 &mdash; Specification version 1.0.0 (draft version)
     </p>
 
     <div class="metadata">
@@ -1199,11 +1199,6 @@ File b = move a;</code></pre>
         If the implementation supports unwinding, scopes exited by supported
         unwinding MUST perform their specified destruction.
       </p>
-
-      <p>
-        An implementation may implement panic unwinding using internal
-        exception mechanisms.
-      </p>
     </section>
 
 
@@ -1262,21 +1257,7 @@ File b = move a;</code></pre>
 
     <section id="section-58">
       <h2>58. Option&lt;T&gt;</h2>
-
-      <p>
-        The canonical optional-value type is:
-      </p>
-
-      <pre><code>enum Option&lt;T&gt;
-{
-    Some(T),
-    None
-}</code></pre>
-
-      <p>
-        <code>Option&lt;T&gt;</code> represents the presence or absence of a
-        value.
-      </p>
+      <p>CobaltC does not use Option<T> because it introduces a Rust-style abstraction that is not necessary for CobaltC's C-like type system. Nullable pointers, enums, and ordinary values provide the required semantics without introducing a separate optional-value type.</p>
     </section>
 
 
@@ -1374,59 +1355,26 @@ File b = move a;</code></pre>
 
     <section id="section-64">
       <h2>64. Box&lt;T&gt;</h2>
-
-      <p>
-        <code>Box&lt;T&gt;</code> represents unique heap ownership.
-      </p>
-
-      <p>
-        Destroying the <code>Box</code> releases its owned allocation and
-        contained value according to normal destruction rules.
-      </p>
+      <p>CobaltC intentionally keeps its pointer model small and C-like. Ownership, borrowing, lifetime, and thread-safety are properties enforced by the language rather than by a family of smart-pointer types.</p>
+      <p>CobaltC does not use Box<T> because dynamically allocated objects are represented using ordinary C-style pointers, with ownership and lifetime tracked by the language rather than encoded in a separate pointer type.</p>
     </section>
 
 
     <section id="section-65">
       <h2>65. Rc&lt;T&gt;</h2>
-
-      <p>
-        <code>Rc&lt;T&gt;</code> provides reference-counted shared ownership
-        in contexts where its concurrency restrictions are satisfied.
-      </p>
-
-      <p>
-        Reference-counted cycles can prevent destruction.
-      </p>
+      <p>CobaltC does not use Rc<T> because reference-counted shared ownership is not part of its core pointer model; CobaltC instead uses ordinary pointers with statically enforced ownership and borrowing rules.</p>
     </section>
 
 
     <section id="section-66">
       <h2>66. Arc&lt;T&gt;</h2>
-
-      <p>
-        <code>Arc&lt;T&gt;</code> provides shared ownership suitable for
-        concurrent transfer when its contained type satisfies the applicable
-        safety constraints.
-      </p>
-
-      <p>
-        Reference counting does not itself provide synchronization for
-        arbitrary interior mutation.
-      </p>
+      <p>CobaltC does not use Arc<T> because thread-safe shared ownership through atomic reference counting is not a primitive of the language; cross-thread pointer use is governed by CobaltC's ownership, borrowing, and concurrency rules instead.</p>
     </section>
 
 
     <section id="section-67">
       <h2>67. Weak&lt;T&gt;</h2>
-
-      <p>
-        <code>Weak&lt;T&gt;</code> provides non-owning access to
-        reference-counted objects.
-      </p>
-
-      <p>
-        A weak reference does not keep its target alive.
-      </p>
+      <p>CobaltC does not use Weak<T> because it is specifically tied to reference-counted ownership; without Rc<T> or Arc<T>, weak references are unnecessary as a distinct pointer type.</p>
     </section>
 
 
@@ -1525,19 +1473,7 @@ Channel</code></pre>
 
     <section id="section-73">
       <h2>73. Channels</h2>
-
-      <p>
-        Channels provide communication between execution contexts.
-      </p>
-
-      <p>
-        Sending a move-only value transfers its ownership according to the
-        channel contract.
-      </p>
-
-      <p>
-        The sender MUST NOT subsequently use the moved value as its owner.
-      </p>
+      <p>Optionally library spec, but not core.</p>
     </section>
 
 
@@ -1709,7 +1645,6 @@ Channel</code></pre>
         <li>allocation;</li>
         <li>destruction;</li>
         <li>process integration;</li>
-        <li>panic handling;</li>
         <li>I/O;</li>
         <li>concurrency;</li>
         <li>platform integration.</li>
@@ -1738,16 +1673,7 @@ Channel</code></pre>
 
     <section id="section-84">
       <h2>84 Panic</h2>
-
-      <p>
-        A panic represents an unrecoverable program/runtime failure.
-      </p>
-
-      <p>
-        An implementation MAY unwind or terminate according to its runtime
-        configuration, provided the selected behavior conforms to the
-        applicable CobaltC rules.
-      </p>
+      <p>CobaltC does not use panic as a distinct language mechanism. Recoverable failures are represented using explicit error handling such as Result<T, E>, while unrecoverable failures use explicit program termination mechanisms. This keeps failure handling explicit and consistent with CobaltC's C-like design.</p>
     </section>
 
 
@@ -1776,23 +1702,8 @@ close</code></pre>
 
     <section id="section-86">
       <h2>86. Standard Concurrency Types</h2>
-
-      <p>
-        The standard library baseline includes facilities corresponding to:
-      </p>
-
-      <pre><code>Thread
-Mutex
-RwLock
-Atomic
-Channel
-Arc</code></pre>
-
-      <p>
-        Their implementations may differ by target but their observable
-        contracts MUST conform.
-      </p>
-    </section>
+      <p>Optionally library spec, but not core.</p>
+      </section>
 
 
     <section id="section-87">
