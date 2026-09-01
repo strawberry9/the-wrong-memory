@@ -58,7 +58,7 @@
     <h1>CobaltC Programming Language Specification</h1>
 
     <p class="subtitle">
-      CobaltC 1.0 &mdash; Specification version 1.0.0 (draft version)
+      CobaltC 1.0 &mdash; Specification version 1.0.0 (draft version - subject to change)
     </p>
 
     <div class="metadata">
@@ -1399,24 +1399,7 @@ File b = move a;</code></pre>
 
     <section id="section-69">
       <h2>69. Synchronization</h2>
-
-      <p>
-        Shared mutable state requires synchronization.
-      </p>
-
-      <p>
-        The standard synchronization abstractions include:
-      </p>
-
-      <pre><code>Mutex
-RwLock
-Atomic
-Channel</code></pre>
-
-      <p>
-        Synchronization guards own their applicable lock state and release it
-        on destruction.
-      </p>
+      <p>Possibly library spec, not core.</p>
     </section>
 
 
@@ -1440,19 +1423,7 @@ Channel</code></pre>
 
     <section id="section-71">
       <h2>71. RwLock</h2>
-
-      <p>
-        A read/write lock permits:
-      </p>
-
-      <ul>
-        <li>multiple compatible readers; or</li>
-        <li>one writer.</li>
-      </ul>
-
-      <p>
-        It MUST NOT simultaneously expose incompatible read and write access.
-      </p>
+      <p>Possibly library spec, not core.</p>
     </section>
 
 
