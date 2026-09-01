@@ -2366,20 +2366,176 @@ struct</code></pre>
 <p>The ABI does not by itself determine ownership.</p>
 <p>Ownership crossing an FFI boundary MUST continue to be defined by the API contract as specified by Section 80.</p>
 <hr>
-<h2>98.12 Module and Name Resolution Clarification</h2>
-<p>CobaltC 1.0.0 uses the module syntax defined in Section 8:</p>
-<pre><code>module example;</code></pre>
-<p>and imports declarations using:</p>
-<pre><code>import io;</code></pre>
-<p>These forms are normative.</p>
-<p>An implementation MUST NOT replace them with an alternative module declaration syntax while claiming that the alternative syntax is standard CobaltC 1.0.0.</p>
-<p>Module names establish namespaces.</p>
-<p>Name resolution is lexical and module-aware.</p>
-<p>An unresolved name is a compile-time error.</p>
-<p>An implementation MAY map modules to source files, directories, packages, compilation units, or another internal representation, provided that the resulting name-resolution behavior conforms to Section 8.</p>
-<p>### 98.12.1 Visibility</p>
-<p>CobaltC 1.0.0 does not define additional visibility modifiers beyond those specified elsewhere in this document.</p>
-<p>An implementation MAY provide visibility mechanisms as extensions, but such mechanisms MUST be distinguishable from standard CobaltC behavior and MUST NOT silently alter the semantics of a valid CobaltC 1.0.0 program.</p>
+<h2>98.12 Module and Name Resolution</h2>
+<p>CobaltC 1.0.0 uses the module syntax defined in Section 8:</p><pre><code>module example;</code></pre>
+<p>and imports modules using:</p> <pre><code>import io;</code></pre> <p>These forms are normative.</p>
+<p>An implementation MUST NOT replace them with an alternative module declaration or import syntax while claiming that the alternative syntax is standard CobaltC 1.0.0.</p>
+<p>Module names establish namespaces. Name resolution is lexical and module-aware. An unresolved name is a compile-time error.</p>
+<p>An implementation MAY map modules to source files, directories, packages, compilation units, or another internal representation, provided that the resulting module and name-resolution behavior conforms to Section 8 and this section.</p>
+<h3>98.12.1 Module Exports and API Contracts</h3>
+<p>Declarations describe implementation. The <code>export</code> block describes the module's external contract.</p>
+<p>If a module does not contain an <code>export</code> block, the module exports no declarations.</p>
+<p>A declaration at module scope is not externally accessible merely because it exists in the module. A declaration is externally accessible only if its name is included in the module's <code>export</code> block.</p>
+<p>Any declaration not listed in the <code>export</code> block is a module-local implementation detail. Such declarations MAY be added, removed, renamed, reorganized, or otherwise changed without constituting an API-breaking change, provided that the exported interface and its specified semantics remain compatible.</p>
+<p>CobaltC 1.0.0 does not define declaration-level visibility modifiers such as <code>public</code>, <code>private</code>, or <code>protected</code>.</p>
+<h3>98.12.2 Export Declarations</h3>
+<p>A module MAY contain an <code>export</code> block listing the names of declarations that are made available to importing modules. The export block lists names only; the declarations remain in the defining module.</p>
+
+<pre><code>module hash;
+
+export
+{
+    HashTable;
+    hash_create;
+    hash_insert;
+    hash_remove;
+}
+
+struct HashTable
+{
+    ...
+}
+
+fn hash_create(...) -&gt; HashTable *
+{
+    ...
+}
+
+fn hash_insert(...)
+{
+    ...
+}
+
+fn resize(...)
+{
+    ...
+}</code></pre>
+
+<p>In this example, <code>HashTable</code>, <code>hash_create</code>, <code>hash_insert</code>, and <code>hash_remove</code> form the external contract of the module. <code>resize</code> and any other declaration not listed in the <code>export</code> block are implementation details.</p>
+
+<h3>98.12.3 Exported Types</h3>
+<p>Exporting a type makes the type name available to external code but MUST NOT make the representation of that type available to external code.</p>
+<p>External code MAY name an exported type, use the type in function signatures, and pass or return values or pointers/references to the type, subject to the normal rules of the type system.</p>
+<p>External code MUST NOT directly inspect, access, or manipulate the representation of an exported type. In particular, external code MUST NOT access fields, layout, or other representation details of an exported type unless those details are explicitly exposed by a language mechanism defined by this specification.</p>
+<p>The defining module controls how an exported type is constructed, accessed, and manipulated through its exported declarations.</p>
+
+<pre><code>module hash;
+
+export
+{
+    HashTable;
+    hash_create;
+    hash_insert;
+    hash_remove;
+}
+
+struct HashTable
+{
+    usize capacity;
+    ...
+}
+
+fn hash_create(...) -&gt; HashTable *
+{
+    ...
+}
+
+fn hash_insert(HashTable *table, Key key, Value value)
+{
+    ...
+}
+
+fn hash_remove(HashTable *table, Key key)
+{
+    ...
+}
+
+fn resize(HashTable *table)
+{
+    ...
+}</code></pre>
+
+<p>External code MAY therefore use the exported interface:</p>
+
+<pre><code>HashTable *table = hash_create(...);
+
+hash_insert(table, key, value);
+hash_remove(table, key);</code></pre>
+
+<p>but MUST NOT directly access the internal representation of <code>HashTable</code>.</p>
+<h3>98.12.4 API Stability</h3>
+<p>The <code>export</code> block defines the source-level API boundary of a module.</p>
+<p>Changes to declarations that are not exported MUST NOT constitute API-breaking changes. An implementation MAY change internal algorithms, reorganize implementation code, rename internal declarations, add or remove internal declarations, or change the representation of an exported type without requiring dependent modules to change, provided that the exported interface and its specified semantics remain compatible.</p>
+<p>The export block therefore serves as both an access boundary and an explicit declaration of the module's contractual surface.</p>
+<h3>98.12.5 Submodules</h3> <p>A module MAY have one or more submodules. A submodule is a distinct module with its own namespace, declarations, imports, and <code>export</code> block.</p> <p>A submodule is identified by a qualified module name consisting of its parent module name followed by the submodule name, separated by a period.</p> <pre><code>module graphics.math;</code></pre>
+<p>The module <code>graphics.math</code> is a submodule of <code>graphics</code>.</p> <p>Each submodule defines its own external contract independently. Declarations exported by a submodule are not automatically exported by its parent module.</p>
+<p>For example:</p>
+
+<pre><code>module graphics.math;
+
+export
+{
+    Vec2;
+    dot;
+}
+
+struct Vec2
+{
+    f64 x;
+    f64 y;
+}
+
+fn dot(Vec2 a, Vec2 b) -&gt; f64
+{
+    ...
+}</code></pre>
+<p>External code MAY import the submodule directly:</p> <pre><code>import graphics.math;</code></pre> <p>and MAY use declarations exported by <code>graphics.math</code> according to the normal rules of name resolution.</p>
+<p>The existence of <code>graphics.math</code> does not make its declarations available through <code>graphics</code>. A parent module MUST NOT be considered to export declarations from a submodule merely because the submodule exists.</p>
+<p>Submodules MAY themselves have further submodules, subject to the same rules.</p>
+<h3>98.12.6 Module Hierarchy and Encapsulation</h3>
+<p>Module hierarchy is a namespace and organization mechanism and MUST NOT implicitly grant access to declarations between parent and child modules.</p>
+<p>A declaration that is not exported by its defining module remains inaccessible to other modules, including parent modules, sibling modules, and child modules, unless another language rule explicitly provides access.</p>
+<p>For example, the following modules have independent contracts:</p>
+
+<pre><code>module graphics;
+
+export
+{
+    render;
+}</code></pre>
+
+<pre><code>module graphics.math;
+
+export
+{
+    Vec2;
+    dot;
+}</code></pre>
+
+<pre><code>module graphics.backend;
+
+export
+{
+    Backend;
+}</code></pre>
+
+<p>The parent-child relationship between these modules does not by itself make declarations in one module accessible to another.</p>
+<p>To use declarations from <code>graphics.math</code>, external code imports <code>graphics.math</code> directly:</p> <pre><code>import graphics.math;</code></pre> <p>Likewise, declarations exported by <code>graphics</code> are available only through the normal import and name-resolution rules for <code>graphics</code>.</p>
+<p>This preserves the module export principle throughout the module hierarchy: declarations describe implementation, while each module's <code>export</code> block describes its external contract.</p>
+<h3>98.12.7 Translation Units and Modules</h3>
+<p>A translation unit MUST define exactly one module.</p>
+<p>The module declaration of a translation unit establishes the module defined by that translation unit. A translation unit MUST NOT contain more than one module declaration.</p>
+<p>Submodules are distinct modules and therefore MUST be defined by separate translation units.</p>
+<p>An implementation MAY use any source-file or compilation-unit organization internally, provided that the resulting module behavior conforms to this specification.</p>
+<h3>98.12.8 Rationale</h3>
+<p>CobaltC deliberately does not require <code>public</code>, <code>private</code>, <code>protected</code>, or equivalent visibility attributes on individual declarations.</p>
+<p>Visibility is instead expressed at the module boundary. Declarations describe the implementation, while the <code>export</code> block describes the contract offered by the module.</p>
+<p>This design preserves CobaltC's C-like simplicity while providing a strong software-engineering boundary: anything not in <code>export</code> is free to change without being an API-breaking change, provided that the specified semantics of the exported interface remain compatible.</p>
+<p>The export list also provides a single, explicit description of a module's external interface rather than requiring readers to discover its API by inspecting visibility attributes throughout the implementation.</p>
+<p>The same principle applies to submodules. A module hierarchy provides organization and namespaces, but does not weaken encapsulation. Each module explicitly controls its own external contract, and submodules are imported independently by their qualified module names.</p>
+<p>An implementation MAY provide additional visibility mechanisms as extensions, but such mechanisms MUST be distinguishable from standard CobaltC behavior and MUST NOT silently alter the semantics of a valid CobaltC 1.0.0 program.</p>
+
+
 <hr>
 <h2>98.13 Interfaces</h2>
 <p>CobaltC uses `interface` as the language construct for defining required operations.</p>
