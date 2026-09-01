@@ -715,13 +715,50 @@ f64</code></pre>
 
 
     <section id="section-23">
-      <h2>23. Tuples</h2>
+  <h2>23. Tuples</h2>
 
-      <p>
-        Tuples are NOT a part of CobaltC.
-      </p>
+  <p>
+    Tuples are <strong>not a part of CobaltC</strong>.
+  </p>
 
-    </section>
+  <p>
+    CobaltC deliberately avoids tuples in favor of named structures and
+    other explicitly defined types. While tuples provide a convenient way
+    to group a small number of values, they introduce an additional kind of
+    anonymous, positional type into the language.
+  </p>
+
+  <p>
+    Instead of defining a type such as:
+  </p>
+
+  <pre><code>(Int, String, Bool)</code></pre>
+
+  <p>
+    CobaltC encourages the use of a named structure:
+  </p>
+
+  <pre><code>struct Result
+{
+    Int value;
+    String message;
+    Bool success;
+}</code></pre>
+
+  <p>
+    This keeps the meaning of data explicit and avoids relying on positional
+    fields such as <code>.0</code>, <code>.1</code>, and <code>.2</code>.
+  </p>
+
+  <p>
+    The absence of tuples also keeps the language's type system and syntax
+    smaller and more consistent. When multiple values conceptually belong
+    together, CobaltC prefers that relationship to be represented by an
+    explicit type rather than an anonymous tuple.
+  </p>
+
+</section>
+
 
 
     <section id="section-24">
