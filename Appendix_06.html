@@ -2536,6 +2536,25 @@ export
 <p>The export list also provides a single, explicit description of a module's external interface rather than requiring readers to discover its API by inspecting visibility attributes throughout the implementation.</p>
 <p>The same principle applies to submodules. A module hierarchy provides organization and namespaces, but does not weaken encapsulation. Each module explicitly controls its own external contract, and submodules are imported independently by their qualified module names.</p>
 <p>An implementation MAY provide additional visibility mechanisms as extensions, but such mechanisms MUST be distinguishable from standard CobaltC behavior and MUST NOT silently alter the semantics of a valid CobaltC 1.0.0 program.</p>
+<p>Example structure of what a real CobaltC program might look like:</p>
+<pre><code>src/
+    main.cb
+    cli.cb
+
+    database/
+        database.cb
+        record.cb
+        index.cb
+
+    filesystem/
+        scanner.cb
+        path.cb
+
+    text/
+        tokenizer.cb
+        matcher.cb
+</code></pre>
+
 <hr>
 <h2>98.13 Structs and Associated Functions</h2> <p>CobaltC 1.0.0 defines <code>struct</code> as a data type whose declaration describes its data representation. A <code>struct</code> declaration MUST NOT contain method or member-function declarations.</p> <p>Functions operating on a <code>struct</code> are ordinary functions and are declared independently of the <code>struct</code> declaration.</p> <p>A function MAY accept a <code>struct</code> value, pointer, or reference as an argument and MAY return a <code>struct</code> value, pointer, or reference, subject to the normal rules of the type system.</p> <p>CobaltC 1.0.0 does not define implicit <code>this</code>, <code>self</code>, or equivalent receiver parameters for <code>struct</code> operations.</p> <p>For example:</p> <pre><code>struct HashTable { usize capacity; } fn hash_insert(HashTable *table, Key key, Value value) { ... }</code></pre> <p>In this example, <code>hash_insert</code> is an ordinary function rather than a method of <code>HashTable</code>.</p> <p>This design provides a C-like separation between data types and the functions that operate on them. A module MAY use its <code>export</code> block to define which types and associated functions form its external interface.</p> <h3>98.13.1 Rationale</h3> <p>CobaltC deliberately keeps <code>struct</code> declarations focused on the representation of data and does not introduce a separate method mechanism for functions operating on structures.</p> <p>Functions remain ordinary functions, making their parameters, return values, calling conventions, and ownership or borrowing behavior explicit. No special receiver semantics are required merely because the first parameter refers to a particular type.</p> <p>This preserves the C-like programming model while avoiding additional language mechanisms for method lookup, implicit receivers, or member-function declarations. It also allows functions operating on a type to be grouped and exposed through a module's <code>export</code> block without making those functions members of the type itself.</p> <p>The result is a consistent separation of concerns: <code>struct</code> declarations describe data, functions describe operations on data, and modules define which types and operations form an external contract.</p>
 <hr>
