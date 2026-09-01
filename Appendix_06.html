@@ -309,7 +309,8 @@
 
       <p>The following are reserved:</p>
 
-      <pre><code>as
+      <pre><code>alias
+as
 break
 const
 continue
@@ -336,7 +337,7 @@ unsafe
 while</code></pre>
 
       <p>
-        <code>let</code> is not a CobaltC 1.0 keyword.
+        <code>let</code> is not a CobaltC 1.0 keyword, and MUST never become one.
       </p>
     </section>
 
@@ -518,8 +519,8 @@ f64</code></pre>
         <li>enums</li>
         <li>arrays</li>
         <li>function types</li>
-        <li>managed references</li>
-        <li>raw pointers</li>
+        <li>managed references (T* and T*?)</li>
+        <li>raw pointers (raw T*)</li>
         <li>generic types</li>      
       </ul>
 
@@ -1399,7 +1400,7 @@ File b = move a;</code></pre>
 
     <section id="section-69">
       <h2>69. Synchronization</h2>
-      <p>Possibly library spec, not core.</p>
+      <p>Optionally library spec, but not core.</p> 
     </section>
 
 
@@ -1423,7 +1424,7 @@ File b = move a;</code></pre>
 
     <section id="section-71">
       <h2>71. RwLock</h2>
-      <p>Possibly library spec, not core.</p>
+      <p>Optionally library spec, but not core.</p>
     </section>
 
 
