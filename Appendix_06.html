@@ -2198,17 +2198,32 @@ T*?</code></pre>
 <p>This rule follows directly from the aliasing and mutable-borrow requirements of Sections 42-50.</p>
 <hr>
 <h2>98.6 Generic Type Checking</h2>
-<p>Generic declarations are statically checked according to Section 19.</p>
-<p>A compiler MUST verify the validity of a generic declaration and its constraints before accepting a use that depends upon those requirements.</p>
-<p>A compiler MAY perform generic checking in multiple implementation phases.</p>
+
+<p>
+  Generic declarations are statically checked according to Section 19.
+</p>
+
+<p>
+  A compiler MAY perform generic checking in multiple implementation phases.
+</p>
+
 <p>For example, an implementation MAY:</p>
-<p>1. parse and construct an internal representation of the generic declaration;<br>
-2. validate its declaration-level requirements;<br>
-3. substitute concrete types at an instantiation;<br>
-4. perform additional type and ownership checking for the instantiated form; and<br>
-5. generate target code.</p>
-<p>These phases are implementation details.</p>
-<p>CobaltC 1.0.0 does not require a particular generic implementation strategy.</p>
+
+<ol>
+  <li>parse and construct an internal representation of the generic declaration;</li>
+  <li>substitute concrete types at an instantiation;</li>
+  <li>perform additional type and ownership checking for the instantiated form; and</li>
+  <li>generate target code.</li>
+</ol>
+
+<p>
+  These phases are implementation details.
+</p>
+
+<p>
+  CobaltC 1.0.0 does not require a particular generic implementation strategy.
+</p>
+
 <hr>
 <h2>98.7 `Result` and the `?` Operator</h2>
 <p>The canonical recoverable-error type is the `Result&lt;T,E&gt;` type defined in Section 59.</p>
