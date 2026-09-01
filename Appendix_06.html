@@ -306,7 +306,6 @@
 
       <pre><code>as
 break
-case
 const
 continue
 defer
@@ -957,25 +956,9 @@ loop</code></pre>
     <section id="section-34">
       <h2>34. Match</h2>
 
-      <p>
-        Pattern matching is provided by <code>match</code>:
-      </p>
-
-      <pre><code>match value
-{
-    Some(x) =&gt; use(x),
-    None    =&gt; use_default()
-}</code></pre>
-
-      <p>
-        A match over an exhaustively known variant set MUST handle every
-        possible case.
-      </p>
-
-      <p>
-        The compiler MUST reject statically non-exhaustive matches.
-      </p>
-    </section>
+      <p> Pattern matching is provided by <code>match</code>. A match may be used as either a statement or an expression. </p> <p>Example:</p> <pre><code>match value { Some(x) => use(x), None => use_default() }</code></pre> <p>A match expression may produce a value:</p> <pre><code>var result = match value { 1 => "one", 2 => "two", _ => "other" };</code></pre> <p> A match over an exhaustively known variant set MUST handle every possible case. </p> <p> The compiler MUST reject statically non-exhaustive matches. </p>
+      <p>Match arms are evaluated in source order and the first matching arm is selected.</p>
+      <p>The <code>_</code> pattern matches any value not matched by an earlier arm.</p>
 
 
     <section id="section-35">
