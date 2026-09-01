@@ -652,7 +652,7 @@ f64</code></pre>
 
     <section id="section-19">
       <h2>19. Generic Types</h2>
-
+     
       <p>
         Generic types and functions are statically checked.
       </p>
@@ -664,11 +664,7 @@ f64</code></pre>
     return value;
 }</code></pre>
 
-     </section>
-
-
-    <section id="section-20"> <h2>20. Interfaces</h2> <p> CobaltC does not provide interfaces. </p> <p> Types do not implement interfaces, and interfaces are not types, runtime values, or a mechanism for polymorphism. </p> </section>
-
+<section id="section-20"> <h2>20. Interfaces</h2> <p>CobaltC does not provide interfaces.</p> <p> Types do not implement interfaces, and interfaces are not types, runtime values, or a mechanism for polymorphism. </p> <p> CobaltC provides parametric polymorphism through generics, but does not provide subtype polymorphism, inheritance, or dynamic dispatch. </p> </section>
 
     <section id="section-21">
       <h2>21. Structs</h2>
@@ -913,8 +909,7 @@ f64</code></pre>
         <li>the argument count is correct;</li>
         <li>arguments have compatible types;</li>
         <li>ownership transfers are valid;</li>
-        <li>borrows remain valid;</li>
-        <li>generic constraints are satisfied.</li>
+        <li>borrows remain valid;</li>       
       </ul>
     </section>
 
@@ -1839,7 +1834,6 @@ lifetime violation
 nullability violation
 bounds violation
 non-exhaustive match
-generic constraint failure
 invalid assignment</code></pre>
 
       <p>
@@ -2236,17 +2230,6 @@ T*?</code></pre>
 5. generate target code.</p>
 <p>These phases are implementation details.</p>
 <p>CobaltC 1.0.0 does not require a particular generic implementation strategy.</p>
-<h3>98.6.1 Generic Constraints</h3>
-<p>Every use of a generic entity MUST satisfy its declared type constraints.</p>
-<p>Failure to satisfy a generic constraint is a compile-time error.</p>
-<p>Generic instantiation MUST NOT weaken:</p>
-<p>* ownership rules;<br>
-* borrowing rules;<br>
-* lifetime rules;<br>
-* nullability rules;<br>
-* initialization rules;<br>
-* bounds rules; or<br>
-* concurrency-safety requirements.</p>
 <hr>
 <h2>98.7 `Result` and the `?` Operator</h2>
 <p>The canonical recoverable-error type is the `Result&lt;T,E&gt;` type defined in Section 59.</p>
