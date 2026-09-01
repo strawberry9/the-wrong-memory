@@ -2374,6 +2374,8 @@ struct</code></pre>
 <p>An implementation MAY map modules to source files, directories, packages, compilation units, or another internal representation, provided that the resulting module and name-resolution behavior conforms to Section 8 and this section.</p>
 <h3>98.12.1 Module Exports and API Contracts</h3>
 <p>Declarations describe implementation. The <code>export</code> block describes the module's external contract.</p>
+<p>The <code>export</code> block applies only to declarations belonging to the module in which the block appears.</p>
+<p>A submodule is a separate module and is not exported by its parent module.</p>
 <p>If a module does not contain an <code>export</code> block, the module exports no declarations.</p>
 <p>A declaration at module scope is not externally accessible merely because it exists in the module. A declaration is externally accessible only if its name is included in the module's <code>export</code> block.</p>
 <p>Any declaration not listed in the <code>export</code> block is a module-local implementation detail. Such declarations MAY be added, removed, renamed, reorganized, or otherwise changed without constituting an API-breaking change, provided that the exported interface and its specified semantics remain compatible.</p>
