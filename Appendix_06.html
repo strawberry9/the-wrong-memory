@@ -336,7 +336,7 @@ unsafe
 while</code></pre>
 
       <p>
-        <code>let</code> is not a CobaltC 1.0 keyword, and MUST never become one.
+        <code>let</code> is not a CobaltC 1.0 keyword, and MUST NOT become one.
       </p>
     </section>
 
@@ -659,7 +659,7 @@ f64</code></pre>
 
       <p>Example:</p>
 
-      <pre><code>fn identity&lt;T&gt;(T value) -&gt; T
+      <pre><code>fn identity&lt;T&gt;(T value) : T
 {
     return value;
 }</code></pre>
@@ -781,25 +781,24 @@ f64</code></pre>
 
 
     <section id="section-25">
-      <h2>25. Functions</h2>
-
-      <p>
-        A function is declared:
-      </p>
-
-      <pre><code>fn add(i32 a, i32 b) -&gt; i32
+    <h2>25. Functions</h2>
+    <p> A function is declared by specifying its name, parameters, and, optionally, its return type: </p>
+    <pre><code>fn add(i32 a, i32 b) : i32
 {
     return a + b;
 }</code></pre>
-
-      <p>
-        The number and types of arguments MUST match the function signature.
-      </p>
-
-      <p>
-        Ownership and borrowing requirements apply to arguments and return
-        values.
-      </p>
+    <p> If the <code>:</code> and return type are omitted, the function has a return type of <code>void</code>: </p>
+    <pre><code>fn log(String message)
+{
+    print(message);
+}</code></pre>
+    <p> An explicit <code>void</code> return type is also permitted: </p>
+    <pre><code>fn log(String message) : void
+{
+    print(message);
+}</code></pre>
+    <p> The number and types of arguments MUST match the function signature. </p>
+    <p> A function with a return type other than <code>void</code> MUST return a value compatible with its declared return type. A <code>void</code> function MUST NOT return a value. </p> <p> Ownership and borrowing requirements apply to arguments and return values. </p>
     </section>
 
 
@@ -1018,7 +1017,7 @@ loop</code></pre>
      <h2>36. Defer</h2>
      <p><code>defer</code> registers a block to be executed when the enclosing scope is exited: </p>
 
-<pre><code>void update_shared_state(Mutex* mutex)
+<pre><code>fn update_shared_state(Mutex* mutex)
 {
     Lock lock = mutex.lock();
     defer { lock.unlock(); }
@@ -1142,7 +1141,7 @@ File b = move a;</code></pre>
       </p>
     </section>
 
-    <section id="section-42"><h2 id="section-42-borrowing">42. Borrowing</h2><p>A borrow provides access to an owned value without transferring ownership. Borrowing does not create a new owner of the borrowed value.</p><p>CobaltC supports shared borrows and mutable borrows. A shared borrow provides read access to its referent. A mutable borrow provides exclusive mutable access to its referent.</p><p>The managed pointer type <code>T*</code> represents a managed, non-null pointer. The expression <code>&amp;expr</code> creates a shared borrow, and the expression <code>&amp;mut expr</code> creates a mutable borrow when the applicable ownership and mutability rules permit the operation.</p><p>The fundamental borrowing rule is:</p><pre><code>zero or more compatible shared borrows OR one mutable borrow</code></pre><p>A shared borrow is compatible with another shared borrow when neither borrow provides conflicting access to the same storage. A mutable borrow is incompatible with any other borrow of the same storage that would permit conflicting access.</p><p>Conflicting borrows MUST be rejected.</p><pre><code>String value = "hello";
+    <section id="section-42"><h2 id="section-42-borrowing">42. Borrowing</h2><p>A borrow provides access to an owned value without transferring ownership. Borrowing does not create a new owner of the borrowed value.</p><p>CobaltC supports shared borrows and mutable borrows. A shared borrow provides read access to its referent (the thing being pointed to). A mutable borrow provides exclusive mutable access to its referent.</p><p>The managed pointer type <code>T*</code> represents a managed, non-null pointer. The expression <code>&amp;expr</code> creates a shared borrow, and the expression <code>&amp;mut expr</code> creates a mutable borrow when the applicable ownership and mutability rules permit the operation.</p><p>The fundamental borrowing rule is:</p><pre><code>zero or more compatible shared borrows OR one mutable borrow</code></pre><p>A shared borrow is compatible with another shared borrow when neither borrow provides conflicting access to the same storage. A mutable borrow is incompatible with any other borrow of the same storage that would permit conflicting access.</p><p>Conflicting borrows MUST be rejected.</p><pre><code>String value = "hello";
 String* pointer = &amp;value;
 print(*pointer);
 print(value);</code></pre><p>The borrow does not transfer ownership of <code>value</code>. The binding <code>value</code> remains the owner of the string.</p><p>A value MUST NOT be moved while a live borrow of that value would be invalidated by the move.</p><pre><code>String value = "hello";
@@ -1207,20 +1206,20 @@ append(*mutable, " world");</code></pre><p>The preceding program is valid becaus
 
 <section id="section-46">
 <h2 id="section-46-function-parameters-and-returned-borrows">46. Function Parameters and Returned Borrows</h2>
-<p>A function MAY accept a managed pointer as a parameter. Passing a managed pointer to a function provides access to the referenced value and does not transfer ownership.</p><pre><code>fn length(String* value) -&gt; usize {
+<p>A function MAY accept a managed pointer as a parameter. Passing a managed pointer to a function provides access to the referenced value and does not transfer ownership.</p><pre><code>fn length(String* value) : usize {
     return length_of(*value);
 }
 
 String value = "hello";
 usize size = length(&value);
 print(value);
-print(size);</code></pre><p>A function MAY return a borrowed managed pointer when the returned pointer is guaranteed not to outlive its referent.</p><pre><code>fn identity(String* value) -> String* {
+print(size);</code></pre><p>A function MAY return a borrowed managed pointer when the returned pointer is guaranteed not to outlive its referent.</p><pre><code>fn identity(String* value) : String* {
 return value;
 }
 
 String value = "hello";
 String* result = identity(&value);
-print(*result);</code></pre><p>When a returned managed pointer is derived from a borrowed parameter, the returned pointer MUST NOT outlive the source borrow.</p><pre><code>fn first(String* value) -> String* {
+print(*result);</code></pre><p>When a returned managed pointer is derived from a borrowed parameter, the returned pointer MUST NOT outlive the source borrow.</p><pre><code>fn first(String* value) : String* {
 return value;
 }
 
@@ -1228,7 +1227,7 @@ String value = "hello";
 {
 String* result = first(&value);
 print(*result);
-}</code></pre><p>A function MUST NOT return a managed pointer to an ordinary local value whose lifetime ends when the function returns.</p><pre><code>fn invalid() -> String* {
+}</code></pre><p>A function MUST NOT return a managed pointer to an ordinary local value whose lifetime ends when the function returns.</p><pre><code>fn invalid() : String* {
 String value = "hello";
 return &value; // ERROR: returned borrow outlives `value`
 }</code></pre><p>A function MAY return a managed pointer to storage whose lifetime is independently guaranteed to outlive the returned pointer.</p><p>CobaltC uses inferred borrow lifetimes. The compiler MUST determine whether parameter borrows, returned borrows, and the referenced storage satisfy the applicable lifetime and borrowing rules.</p><p>Ownership MUST NOT be inferred from a borrowed return value. Returning a managed pointer provides access to an existing value; it does not transfer ownership unless an explicitly defined ownership operation is used.</p>
@@ -2448,7 +2447,7 @@ struct HashTable
     ...
 }
 
-fn hash_create(...) -&gt; HashTable *
+fn hash_create(...) : HashTable *
 {
     ...
 }
@@ -2491,7 +2490,7 @@ struct HashTable
     ...
 }
 
-fn hash_create(...) -&gt; HashTable *
+fn hash_create(...) : HashTable *
 {
     ...
 }
@@ -2541,7 +2540,7 @@ struct Vec2
     f64 y;
 }
 
-fn dot(Vec2 a, Vec2 b) -&gt; f64
+fn dot(Vec2 a, Vec2 b) : f64
 {
     ...
 }</code></pre>
@@ -2799,7 +2798,7 @@ struct Stack&lt;T&gt;
     Vector&lt;T&gt; values;
 }
 
-fn Stack_new&lt;T&gt;() -&gt; Stack&lt;T&gt;
+fn Stack_new&lt;T&gt;() : Stack&lt;T&gt;
 {
     return Stack&lt;T&gt;
     {
@@ -2812,7 +2811,7 @@ fn Stack_push&lt;T&gt;(mut Stack&lt;T&gt;* stack, T value)
     stack.values.push(value);
 }
 
-fn Stack_pop&lt;T&gt;(mut Stack&lt;T&gt;* stack) -&gt; Result&lt;T, StackError&gt;
+fn Stack_pop&lt;T&gt;(mut Stack&lt;T&gt;* stack) : Result&lt;T, StackError&gt;
 {
     if stack.values.len() == 0
     {
@@ -2822,12 +2821,12 @@ fn Stack_pop&lt;T&gt;(mut Stack&lt;T&gt;* stack) -&gt; Result&lt;T, StackError&g
     return Ok(stack.values.pop());
 }
 
-fn Stack_is_empty&lt;T&gt;(Stack&lt;T&gt;* stack) -&gt; bool
+fn Stack_is_empty&lt;T&gt;(Stack&lt;T&gt;* stack) : bool
 {
     return stack.values.len() == 0;
 }
 
-fn main() -&gt; i32
+fn main() : i32
 {
     Stack&lt;i32&gt; stack = Stack_new&lt;i32&gt;();
 
