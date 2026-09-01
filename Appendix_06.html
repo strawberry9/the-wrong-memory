@@ -988,28 +988,20 @@ loop</code></pre>
 
 
     <section id="section-36">
-      <h2>36. Defer</h2>
+     <h2>36. Defer</h2>
+     <p><code>defer</code> registers a block to be executed when the enclosing scope is exited: </p>
 
-      <p>
-        <code>defer</code> schedules work for scope exit:
-      </p>
+<pre><code>void update_shared_state(Mutex* mutex)
+{
+    Lock lock = mutex.lock();
+    defer { lock.unlock(); }
 
-      <pre><code>{
-    defer { close_resource(); }
-
-    use_resource();
+    modify_shared_state();
 }</code></pre>
 
-      <p>
-        Deferred blocks execute in reverse registration order.
-      </p>
-
-      <p>
-        Deferred operations themselves obey ordinary ownership and lifetime
-        rules.
-      </p>
+     <p> Deferred blocks execute in reverse registration order. </p>
+     <p> Deferred blocks execute before owned locals in the exited scope are destroyed. Deferred operations themselves obey the ordinary ownership and lifetime rules.</p>
     </section>
-
 
     <section id="section-37">
       <h2>37. Definite Initialization</h2>
