@@ -1006,13 +1006,10 @@ loop</code></pre>
         Returning an owned value transfers ownership to the caller.
       </p>
 
-      <p>
-        Returning a reference is permitted only if its lifetime remains valid
-        after the function returns.
-      </p>
+      <p>Returning a managed pointer is permitted only if its lifetime remains valid after the function returns.</p>
 
       <p>
-        A reference to an ordinary local variable MUST NOT be returned.
+        A managed pointer to an ordinary local variable MUST NOT be returned.
       </p>
     </section>
 
@@ -2240,14 +2237,20 @@ T*?</code></pre>
 <p>For example, if a returned `T*` is derived from an input `T*`, the returned reference MUST NOT remain usable after the source borrow becomes invalid.</p>
 <p>No explicit lifetime annotation is required from the programmer.</p>
 <h3>98.2.2 Lifetime Inference</h3>
+
 <p>The compiler MUST infer sufficient lifetime information to determine whether:</p>
-<p>* a reference outlives its referent;<br>
-* a returned reference outlives the borrow from which it was derived;<br>
+
+<p>
+* a managed pointer outlives its referent;<br>
+* a returned managed pointer outlives the borrow from which it was derived;<br>
 * a borrow conflicts with another borrow;<br>
-* a move invalidates a live reference;<br>
-* a collection operation invalidates an active reference; or<br>
-* a reference is used after the storage on which it depends ceases to be valid.</p>
+* a move invalidates a live managed pointer;<br>
+* a collection operation invalidates an active managed pointer; or<br>
+* a managed pointer is used after the storage on which it depends ceases to be valid.
+</p>
+
 <p>If the compiler cannot establish the required lifetime relationship, it MUST reject the program.</p>
+
 <p>The compiler MUST NOT assume that an unproven lifetime relationship is valid merely because the referenced memory happens to remain allocated in a particular implementation.</p>
 <hr>
 <h2>98.3 Borrow Lifetime End Points</h2>
@@ -2463,9 +2466,13 @@ fn resize(...)
 <p>In this example, <code>HashTable</code>, <code>hash_create</code>, <code>hash_insert</code>, and <code>hash_remove</code> form the external contract of the module. <code>resize</code> and any other declaration not listed in the <code>export</code> block are implementation details.</p>
 
 <h3>98.12.3 Exported Types</h3>
+
 <p>Exporting a type makes the type name available to external code but MUST NOT make the representation of that type available to external code.</p>
-<p>External code MAY name an exported type, use the type in function signatures, and pass or return values or pointers/references to the type, subject to the normal rules of the type system.</p>
+
+<p>External code MAY name an exported type, use the type in function signatures, and pass or return values or pointers to the type, subject to the normal rules of the type system.</p>
+
 <p>External code MUST NOT directly inspect, access, or manipulate the representation of an exported type. In particular, external code MUST NOT access fields, layout, or other representation details of an exported type unless those details are explicitly exposed by a language mechanism defined by this specification.</p>
+
 <p>The defining module controls how an exported type is constructed, accessed, and manipulated through its exported declarations.</p>
 
 <pre><code>module hash;
@@ -2653,11 +2660,11 @@ print(*reference);</code></pre>
 <p>An implementation MAY use a different internal mechanism to achieve this behavior.</p>
 <hr>
 <h2>98.19 Nullability Clarification</h2>
-<p>A nullable managed reference is represented using:</p>
+<p>A nullable managed pointer is represented using:</p>
 <pre><code>T*?</code></pre>
-<p>A non-null managed reference is represented using:</p>
+<p>A non-null managed pointer is represented using:</p>
 <pre><code>T*</code></pre>
-<p>A nullable reference MUST NOT be dereferenced until the compiler has established that it is non-null.</p>
+<p>A nullable pointer MUST NOT be dereferenced until the compiler has established that it is non-null.</p>
 <p>The compiler MAY perform flow-sensitive nullability refinement.</p>
 <p>For example, after a condition that establishes that a `T*?` value is not null, subsequent operations within the proven region MAY treat the value as non-null for purposes of dereference checking.</p>
 <p>Such refinement MUST NOT outlive the condition that establishes it if later control flow can invalidate the proof.</p>
