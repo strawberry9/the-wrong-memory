@@ -1145,7 +1145,190 @@ File b = move a;</code></pre>
       </p>
     </section>
 
-    <section id="section-42"><h2 id="section-42-borrowing">42. Borrowing</h2><p> A borrow provides access to an owned value without transferring ownership. Borrowing does not create a new owner of the borrowed value. </p> <p> CobaltC supports shared borrows and mutable borrows. A shared borrow provides read access to its referent. A mutable borrow provides exclusive mutable access to its referent. </p> <p> The reference type <code>T*</code> represents a managed, non-null reference. The expression <code>&amp;expr</code> creates a shared borrow, and the expression <code>&amp;mut expr</code> creates a mutable borrow when the applicable ownership and mutability rules permit the operation. </p> <p> The fundamental borrowing rule is: </p> <pre><code>zero or more compatible shared borrows OR one mutable borrow</code></pre> <p> A shared borrow is compatible with another shared borrow when neither borrow provides conflicting access to the same storage. A mutable borrow is incompatible with any other borrow of the same storage that would permit conflicting access. </p> <p> Conflicting borrows MUST be rejected. </p> <pre><code>String value = "hello"; String* reference = &amp;value; print(*reference); print(value);</code></pre> <p> The borrow does not transfer ownership of <code>value</code>. The binding <code>value</code> remains the owner of the string. </p> <p> A value MUST NOT be moved while a live borrow of that value would be invalidated by the move. </p> <pre><code>String value = "hello"; String* reference = &amp;value; String moved = move value; print(*reference); // ERROR: `value` was moved while borrowed</code></pre> <p> A borrow MUST NOT outlive its referent. A reference MUST NOT be used after the storage required by that reference has ceased to be valid. </p> <section id="section-43"> <h2 id="section-43-shared-borrows">43. Shared Borrows</h2> <p> A shared borrow provides read access to its referent. Multiple compatible shared borrows MAY exist simultaneously. </p> <pre><code>String value = "hello"; String* first = &amp;value; String* second = &amp;value; print(*first); print(*second);</code></pre> <p> Shared borrows MAY alias the same value when they provide only compatible shared access. </p> <pre><code>String value = "hello"; String* first = &amp;value; String* second = &amp;value; String* third = &amp;value; print(*first); print(*second); print(*third);</code></pre> <p> A shared borrow MUST NOT be used to perform mutable access to its referent. </p> <pre><code>String value = "hello"; String* reference = &amp;value; append(*reference, "!"); // ERROR: shared borrow does not permit mutation</code></pre> <p> A mutable borrow MUST NOT be created while an incompatible shared borrow remains live. </p> <pre><code>mut String value = "hello"; String* shared = &amp;value; String* mutable = &amp;mut value; // ERROR: `value` is already borrowed print(*shared); append(*mutable, "!");</code></pre> <p> The implementation MUST permit multiple compatible shared borrows and MUST reject conflicting mutable access. </p> <section id="section-44"> <h2 id="section-44-mutable-borrows">44. Mutable Borrows</h2> <p> A mutable borrow provides exclusive mutable access to its referent. </p> <p> A mutable borrow requires a mutable owner or otherwise mutable storage as defined by the applicable type rules. </p> <pre><code>mut String value = "hello"; String* reference = &amp;mut value; append(*reference, " world"); print(*reference);</code></pre> <p> While a mutable borrow is live, another mutable borrow of overlapping storage MUST NOT be created. </p> <pre><code>mut String value = "hello"; String* first = &amp;mut value; String* second = &amp;mut value; // ERROR: conflicting mutable borrow append(*first, "!"); append(*second, "?");</code></pre> <p> A mutable borrow MUST NOT coexist with a conflicting shared borrow. </p> <pre><code>mut String value = "hello"; String* shared = &amp;value; String* mutable = &amp;mut value; // ERROR: conflicting borrow print(*shared); append(*mutable, "!");</code></pre> <p> A mutable reference MAY subsequently be used for shared access when no conflicting mutable use of that reference remains live. </p> <pre><code>mut String value = "hello"; String* mutable = &amp;mut value; append(*mutable, "!"); String* shared = mutable; print(*shared);</code></pre> <p> Mutable access MUST remain exclusive for the duration of the applicable mutable borrow. </p> <section id="section-45"> <h2 id="section-45-borrow-lifetime">45. Borrow Lifetime</h2> <p> A borrow has a lifetime during which its reference remains valid and the associated borrowing restrictions apply. </p> <p> A borrow lifetime MUST NOT exceed the lifetime of its referent. </p> <pre><code>String* reference; { String value = "hello"; reference = &amp;value; print(*reference); } print(*reference); // ERROR: `value` no longer exists</code></pre> <p> A borrow is live at a program point when a reference derived from that borrow may subsequently be used and the borrow is therefore required to remain valid at that point. </p> <p> A borrow MAY cease to be live before the end of its enclosing lexical scope when no subsequent use of a reference derived from that borrow requires the borrow to remain live. </p> <pre><code>mut String value = "hello"; { String* reference = &amp;value; print(*reference); } String* mutable = &amp;mut value; append(*mutable, " world");</code></pre> <p> The preceding program is valid because the shared borrow is no longer live when the mutable borrow is created. </p> <p> The compiler MUST reject a program in which a reference could be used after the lifetime of its referent has ended. </p> <p> A borrow MUST remain valid across every operation in which the corresponding reference is used. </p> <section id="section-46"> <h2 id="section-46-function-parameters-and-returned-borrows"> 46. Function Parameters and Returned Borrows </h2> <p> A function MAY accept a managed reference as a parameter. Passing a reference to a function provides access to the referenced value and does not transfer ownership. </p> <pre><code>fn length(String* value) -&gt; usize { return length_of(*value); } String value = "hello"; usize size = length(&amp;value); print(value); print(size);</code></pre> <p> A function MAY return a borrowed reference when the returned reference is guaranteed not to outlive its referent. </p> <pre><code>fn identity(String* value) -&gt; String* { return value; } String value = "hello"; String* result = identity(&amp;value); print(*result);</code></pre> <p> When a returned reference is derived from a borrowed parameter, the returned reference MUST NOT outlive the source borrow. </p> <pre><code>fn first(String* value) -&gt; String* { return value; } String value = "hello"; { String* result = first(&amp;value); print(*result); }</code></pre> <p> A function MUST NOT return a reference to an ordinary local value whose lifetime ends when the function returns. </p> <pre><code>fn invalid() -&gt; String* { String value = "hello"; return &amp;value; // ERROR: returned borrow outlives `value` }</code></pre> <p> A function MAY return a reference to storage whose lifetime is independently guaranteed to outlive the returned reference. </p> <p> CobaltC uses inferred borrow lifetimes. The compiler MUST determine whether parameter borrows, returned borrows, and the referenced storage satisfy the applicable lifetime and borrowing rules. </p> <p> Ownership MUST NOT be inferred from a borrowed return value. Returning a reference provides access to an existing value; it does not transfer ownership unless an explicitly defined ownership operation is used. </p> <section id="section-47"> <h2 id="section-47-reborrowing">47. Reborrowing</h2> <p> A reference MAY itself be borrowed. Such an operation is a reborrow. </p> <p> A reborrow creates a new borrow whose access is derived from the existing reference. Reborrowing MUST preserve the ownership, lifetime, and aliasing guarantees of the original borrow. </p> <p> A mutable reference MAY be temporarily reborrowed as a mutable reference. </p> <pre><code>fn append_exclamation(String* value) { append(*value, "!"); } mut String value = "hello"; String* reference = &amp;mut value; append_exclamation(&amp;mut *reference); append(*reference, "?");</code></pre> <p> While a conflicting reborrow is live, the original reference MUST NOT be used in a conflicting manner. </p> <pre><code>mut String value = "hello"; String* reference = &amp;mut value; String* reborrow = &amp;mut *reference; append(*reference, "!"); // ERROR: `reference` is reborrowed append(*reborrow, "?");</code></pre> <p> Once the reborrow is no longer live, the original reference MAY be used again, subject to the ordinary borrowing rules. </p> <p> Reborrowing does not transfer ownership of the underlying value. </p> <section id="section-48"> <h2 id="section-48-field-and-partial-borrows"> 48. Field and Partial Borrows </h2> <p> A field of a structure MAY be borrowed independently of another disjoint field. </p> <pre><code>struct Pair { String first; String second; } mut Pair pair = { first: "one", second: "two" }; String* first = &amp;mut pair.first; String* second = &amp;mut pair.second; append(*first, "!"); append(*second, "?");</code></pre> <p> A borrow of one field does not, by itself, prevent access to a disjoint field. </p> <pre><code>mut Pair pair = { first: "one", second: "two" }; String* first = &amp;mut pair.first; append(pair.second, "!"); append(*first, "?");</code></pre> <p> Two field paths are disjoint when they identify distinct, non-overlapping storage within the same aggregate value. </p> <p> The compiler MUST permit simultaneous borrows of fields that are established to be disjoint. </p> <p> The compiler MUST reject simultaneous mutable borrows when the borrowed field paths may refer to overlapping storage. </p> <pre><code>mut Pair pair = { first: "one", second: "two" }; Pair* whole = &amp;mut pair; String* first = &amp;mut pair.first; use(*whole); // ERROR: conflicting borrow</code></pre> <p> A borrow of an entire aggregate conflicts with a mutable borrow of any overlapping part of that aggregate. </p> <p> Partial borrowing MUST preserve the same aliasing, lifetime, and exclusivity guarantees as borrowing an entire value. </p> <section id="section-49"> <h2 id="section-49-aliasing">49. Aliasing</h2> <p> Aliasing occurs when more than one reference provides access to the same underlying storage. </p> <p> Multiple compatible shared references MAY alias the same storage. </p> <pre><code>String value = "hello"; String* first = &amp;value; String* second = &amp;value; print(*first); print(*second);</code></pre> <p> A mutable reference is exclusive. A mutable reference MUST NOT coexist with another reference that permits conflicting access to the same storage. </p> <pre><code>mut String value = "hello"; String* first = &amp;mut value; String* second = &amp;mut value; // ERROR: mutable aliases are prohibited append(*first, "!"); append(*second, "?");</code></pre> <p> For any storage location accessible through managed references, CobaltC MUST enforce the following invariant: </p> <pre><code>multiple compatible shared references OR one mutable reference</code></pre> <p> A mutable reference MUST NOT coexist with a conflicting shared reference. Two mutable references MUST NOT provide conflicting access to the same storage. </p> <pre><code>shared shared shared</code></pre> <p> is therefore permitted when all references provide compatible shared access, while: </p> <pre><code>mutable mutable</code></pre> <p> and: </p> <pre><code>shared mutable</code></pre> <p> are prohibited when the references provide conflicting access to the same storage. </p> <p> These aliasing requirements apply to direct references, reborrows, field borrows, function parameters, returned borrows, and collection element borrows. </p> <p> Safe CobaltC operations MUST NOT provide a means to bypass these aliasing requirements. </p> <section id="section-50"> <h2 id="section-50-collection-borrowing"> 50. Collection Borrowing </h2> <p> Elements of a collection MAY be borrowed when the collection operation and element type permit the corresponding access. </p> <p> A shared element borrow provides shared access to the element. </p> <pre><code>Vector&lt;i32&gt; values = [10, 20, 30]; i32* first = &amp;values[0]; i32* second = &amp;values[1]; print(*first); print(*second);</code></pre> <p> A mutable element MAY be borrowed when the collection and element permit mutable access. </p> <pre><code>mut Vector&lt;i32&gt; values = [10, 20, 30]; i32* first = &amp;mut values[0]; *first = *first + 1; print(values[0]);</code></pre> <p> A collection operation that requires mutable access MUST NOT occur while a conflicting borrow of the collection or of storage within the collection remains live. </p> <pre><code>mut Vector&lt;i32&gt; values = [10, 20, 30]; i32* first = &amp;values[0]; values.push(40); // ERROR: conflicting borrow of `values` print(*first);</code></pre> <p> If a collection operation may invalidate references to elements, the operation MUST NOT occur while such a reference remains live. </p> <p> An implementation MUST NOT permit a reference to a collection element to be used after the underlying storage required by that reference has ceased to be valid. </p> <p> Collection-specific borrowing rules MAY impose additional restrictions where required to preserve ownership, lifetime, aliasing, or storage validity. </p> <section id="section-51"> <h2 id="section-51-borrow-invalidation"> 51. Borrow Invalidation </h2> <p> A reference is valid only while its referent remains valid and the reference satisfies the applicable borrowing rules. </p> <p> An operation that conflicts with a live borrow MUST be rejected. A conflicting operation does not by itself make an otherwise valid reference safe to use; the operation is prohibited while the conflicting borrow remains live. </p> <p> A reference MUST NOT be used after its referent has ceased to exist or after storage required by that reference has ceased to be valid. </p> <pre><code>String* reference; { String value = "hello"; reference = &amp;value; } print(*reference); // ERROR: referent has been destroyed</code></pre> <p> A value MUST NOT be moved while a live borrow of that value would be invalidated by the move. </p> <pre><code>String value = "hello"; String* reference = &amp;value; String moved = move value; print(*reference); // ERROR: `value` was moved while borrowed</code></pre> <p> A borrow MAY cease to restrict a value once the corresponding reference is no longer used and the borrow is therefore no longer live. </p> <pre><code>mut String value = "hello"; { String* reference = &amp;value; print(*reference); } append(value, " world"); print(value);</code></pre> <p> A collection operation that could invalidate an active element borrow MUST be rejected while that borrow remains live. </p> <pre><code>mut Vector&lt;String&gt; values = ["hello"]; String* reference = &amp;values[0]; values.push("world"); // ERROR: active element borrow print(*reference);</code></pre> <p> The compiler MUST reject a program when it can establish that a reference would be used after its referent becomes invalid, or when an operation would violate the shared-borrow, mutable-borrow, lifetime, move, aliasing, or collection-borrowing rules. </p> </section> </section> </section> </section> </section> </section> </section> </section> </section> </section>
+    <section id="section-42"><h2 id="section-42-borrowing">42. Borrowing</h2><p>A borrow provides access to an owned value without transferring ownership. Borrowing does not create a new owner of the borrowed value.</p><p>CobaltC supports shared borrows and mutable borrows. A shared borrow provides read access to its referent. A mutable borrow provides exclusive mutable access to its referent.</p><p>The managed pointer type <code>T*</code> represents a managed, non-null pointer. The expression <code>&amp;expr</code> creates a shared borrow, and the expression <code>&amp;mut expr</code> creates a mutable borrow when the applicable ownership and mutability rules permit the operation.</p><p>The fundamental borrowing rule is:</p><pre><code>zero or more compatible shared borrows OR one mutable borrow</code></pre><p>A shared borrow is compatible with another shared borrow when neither borrow provides conflicting access to the same storage. A mutable borrow is incompatible with any other borrow of the same storage that would permit conflicting access.</p><p>Conflicting borrows MUST be rejected.</p><pre><code>String value = "hello";
+String* pointer = &amp;value;
+print(*pointer);
+print(value);</code></pre><p>The borrow does not transfer ownership of <code>value</code>. The binding <code>value</code> remains the owner of the string.</p><p>A value MUST NOT be moved while a live borrow of that value would be invalidated by the move.</p><pre><code>String value = "hello";
+String* pointer = &amp;value;
+String moved = move value;
+print(*pointer); // ERROR: `value` was moved while borrowed</code></pre><p>A borrow MUST NOT outlive its referent. A managed pointer MUST NOT be used after the storage required by that pointer has ceased to be valid.</p>
+
+<section id="section-43">
+<h2 id="section-43-shared-borrows">43. Shared Borrows</h2>
+<p>A shared borrow provides read access to its referent. Multiple compatible shared borrows MAY exist simultaneously.</p><pre><code>String value = "hello";
+String* first = &amp;value;
+String* second = &amp;value;
+print(*first);
+print(*second);</code></pre><p>Shared borrows MAY alias the same value when they provide only compatible shared access.</p><pre><code>String value = "hello";
+String* first = &amp;value;
+String* second = &amp;value;
+String* third = &amp;value;
+print(*first);
+print(*second);
+print(*third);</code></pre><p>A shared borrow MUST NOT be used to perform mutable access to its referent.</p><pre><code>String value = "hello";
+String* pointer = &amp;value;
+append(*pointer, "!"); // ERROR: shared borrow does not permit mutation</code></pre><p>A mutable borrow MUST NOT be created while an incompatible shared borrow remains live.</p><pre><code>mut String value = "hello";
+String* shared = &amp;value;
+String* mutable = &amp;mut value; // ERROR: `value` is already borrowed
+print(*shared);
+append(*mutable, "!");</code></pre><p>The implementation MUST permit multiple compatible shared borrows and MUST reject conflicting mutable access.</p>
+
+<section id="section-44">
+<h2 id="section-44-mutable-borrows">44. Mutable Borrows</h2>
+<p>A mutable borrow provides exclusive mutable access to its referent.</p><p>A mutable borrow requires a mutable owner or otherwise mutable storage as defined by the applicable type rules.</p><pre><code>mut String value = "hello";
+String* pointer = &amp;mut value;
+append(*pointer, " world");
+print(*pointer);</code></pre><p>While a mutable borrow is live, another mutable borrow of overlapping storage MUST NOT be created.</p><pre><code>mut String value = "hello";
+String* first = &amp;mut value;
+String* second = &amp;mut value; // ERROR: conflicting mutable borrow
+append(*first, "!");
+append(*second, "?");</code></pre><p>A mutable borrow MUST NOT coexist with a conflicting shared borrow.</p><pre><code>mut String value = "hello";
+String* shared = &amp;value;
+String* mutable = &amp;mut value; // ERROR: conflicting borrow
+print(*shared);
+append(*mutable, "!");</code></pre><p>A mutable pointer MAY subsequently be used for shared access when no conflicting mutable use of that pointer remains live.</p><pre><code>mut String value = "hello";
+String* mutable = &amp;mut value;
+append(*mutable, "!");
+String* shared = mutable;
+print(*shared);</code></pre><p>Mutable access MUST remain exclusive for the duration of the applicable mutable borrow.</p>
+
+<section id="section-45">
+<h2 id="section-45-borrow-lifetime">45. Borrow Lifetime</h2>
+<p>A borrow has a lifetime during which its managed pointer remains valid and the associated borrowing restrictions apply.</p><p>A borrow lifetime MUST NOT exceed the lifetime of its referent.</p><pre><code>String* pointer;
+{
+    String value = "hello";
+    pointer = &amp;value;
+    print(*pointer);
+}
+print(*pointer); // ERROR: `value` no longer exists</code></pre><p>A borrow is live at a program point when a managed pointer derived from that borrow may subsequently be used and the borrow is therefore required to remain valid at that point.</p><p>A borrow MAY cease to be live before the end of its enclosing lexical scope when no subsequent use of a managed pointer derived from that borrow requires the borrow to remain live.</p><pre><code>mut String value = "hello";
+{
+    String* pointer = &amp;value;
+    print(*pointer);
+}
+String* mutable = &amp;mut value;
+append(*mutable, " world");</code></pre><p>The preceding program is valid because the shared borrow is no longer live when the mutable borrow is created.</p><p>The compiler MUST reject a program in which a managed pointer could be used after the lifetime of its referent has ended.</p><p>A borrow MUST remain valid across every operation in which the corresponding managed pointer is used.</p>
+
+<section id="section-46">
+<h2 id="section-46-function-parameters-and-returned-borrows">46. Function Parameters and Returned Borrows</h2>
+<p>A function MAY accept a managed pointer as a parameter. Passing a managed pointer to a function provides access to the referenced value and does not transfer ownership.</p><pre><code>fn length(String* value) -&gt; usize {
+    return length_of(*value);
+}
+
+String value = "hello";
+usize size = length(&value);
+print(value);
+print(size);</code></pre><p>A function MAY return a borrowed managed pointer when the returned pointer is guaranteed not to outlive its referent.</p><pre><code>fn identity(String* value) -> String* {
+return value;
+}
+
+String value = "hello";
+String* result = identity(&value);
+print(*result);</code></pre><p>When a returned managed pointer is derived from a borrowed parameter, the returned pointer MUST NOT outlive the source borrow.</p><pre><code>fn first(String* value) -> String* {
+return value;
+}
+
+String value = "hello";
+{
+String* result = first(&value);
+print(*result);
+}</code></pre><p>A function MUST NOT return a managed pointer to an ordinary local value whose lifetime ends when the function returns.</p><pre><code>fn invalid() -> String* {
+String value = "hello";
+return &value; // ERROR: returned borrow outlives `value`
+}</code></pre><p>A function MAY return a managed pointer to storage whose lifetime is independently guaranteed to outlive the returned pointer.</p><p>CobaltC uses inferred borrow lifetimes. The compiler MUST determine whether parameter borrows, returned borrows, and the referenced storage satisfy the applicable lifetime and borrowing rules.</p><p>Ownership MUST NOT be inferred from a borrowed return value. Returning a managed pointer provides access to an existing value; it does not transfer ownership unless an explicitly defined ownership operation is used.</p>
+
+<section id="section-47">
+<h2 id="section-47-reborrowing">47. Reborrowing</h2>
+<p>A managed pointer MAY itself be borrowed. Such an operation is a reborrow.</p><p>A reborrow creates a new borrow whose access is derived from the existing managed pointer. Reborrowing MUST preserve the ownership, lifetime, and aliasing guarantees of the original borrow.</p><p>A mutable pointer MAY be temporarily reborrowed as a mutable pointer.</p><pre><code>fn append_exclamation(String* value) {
+    append(*value, "!");
+}
+
+mut String value = "hello";
+String* pointer = &mut value;
+append_exclamation(&mut *pointer);
+append(*pointer, "?");</code></pre><p>While a conflicting reborrow is live, the original managed pointer MUST NOT be used in a conflicting manner.</p><pre><code>mut String value = "hello";
+String* pointer = &mut value;
+String* reborrow = &mut *pointer;
+append(*pointer, "!"); // ERROR: `pointer` is reborrowed
+append(*reborrow, "?");</code></pre><p>Once the reborrow is no longer live, the original managed pointer MAY be used again, subject to the ordinary borrowing rules.</p><p>Reborrowing does not transfer ownership of the underlying value.</p>
+
+<section id="section-48">
+<h2 id="section-48-field-and-partial-borrows">48. Field and Partial Borrows</h2>
+<p>A field of a structure MAY be borrowed independently of another disjoint field.</p><pre><code>struct Pair {
+    String first;
+    String second;
+}
+
+mut Pair pair = { first: "one", second: "two" };
+String* first = &mut pair.first;
+String* second = &mut pair.second;
+append(*first, "!");
+append(*second, "?");</code></pre><p>A borrow of one field does not, by itself, prevent access to a disjoint field.</p><pre><code>mut Pair pair = { first: "one", second: "two" };
+String* first = &mut pair.first;
+append(pair.second, "!");
+append(*first, "?");</code></pre><p>Two field paths are disjoint when they identify distinct, non-overlapping storage within the same aggregate value.</p><p>The compiler MUST permit simultaneous borrows of fields that are established to be disjoint.</p><p>The compiler MUST reject simultaneous mutable borrows when the borrowed field paths may refer to overlapping storage.</p><pre><code>mut Pair pair = { first: "one", second: "two" };
+Pair* whole = &mut pair;
+String* first = &mut pair.first;
+use(*whole); // ERROR: conflicting borrow</code></pre><p>A borrow of an entire aggregate conflicts with a mutable borrow of any overlapping part of that aggregate.</p><p>Partial borrowing MUST preserve the same aliasing, lifetime, and exclusivity guarantees as borrowing an entire value.</p>
+
+<section id="section-49">
+<h2 id="section-49-aliasing">49. Aliasing</h2>
+<p>Aliasing occurs when more than one managed pointer provides access to the same underlying storage.</p><p>Multiple compatible shared managed pointers MAY alias the same storage.</p><pre><code>String value = "hello";
+String* first = &amp;value;
+String* second = &amp;value;
+print(*first);
+print(*second);</code></pre><p>A mutable managed pointer is exclusive. A mutable managed pointer MUST NOT coexist with another managed pointer that permits conflicting access to the same storage.</p><pre><code>mut String value = "hello";
+String* first = &amp;mut value;
+String* second = &amp;mut value; // ERROR: mutable aliases are prohibited
+append(*first, "!");
+append(*second, "?");</code></pre><p>For any storage location accessible through managed pointers, CobaltC MUST enforce the following invariant:</p><pre><code>multiple compatible shared managed pointers OR one mutable managed pointer</code></pre><p>A mutable managed pointer MUST NOT coexist with a conflicting shared managed pointer. Two mutable managed pointers MUST NOT provide conflicting access to the same storage.</p><pre><code>shared shared shared</code></pre><p>is therefore permitted when all managed pointers provide compatible shared access, while:</p><pre><code>mutable mutable</code></pre><p>and:</p><pre><code>shared mutable</code></pre><p>are prohibited when the managed pointers provide conflicting access to the same storage.</p><p>These aliasing requirements apply to direct managed pointers, reborrows, field borrows, function parameters, returned borrows, and collection element borrows.</p><p>Safe CobaltC operations MUST NOT provide a means to bypass these aliasing requirements.</p>
+
+<section id="section-50">
+<h2 id="section-50-collection-borrowing">50. Collection Borrowing</h2>
+<p>Elements of a collection MAY be borrowed when the collection operation and element type permit the corresponding access.</p><p>A shared element borrow provides shared access to the element.</p><pre><code>Vector&lt;i32&gt; values = [10, 20, 30];
+i32* first = &amp;values[0];
+i32* second = &amp;values[1];
+print(*first);
+print(*second);</code></pre><p>A mutable element MAY be borrowed when the collection and element permit mutable access.</p><pre><code>mut Vector&lt;i32&gt; values = [10, 20, 30];
+i32* first = &amp;mut values[0];
+*first = *first + 1;
+print(values[0]);</code></pre><p>A collection operation that requires mutable access MUST NOT occur while a conflicting borrow of the collection or of storage within the collection remains live.</p><pre><code>mut Vector&lt;i32&gt; values = [10, 20, 30];
+i32* first = &amp;values[0];
+values.push(40); // ERROR: conflicting borrow of `values`
+print(*first);</code></pre><p>If a collection operation may invalidate managed pointers to elements, the operation MUST NOT occur while such a pointer remains live.</p><p>An implementation MUST NOT permit a managed pointer to a collection element to be used after the underlying storage required by that pointer has ceased to be valid.</p><p>Collection-specific borrowing rules MAY impose additional restrictions where required to preserve ownership, lifetime, aliasing, or storage validity.</p>
+
+<section id="section-51">
+<h2 id="section-51-borrow-invalidation">51. Borrow Invalidation</h2>
+<p>A managed pointer is valid only while its referent remains valid and the pointer satisfies the applicable borrowing rules.</p><p>An operation that conflicts with a live borrow MUST be rejected. A conflicting operation does not by itself make an otherwise valid managed pointer safe to use; the operation is prohibited while the conflicting borrow remains live.</p><p>A managed pointer MUST NOT be used after its referent has ceased to exist or after storage required by that pointer has ceased to be valid.</p><pre><code>String* pointer;
+{
+    String value = "hello";
+    pointer = &amp;value;
+}
+print(*pointer); // ERROR: referent has been destroyed</code></pre><p>A value MUST NOT be moved while a live borrow of that value would be invalidated by the move.</p><pre><code>String value = "hello";
+String* pointer = &amp;value;
+String moved = move value;
+print(*pointer); // ERROR: `value` was moved while borrowed</code></pre><p>A borrow MAY cease to restrict a value once the corresponding managed pointer is no longer used and the borrow is therefore no longer live.</p><pre><code>mut String value = "hello";
+{
+    String* pointer = &amp;value;
+    print(*pointer);
+}
+append(value, " world");
+print(value);</code></pre><p>A collection operation that could invalidate an active element borrow MUST be rejected while that borrow remains live.</p><pre><code>mut Vector&lt;String&gt; values = ["hello"];
+String* pointer = &amp;values[0];
+values.push("world"); // ERROR: active element borrow
+print(*pointer);</code></pre><p>The compiler MUST reject a program when it can establish that a managed pointer would be used after its referent becomes invalid, or when an operation would violate the shared-borrow, mutable-borrow, lifetime, move, aliasing, or collection-borrowing rules.</p>
+</section>
+</section>
+</section>
+</section>
+</section>
+</section>
+</section>
+</section>
+</section>
+<section>
+</section>
+</section>
+
    
 
     <section id="section-52">
