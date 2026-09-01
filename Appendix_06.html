@@ -319,7 +319,6 @@ for
 if
 import
 in
-interface
 loop
 match
 move
@@ -419,7 +418,6 @@ static
 type
 struct
 enum
-interface
 fn</code></pre>
 
       <p>
@@ -522,8 +520,7 @@ f64</code></pre>
         <li>function types</li>
         <li>managed references</li>
         <li>raw pointers</li>
-        <li>generic types</li>
-        <li>interface-constrained types</li>
+        <li>generic types</li>      
       </ul>
 
       <p>
@@ -667,37 +664,10 @@ f64</code></pre>
     return value;
 }</code></pre>
 
-      <p>
-        Generic constraints MUST be satisfied before a generic entity is
-        used.
-      </p>
-    </section>
+     </section>
 
 
-    <section id="section-20">
-      <h2>20. Interfaces</h2>
-
-      <p>
-        Interfaces define required operations.
-      </p>
-
-      <p>Example:</p>
-
-      <pre><code>interface Printable
-{
-    fn print();
-}</code></pre>
-
-      <p>
-        A generic constraint may require an implementation:
-      </p>
-
-      <pre><code>T: Printable</code></pre>
-
-      <p>
-        The compiler MUST verify that required interface operations exist.
-      </p>
-    </section>
+    <section id="section-20"> <h2>20. Interfaces</h2> <p> CobaltC does not provide interfaces. </p> <p> Types do not implement interfaces, and interfaces are not types, runtime values, or a mechanism for polymorphism. </p> </section>
 
 
     <section id="section-21">
@@ -1966,7 +1936,6 @@ nullability
 bounds
 patterns
 generics
-interfaces
 Option
 Result
 collections
@@ -2558,38 +2527,14 @@ export
 <hr>
 <h2>98.13 Structs and Associated Functions</h2> <p>CobaltC 1.0.0 defines <code>struct</code> as a data type whose declaration describes its data representation. A <code>struct</code> declaration MUST NOT contain method or member-function declarations.</p> <p>Functions operating on a <code>struct</code> are ordinary functions and are declared independently of the <code>struct</code> declaration.</p> <p>A function MAY accept a <code>struct</code> value, pointer, or reference as an argument and MAY return a <code>struct</code> value, pointer, or reference, subject to the normal rules of the type system.</p> <p>CobaltC 1.0.0 does not define implicit <code>this</code>, <code>self</code>, or equivalent receiver parameters for <code>struct</code> operations.</p> <p>For example:</p> <pre><code>struct HashTable { usize capacity; } fn hash_insert(HashTable *table, Key key, Value value) { ... }</code></pre> <p>In this example, <code>hash_insert</code> is an ordinary function rather than a method of <code>HashTable</code>.</p> <p>This design provides a C-like separation between data types and the functions that operate on them. A module MAY use its <code>export</code> block to define which types and associated functions form its external interface.</p> <h3>98.13.1 Rationale</h3> <p>CobaltC deliberately keeps <code>struct</code> declarations focused on the representation of data and does not introduce a separate method mechanism for functions operating on structures.</p> <p>Functions remain ordinary functions, making their parameters, return values, calling conventions, and ownership or borrowing behavior explicit. No special receiver semantics are required merely because the first parameter refers to a particular type.</p> <p>This preserves the C-like programming model while avoiding additional language mechanisms for method lookup, implicit receivers, or member-function declarations. It also allows functions operating on a type to be grouped and exposed through a module's <code>export</code> block without making those functions members of the type itself.</p> <p>The result is a consistent separation of concerns: <code>struct</code> declarations describe data, functions describe operations on data, and modules define which types and operations form an external contract.</p>
 <hr>
-<h2>98.14 Interfaces</h2>
-<p>CobaltC uses `interface` as the language construct for defining required operations.</p>
-<p>For example:</p>
-<pre><code>interface Printable
-{
-    fn print();
-}</code></pre>
-<p>Generic constraints may require an implementation of an interface:</p>
-<pre><code>T: Printable</code></pre>
-<p>The compiler MUST verify that all required interface operations exist and satisfy their declared requirements.</p>
-<p>This specification does not define a separate language construct named `trait`.</p>
-<p>An implementation MAY use terminology such as &quot;trait,&quot; &quot;interface descriptor,&quot; &quot;dispatch table,&quot; or similar terminology internally, but such terminology MUST NOT be interpreted as introducing a new CobaltC language feature.</p>
-<p>### 98.14.1 Dynamic Dispatch</p>
-<p>The existence of interfaces does not by itself require a particular implementation strategy.</p>
-<p>An implementation MAY use:</p>
-<p>* static dispatch;<br>
-* generated wrapper functions;<br>
-* function tables;<br>
-* virtual dispatch;<br>
-* monomorphization; or<br>
-* another implementation technique.</p>
-<p>The selected strategy MUST preserve the observable semantics of the interface system.</p>
-<p>CobaltC 1.0.0 does not prescribe a particular fat-pointer representation or virtual-table layout.</p>
-<hr>
-<h2>98.15 Heap Ownership</h2>
+<h2>98.14 Heap Ownership</h2>
 <p>`Box&lt;T&gt;` is the standard unique heap-ownership abstraction defined in Section 64.</p>
 <p>Destroying a `Box&lt;T&gt;` releases its owned allocation and contained value according to the ordinary destruction rules.</p>
 <p>An implementation MAY represent `Box&lt;T&gt;` using a raw machine pointer internally.</p>
 <p>Such an internal representation MUST NOT make the pointer directly accessible through safe CobaltC operations.</p>
 <p>Raw-pointer operations remain subject to Sections 15 and 76-78.</p>
 <hr>
-<h2>98.16 Shared Ownership and Interior Access</h2>
+<h2>98.15 Shared Ownership and Interior Access</h2>
 <p>`Rc&lt;T&gt;` and `Arc&lt;T&gt;` provide shared ownership as specified in Sections 65 and 66.</p>
 <p>Reference counting alone does not grant mutable access through otherwise immutable references.</p>
 <p>In particular, shared ownership MUST NOT be interpreted as permission to bypass the ordinary borrowing and aliasing rules.</p>
@@ -2597,14 +2542,14 @@ export
 <p>CobaltC 1.0.0 does not define a separate general-purpose interior-mutability type in its core language specification.</p>
 <p>An implementation or standard-library extension MAY provide such facilities, but their semantics MUST be explicitly specified and MUST NOT weaken the language&#x27;s safety guarantees.</p>
 <hr>
-<h2>98.17 Macro and Metaprogramming Boundary</h2>
+<h2>98.16 Macro and Metaprogramming Boundary</h2>
 <p>CobaltC 1.0.0 does not define a general-purpose macro-expansion system in its normative language syntax.</p>
 <p>An implementation MAY provide preprocessing, code generation, templates, source transformation, or other metaprogramming facilities as extensions.</p>
 <p>Such facilities MUST NOT alter the semantics of standard CobaltC in a manner that is invisible to the programmer or incompatible with the normative specification.</p>
 <p>A source transformation that produces CobaltC 1.0.0 code MAY be used before compilation, provided that the resulting program is itself processed according to this specification.</p>
 <p>No macro syntax is implied by this errata section.</p>
 <hr>
-<h2>98.18 Collection Borrowing Clarification</h2>
+<h2>98.17 Collection Borrowing Clarification</h2>
 <p>Collection types such as `Vec&lt;T&gt;` are subject to the ordinary borrowing and invalidation requirements.</p>
 <p>An operation that may reallocate, resize, move, or otherwise invalidate storage MUST NOT be performed while an active reference would be invalidated by that operation.</p>
 <p>For example:</p>
@@ -2618,7 +2563,7 @@ print(*reference);</code></pre>
 <p>An implementation MAY permit an operation when it can establish that the operation cannot invalidate the particular reference involved.</p>
 <p>The implementation MAY use static or runtime techniques to establish this fact, provided that safe programs retain the guarantees required by the specification.</p>
 <hr>
-<h2>98.19 Destruction and Ownership Clarification</h2>
+<h2>98.18 Destruction and Ownership Clarification</h2>
 <p>An owned value has one responsible ownership path unless its type explicitly provides shared ownership.</p>
 <p>A move transfers the relevant ownership responsibility.</p>
 <p>A moved-from binding MUST NOT cause a second destruction of the moved value.</p>
@@ -2629,7 +2574,7 @@ print(*reference);</code></pre>
 3. control proceeds to the enclosing scope.</p>
 <p>An implementation MAY use a different internal mechanism to achieve this behavior.</p>
 <hr>
-<h2>98.20 Nullability Clarification</h2>
+<h2>98.19 Nullability Clarification</h2>
 <p>A nullable managed reference is represented using:</p>
 <pre><code>T*?</code></pre>
 <p>A non-null managed reference is represented using:</p>
@@ -2639,21 +2584,21 @@ print(*reference);</code></pre>
 <p>For example, after a condition that establishes that a `T*?` value is not null, subsequent operations within the proven region MAY treat the value as non-null for purposes of dereference checking.</p>
 <p>Such refinement MUST NOT outlive the condition that establishes it if later control flow can invalidate the proof.</p>
 <hr>
-<h2>98.21 Bounds Checking Clarification</h2>
+<h2>98.20 Bounds Checking Clarification</h2>
 <p>Safe indexing MUST remain within valid bounds.</p>
 <p>A compiler MAY eliminate a runtime bounds check when it can prove statically that the index is valid.</p>
 <p>This optimization MUST preserve the observable semantics of the program.</p>
 <p>The compiler MUST NOT eliminate a required bounds check merely because an out-of-bounds access is unlikely.</p>
 <p>Unchecked indexing and equivalent unchecked memory operations remain unsafe facilities.</p>
 <hr>
-<h2>98.22 Unsafe Code Boundary</h2>
+<h2>98.21 Unsafe Code Boundary</h2>
 <p>Unsafe operations remain subject to the explicit `unsafe` context defined by Section 76.</p>
 <p>An unsafe context permits operations for which the programmer is responsible for maintaining additional invariants.</p>
 <p>It does not change the meaning of safe CobaltC.</p>
 <p>In particular, placing an operation inside `unsafe` MUST NOT cause safe operations elsewhere in the program to lose their specified ownership, lifetime, nullability, bounds, or concurrency guarantees.</p>
 <p>Unsafe code MAY establish abstractions that are subsequently exposed through safe interfaces only when those interfaces preserve their documented invariants.</p>
 <hr>
-<h2>98.23 Implementation Techniques Are Non-Normative</h2>
+<h2>98.22 Implementation Techniques Are Non-Normative</h2>
 <p>The following implementation techniques are expressly permitted but are not required by CobaltC 1.0.0:</p>
 <p>* region-based lifetime inference;<br>
 * constraint-based borrow checking;<br>
@@ -2673,18 +2618,18 @@ print(*reference);</code></pre>
 <p>An implementation MAY use these techniques individually or in combination.</p>
 <p>No implementation technique becomes part of the CobaltC language merely because an implementation uses it.</p>
 <hr>
-<h2>98.24 Identifier Security and Unicode Restrictions</h2>
+<h2>98.23 Identifier Security and Unicode Restrictions</h2>
 <p>To prevent visual spoofing and homoglyph attacks, all user-defined identifiers in CobaltC MUST strictly comply with Unicode Technical Standard #39 (TR39) under the Moderately Restrictive security profile.</p>
 <p>An identifier MUST NOT combine characters from multiple scripts unless permitted by the TR39 Moderately Restrictive rules. Identifiers containing arbitrary or disallowed cross-script combinations MUST be rejected at compile time.</p>
 <p>The compiler toolchain MUST cross-reference identifiers against the official Unicode Confusables database (<code>confusables.txt</code>). Any identifier that resolves to a whole-script or mixed-script confusable matching a protected keyword, core type, or existing local variable MUST trigger a compilation error.</p>
 <p>Format characters, zero-width spaces (such as U+200B), and bidirectional text override characters (such as U+202E) MUST NOT appear inside any identifier token.</p>
 <hr>
-<h2>98.25 Conformance Requirement</h2>
+<h2>98.24 Conformance Requirement</h2>
 <p>A conforming implementation MUST implement the observable semantics established by Sections 1-97 together with the clarifications in this section.</p>
 <p>A clarification in this section MUST be applied only to the extent that it resolves an ambiguity or makes an existing requirement precise.</p>
 <p>If two interpretations are possible and one interpretation would introduce a new language feature while the other preserves the existing CobaltC 1.0.0 model, the interpretation preserving the existing model MUST be used.</p>
 <hr>
-<h2>98.26 No New Language Features</h2>
+<h2>98.25 No New Language Features</h2>
 <p>For avoidance of doubt, the following are not part of CobaltC 1.0.0 as a result of this errata section:</p>
 <pre><code>let
 mod
@@ -2710,7 +2655,7 @@ virtual-table syntax
 explicit lifetime annotations</code></pre>
 <p>An implementation MAY provide equivalent facilities as extensions where permitted by Section 90, but those facilities MUST NOT be represented as normative CobaltC 1.0.0 language features.</p>
 <hr>
-<h2>98.27 Relationship to the Final Safety Theorem</h2>
+<h2>98.26 Relationship to the Final Safety Theorem</h2>
 <p>Nothing in this errata section weakens the Final Safety Theorem of Section 95.</p>
 <p>In particular, conforming safe CobaltC code MUST continue to prevent:</p>
 <p>* use-before-initialization;<br>
@@ -2724,7 +2669,7 @@ explicit lifetime annotations</code></pre>
 <p>Where an implementation&#x27;s internal analysis is more conservative than strictly necessary, the implementation MAY reject a program that it cannot prove safe, subject to the conformance requirements of this specification.</p>
 <p>An implementation MUST NOT accept an unsafe program merely because its internal representation cannot detect the violation.</p>
 <hr>
-<h2>98.28 Status of This Section</h2>
+<h2>98.27 Status of This Section</h2>
 <p>This section is an errata and clarification section for CobaltC 1.0.0.</p>
 <p>It does not reopen the CobaltC 1.0 language design.</p>
 <p>The following principles are therefore normative:</p>
@@ -2737,7 +2682,7 @@ explicit lifetime annotations</code></pre>
 7. Where this section merely formalizes an existing rule, the formalization MUST be interpreted consistently with the existing normative text.</p>
 <p>The purpose of this section is therefore precision and implementation guidance, not language expansion.</p>
 <hr>
-<h2>98.29 Errata Completeness</h2>
+<h2>98.28 Errata Completeness</h2>
 <p>This section supersedes any previous version of the CobaltC 1.0.0 &quot;Complete Errata &amp; Additions&quot; material.</p>
 <p>Any previous errata text that introduces alternative module syntax, explicit lifetime syntax, new keywords, trait objects, marker traits, interior-mutability primitives, macro syntax, implementation-specific ABI requirements, or other language features is withdrawn from the CobaltC 1.0.0 specification.</p>
 <p>Such facilities, if desired, MUST be specified separately as future-version proposals or explicitly identified implementation extensions.</p>
