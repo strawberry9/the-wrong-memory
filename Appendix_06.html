@@ -2870,20 +2870,9 @@ stack::push(&amp;stack, 10);</code></pre>
 <h3>98.13.5 Associated Function Identity and Name Resolution</h3> <p> An associated function is identified by the pair consisting of its associated type and function name. </p> <p> Consequently, associated functions with the same function name MAY exist for different types and are distinct functions. For example, <code>Stack::push</code> and <code>HashTable::push</code> identify different associated functions. </p> <pre><code>fn Stack::push(Stack* stack, i32 value) { ... } fn HashTable::push(HashTable* table, i32 value) { ... }</code></pre> <p> An ordinary function and an associated function MAY also have the same unqualified function name: </p> <pre><code>fn push(i32 value) { ... } fn Stack::push(Stack* stack, i32 value) { ... }</code></pre> <p> These declarations identify distinct functions. The ordinary function is identified by the name <code>push</code>, while the associated function is identified by the qualified name <code>Stack::push</code>. </p> <p> An unqualified call refers only to an ordinary function: </p> <pre><code>push(10);</code></pre> <p> A type-qualified call refers to the associated function of the specified type: </p> <pre><code>Stack::push(&amp;stack, 10);</code></pre> <p> A value-qualified call uses the static type of the value to determine the associated type: </p> <pre><code>stack::push(&amp;stack, 10);</code></pre> <p> The existence of an ordinary function with the same unqualified name MUST NOT cause it to be selected for a type-qualified or value-qualified associated-function call. Likewise, the existence of an associated function MUST NOT cause it to be selected by an unqualified call. </p> <p> Therefore, the following functions may coexist without ambiguity: </p> <pre><code>fn push(i32 value) { ... } fn Stack::push(Stack* stack, i32 value) { ... } push(10); Stack::push(&amp;stack, 10); stack::push(&amp;stack, 10);</code></pre> <p> Qualification determines the function namespace in which lookup occurs; the function's declared parameter list then determines whether the call is valid. </p>
 
 <hr>
-<h2>98.14 Heap Ownership</h2>
-<p>`Box&lt;T&gt;` is the standard unique heap-ownership abstraction defined in Section 64.</p>
-<p>Destroying a `Box&lt;T&gt;` releases its owned allocation and contained value according to the ordinary destruction rules.</p>
-<p>An implementation MAY represent `Box&lt;T&gt;` using a raw machine pointer internally.</p>
-<p>Such an internal representation MUST NOT make the pointer directly accessible through safe CobaltC operations.</p>
-<p>Raw-pointer operations remain subject to Sections 15 and 76-78.</p>
+<h2>98.14 (removed)</h2>
 <hr>
-<h2>98.15 Shared Ownership and Interior Access</h2>
-<p>`Rc&lt;T&gt;` and `Arc&lt;T&gt;` provide shared ownership as specified in Sections 65 and 66.</p>
-<p>Reference counting alone does not grant mutable access through otherwise immutable references.</p>
-<p>In particular, shared ownership MUST NOT be interpreted as permission to bypass the ordinary borrowing and aliasing rules.</p>
-<p>Mutable shared state MUST use an applicable synchronization mechanism where required by Sections 69-74.</p>
-<p>CobaltC 1.0.0 does not define a separate general-purpose interior-mutability type in its core language specification.</p>
-<p>An implementation or standard-library extension MAY provide such facilities, but their semantics MUST be explicitly specified and MUST NOT weaken the language&#x27;s safety guarantees.</p>
+<h2>98.15 (removed)</h2>
 <hr>
 <h2>98.16 Macro and Metaprogramming Boundary</h2>
 <p>CobaltC 1.0.0 does not define a general-purpose macro-expansion system in its normative language syntax.</p>
