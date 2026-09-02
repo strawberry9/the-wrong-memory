@@ -3007,90 +3007,136 @@ print(*reference);</code></pre>
     and exhaustive pattern matching.
   </p>
 
-  <pre><code>module stack_example;
+<pre><code>
+module vector;
 
-enum Result&lt;T, E&gt;
+import result;
+
+export
 {
-    Ok(T),
-    Err(E)
+    Vector;
 }
+
+enum VectorError
+{
+    Empty
+}
+
+struct Vector<T>
+{
+    // implementation-defined storage
+}
+
+fn Vector<T>::new() : Vector<T>
+{
+    // implementation-defined
+}
+
+fn Vector<T>::len(Vector<T>* vector) : usize
+{
+    // implementation-defined
+}
+
+fn Vector<T>::push(Vector<T>* vector, T value)
+{
+    // implementation-defined
+}
+
+fn Vector<T>::pop(Vector<T>* vector) : Result<T, VectorError>
+{
+    // implementation-defined
+}
+</pre></code>
+
+<pre><code>
+module stack_example;
+
+import vector;
+import result;
 
 enum StackError
 {
     Empty
 }
 
-struct Stack&lt;T&gt;
+struct Stack<T>
 {
-    Vector&lt;T&gt; values;
+    Vector<T> values;
 }
 
 // new isn't special at all. It's just an associated function
 // that happens to take no arguments and returns a new Stack
-fn Stack&lt;T&gt;::new() : Stack&lt;T&gt;
+fn Stack<T>::new() : Stack<T>
 {
-    return Stack&lt;T&gt;
+    return Stack<T>
     {
-        values: Vector&lt;T&gt;::new()
+        values: Vector<T>::new()
     };
 }
 
-fn Stack&lt;T&gt;::push(mut Stack&lt;T&gt;* stack, T value)
+fn Stack<T>::push(Stack<T>* stack, T value)
 {
-    stack::push(&mut stack, 10);
+    Vector<T>::push(&mut stack.values, value);
 }
 
-fn Stack&lt;T&gt;::pop(mut Stack&lt;T&gt;* stack) : Result&lt;T, StackError&gt;
+fn Stack<T>::pop(Stack<T>* stack) : Result<T, StackError>
 {
-    if stack.values.len() == 0
+    return match Vector<T>::pop(&mut stack.values)
     {
-        return Err(StackError::Empty);
-    }
+        Ok(value) =>
+        {
+            return Ok(value);
+        },
 
-    return Ok(stack.values.pop());
+        Err(VectorError::Empty) =>
+        {
+            return Err(StackError::Empty);
+        }
+    };
 }
 
-fn Stack&lt;T&gt;::is_empty(Stack&lt;T&gt;* stack) : bool
+fn Stack<T>::is_empty(Stack<T>* stack) : bool
 {
-    return stack.values.len() == 0;
+    return Vector<T>::len(&stack.values) == 0;
 }
 
 fn main() : i32
 {
-    Stack&lt;i32&gt; stack = Stack&lt;i32&gt;::new();
+    Stack<i32> stack = Stack<i32>::new();
 
-    stack::push(&amp;stack, 10);
-    stack::push(&amp;stack, 20);
-    stack::push(&amp;stack, 30);
+    stack::push(&mut stack, 10);
+    stack::push(&mut stack, 20);
+    stack::push(&mut stack, 30);
 
-    match stack::pop(&amp;stack)
+    match stack::pop(&mut stack)
     {
-        Ok(value) =&gt;
+        Ok(value) =>
         {
             print(value);
         },
 
-        Err(StackError::Empty) =&gt;
+        Err(StackError::Empty) =>
         {
             print("stack is empty");
         }
     }
 
-    match stack::pop(&amp;stack)
+    match stack::pop(&mut stack)
     {
-        Ok(value) =&gt;
+        Ok(value) =>
         {
             print(value);
         },
 
-        Err(StackError::Empty) =&gt;
+        Err(StackError::Empty) =>
         {
             print("stack is empty");
         }
     }
 
     return 0;
-}</code></pre>
+}
+</pre></code>
 
   <h3>Semantics Visible in the Example</h3>
 
