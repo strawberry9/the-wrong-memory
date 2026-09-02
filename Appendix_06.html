@@ -816,9 +816,17 @@ f64</code></pre>
         A function MAY be associated with a type using a qualified name:
     </p>
 
-    <pre><code>fn Stack&lt;T&gt;::push(mut Stack&lt;T&gt;* stack, T value)
+<pre><code>struct Stack&lt;T&gt;
 {
-    stack.values.push(value);
+    Vector&lt;T&gt; values;
+}
+
+fn Stack&lt;T&gt;::new() : Stack&lt;T&gt;
+{
+    return Stack&lt;T&gt;
+    {
+        values: Vector&lt;T&gt;::new()
+    };
 }</code></pre>
 
     <p>
