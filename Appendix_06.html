@@ -408,6 +408,12 @@ VALUE</code></pre>
       <p>
         An unresolved name is a compile-time error.
       </p>
+
+      <p>Declarations describe implementation. The export block - export { ... } - describes the module's external contract.</p>
+      <p> The export block applies only to declarations belonging to the module in which the block appears.</p>
+      <p>A submodule is a separate module and is not exported by its parent module.</p>
+      <p>If a module does not contain an export block, the module exports no declarations.</p>
+
     </section>
 
 
