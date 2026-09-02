@@ -843,6 +843,26 @@ f64</code></pre>
         Ownership and borrowing requirements apply to arguments and return
         values.
     </p>
+<code><pre>
+// 1. Ordinary free function
+Stack_push(&stack, 10);
+
+// 2. Associated free function, qualified by type
+Stack<i32>::push(&stack, 10);
+
+// 3. Associated free function, qualified through a value
+Stack&lt;i32&gt; stack = Stack&lt;i32&gt;::new();
+// Determine the static type of stack, find its associated function named push,
+// then call that function with &stack and 10.
+stack::push(&stack, 10);
+</code></pre>
+<p>All ultimately refer to a function whose signature is something like:</p>
+<code><pre>fn Stack::push(mut Stack* stack, i32 value)
+{
+    ...
+}
+</code></pre>
+<p>And importantly, none of them implicitly passes stack.</p>
 </section>
 
 
