@@ -860,8 +860,6 @@ fn Stack&lt;T&gt;::new() : Stack&lt;T&gt;
 </section>
 
 
-
-
     <section id="section-26">
       <h2>26. Expressions</h2>
 
@@ -1049,7 +1047,7 @@ loop</code></pre>
     <section id="section-34">
       <h2>34. Match</h2>
 
-      <p> Pattern matching is provided by <code>match</code>. A match may be used as either a statement or an expression. </p> <p>Example:</p> <pre><code>match value { Some(x) => use(x), None => use_default() }</code></pre> <p>A match expression may produce a value:</p> <pre><code>var result = match value { 1 => "one", 2 => "two", _ => "other" };</code></pre> <p> A match over an exhaustively known variant set MUST handle every possible case. </p> <p> The compiler MUST reject statically non-exhaustive matches. </p>
+      <p> Pattern matching is provided by <code>match</code>. A match may be used as either a statement or an expression. </p> <p>Example:</p> <pre><code>match value { Some(x) => use(x), None => use_default() }</code></pre> <p>A match expression may produce a value:</p> <pre><code>String result = match value { 1 => "one", 2 => "two", _ => "other" };</code></pre> <p> A match over an exhaustively known variant set MUST handle every possible case. </p> <p> The compiler MUST reject statically non-exhaustive matches. </p>
       <p>Match arms are evaluated in source order and the first matching arm is selected.</p>
       <p>The <code>_</code> pattern matches any value not matched by an earlier arm.</p>
 
@@ -2851,182 +2849,8 @@ stack::push(&amp;stack, 10);</code></pre>
   Neither call implicitly supplies a receiver.
 </p>
 
-<h3>98.13.4 Associated Functions and Ordinary Functions</h3>
+<h3>98.13.4 Associated Functions and Ordinary Functions</h3> <p> An operation on a <code>struct</code> MAY be implemented either as an ordinary function or as an associated function. </p> <p> An ordinary function is declared using its ordinary function name and is called using that name. An associated function is declared using a type-qualified name of the form <code>Type::function</code>. </p> <p> Associated functions remain ordinary functions. Association does not introduce a separate function model, an implicit receiver, or object-oriented method dispatch. </p> <p> All parameters of an associated function MUST be declared explicitly. In particular, an associated function does not implicitly receive a <code>this</code>, <code>self</code>, or equivalent receiver parameter. </p> <p> The <code>A Conformance Example Program</code> near the end of this specification demonstrates both forms using the generic <code>Stack&lt;T&gt;</code> type. The associated form declares operations such as <code>Stack&lt;T&gt;::push</code> and <code>Stack&lt;T&gt;::pop</code>, while the equivalent ordinary form may use names such as <code>Stack_push</code> and <code>Stack_pop</code>. </p> <p> The two forms have the same fundamental function semantics. Association determines how a function is named and discovered, but does not otherwise change its parameter list, calling convention, ownership, borrowing, or return-value semantics. </p> <h3>98.13.5 Qualification and Calls</h3> <p> An associated function MAY be called through its associated type using a type-qualified name: </p> <pre><code>Stack&lt;i32&gt;::push(&amp;mut stack, 10);</code></pre> <p> When an existing value is available, an associated function MAY also be called using a value-qualified name: </p> <pre><code>stack::push(&amp;mut stack, 10);</code></pre> <p> Value-qualified lookup uses the static type of the value to locate the associated function. The value used for lookup is not implicitly passed to the function. </p> <p> Consequently, the following calls select the same associated function: </p> <pre><code>Stack&lt;i32&gt;::push(&amp;mut stack, 10); stack::push(&amp;mut stack, 10);</code></pre> <p> In both cases, <code>&amp;mut stack</code> is an explicit argument because the associated function declares the stack parameter explicitly. </p> <p> The <code>::</code> operator is used for associated-function qualification. The <code>.</code> operator remains field access and MUST NOT introduce implicit method lookup or invocation. </p> <h3>98.13.6 Constructors and Factory Functions</h3> <p> An associated function is not required to operate on an existing value of its associated type. It MAY create and return a new value. </p> <p> The <code>A Conformance Example Program</code> demonstrates this with <code>Stack&lt;T&gt;::new</code>: </p> <pre><code>Stack&lt;i32&gt; stack = Stack&lt;i32&gt;::new();</code></pre> <p> Because <code>new</code> has no receiver parameter, it MAY be called through the associated type without an existing <code>Stack&lt;i32&gt;</code> value. </p> <p> CobaltC does not treat <code>new</code> as a special constructor mechanism. It is an ordinary associated function whose declared return type produces the new value. </p> <h3>98.13.7 Modules and External Interfaces</h3> <p> Ordinary functions and associated functions MAY be declared within the same module as the types on which they operate. A module MAY use its <code>export</code> block to define which types, ordinary functions, and associated functions form its external interface. </p> <p> Association does not change the visibility, ownership, or borrowing rules applicable to a function. An associated function is exported or kept private according to the same module rules as an ordinary function. </p> <h3>98.13.8 Rationale</h3> <p> CobaltC deliberately keeps <code>struct</code> declarations focused on the representation of data and does not introduce method or member-function declarations within structures. </p> <p> Functions remain ordinary functions, making their parameters, return values, calling conventions, ownership, and borrowing behavior explicit. No special receiver semantics are required merely because a function is associated with a particular type. </p> <p> The <code>Type::function</code> syntax provides type-oriented organization and lookup without introducing implicit <code>this</code> or <code>self</code> parameters or object-oriented method semantics. </p> <p> Value-qualified lookup provides a concise alternative when an existing value is available. The value determines the static type used for lookup, but remains an ordinary explicit argument only when the selected function declares a parameter for it. </p> <p> The result is a programming model that retains the explicitness of C-like functions while allowing APIs to be organized naturally around their associated types. The <
 
-<p>
-  An operation on a <code>struct</code> MAY be implemented either as an
-  ordinary function or as an associated function.
-</p>
-
-<p>
-  For example, the following ordinary function:
-</p>
-
-<pre><code>fn Stack_push&lt;T&gt;(mut Stack&lt;T&gt;* stack, T value)
-{
-    stack.values.push(value);
-}</code></pre>
-
-<p>
-  and the following associated function:
-</p>
-
-<pre><code>fn Stack&lt;T&gt;::push(mut Stack&lt;T&gt;* stack, T value)
-{
-    stack.values.push(value);
-}</code></pre>
-
-<p>
-  both use explicit parameters and have the same fundamental function
-  semantics. The associated form additionally places <code>push</code> in the
-  qualified namespace of <code>Stack&lt;T&gt;</code>.
-</p>
-
-<p>
-  The ordinary function is called by its ordinary name:
-</p>
-
-<pre><code>Stack_push&lt;i32&gt;(&amp;stack, 10);</code></pre>
-
-<p>
-  The associated function is called through its type-qualified or
-  value-qualified name:
-</p>
-
-<pre><code>Stack&lt;i32&gt;::push(&amp;stack, 10);
-
-stack::push(&amp;stack, 10);</code></pre>
-
-<p>
-  Association MUST NOT cause an implicit argument to be added to the
-  function. In particular, the value used for value-qualified lookup is not
-  implicitly passed to the function.
-</p>
-
-<h3>98.13.5 Constructors and Factory Functions</h3>
-
-<p>
-  Associated functions are not required to operate on an existing value of
-  their associated type. They MAY create and return a new value.
-</p>
-
-<p>
-  For example:
-</p>
-
-<pre><code>fn Stack&lt;T&gt;::new() : Stack&lt;T&gt;
-{
-    return Stack&lt;T&gt;
-    {
-        values: Vector&lt;T&gt;::new()
-    };
-}</code></pre>
-
-<p>
-  Such a function MAY be called without an existing instance:
-</p>
-
-<pre><code>Stack&lt;i32&gt; stack = Stack&lt;i32&gt;::new();</code></pre>
-
-<p>
-  CobaltC does not treat <code>new</code> as a special constructor mechanism.
-  It is an ordinary associated function whose declared return type is
-  <code>Stack&lt;T&gt;</code>.
-</p>
-
-<h3>98.13.6 Modules and External Interfaces</h3>
-
-<p>
-  Ordinary functions and associated functions MAY be declared within the
-  same module as the types on which they operate. A module MAY use its
-  <code>export</code> block to define which types, ordinary functions, and
-  associated functions form its external interface.
-</p>
-
-<p>
-  Association does not change the visibility, ownership, or borrowing rules
-  applicable to a function. An associated function is exported or kept
-  private according to the same module rules as an ordinary function.
-</p>
-
-<h3>98.13.7 Rationale</h3>
-
-<p>
-  CobaltC deliberately keeps <code>struct</code> declarations focused on the
-  representation of data and does not introduce method or member-function
-  declarations within structures.
-</p>
-
-<p>
-  Functions remain ordinary functions, making their parameters, return
-  values, calling conventions, and ownership or borrowing behavior
-  explicit. No special receiver semantics are required merely because a
-  function is associated with a particular type.
-</p>
-
-<p>
-  The <code>Type::function</code> syntax provides an explicit way to organize
-  functions around the type they operate on without introducing implicit
-  <code>this</code> or <code>self</code> parameters or member-function
-  semantics.
-</p>
-
-<p>
-  Value-qualified calls extend this organization naturally:
-</p>
-
-<pre><code>stack::push(&amp;stack, value);</code></pre>
-
-<p>
-  The value supplies the type used for associated-function lookup, but it is
-  not implicitly supplied as an argument. This preserves the explicit
-  parameter-passing model of C while providing a concise, type-oriented
-  calling syntax.
-</p>
-
-<p>
-  The language therefore supports both a traditional C-like programming
-  model:
-</p>
-
-<pre><code>fn hash_insert(HashTable *table, Key key, Value value)
-{
-    ...
-}
-
-hash_insert(&amp;table, key, value);</code></pre>
-
-<p>
-  and an explicitly qualified form:
-</p>
-
-<pre><code>fn HashTable::insert(HashTable *table, Key key, Value value)
-{
-    ...
-}
-
-HashTable::insert(&amp;table, key, value);</code></pre>
-
-<p>
-  For an existing value, the associated function may also be referenced
-  through that value's type:
-</p>
-
-<pre><code>table::insert(&amp;table, key, value);</code></pre>
-
-<p>
-  These forms retain the same fundamental function semantics. The
-  qualification determines how the function is named and discovered, but
-  does not introduce an implicit receiver or otherwise change the function's
-  declared parameters.
-</p>
-
-<p>
-  This preserves a clear separation of concerns: <code>struct</code>
-  declarations describe data, functions describe operations on data,
-  associated functions provide explicit type-based organization and lookup,
-  and modules define which types and operations form an external contract.
-</p>
 <hr>
 <h2>98.14 Heap Ownership</h2>
 <p>`Box&lt;T&gt;` is the standard unique heap-ownership abstraction defined in Section 64.</p>
@@ -3232,7 +3056,7 @@ fn Stack&lt;T&gt;::new() : Stack&lt;T&gt;
 
 fn Stack&lt;T&gt;::push(mut Stack&lt;T&gt;* stack, T value)
 {
-    stack.values.push(value);
+    stack::push(&mut stack, 10);
 }
 
 fn Stack&lt;T&gt;::pop(mut Stack&lt;T&gt;* stack) : Result&lt;T, StackError&gt;
@@ -3415,12 +3239,12 @@ fn main() : i32
 
   <pre><code>fn Stack&lt;T&gt;::push(mut Stack&lt;T&gt;* stack, T value)
 {
-    stack.values.push(value);
+    stack::push(&mut stack, 10);
 }
 
 fn Stack_push&lt;T&gt;(mut Stack&lt;T&gt;* stack, T value)
 {
-    stack.values.push(value);
+    stack::push(&mut stack, 10);
 }</code></pre>
 
   <p>
