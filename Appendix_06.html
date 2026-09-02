@@ -789,8 +789,7 @@ f64</code></pre>
 <section id="section-25">
     <h2>25. Functions</h2>
 
-    <p>
-        A function is declared by specifying its name, parameters, and,
+    <p>A function is declared by specifying its name, parameters, and,
         optionally, its return type:
     </p>
 
@@ -864,6 +863,9 @@ fn Stack&lt;T&gt;::new() : Stack&lt;T&gt;
         Ownership and borrowing requirements apply to arguments and return
         values.
     </p>
+
+    <p>Function names MUST NOT be overloaded within the same lookup scope. A function declaration introduces a single function identified by its name and, for associated functions, its associated type and name. Parameter types are not used to select between functions with the same name.</p>
+
 </section>
 
 
