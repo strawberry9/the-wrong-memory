@@ -2835,42 +2835,16 @@ module io;
 
 export
 {
-    print_i32;
-    print_string;
+    print;
+    println;
 }
 
-fn print_i32(i32 value)
-{
-    // implementation-defined
-}
+...
 
-fn print_string(String value)
-{
-    // implementation-defined
-}
 </pre></code>
 
 
-<pre><code>
-module result;
-
-export
-{
-    Result;
-}
-
-enum Result&lt;T, E&gt;
-{
-    Ok(T),
-    Err(E)
-}
-</code></pre>
-
-
-<pre><code>
-module vector;
-
-import result;
+<pre><code>module vector;
 
 export
 {
@@ -2909,18 +2883,10 @@ fn Vector&lt;T&gt;::pop(Vector&lt;T&gt;* vector) : Result&lt;T, VectorError&gt;
 }
 </code></pre>
 
-
 <pre><code>module stack_example;
 
 import io;
-import result;
 import vector;
-
-export
-{
-    Stack;
-    StackError;
-}
 
 enum StackError
 {
@@ -2932,8 +2898,8 @@ struct Stack&lt;T&gt;
     Vector&lt;T&gt; values;
 }
 
-// new isn't special at all. It's just an associated function
-// that happens to take no arguments and returns a new Stack&lt;T&gt;.
+<span style="color: #888;">// new isn't special at all. It's just an associated function
+// that happens to take no arguments and returns a new Stack&lt;T&gt;.</span>
 fn Stack&lt;T&gt;::new() : Stack&lt;T&gt;
 {
     return Stack&lt;T&gt;
@@ -2980,12 +2946,12 @@ fn main() : i32
     {
         Ok(value) =&gt;
         {
-            print_i32(value);
+            println("popped value: {}", value);
         },
 
         Err(StackError::Empty) =&gt;
         {
-            print_string("stack is empty");
+            println("stack is empty");
         }
     }
 
@@ -2993,17 +2959,19 @@ fn main() : i32
     {
         Ok(value) =&gt;
         {
-            print_i32(value);
+            println("popped value: {}", value);
         },
 
         Err(StackError::Empty) =&gt;
         {
-            print_string("stack is empty");
+            println("stack is empty");
         }
     }
 
     return 0;
-}</code></pre>
+}
+</code></pre>
+
 
 
 <h3>Semantics Visible in the Example</h3> <p> The example intentionally exercises several of the normative semantic rules established by the CobaltC 1.0 specification. </p> <ul> <li> <strong>Modules and imports:</strong> the example is divided into modules. The <code>stack_example</code> module imports <code>vector</code> and <code>result</code> in order to use their exported declarations. </li> <li> <strong>Export visibility:</strong> the <code>vector</code> module explicitly exports both <code>Vector</code> and <code>VectorError</code>. Non-exported declarations are not accessible from importing modules. </li> <li> <strong>Generic types:</strong> <code>Vector&lt;T&gt;</code>, <code>Stack&lt;T&gt;</code>, and <code>Result&lt;T, E&gt;</code> are generic nominal types. The example instantiates them as <code>Vector&lt;i32&gt;</code>, <code>Stack&lt;i32&gt;</code>, and <code>Result&lt;i32, StackError&gt;</code>. </li> <li> <strong>Associated functions:</strong> <code>Vector&lt;T&gt;::new</code>, <code>Vector&lt;T&gt;::len</code>, <code>Vector&lt;T&gt;::push</code>, <code>Vector&lt;T&gt;::pop</code>, <code>Stack&lt;T&gt;::new</code>, <code>Stack&lt;T&gt;::push</code>, <code>Stack&lt;T&gt;::pop</code>, and <code>Stack&lt;T&gt;::is_empty</code> are ordinary functions associated with their respective types through type-qualified function names. </li> <li> <strong>No implicit receiver:</strong> associated functions do not receive an implicit <code>this</code> or <code>self</code> parameter. Functions operating on an existing vector or stack explicitly declare the required pointer parameter. </li> <li> <strong>Constructor-style associated function:</strong> <code>Stack&lt;i32&gt;::new()</code> does not require an existing <code>Stack&lt;i32&gt;</code> value because <code>new</code> is an ordinary associated function that creates and returns one. </li> <li> <strong>Value-qualified lookup:</strong> <code>stack::push</code> and <code>stack::pop</code> use the statically known type of <code>stack</code> to locate the corresponding associated function. </li> <li> <strong>Explicit arguments:</strong> value-qualified lookup does not implicitly pass <code>stack</code> as an argument. The stack is explicitly supplied as <code>&amp;mut stack</code> where mutable access is required. </li> <li> <strong>Ownership:</strong> <code>Stack&lt;i32&gt; stack</code> owns the stack value. The stack in turn owns its contained <code>Vector&lt;i32&gt;</code>. </li> <li> <strong>Deterministic destruction:</strong> when <code>stack</code> leaves its scope, its owned contents are destroyed according to CobaltC's deterministic destruction rules. </li> <li> <strong>Borrowing:</strong> <code>&amp;stack</code> provides access to the existing stack without transferring ownership. </li> <li> <strong>Mutable borrowing:</strong> <code>&amp;mut stack</code> provides mutable access to the existing stack for operations such as <code>push</code> and <code>pop</code>. The resulting borrow remains subject to CobaltC's ownership and aliasing rules. </li> <li> <strong>Field borrowing:</strong> <code>&amp;mut stack.values</code> provides mutable access to the vector contained within the stack. This allows <code>Stack&lt;T&gt;::push</code> and <code>Stack&lt;T&gt;::pop</code> to delegate operations to <code>Vector&lt;T&gt;</code> without transferring ownership of the vector. </li> <li> <strong>Non-mutating borrowing:</strong> <code>Stack&lt;T&gt;::is_empty</code> accepts a non-mutating borrow because it only needs to inspect the stack. </li> <li> <strong>Result-based error handling:</strong> <code>Vector&lt;T&gt;::pop</code> returns <code>Result&lt;T, VectorError&gt;</code>, while <code>Stack&lt;T&gt;::pop</code> returns <code>Result&lt;T, StackError&gt;</code>. The stack translates the vector's empty condition into its own error type. </li> <li> <strong>Pattern matching:</strong> the <code>match</code> expressions distinguish between <code>Ok</code> and <code>Err</code> results. </li> <li> <strong>Exhaustive matching:</strong> both variants of the returned <code>Result</code> are handled, making each match exhaustive. </li> <li> <strong>Type safety:</strong> the stack is instantiated as <code>Stack&lt;i32&gt;</code>, so values inserted through <code>Stack&lt;i32&gt;::push</code> must satisfy the stack's element type. </li> <li> <strong>Move semantics:</strong> a successful <code>Vector&lt;T&gt;::pop</code> removes and returns the final element according to the collection's ownership semantics. </li> </ul> <h3>Associated and Ordinary Functions</h3> <p> Associated functions and ordinary functions use the same underlying function semantics. The difference is that an associated function has a type-qualified name and participates in associated-function lookup. </p> <p> For example, <code>Stack&lt;T&gt;::push</code> is declared as an ordinary function associated with <code>Stack&lt;T&gt;</code>: </p> <pre><code>fn Stack&lt;T&gt;::push(Stack&lt;T&gt;* stack, T value) { Vector&lt;T&gt;::push(&amp;mut stack.values, value); }</code></pre> <p> The associated function may be referenced using its qualified type name: </p> <pre><code>Stack&lt;i32&gt;::push(&amp;mut stack, 10);</code></pre> <p> It may also be referenced through a value whose statically known type is <code>Stack&lt;i32&gt;</code>: </p> <pre><code>stack::push(&amp;mut stack, 10);</code></pre> <p> In both cases, qualification selects the associated function, while the function's declared parameter list determines the arguments that must be supplied. </p> <p> Neither associated-function form introduces an implicit <code>this</code>, <code>self</code>, or equivalent receiver parameter. The value-qualified form uses <code>stack</code> to determine the associated type, but does not implicitly pass <code>stack</code> to the function. </p> <h3>Expected Behaviour</h3> <p> The three values are pushed in the order <code>10</code>, <code>20</code>, <code>30</code>. Because the stack is last-in, first-out, the first two successful calls to <code>stack::pop</code> produce: </p> <pre><code>30 20</code></pre> <p> If <code>stack::pop</code> is called after the stack is empty, the underlying <code>Vector&lt;T&gt;::pop</code> operation produces <code>Err(VectorError::Empty)</code>. The stack translates this into <code>Err(StackError::Empty)</code> rather than performing an invalid access. </p> <h3>Conformance Significance</h3> <p> This example is useful as a conformance example because it exercises the interaction between several parts of the specification rather than testing an isolated feature. In particular, it combines modules, imports and exports, generic types, associated functions, value-qualified lookup, owned values, borrowing, mutable access, field borrowing, collection semantics, deterministic destruction, <code>Result</code>-based error handling, and exhaustive pattern matching. </p> <p> The example also demonstrates the distinction between CobaltC's C-like free-function model and its explicit associated-function syntax. A function may be associated with a type using <code>Stack&lt;T&gt;::push</code>. An associated function may then be referenced through either its type or a value of that type. Association qualifies the function name and affects lookup, but does not introduce an implicit receiver or otherwise change the fundamental function semantics. </p>
