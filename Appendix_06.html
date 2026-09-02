@@ -1206,35 +1206,48 @@ append(*mutable, " world");</code></pre><p>The preceding program is valid becaus
 
 <section id="section-46">
 <h2 id="section-46-function-parameters-and-returned-borrows">46. Function Parameters and Returned Borrows</h2>
-<p>A function MAY accept a managed pointer as a parameter. Passing a managed pointer to a function provides access to the referenced value and does not transfer ownership.</p><pre><code>fn length(String* value) : usize {
+<p>A function MAY accept a managed pointer as a parameter. Passing a managed pointer to a function provides access to the referenced value and does not transfer ownership.</p>
+<pre><code>fn length(String* value) : usize
+{
     return length_of(*value);
 }
 
 String value = "hello";
 usize size = length(&value);
 print(value);
-print(size);</code></pre><p>A function MAY return a borrowed managed pointer when the returned pointer is guaranteed not to outlive its referent.</p><pre><code>fn identity(String* value) : String* {
-return value;
+print(size);</code></pre><p>A function MAY return a borrowed managed pointer when the returned pointer is guaranteed not to outlive its referent.</p>
+<pre><code>fn identity(String* value) : String*
+{
+    return value;
 }
 
 String value = "hello";
 String* result = identity(&value);
-print(*result);</code></pre><p>When a returned managed pointer is derived from a borrowed parameter, the returned pointer MUST NOT outlive the source borrow.</p><pre><code>fn first(String* value) : String* {
-return value;
+print(*result);</code></pre><p>When a returned managed pointer is derived from a borrowed parameter, the returned pointer MUST NOT outlive the source borrow.</p>
+<pre><code>fn first(String* value) : String*
+{
+    return value;
 }
 
 String value = "hello";
 {
-String* result = first(&value);
-print(*result);
-}</code></pre><p>A function MUST NOT return a managed pointer to an ordinary local value whose lifetime ends when the function returns.</p><pre><code>fn invalid() : String* {
-String value = "hello";
-return &value; // ERROR: returned borrow outlives `value`
-}</code></pre><p>A function MAY return a managed pointer to storage whose lifetime is independently guaranteed to outlive the returned pointer.</p><p>CobaltC uses inferred borrow lifetimes. The compiler MUST determine whether parameter borrows, returned borrows, and the referenced storage satisfy the applicable lifetime and borrowing rules.</p><p>Ownership MUST NOT be inferred from a borrowed return value. Returning a managed pointer provides access to an existing value; it does not transfer ownership unless an explicitly defined ownership operation is used.</p>
+    String* result = first(&value);
+    print(*result);
+}</code></pre>
+<p>A function MUST NOT return a managed pointer to an ordinary local value whose lifetime ends when the function returns.</p>
+<pre><code>fn invalid() : String*
+{
+    String value = "hello";
+    return &value; // ERROR: returned borrow outlives `value`
+}</code></pre>
+<p>A function MAY return a managed pointer to storage whose lifetime is independently guaranteed to outlive the returned pointer.</p><p>CobaltC uses inferred borrow lifetimes. The compiler MUST determine whether parameter borrows, returned borrows, and the referenced storage satisfy the applicable lifetime and borrowing rules.</p><p>Ownership MUST NOT be inferred from a borrowed return value. Returning a managed pointer provides access to an existing value; it does not transfer ownership unless an explicitly defined ownership operation is used.</p>
 
 <section id="section-47">
 <h2 id="section-47-reborrowing">47. Reborrowing</h2>
-<p>A managed pointer MAY itself be borrowed. Such an operation is a reborrow.</p><p>A reborrow creates a new borrow whose access is derived from the existing managed pointer. Reborrowing MUST preserve the ownership, lifetime, and aliasing guarantees of the original borrow.</p><p>A mutable pointer MAY be temporarily reborrowed as a mutable pointer.</p><pre><code>fn append_exclamation(String* value) {
+<p>A managed pointer MAY itself be borrowed. Such an operation is a reborrow.</p>
+<p>A reborrow creates a new borrow whose access is derived from the existing managed pointer. Reborrowing MUST preserve the ownership, lifetime, and aliasing guarantees of the original borrow.</p><p>A mutable pointer MAY be temporarily reborrowed as a mutable pointer.</p>
+<pre><code>fn append_exclamation(String* value)
+{
     append(*value, "!");
 }
 
@@ -1249,7 +1262,9 @@ append(*reborrow, "?");</code></pre><p>Once the reborrow is no longer live, the 
 
 <section id="section-48">
 <h2 id="section-48-field-and-partial-borrows">48. Field and Partial Borrows</h2>
-<p>A field of a structure MAY be borrowed independently of another disjoint field.</p><pre><code>struct Pair {
+<p>A field of a structure MAY be borrowed independently of another disjoint field.</p>
+<pre><code>struct Pair
+{
     String first;
     String second;
 }
@@ -2609,7 +2624,349 @@ export
 </code></pre>
 
 <hr>
-<h2>98.13 Structs and Associated Functions</h2> <p>CobaltC 1.0.0 defines <code>struct</code> as a data type whose declaration describes its data representation. A <code>struct</code> declaration MUST NOT contain method or member-function declarations.</p> <p>Functions operating on a <code>struct</code> are ordinary functions and are declared independently of the <code>struct</code> declaration.</p> <p>A function MAY accept a <code>struct</code> value, pointer, or reference as an argument and MAY return a <code>struct</code> value, pointer, or reference, subject to the normal rules of the type system.</p> <p>CobaltC 1.0.0 does not define implicit <code>this</code>, <code>self</code>, or equivalent receiver parameters for <code>struct</code> operations.</p> <p>For example:</p> <pre><code>struct HashTable { usize capacity; } fn hash_insert(HashTable *table, Key key, Value value) { ... }</code></pre> <p>In this example, <code>hash_insert</code> is an ordinary function rather than a method of <code>HashTable</code>.</p> <p>This design provides a C-like separation between data types and the functions that operate on them. A module MAY use its <code>export</code> block to define which types and associated functions form its external interface.</p> <h3>98.13.1 Rationale</h3> <p>CobaltC deliberately keeps <code>struct</code> declarations focused on the representation of data and does not introduce a separate method mechanism for functions operating on structures.</p> <p>Functions remain ordinary functions, making their parameters, return values, calling conventions, and ownership or borrowing behavior explicit. No special receiver semantics are required merely because the first parameter refers to a particular type.</p> <p>This preserves the C-like programming model while avoiding additional language mechanisms for method lookup, implicit receivers, or member-function declarations. It also allows functions operating on a type to be grouped and exposed through a module's <code>export</code> block without making those functions members of the type itself.</p> <p>The result is a consistent separation of concerns: <code>struct</code> declarations describe data, functions describe operations on data, and modules define which types and operations form an external contract.</p>
+
+<h2>98.13 Structs and Associated Functions</h2>
+
+<p>
+  CobaltC 1.0.0 defines <code>struct</code> as a data type whose declaration
+  describes its data representation. A <code>struct</code> declaration MUST
+  NOT contain method or member-function declarations.
+</p>
+
+<p>
+  Functions operating on a <code>struct</code> are ordinary functions and MAY
+  be declared independently of the <code>struct</code> declaration.
+</p>
+
+<p>
+  A function MAY accept a <code>struct</code> value, pointer, or reference as
+  an argument and MAY return a <code>struct</code> value, pointer, or
+  reference, subject to the normal rules of the type system.
+</p>
+
+<p>
+  CobaltC 1.0.0 does not define an implicit <code>this</code>,
+  <code>self</code>, or equivalent receiver parameter for functions
+  operating on a <code>struct</code>.
+</p>
+
+<h3>98.13.1 Ordinary Struct Functions</h3>
+
+<p>
+  A function MAY operate on a <code>struct</code> without being associated
+  with that type. Such a function is an ordinary function and is declared
+  using the normal function declaration syntax.
+</p>
+
+<p>
+  For example:
+</p>
+
+<pre><code>struct HashTable
+{
+    usize capacity;
+}
+
+fn hash_insert(HashTable *table, Key key, Value value)
+{
+    ...
+}</code></pre>
+
+<p>
+  In this example, <code>hash_insert</code> is an ordinary function. It is
+  not associated with or a member of <code>HashTable</code>.
+</p>
+
+<p>
+  The caller MUST provide the <code>HashTable</code> argument explicitly:
+</p>
+
+<pre><code>hash_insert(&amp;table, key, value);</code></pre>
+
+<h3>98.13.2 Associated Functions</h3>
+
+<p>
+  A function MAY be explicitly associated with a <code>struct</code> by using
+  the <code>Type::function</code> declaration syntax:
+</p>
+
+<pre><code>fn HashTable::hash_insert(HashTable *table, Key key, Value value)
+{
+    ...
+}</code></pre>
+
+<p>
+  An associated function is an ordinary function with a type-qualified name.
+  Association does not make the function a member of the <code>struct</code>
+  and does not introduce an implicit receiver parameter.
+</p>
+
+<p>
+  All parameters required by an associated function MUST be declared
+  explicitly. In particular, an associated function does not implicitly
+  receive a <code>this</code>, <code>self</code>, or equivalent parameter.
+</p>
+
+<p>
+  An associated function MAY therefore be declared without a parameter
+  referring to the associated type:
+</p>
+
+<pre><code>fn HashTable::new(usize capacity) : HashTable
+{
+    ...
+}</code></pre>
+
+<p>
+  An associated function MAY also explicitly accept a value, pointer, or
+  reference to its associated type:
+</p>
+
+<pre><code>fn HashTable::insert(HashTable *table, Key key, Value value)
+{
+    ...
+}</code></pre>
+
+<p>
+  Association affects the function's name lookup and qualification but does
+  not otherwise alter its parameter list, calling convention, ownership,
+  borrowing, or return-value semantics.
+</p>
+
+<h3>98.13.3 Qualified Names and Calls</h3>
+
+<p>
+  An associated function MAY be referenced using its associated type:
+</p>
+
+<pre><code>HashTable::new(100);
+HashTable::insert(&amp;table, key, value);</code></pre>
+
+<p>
+  The <code>::</code> operator qualifies a function name with a type. It does
+  not imply an implicit receiver or alter the function's parameter list.
+</p>
+
+<p>
+  For a generic type, the type arguments form part of the qualification:
+</p>
+
+<pre><code>Stack&lt;i32&gt;::new();
+Stack&lt;i32&gt;::push(&amp;stack, 10);</code></pre>
+
+<p>
+  An associated function MAY also be referenced through a value whose
+  statically known type is the associated type:
+</p>
+
+<pre><code>Stack&lt;i32&gt; stack = Stack&lt;i32&gt;::new();
+
+stack::push(&amp;stack, 10);
+stack::push(&amp;stack, 20);
+stack::push(&amp;stack, 30);</code></pre>
+
+<p>
+  When an associated function is referenced through a value, the compiler
+  determines the associated type from the value's statically known type and
+  performs associated-function lookup on that type.
+</p>
+
+<p>
+  Value-qualified lookup does not implicitly pass the qualifying value as an
+  argument. The function's declared parameters remain explicit.
+</p>
+
+<p>
+  Therefore, if <code>stack</code> has type
+  <code>Stack&lt;i32&gt;</code>, the following calls identify the same
+  associated function:
+</p>
+
+<pre><code>Stack&lt;i32&gt;::push(&amp;stack, 10);
+
+stack::push(&amp;stack, 10);</code></pre>
+
+<p>
+  Both calls explicitly pass <code>&amp;stack</code> as the first argument.
+  Neither call implicitly supplies a receiver.
+</p>
+
+<h3>98.13.4 Associated Functions and Ordinary Functions</h3>
+
+<p>
+  An operation on a <code>struct</code> MAY be implemented either as an
+  ordinary function or as an associated function.
+</p>
+
+<p>
+  For example, the following ordinary function:
+</p>
+
+<pre><code>fn Stack_push&lt;T&gt;(mut Stack&lt;T&gt;* stack, T value)
+{
+    stack.values.push(value);
+}</code></pre>
+
+<p>
+  and the following associated function:
+</p>
+
+<pre><code>fn Stack&lt;T&gt;::push(mut Stack&lt;T&gt;* stack, T value)
+{
+    stack.values.push(value);
+}</code></pre>
+
+<p>
+  both use explicit parameters and have the same fundamental function
+  semantics. The associated form additionally places <code>push</code> in the
+  qualified namespace of <code>Stack&lt;T&gt;</code>.
+</p>
+
+<p>
+  The ordinary function is called by its ordinary name:
+</p>
+
+<pre><code>Stack_push&lt;i32&gt;(&amp;stack, 10);</code></pre>
+
+<p>
+  The associated function is called through its type-qualified or
+  value-qualified name:
+</p>
+
+<pre><code>Stack&lt;i32&gt;::push(&amp;stack, 10);
+
+stack::push(&amp;stack, 10);</code></pre>
+
+<p>
+  Association MUST NOT cause an implicit argument to be added to the
+  function. In particular, the value used for value-qualified lookup is not
+  implicitly passed to the function.
+</p>
+
+<h3>98.13.5 Constructors and Factory Functions</h3>
+
+<p>
+  Associated functions are not required to operate on an existing value of
+  their associated type. They MAY create and return a new value.
+</p>
+
+<p>
+  For example:
+</p>
+
+<pre><code>fn Stack&lt;T&gt;::new() : Stack&lt;T&gt;
+{
+    return Stack&lt;T&gt;
+    {
+        values: Vector&lt;T&gt;::new()
+    };
+}</code></pre>
+
+<p>
+  Such a function MAY be called without an existing instance:
+</p>
+
+<pre><code>Stack&lt;i32&gt; stack = Stack&lt;i32&gt;::new();</code></pre>
+
+<p>
+  CobaltC does not treat <code>new</code> as a special constructor mechanism.
+  It is an ordinary associated function whose declared return type is
+  <code>Stack&lt;T&gt;</code>.
+</p>
+
+<h3>98.13.6 Modules and External Interfaces</h3>
+
+<p>
+  Ordinary functions and associated functions MAY be declared within the
+  same module as the types on which they operate. A module MAY use its
+  <code>export</code> block to define which types, ordinary functions, and
+  associated functions form its external interface.
+</p>
+
+<p>
+  Association does not change the visibility, ownership, or borrowing rules
+  applicable to a function. An associated function is exported or kept
+  private according to the same module rules as an ordinary function.
+</p>
+
+<h3>98.13.7 Rationale</h3>
+
+<p>
+  CobaltC deliberately keeps <code>struct</code> declarations focused on the
+  representation of data and does not introduce method or member-function
+  declarations within structures.
+</p>
+
+<p>
+  Functions remain ordinary functions, making their parameters, return
+  values, calling conventions, and ownership or borrowing behavior
+  explicit. No special receiver semantics are required merely because a
+  function is associated with a particular type.
+</p>
+
+<p>
+  The <code>Type::function</code> syntax provides an explicit way to organize
+  functions around the type they operate on without introducing implicit
+  <code>this</code> or <code>self</code> parameters or member-function
+  semantics.
+</p>
+
+<p>
+  Value-qualified calls extend this organization naturally:
+</p>
+
+<pre><code>stack::push(&amp;stack, value);</code></pre>
+
+<p>
+  The value supplies the type used for associated-function lookup, but it is
+  not implicitly supplied as an argument. This preserves the explicit
+  parameter-passing model of C while providing a concise, type-oriented
+  calling syntax.
+</p>
+
+<p>
+  The language therefore supports both a traditional C-like programming
+  model:
+</p>
+
+<pre><code>fn hash_insert(HashTable *table, Key key, Value value)
+{
+    ...
+}
+
+hash_insert(&amp;table, key, value);</code></pre>
+
+<p>
+  and an explicitly qualified form:
+</p>
+
+<pre><code>fn HashTable::insert(HashTable *table, Key key, Value value)
+{
+    ...
+}
+
+HashTable::insert(&amp;table, key, value);</code></pre>
+
+<p>
+  For an existing value, the associated function may also be referenced
+  through that value's type:
+</p>
+
+<pre><code>table::insert(&amp;table, key, value);</code></pre>
+
+<p>
+  These forms retain the same fundamental function semantics. The
+  qualification determines how the function is named and discovered, but
+  does not introduce an implicit receiver or otherwise change the function's
+  declared parameters.
+</p>
+
+<p>
+  This preserves a clear separation of concerns: <code>struct</code>
+  declarations describe data, functions describe operations on data,
+  associated functions provide explicit type-based organization and lookup,
+  and modules define which types and operations form an external contract.
+</p>
 <hr>
 <h2>98.14 Heap Ownership</h2>
 <p>`Box&lt;T&gt;` is the standard unique heap-ownership abstraction defined in Section 64.</p>
@@ -2771,13 +3128,18 @@ explicit lifetime annotations</code></pre>
 <p>The normative CobaltC 1.0.0 language remains the language defined by Sections 1-97 together with the clarifications in this Section 98.</p>
 
 <hr>
+
+Yes — I'd make the main example use the new value-qualified stack:: syntax, while keeping Stack<T>::new() for the creation call. I also updated the explanatory text so it accurately describes the distinction.
+
 <section class="cobalt-example">
   <h2>A Conformance Example Program</h2>
 
   <p>
     This example defines a generic <code>Stack&lt;T&gt;</code> backed by
-    <code>Vector&lt;T&gt;</code>, then demonstrates creating a stack, pushing
-    values, popping values, and handling an empty-stack error.
+    <code>Vector&lt;T&gt;</code>, then demonstrates associated functions for
+    creating, modifying, inspecting, and removing values from a stack.
+    It also demonstrates <code>Result&lt;T, E&gt;</code>-based error handling
+    and exhaustive pattern matching.
   </p>
 
   <pre><code>module stack_example;
@@ -2798,7 +3160,7 @@ struct Stack&lt;T&gt;
     Vector&lt;T&gt; values;
 }
 
-fn Stack_new&lt;T&gt;() : Stack&lt;T&gt;
+fn Stack&lt;T&gt;::new() : Stack&lt;T&gt;
 {
     return Stack&lt;T&gt;
     {
@@ -2806,12 +3168,12 @@ fn Stack_new&lt;T&gt;() : Stack&lt;T&gt;
     };
 }
 
-fn Stack_push&lt;T&gt;(mut Stack&lt;T&gt;* stack, T value)
+fn Stack&lt;T&gt;::push(mut Stack&lt;T&gt;* stack, T value)
 {
     stack.values.push(value);
 }
 
-fn Stack_pop&lt;T&gt;(mut Stack&lt;T&gt;* stack) : Result&lt;T, StackError&gt;
+fn Stack&lt;T&gt;::pop(mut Stack&lt;T&gt;* stack) : Result&lt;T, StackError&gt;
 {
     if stack.values.len() == 0
     {
@@ -2821,20 +3183,20 @@ fn Stack_pop&lt;T&gt;(mut Stack&lt;T&gt;* stack) : Result&lt;T, StackError&gt;
     return Ok(stack.values.pop());
 }
 
-fn Stack_is_empty&lt;T&gt;(Stack&lt;T&gt;* stack) : bool
+fn Stack&lt;T&gt;::is_empty(Stack&lt;T&gt;* stack) : bool
 {
     return stack.values.len() == 0;
 }
 
 fn main() : i32
 {
-    Stack&lt;i32&gt; stack = Stack_new&lt;i32&gt;();
+    Stack&lt;i32&gt; stack = Stack&lt;i32&gt;::new();
 
-    Stack_push&lt;i32&gt;(&amp;stack, 10);
-    Stack_push&lt;i32&gt;(&amp;stack, 20);
-    Stack_push&lt;i32&gt;(&amp;stack, 30);
+    stack::push(&amp;stack, 10);
+    stack::push(&amp;stack, 20);
+    stack::push(&amp;stack, 30);
 
-    match Stack_pop&lt;i32&gt;(&amp;stack)
+    match stack::pop(&amp;stack)
     {
         Ok(value) =&gt;
         {
@@ -2847,7 +3209,7 @@ fn main() : i32
         }
     }
 
-    match Stack_pop&lt;i32&gt;(&amp;stack)
+    match stack::pop(&amp;stack)
     {
         Ok(value) =&gt;
         {
@@ -2878,6 +3240,43 @@ fn main() : i32
     </li>
 
     <li>
+      <strong>Associated functions:</strong>
+      <code>Stack&lt;T&gt;::new</code>, <code>Stack&lt;T&gt;::push</code>,
+      <code>Stack&lt;T&gt;::pop</code>, and
+      <code>Stack&lt;T&gt;::is_empty</code> are explicitly associated with
+      <code>Stack&lt;T&gt;</code> through type-qualified function names.
+    </li>
+
+    <li>
+      <strong>No implicit receiver:</strong>
+      associated functions do not receive an implicit
+      <code>this</code> or <code>self</code> parameter. Functions operating
+      on an existing stack explicitly declare the required
+      <code>Stack&lt;T&gt;*</code> parameter.
+    </li>
+
+    <li>
+      <strong>Constructor-style associated function:</strong>
+      <code>Stack&lt;i32&gt;::new()</code> does not require an existing
+      <code>Stack&lt;i32&gt;</code> value because <code>new</code> creates and
+      returns one.
+    </li>
+
+    <li>
+      <strong>Value-qualified lookup:</strong>
+      <code>stack::push</code> and <code>stack::pop</code> use the statically
+      known type of <code>stack</code> to locate the corresponding associated
+      function.
+    </li>
+
+    <li>
+      <strong>Explicit arguments:</strong>
+      value-qualified lookup does not implicitly pass <code>stack</code> as
+      an argument. The stack is explicitly passed using
+      <code>&amp;stack</code>.
+    </li>
+
+    <li>
       <strong>Ownership:</strong>
       <code>Stack&lt;i32&gt; stack</code> owns the stack value. The stack in
       turn owns its contained <code>Vector&lt;i32&gt;</code>.
@@ -2892,26 +3291,26 @@ fn main() : i32
     <li>
       <strong>Borrowing:</strong>
       <code>&amp;stack</code> provides access to the existing stack without
-      transferring ownership to <code>Stack_push</code> or
-      <code>Stack_pop</code>.
+      transferring ownership to <code>stack::push</code> or
+      <code>stack::pop</code>.
     </li>
 
     <li>
       <strong>Mutable borrowing:</strong>
-      the <code>mut Stack&lt;T&gt;*</code> parameter permits the called
+      the <code>mut Stack&lt;T&gt;*</code> parameter permits the associated
       function to modify the borrowed stack while remaining subject to
       CobaltC's aliasing rules.
     </li>
 
     <li>
-      <strong>Ownership-preserving access:</strong>
-      <code>Stack_is_empty</code> accepts a non-mutating borrow because it
-      only needs to inspect the stack.
+      <strong>Non-mutating borrowing:</strong>
+      <code>Stack&lt;T&gt;::is_empty</code> accepts a non-mutating borrow
+      because it only needs to inspect the stack.
     </li>
 
     <li>
       <strong>Result-based error handling:</strong>
-      <code>Stack_pop</code> returns
+      <code>Stack&lt;T&gt;::pop</code> returns
       <code>Result&lt;T, StackError&gt;</code> instead of using exceptions.
     </li>
 
@@ -2924,35 +3323,77 @@ fn main() : i32
     <li>
       <strong>Exhaustive matching:</strong>
       both variants of the returned <code>Result</code> are handled, making
-      the match exhaustive.
+      each match exhaustive.
     </li>
 
     <li>
       <strong>Type safety:</strong>
-      the stack is specifically instantiated as
-      <code>Stack&lt;i32&gt;</code>, so values inserted into it must satisfy
-      the stack's element type.
-    </li>
-
-    <li>
-      <strong>Bounds safety:</strong>
-      the example delegates element removal to <code>Vector</code> rather than
-      performing unchecked indexing.
+      the stack is instantiated as <code>Stack&lt;i32&gt;</code>, so values
+      inserted into it must satisfy the stack's element type.
     </li>
 
     <li>
       <strong>Move semantics:</strong>
-      a successful <code>pop</code> transfers the resulting element out of
-      the collection rather than copying it implicitly.
+      a successful <code>pop</code> obtains the removed element from the
+      collection according to the collection's ownership semantics.
     </li>
   </ul>
+
+  <h3>Associated and Ordinary Functions</h3>
+
+  <p>
+    Associated functions and ordinary functions use the same underlying
+    function semantics. The difference is that an associated function has a
+    type-qualified name and participates in associated-function lookup.
+  </p>
+
+  <p>
+    For example, the following two forms may express equivalent operations:
+  </p>
+
+  <pre><code>fn Stack&lt;T&gt;::push(mut Stack&lt;T&gt;* stack, T value)
+{
+    stack.values.push(value);
+}
+
+fn Stack_push&lt;T&gt;(mut Stack&lt;T&gt;* stack, T value)
+{
+    stack.values.push(value);
+}</code></pre>
+
+  <p>
+    The associated function may be called using its qualified type name:
+  </p>
+
+  <pre><code>Stack&lt;i32&gt;::push(&amp;stack, 10);</code></pre>
+
+  <p>
+    It may also be called through a value whose statically known type is
+    <code>Stack&lt;i32&gt;</code>:
+  </p>
+
+  <pre><code>stack::push(&amp;stack, 10);</code></pre>
+
+  <p>
+    The ordinary function is called using its unqualified function name:
+  </p>
+
+  <pre><code>Stack_push&lt;i32&gt;(&amp;stack, 10);</code></pre>
+
+  <p>
+    All three calls explicitly provide the stack pointer where required.
+    Neither associated-function form introduces an implicit
+    <code>this</code>, <code>self</code>, or equivalent receiver parameter.
+    Value-qualified lookup uses the value to determine the associated type,
+    but does not implicitly pass the value to the function.
+  </p>
 
   <h3>Expected Behaviour</h3>
 
   <p>
     The three values are pushed in the order <code>10</code>,
     <code>20</code>, <code>30</code>. Because the stack is last-in,
-    first-out, the first two successful calls to <code>Stack_pop</code>
+    first-out, the first two successful calls to <code>stack::pop</code>
     produce:
   </p>
 
@@ -2960,21 +3401,35 @@ fn main() : i32
 20</code></pre>
 
   <p>
-    If another pop is attempted after the stack is empty, the operation
-    produces <code>Err(StackError::Empty)</code> rather than performing an
-    invalid access.
+    If <code>stack::pop</code> is called after the stack is empty, the
+    operation produces <code>Err(StackError::Empty)</code> rather than
+    performing an invalid access.
   </p>
 
   <h3>Conformance Significance</h3>
 
   <p>
-    This is useful as a conformance example program because it
-    exercises the interaction between several parts of the specification
-    rather than testing an isolated feature. In particular, it combines
-    generic types, owned values, borrowing, mutable access, collection
-    semantics, deterministic destruction, <code>Result</code>-based error
-    handling, and exhaustive pattern matching.
+    This example is useful as a conformance example because it exercises the
+    interaction between several parts of the specification rather than
+    testing an isolated feature. In particular, it combines generic types,
+    associated functions, value-qualified lookup, owned values, borrowing,
+    mutable access, collection semantics, deterministic destruction,
+    <code>Result</code>-based error handling, and exhaustive pattern
+    matching.
   </p>
+
+  <p>
+    The example also demonstrates the distinction between CobaltC's
+    C-like free-function model and its explicit associated-function syntax.
+    A function may remain an ordinary function such as
+    <code>Stack_push</code>, or it may be associated with a type using
+    <code>Stack&lt;T&gt;::push</code>. An associated function may then be
+    referenced through either its type or a value of that type. Association
+    qualifies the function name and affects lookup, but does not introduce
+    an implicit receiver or otherwise change the fundamental function
+    semantics.
+  </p>
+</section>
   
 <br><br><br>
 <hr>
