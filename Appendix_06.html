@@ -3030,6 +3030,7 @@ import result;
 export
 {
     Vector;
+    VectorError;
 }
 
 enum VectorError
@@ -3078,8 +3079,6 @@ struct Stack<T>
     Vector<T> values;
 }
 
-// new isn't special at all. It's just an associated function
-// that happens to take no arguments and returns a new Stack
 fn Stack<T>::new() : Stack<T>
 {
     return Stack<T>
