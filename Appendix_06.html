@@ -58,14 +58,14 @@
     <h1>CobaltC Programming Language Specification</h1>
 
     <p class="subtitle">
-      CobaltC 1.0 &mdash; Specification version 1.0.0 (draft version - subject to change)
+      CobaltC 1.0 &mdash; Specification version 1.0.0
     </p>
 
     <div class="metadata">
 
       <div class="metadata-item">
         <span class="metadata-label">Status</span>
-        <span class="metadata-value">Final</span>
+        <span class="metadata-value">Draft</span>
       </div>
 
       <div class="metadata-item">
@@ -829,6 +829,7 @@ fn Stack&lt;T&gt;::new() : Stack&lt;T&gt;
     };
 }</code></pre>
 
+    <p>An associated function is identified by the pair consisting of its associated type and function name.</p>
     <p>An associated function may then be referenced through either its type or a value of that type.</p>
 
     <p>
@@ -1077,11 +1078,12 @@ loop</code></pre>
 
 <pre><code>fn update_shared_state(Mutex* mutex)
 {
-    Lock lock = mutex.lock();
-    defer { lock.unlock(); }
+    Lock lock = Mutex::lock(mutex);
+    defer { Lock::unlock(&amp;lock); }
 
     modify_shared_state();
 }</code></pre>
+
 
      <p> Deferred blocks execute in reverse registration order. </p>
      <p> Deferred blocks execute before owned locals in the exited scope are destroyed.</p>
@@ -2237,14 +2239,20 @@ regressions</code></pre>
         </p>
 
         <p>
-          <strong>Status: FINAL</strong>
+          <strong>Status: DRAFT</strong>
         </p>
 
         <p>
-          The design is frozen. This document is the consolidated normative
-          baseline. Further changes belong either in editorial
-          corrections/errata or in a subsequent language edition.
-        </p>
+           The language design for CobaltC 1.0.0 is considered feature-complete and serves as the consolidated normative baseline. While this document remains in DRAFT status, changes may still be made to resolve errors, ambiguities, inconsistencies, or other issues identified during review. New language features or changes to established language semantics belong in a subsequent language edition.
+           
+           <!--
+           CobaltC 1.0.0 is feature-complete and this document is the consolidated
+           normative specification. The 1.0.0 language design is frozen. Corrections
+           to this edition are limited to editorial corrections and errata. New
+           language features or changes to established language semantics require a
+           subsequent language edition.
+           -->
+       </p>
 
       </div>
     </section>
@@ -2685,6 +2693,8 @@ export
 
 <h2>98.13 Structs and Associated Functions</h2>
 
+<p>This section clarifies the semantics of associated functions defined in Section 25.</p>
+
 <p>
   CobaltC 1.0.0 defines <code>struct</code> as a data type whose declaration
   describes its data representation. A <code>struct</code> declaration MUST
@@ -2850,6 +2860,8 @@ stack::push(&amp;stack, 10);</code></pre>
 </p>
 
 <h3>98.13.4 Associated Functions and Ordinary Functions</h3> <p> An operation on a <code>struct</code> MAY be implemented either as an ordinary function or as an associated function. </p> <p> An ordinary function is declared using its ordinary function name and is called using that name. An associated function is declared using a type-qualified name of the form <code>Type::function</code>. </p> <p> Associated functions remain ordinary functions. Association does not introduce a separate function model, an implicit receiver, or object-oriented method dispatch. </p> <p> All parameters of an associated function MUST be declared explicitly. In particular, an associated function does not implicitly receive a <code>this</code>, <code>self</code>, or equivalent receiver parameter. </p> <p> The <code>A Conformance Example Program</code> near the end of this specification demonstrates both forms using the generic <code>Stack&lt;T&gt;</code> type. The associated form declares operations such as <code>Stack&lt;T&gt;::push</code> and <code>Stack&lt;T&gt;::pop</code>, while the equivalent ordinary form may use names such as <code>Stack_push</code> and <code>Stack_pop</code>. </p> <p> The two forms have the same fundamental function semantics. Association determines how a function is named and discovered, but does not otherwise change its parameter list, calling convention, ownership, borrowing, or return-value semantics. </p> <h3>98.13.5 Qualification and Calls</h3> <p> An associated function MAY be called through its associated type using a type-qualified name: </p> <pre><code>Stack&lt;i32&gt;::push(&amp;mut stack, 10);</code></pre> <p> When an existing value is available, an associated function MAY also be called using a value-qualified name: </p> <pre><code>stack::push(&amp;mut stack, 10);</code></pre> <p> Value-qualified lookup uses the static type of the value to locate the associated function. The value used for lookup is not implicitly passed to the function. </p> <p> Consequently, the following calls select the same associated function: </p> <pre><code>Stack&lt;i32&gt;::push(&amp;mut stack, 10); stack::push(&amp;mut stack, 10);</code></pre> <p> In both cases, <code>&amp;mut stack</code> is an explicit argument because the associated function declares the stack parameter explicitly. </p> <p> The <code>::</code> operator is used for associated-function qualification. The <code>.</code> operator remains field access and MUST NOT introduce implicit method lookup or invocation. </p> <h3>98.13.6 Constructors and Factory Functions</h3> <p> An associated function is not required to operate on an existing value of its associated type. It MAY create and return a new value. </p> <p> The <code>A Conformance Example Program</code> demonstrates this with <code>Stack&lt;T&gt;::new</code>: </p> <pre><code>Stack&lt;i32&gt; stack = Stack&lt;i32&gt;::new();</code></pre> <p> Because <code>new</code> has no receiver parameter, it MAY be called through the associated type without an existing <code>Stack&lt;i32&gt;</code> value. </p> <p> CobaltC does not treat <code>new</code> as a special constructor mechanism. It is an ordinary associated function whose declared return type produces the new value. </p> <h3>98.13.7 Modules and External Interfaces</h3> <p> Ordinary functions and associated functions MAY be declared within the same module as the types on which they operate. A module MAY use its <code>export</code> block to define which types, ordinary functions, and associated functions form its external interface. </p> <p> Association does not change the visibility, ownership, or borrowing rules applicable to a function. An associated function is exported or kept private according to the same module rules as an ordinary function. </p> <h3>98.13.8 Rationale</h3> <p> CobaltC deliberately keeps <code>struct</code> declarations focused on the representation of data and does not introduce method or member-function declarations within structures. </p> <p> Functions remain ordinary functions, making their parameters, return values, calling conventions, ownership, and borrowing behavior explicit. No special receiver semantics are required merely because a function is associated with a particular type. </p> <p> The <code>Type::function</code> syntax provides type-oriented organization and lookup without introducing implicit <code>this</code> or <code>self</code> parameters or object-oriented method semantics. </p> <p> Value-qualified lookup provides a concise alternative when an existing value is available. The value determines the static type used for lookup, but remains an ordinary explicit argument only when the selected function declares a parameter for it. </p> <p> The result is a programming model that retains the explicitness of C-like functions while allowing APIs to be organized naturally around their associated types. The <
+
+<h3>98.13.5 Associated Function Identity and Name Resolution</h3> <p> An associated function is identified by the pair consisting of its associated type and function name. </p> <p> Consequently, associated functions with the same function name MAY exist for different types and are distinct functions. For example, <code>Stack::push</code> and <code>HashTable::push</code> identify different associated functions. </p> <pre><code>fn Stack::push(Stack* stack, i32 value) { ... } fn HashTable::push(HashTable* table, i32 value) { ... }</code></pre> <p> An ordinary function and an associated function MAY also have the same unqualified function name: </p> <pre><code>fn push(i32 value) { ... } fn Stack::push(Stack* stack, i32 value) { ... }</code></pre> <p> These declarations identify distinct functions. The ordinary function is identified by the name <code>push</code>, while the associated function is identified by the qualified name <code>Stack::push</code>. </p> <p> An unqualified call refers only to an ordinary function: </p> <pre><code>push(10);</code></pre> <p> A type-qualified call refers to the associated function of the specified type: </p> <pre><code>Stack::push(&amp;stack, 10);</code></pre> <p> A value-qualified call uses the static type of the value to determine the associated type: </p> <pre><code>stack::push(&amp;stack, 10);</code></pre> <p> The existence of an ordinary function with the same unqualified name MUST NOT cause it to be selected for a type-qualified or value-qualified associated-function call. Likewise, the existence of an associated function MUST NOT cause it to be selected by an unqualified call. </p> <p> Therefore, the following functions may coexist without ambiguity: </p> <pre><code>fn push(i32 value) { ... } fn Stack::push(Stack* stack, i32 value) { ... } push(10); Stack::push(&amp;stack, 10); stack::push(&amp;stack, 10);</code></pre> <p> Qualification determines the function namespace in which lookup occurs; the function's declared parameter list then determines whether the call is valid. </p>
 
 <hr>
 <h2>98.14 Heap Ownership</h2>
