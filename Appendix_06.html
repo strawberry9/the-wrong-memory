@@ -2959,31 +2959,7 @@ print(*reference);</code></pre>
 <p>A clarification in this section MUST be applied only to the extent that it resolves an ambiguity or makes an existing requirement precise.</p>
 <p>If two interpretations are possible and one interpretation would introduce a new language feature while the other preserves the existing CobaltC 1.0.0 model, the interpretation preserving the existing model MUST be used.</p>
 <hr>
-<h2>98.25 No New Language Features</h2>
-<p>For avoidance of doubt, the following are not part of CobaltC 1.0.0 as a result of this errata section:</p>
-<pre><code>let
-mod
-crate::
-self::
-super::
-pub
-pub(crate)
-pub(super)
-
-explicit lifetime parameters
-trait
-trait objects
-Self: Sized
-Send
-Sync
-Cell
-RefCell
-declarative macros
-macro_rules
-fat-pointer syntax
-virtual-table syntax
-explicit lifetime annotations</code></pre>
-<p>An implementation MAY provide equivalent facilities as extensions where permitted by Section 90, but those facilities MUST NOT be represented as normative CobaltC 1.0.0 language features.</p>
+<h2>98.25 (removed)</h2>
 <hr>
 <h2>98.26 Relationship to the Final Safety Theorem</h2>
 <p>Nothing in this errata section weakens the Final Safety Theorem of Section 95.</p>
