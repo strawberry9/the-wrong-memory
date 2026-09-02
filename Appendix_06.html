@@ -2939,22 +2939,28 @@ fn Stack&lt;T&gt;::new() : Stack&lt;T&gt;
 
 fn Stack&lt;T&gt;::push(Stack&lt;T&gt;* stack, T value)
 {
+    <span style="color: #888;">// Create a mutable borrow to permit a mutating operation.</span>
+    <span style="color: #888;">// No ownership is transferred.</span>
     Vector&lt;T&gt;::push(&amp;mut stack.values, value);
 }
 
 <span style="color: #888;">// Stack exposes StackError rather than leaking VectorError to its caller.</span>
 fn Stack&lt;T&gt;::pop(Stack&lt;T&gt;* stack) : Result&lt;T, StackError&gt;
 {
+    <span style="color: #888;">// Create a mutable borrow to permit a mutating operation.</span>
+    <span style="color: #888;">// No ownership is transferred.</span>
     return match Vector&lt;T&gt;::pop(&amp;mut stack.values)
     {
         Ok(value) => Ok(value),
-        <span style="color: #888;">// translating one error type into another</span>
+        <span style="color: #888;">// Translating one error type into another</span>
         Err(VectorError::Empty) => Err(StackError::Empty)
     };
 }
 
 fn Stack&lt;T&gt;::is_empty(Stack&lt;T&gt;* stack) : bool
 {
+    <span style="color: #888;">// Create a shared borrow for a read-only operation.</span>
+    <span style="color: #888;">// No ownership is transferred and no mutation occurs.</span>
     return Vector&lt;T&gt;::len(&amp;stack.values) == 0;
 }
 
@@ -2963,19 +2969,17 @@ fn main() : i32
     mut Stack&lt;i32&gt; stack = Stack&lt;i32&gt;::new();
 
     stack::push(&amp;mut stack, 10);
-    stack::push(&amp;mut stack, 20);
-    stack::push(&amp;mut stack, 30);
-
+    
     match stack::pop(&amp;mut stack)
     {
-        Ok(value) => println("popped value: {}", value),
+        Ok(value) => println("popped value: {}", value), <span style="color: #888;">// popped value: 10</span>
         Err(StackError::Empty) => println("stack is empty")
     }
 
     match stack::pop(&amp;mut stack)
     {
         Ok(value) => println("popped value: {}", value),
-        Err(StackError::Empty) => println("stack is empty")       
+        Err(StackError::Empty) => println("stack is empty") <span style="color: #888;">// stack is empty</span>       
     }
 
     return 0;
