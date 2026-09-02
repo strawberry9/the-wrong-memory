@@ -2607,6 +2607,9 @@ hash_insert(table, key, value);
 hash_remove(table, key);</code></pre>
 
 <p>but MUST NOT directly access the internal representation of <code>HashTable</code>.</p>
+
+<p>If a struct type is exported in a modules export block, then all it's 'associated functions' are automatically included in the export.</p>
+
 <h3>98.12.4 API Stability</h3>
 <p>The <code>export</code> block defines the source-level API boundary of a module.</p>
 <p>Changes to declarations that are not exported MUST NOT constitute API-breaking changes. An implementation MAY change internal algorithms, reorganize implementation code, rename internal declarations, add or remove internal declarations, or change the representation of an exported type without requiring dependent modules to change, provided that the exported interface and its specified semantics remain compatible.</p>
