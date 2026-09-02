@@ -782,24 +782,69 @@ f64</code></pre>
 
     <section id="section-25">
     <h2>25. Functions</h2>
-    <p> A function is declared by specifying its name, parameters, and, optionally, its return type: </p>
+
+    <p>
+        A function is declared by specifying its name, parameters, and,
+        optionally, its return type:
+    </p>
+
     <pre><code>fn add(i32 a, i32 b) : i32
 {
     return a + b;
 }</code></pre>
-    <p> If the <code>:</code> and return type are omitted, the function has a return type of <code>void</code>: </p>
+
+    <p>
+        If the <code>:</code> and return type are omitted, the function has a
+        return type of <code>void</code>:
+    </p>
+
     <pre><code>fn log(String message)
 {
     print(message);
 }</code></pre>
-    <p> An explicit <code>void</code> return type is also permitted: </p>
+
+    <p>
+        An explicit <code>void</code> return type is also permitted:
+    </p>
+
     <pre><code>fn log(String message) : void
 {
     print(message);
 }</code></pre>
-    <p> The number and types of arguments MUST match the function signature. </p>
-    <p> A function with a return type other than <code>void</code> MUST return a value compatible with its declared return type. A <code>void</code> function MUST NOT return a value. </p> <p> Ownership and borrowing requirements apply to arguments and return values. </p>
-    </section>
+
+    <p>
+        A function MAY be associated with a type using a qualified name:
+    </p>
+
+    <pre><code>fn Stack&lt;T&gt;::push(mut Stack&lt;T&gt;* stack, T value)
+{
+    stack.values.push(value);
+}</code></pre>
+
+    <p>
+        Associated functions remain ordinary functions. They do not introduce
+        an implicit <code>this</code>, <code>self</code>, or equivalent
+        receiver parameter. Detailed rules governing associated functions,
+        qualification, and value-qualified calls are defined in the
+        associated-functions section of the CobaltC errata.
+    </p>
+
+    <p>
+        The number and types of arguments MUST match the function signature.
+    </p>
+
+    <p>
+        A function with a return type other than <code>void</code> MUST return
+        a value compatible with its declared return type. A <code>void</code>
+        function MUST NOT return a value.
+    </p>
+
+    <p>
+        Ownership and borrowing requirements apply to arguments and return
+        values.
+    </p>
+</section>
+
 
 
     <section id="section-26">
