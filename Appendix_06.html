@@ -3008,6 +3008,21 @@ print(*reference);</code></pre>
   </p>
 
 <pre><code>
+module result;
+
+export
+{
+    Result;
+}
+
+enum Result<T, E>
+{
+    Ok(T),
+    Err(E)
+}
+</pre></code>
+
+<pre><code>
 module vector;
 
 import result;
