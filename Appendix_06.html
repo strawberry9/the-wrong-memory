@@ -869,9 +869,17 @@ stack::push(&stack, 10);
 }
 </code></pre>
 <p>And importantly, none of them implicitly passes stack.</p>
-<p>Associated functions don't create a second function model. They're still just free functions. The language simply gives you better ways to organize and find them.</p>
+<p>
+  Associated functions are ordinary free functions that provide type-oriented
+  organization and lookup without introducing <code>this</code>,
+  <code>self</code>, implicit receivers, or object-oriented method dispatch.
+</p>
 
-<p>Type qualification selects the associated function; the function's declared parameter list determines what arguments must be supplied.</p>
+<p>
+  Type qualification selects the associated function; the function's declared
+  parameter list determines what arguments must be supplied.
+</p>
+
 </section>
 
 
