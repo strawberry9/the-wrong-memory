@@ -3008,6 +3008,27 @@ print(*reference);</code></pre>
   </p>
 
 <pre><code>
+module io;
+
+export
+{
+    print_i32;
+    print_string;
+}
+
+fn print_i32(i32 value)
+{
+    // implementation-defined
+}
+
+fn print_string(String value)
+{
+    // implementation-defined
+}
+</pre></code>
+
+
+<pre><code>
 module result;
 
 export
@@ -3064,29 +3085,11 @@ fn Vector<T>::pop(Vector<T>* vector) : Result<T, VectorError>
 }
 </pre></code>
 
-<pre><code>
-module io;
-
-export
-{
-    print;
-}
-
-fn print(i32 value)
-{
-    // implementation-defined
-}
-
-fn print(String value)
-{
-    // implementation-defined
-}
-</pre></code>
-
 <pre><code>module stack_example;
 
-import vector;
+import io;
 import result;
+import vector;
 
 enum StackError
 {
@@ -3098,6 +3101,8 @@ struct Stack<T>
     Vector<T> values;
 }
 
+// new isn't special at all. It's just an associated function
+// that happens to take no arguments and returns a new Stack
 fn Stack<T>::new() : Stack<T>
 {
     return Stack<T>
@@ -3144,12 +3149,12 @@ fn main() : i32
     {
         Ok(value) =>
         {
-            print(value);
+            print_i32(value);
         },
 
         Err(StackError::Empty) =>
         {
-            print("stack is empty");
+            print_string("stack is empty");
         }
     }
 
@@ -3157,12 +3162,12 @@ fn main() : i32
     {
         Ok(value) =>
         {
-            print(value);
+            print_i32(value);
         },
 
         Err(StackError::Empty) =>
         {
-            print("stack is empty");
+            print_string("stack is empty");
         }
     }
 
