@@ -3064,6 +3064,25 @@ fn Vector<T>::pop(Vector<T>* vector) : Result<T, VectorError>
 }
 </pre></code>
 
+<pre><code>
+module io;
+
+export
+{
+    print;
+}
+
+fn print(i32 value)
+{
+    // implementation-defined
+}
+
+fn print(String value)
+{
+    // implementation-defined
+}
+</pre></code>
+
 <pre><code>module stack_example;
 
 import vector;
