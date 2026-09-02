@@ -3232,6 +3232,8 @@ struct Stack&lt;T&gt;
     Vector&lt;T&gt; values;
 }
 
+// new isn't special at all. It's just an associated function
+// that happens to take no arguments and returns a new Stack
 fn Stack&lt;T&gt;::new() : Stack&lt;T&gt;
 {
     return Stack&lt;T&gt;
