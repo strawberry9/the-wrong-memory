@@ -2966,7 +2966,14 @@ fn Stack&lt;T&gt;::is_empty(Stack&lt;T&gt;* stack) : bool
 
 fn main() : i32
 {
-    mut Stack&lt;i32&gt; stack = Stack&lt;i32&gt;::new();
+    <span style="color: #888;">// The mut means that the local binding `stack` is permitted to be mutably borrowed.</span>
+    <span style="color: #888;">// That is required by these subsequent calls:</span>
+    <span style="color: #888;">// stack::push(&mut stack, 10);</span>
+    <span style="color: #888;">// stack::pop(&mut stack);</span>
+    <span style="color: #888;">// Without mut, the binding is not mutable, so attempting `&mut stack`</span>
+    <span style="color: #888;">// would violate the language's mutability/borrowing rules.</span>
+    <span style="color: #888;">// The important point is that mut belongs to the binding, not the Stack type.</span>
+    mut Stack&lt;i32&gt; stack = Stack&lt;i32&gt;::new();</span>
 
     stack::push(&amp;mut stack, 10);
     
