@@ -683,29 +683,53 @@ f64</code></pre>
 
 
     <section id="section-22">
-      <h2>22. Enums</h2>
+  <h2>22. Enums</h2>
 
-      <p>
-        An enum defines a finite set of variants:
-      </p>
+  <p>
+    An enum defines a finite set of named variants:
+  </p>
 
-      <pre><code>enum Status
+  <pre><code>enum Status
 {
     Ready,
     Running,
     Failed
 }</code></pre>
 
-      <p>
-        Variants MAY contain associated values:
-      </p>
+  <p>
+    Variants MAY contain associated values:
+  </p>
 
-      <pre><code>enum Result&lt;T,E&gt;
+  <pre><code>enum Result&lt;T,E&gt;
 {
     Ok(T),
     Err(E)
 }</code></pre>
-    </section>
+
+  <p>
+    Enum variants are part of the enum's semantic interface. A variant
+    MAY be used to construct a value of the enum, and enum values MAY be
+    pattern-matched by their variants.
+  </p>
+
+  <p>
+    For example, <code>Ok(value)</code> constructs a <code>Result&lt;T,E&gt;</code>
+    containing a value of type <code>T</code>, while <code>Err(error)</code>
+    constructs a <code>Result&lt;T,E&gt;</code> containing a value of type
+    <code>E</code>. A variant constructor is not an ordinary function,
+    although it behaves similarly to a constructor operation for the
+    purposes of type checking and value construction.
+  </p>
+
+  <p>
+    When an enum type is exported, its variants are part of the externally
+    usable interface of that enum. Exporting an enum does not, however,
+    expose its physical representation. External code MUST NOT inspect or
+    manipulate the enum's discriminator, layout, storage, or other
+    representation details unless those details are explicitly exposed by
+    a language mechanism defined by this specification.
+  </p>
+</section>
 
 
     <section id="section-23">
