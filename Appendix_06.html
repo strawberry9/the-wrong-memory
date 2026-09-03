@@ -2878,11 +2878,18 @@ import std.result;
 // It is provided to illustrate how the language's ownership, borrowing,
 // unsafe, raw-storage, and deterministic-destruction semantics can be used
 // to implement a growable collection.
-//
+
 // This implementation is not normative and does not define the required
 // implementation of std.vector. Allocation primitives, destruction
 // mechanisms, and other implementation details may differ in a concrete
-// standard-library implementation.</span>
+// standard-library implementation.
+
+// The vector implementation takes responsibility for maintaining the invariants:
+// data points to allocation of capacity T slots
+// 0 <= len <= capacity
+// [0, len) contains live T values
+// [len, capacity) contains no live T values.
+</span>
 
 export
 {
@@ -3156,7 +3163,8 @@ import std.vector;
 
 enum StackError
 {
-    Empty
+    Empty,
+    AllocationFailed
 }
 
 struct Stack&lt;T&gt;
@@ -3164,8 +3172,9 @@ struct Stack&lt;T&gt;
     Vector&lt;T&gt; values;
 }
 
-<span style="color: #888;">// new isn't special at all. It's just an associated function
-// that happens to take no arguments and returns a new Stack&lt;T&gt;.</span>
+
+<span style="color: #888;">// `new` isn't special. It is an ordinary associated function
+// that takes no arguments and returns a new Stack&lt;T&gt;.</span>
 fn Stack&lt;T&gt;::new() : Stack&lt;T&gt;
 {
     return Stack&lt;T&gt;
@@ -3174,61 +3183,93 @@ fn Stack&lt;T&gt;::new() : Stack&lt;T&gt;
     };
 }
 
-fn Stack&lt;T&gt;::push(Stack&lt;T&gt;* stack, T value)
-{
-    <span style="color: #888;">// Create a mutable borrow to permit a mutating operation.</span>
-    <span style="color: #888;">// No ownership is transferred.</span>
-    Vector&lt;T&gt;::push(&amp;mut stack.values, value);
-}
 
-<span style="color: #888;">// Stack exposes StackError rather than leaking VectorError to its caller.</span>
-fn Stack&lt;T&gt;::pop(Stack&lt;T&gt;* stack) : Result&lt;T, StackError&gt;
+fn Stack&lt;T&gt;::push(Stack&lt;T&gt;* stack, T value) : Result&lt;void, StackError&gt;
 {
-    <span style="color: #888;">// Create a mutable borrow to permit a mutating operation.</span>
-    <span style="color: #888;">// No ownership is transferred.</span>
-    return match Vector&lt;T&gt;::pop(&amp;mut stack.values)
+    <span style="color: #888;">// Create a mutable borrow to permit the mutating operation.
+    // No ownership of the Stack is transferred.
+    //
+    // Vector&lt;T&gt;::push takes ownership of `value` if the push succeeds.
+    // If allocation fails, Vector leaves itself unchanged and reports
+    // the failure.</span>
+
+    return match Vector&lt;T&gt;::push(&amp;mut stack.values, value)
     {
-        Ok(value) => Ok(value),
-        <span style="color: #888;">// Translating one error type into another</span>
-        Err(VectorError::Empty) => Err(StackError::Empty)
+        Ok(()) =&gt; Ok(()),
+        Err(VectorError::AllocationFailed) =&gt; Err(StackError::AllocationFailed)
     };
 }
 
+
+fn Stack&lt;T&gt;::pop(Stack&lt;T&gt;* stack) : Result&lt;T, StackError&gt;
+{
+    <span style="color: #888;">// Create a mutable borrow to permit the mutating operation.
+    // No ownership of the Stack is transferred.
+    //
+    // Vector&lt;T&gt;::pop cannot allocate, so the only possible VectorError
+    // is Empty.</span>
+
+    return match Vector&lt;T&gt;::pop(&amp;mut stack.values)
+    {
+        Ok(value) =&gt; Ok(value),
+        Err(VectorError::Empty) =&gt; Err(StackError::Empty)
+    };
+}
+
+
 fn Stack&lt;T&gt;::is_empty(Stack&lt;T&gt;* stack) : bool
 {
-    <span style="color: #888;">// Create a shared borrow for a read-only operation.</span>
-    <span style="color: #888;">// No ownership is transferred and no mutation occurs.</span>
+    <span style="color: #888;">// Create a shared borrow for a read-only operation.
+    // No ownership is transferred and no mutation occurs.</span>
+
     return Vector&lt;T&gt;::len(&amp;stack.values) == 0;
 }
 
+
 fn main() : i32
 {
-    <span style="color: #888;">// The mut means that the local binding `stack` is permitted to be mutably borrowed.</span>
-    <span style="color: #888;">// That is required by these subsequent calls:</span>
-    <span style="color: #888;">// stack::push(&mut stack, 10);</span>
-    <span style="color: #888;">// stack::pop(&mut stack);</span>
-    <span style="color: #888;">// Without mut, the binding is not mutable, so attempting `&mut stack`</span>
-    <span style="color: #888;">// would violate the language's mutability/borrowing rules.</span>
-    <span style="color: #888;">// The important point is that mut belongs to the binding, not the Stack type.</span>
-    mut Stack&lt;i32&gt; stack = Stack&lt;i32&gt;::new();</span>
+    <span style="color: #888;">// The `mut` means that the local binding `stack` is permitted
+    // to be mutably borrowed.
+    //
+    // Without `mut`, attempting to create `&amp;mut stack` would violate
+    // the language's mutability and borrowing rules.
+    //
+    // `mut` belongs to the local binding, not to the Stack type.</span>
 
-    stack::push(&amp;mut stack, 10);
-    
-    match stack::pop(&amp;mut stack)
+    mut Stack&lt;i32&gt; stack = Stack&lt;i32&gt;::new();
+
+
+    match stack::push(&amp;mut stack, 10)
     {
-        Ok(value) => println("popped value: {}", value), <span style="color: #888;">// popped value: 10</span>
-        Err(StackError::Empty) => println("stack is empty")
+        Ok(()) =&gt; {},
+        Err(StackError::AllocationFailed) =&gt;
+            println("failed to allocate storage")
     }
 
+
     match stack::pop(&amp;mut stack)
     {
-        Ok(value) => println("popped value: {}", value),
-        Err(StackError::Empty) => println("stack is empty") <span style="color: #888;">// stack is empty</span>       
+        Ok(value) =&gt;
+            println("popped value: {}", value), <span style="color: #888;">// popped value: 10</span>
+
+        Err(StackError::Empty) =&gt;
+            println("stack is empty")
     }
+
+
+    match stack::pop(&amp;mut stack)
+    {
+        Ok(value) =&gt;
+            println("popped value: {}", value),
+
+        Err(StackError::Empty) =&gt;
+            println("stack is empty") <span style="color: #888;">// stack is empty</span>
+    }
+
 
     return 0;
-}
-</code></pre>
+}</code></pre>
+
 
 
 <h3>Semantics Visible in the Example</h3>
