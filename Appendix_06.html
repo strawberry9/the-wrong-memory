@@ -733,7 +733,7 @@ f64</code></pre>
 
 
     <section id="section-23">
-  <h2>23. Tuples</h2>
+  <h2><s>23. Tuples</s></h2>
 
   <p>
     Tuples are <strong>not a part of CobaltC</strong>.
@@ -1523,7 +1523,7 @@ print(*pointer);</code></pre><p>The compiler MUST reject a program when it can e
 
 
     <section id="section-58">
-      <h2>58. Option&lt;T&gt;</h2>
+      <h2><s>58. Option&lt;T&gt;</s></h2>
       <p>CobaltC does not use Option<T> because it introduces a Rust-style abstraction that is not necessary for CobaltC's C-like type system. Nullable pointers, enums, and ordinary values provide the required semantics without introducing a separate optional-value type.</p>
     </section>
 
@@ -1621,26 +1621,26 @@ print(*pointer);</code></pre><p>The compiler MUST reject a program when it can e
 
 
     <section id="section-64">
-      <h2>64. Box&lt;T&gt;</h2>
+      <h2><s>64. Box&lt;T&gt;</s></h2>
       <p>CobaltC intentionally keeps its pointer model small and C-like. Ownership, borrowing, lifetime, and thread-safety are properties enforced by the language rather than by a family of smart-pointer types.</p>
       <p>CobaltC does not use Box<T> because dynamically allocated objects are represented using ordinary C-style pointers, with ownership and lifetime tracked by the language rather than encoded in a separate pointer type.</p>
     </section>
 
 
     <section id="section-65">
-      <h2>65. Rc&lt;T&gt;</h2>
+      <h2><s>65. Rc&lt;T&gt;</s></h2>
       <p>CobaltC does not use Rc<T> because reference-counted shared ownership is not part of its core pointer model; CobaltC instead uses ordinary pointers with statically enforced ownership and borrowing rules.</p>
     </section>
 
 
     <section id="section-66">
-      <h2>66. Arc&lt;T&gt;</h2>
+      <h2><s>66. Arc&lt;T&gt;</s></h2>
       <p>CobaltC does not use Arc<T> because thread-safe shared ownership through atomic reference counting is not a primitive of the language; cross-thread pointer use is governed by CobaltC's ownership, borrowing, and concurrency rules instead.</p>
     </section>
 
 
     <section id="section-67">
-      <h2>67. Weak&lt;T&gt;</h2>
+      <h2><s>67. Weak&lt;T&gt;</s></h2>
       <p>CobaltC does not use Weak<T> because it is specifically tied to reference-counted ownership; without Rc<T> or Arc<T>, weak references are unnecessary as a distinct pointer type.</p>
     </section>
 
@@ -1665,7 +1665,7 @@ print(*pointer);</code></pre><p>The compiler MUST reject a program when it can e
 
 
     <section id="section-69">
-      <h2>69. Synchronization</h2>
+      <h2><s>69. Synchronization</s></h2>
       <p>Not applicable.</p> 
     </section>
 
@@ -1689,13 +1689,13 @@ print(*pointer);</code></pre><p>The compiler MUST reject a program when it can e
 
 
     <section id="section-71">
-      <h2>71. RwLock</h2>
+      <h2><s>71. RwLock</s></h2>
       <p>Not applicable.</p>
     </section>
 
 
     <section id="section-72">
-      <h2>72. Atomics</h2>
+      <h2><s>72. Atomics</s></h2>
 
       <p>
         Atomic operations are indivisible according to the specified atomic
@@ -1710,7 +1710,7 @@ print(*pointer);</code></pre><p>The compiler MUST reject a program when it can e
 
 
     <section id="section-73">
-      <h2>73. Channels</h2>
+      <h2><s>73. Channels</s></h2>
       <p>Not applicable.</p>
     </section>
 
@@ -1948,7 +1948,7 @@ close</code></pre>
 
 
     <section id="section-86">
-      <h2>86. Standard Concurrency Types</h2>
+      <h2><s>86. Standard Concurrency Types</s></h2>
       <p>Not applicable.</p>
       </section>
 
@@ -3452,8 +3452,9 @@ Vector growth:
   mechanism. Those are implementation details provided that the specified
   observable semantics are preserved.
 </li>
-
   </ul>
+
+<h3>Associated and Ordinary Functions</h3> <p> Associated functions and ordinary functions use the same underlying function semantics. The difference is that an associated function has a type-qualified name and participates in associated-function lookup. </p> <p> For example, <code>Stack&lt;T&gt;::push</code> is declared as an ordinary function associated with <code>Stack&lt;T&gt;</code>: </p> <pre><code>fn Stack&lt;T&gt;::push(Stack&lt;T&gt;* stack, T value) { Vector&lt;T&gt;::push(&amp;mut stack.values, value); }</code></pre> <p> The associated function may be referenced using its qualified type name: </p> <pre><code>Stack&lt;i32&gt;::push(&amp;mut stack, 10);</code></pre> <p> It may also be referenced through a value whose statically known type is <code>Stack&lt;i32&gt;</code>: </p> <pre><code>stack::push(&amp;mut stack, 10);</code></pre> <p> In both cases, qualification selects the associated function, while the function's declared parameter list determines the arguments that must be supplied. </p> <p> Neither associated-function form introduces an implicit <code>this</code>, <code>self</code>, or equivalent receiver parameter. The value-qualified form uses <code>stack</code> to determine the associated type, but does not implicitly pass <code>stack</code> to the function. </p>
 
   <h3>Conformance Status of the Example</h3>
 
@@ -3477,12 +3478,8 @@ Vector growth:
     regressions.
   </p>
 </section>
-
-<h3>Associated and Ordinary Functions</h3> <p> Associated functions and ordinary functions use the same underlying function semantics. The difference is that an associated function has a type-qualified name and participates in associated-function lookup. </p> <p> For example, <code>Stack&lt;T&gt;::push</code> is declared as an ordinary function associated with <code>Stack&lt;T&gt;</code>: </p> <pre><code>fn Stack&lt;T&gt;::push(Stack&lt;T&gt;* stack, T value) { Vector&lt;T&gt;::push(&amp;mut stack.values, value); }</code></pre> <p> The associated function may be referenced using its qualified type name: </p> <pre><code>Stack&lt;i32&gt;::push(&amp;mut stack, 10);</code></pre> <p> It may also be referenced through a value whose statically known type is <code>Stack&lt;i32&gt;</code>: </p> <pre><code>stack::push(&amp;mut stack, 10);</code></pre> <p> In both cases, qualification selects the associated function, while the function's declared parameter list determines the arguments that must be supplied. </p> <p> Neither associated-function form introduces an implicit <code>this</code>, <code>self</code>, or equivalent receiver parameter. The value-qualified form uses <code>stack</code> to determine the associated type, but does not implicitly pass <code>stack</code> to the function. </p>
-
-</section>
   
-<br><br><br>
+<br><br>
 <hr>
     <div class="container">
         <header>
