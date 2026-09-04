@@ -1862,8 +1862,9 @@ values[0..8]       // bounds violation
 <h3>63.5 Slice Length</h3>
 
 <p>
-  The <code>Slice&lt;T&gt;::length</code> associated function returns the number of
-  elements accessible through a slice.
+  The <code>length</code> associated function returns the number of elements
+  accessible through a slice. It may be referenced using either the slice
+  type or a value of that type.
 </p>
 
 <pre>
@@ -3124,7 +3125,7 @@ hash_remove(table, key);</code></pre>
 
 <p>but MUST NOT directly access the internal representation of <code>HashTable</code>.</p>
 
-<p>When a struct type is exported by a module, all it's associated functions of that type are implicitly exported and need not be listed separately in the module's export block.</p>
+<p>When a struct type is exported by a module, all its associated functions of that type are implicitly exported and need not be listed separately in the module's export block.</p>
 
 <h3>98.12.4 API Stability</h3>
 <p>The <code>export</code> block defines the source-level API boundary of a module.</p>
@@ -3360,14 +3361,14 @@ print(*reference);</code></pre>
   <p>
     This example demonstrates a generic <code>Stack&lt;T&gt;</code> abstraction
     backed by <code>Vector&lt;T&gt;</code>. It exercises associated functions,
-    generic types, explicit borrowing, ownership transfer, <code>Result&lt;T, E&gt;</code>
-    error handling, the <code>?</code> error-propagation operator, and exhaustive
-    pattern matching.
+    generic types, explicit borrowing, ownership transfer,
+    <code>Result&lt;T, E&gt;</code> error handling, the <code>?</code>
+    error-propagation operator, and exhaustive pattern matching.
   </p>
 
   <p>
     The executable portion of the example uses only language constructs and
-    semantic forms established by CobaltC 1.0.0.</code>.
+    semantic forms established by CobaltC 1.0.0.
   </p>
 
   <p>
@@ -3390,8 +3391,8 @@ export
     Result;
 }
 
-// Result represents either successful completion carrying a value
-// of type T or failure carrying an error of type E.
+<span style="color: #888;">// Result represents either successful completion carrying a value
+// of type T or failure carrying an error of type E.</span>
 enum Result&lt;T, E&gt;
 {
     Ok(T),
@@ -3416,10 +3417,10 @@ export
     print;
     println;
 }
-
+<span style="color: #888;">
 // The concrete implementation of standard I/O is supplied by the
 // standard library/runtime implementation. The declarations above
-// describe the names used by this example.
+// describe the names used by this example.</span>
   </pre>
 
   <h3>3. Vector Interface and Implementation Boundary</h3>
@@ -3462,54 +3463,65 @@ enum VectorPopError
 }
 
 struct Vector&lt;T&gt;
-{
+{<span style="color: #888;">
     // The representation of Vector is intentionally implementation-defined.
     //
     // A conforming standard-library implementation MUST ensure that:
     //
     //     0 &lt;= len &lt;= capacity
     //
-    // and that exactly the elements in the logical range [0, len)
-    // are owned by the Vector.
+    // and that the Vector owns exactly the live elements represented
+    // by its logical length.
     //
-    // The physical representation is not part of this example's
-    // source-level conformance test.
+    // The physical representation is not part of this example.</span>
 }
   </pre>
 
   <p>
-    The following declarations describe the interface assumed by the example.
-    Their concrete implementation belongs to the standard library/runtime.
+    The following declarations describe the standard-library interface assumed
+    by the example. Their concrete implementations are supplied by the
+    standard library and runtime and are not defined by this example.
+  </p>
+
+  <pre><span style="color: #888;">
+// Standard-library associated functions:
+//
+//     Vector&lt;T&gt;::new()
+//     Vector&lt;T&gt;::len(...)
+//     Vector&lt;T&gt;::push(...)
+//     Vector&lt;T&gt;::pop(...)
+//
+// These declarations are descriptive rather than function implementations.</span>
+  </pre>
+
+  <p>
+    The interface used by the example has the following signatures:
   </p>
 
   <pre>
-fn Vector&lt;T&gt;::new() : Vector&lt;T&gt;
-{
-    // Implementation supplied by std.vector.
-}
+Vector&lt;T&gt;::new() : Vector&lt;T&gt;
 
-fn Vector&lt;T&gt;::len(Vector&lt;T&gt;* vector) : usize
-{
-    // Implementation supplied by std.vector.
-}
+Vector&lt;T&gt;::len(Vector&lt;T&gt;* vector) : usize
 
-fn Vector&lt;T&gt;::push(Vector&lt;T&gt;* vector, T value)
+Vector&lt;T&gt;::push(Vector&lt;T&gt;* vector, T value)
     : Result&lt;bool, VectorPushError&gt;
-{
-    // Implementation supplied by std.vector.
-    //
-    // On success, the value is transferred into the Vector and
-    // the function returns Ok(true).
-    //
-    // On failure, the Vector remains unchanged and an appropriate
-    // VectorPushError is returned.
-}
 
-fn Vector&lt;T&gt;::pop(Vector&lt;T&gt;* vector) : Result&lt;T, VectorPopError&gt;
-{
-    // Implementation supplied by std.vector.
-}
+Vector&lt;T&gt;::pop(Vector&lt;T&gt;* vector)
+    : Result&lt;T, VectorPopError&gt;
   </pre>
+
+  <p>
+    <code>Vector&lt;T&gt;::push</code> transfers ownership of <code>value</code>
+    into the Vector when the operation succeeds. On success it returns
+    <code>Ok(true)</code>. On failure, the Vector remains unchanged and the
+    returned <code>VectorPushError</code> identifies the failure.
+  </p>
+
+  <p>
+    <code>Vector&lt;T&gt;::pop</code> transfers ownership of the final element
+    back to the caller. If the Vector is empty, it returns
+    <code>Err(VectorPopError::Empty)</code>.
+  </p>
 
   <p>
     The <code>bool</code> success payload used by <code>push</code> is
@@ -3522,7 +3534,7 @@ fn Vector&lt;T&gt;::pop(Vector&lt;T&gt;* vector) : Result&lt;T, VectorPopError&g
 
   <h3>4. Stack Example</h3>
 
-  <pre>
+<pre>
 module stack_example;
 
 import std.result;
@@ -3541,8 +3553,8 @@ struct Stack&lt;T&gt;
     Vector&lt;T&gt; values;
 }
 
-// `new` is an ordinary associated function. It has no implicit
-// receiver and takes no arguments.
+<span style="color: #888;">// `new` is an ordinary associated function. It has no implicit
+// receiver and takes no arguments.</span>
 fn Stack&lt;T&gt;::new() : Stack&lt;T&gt;
 {
     return Stack&lt;T&gt;
@@ -3551,8 +3563,8 @@ fn Stack&lt;T&gt;::new() : Stack&lt;T&gt;
     };
 }
 
-// `push` takes an explicit mutable pointer to the Stack.
-// The value is transferred to the Vector on successful insertion.
+<span style="color: #888;">// `push` takes an explicit mutable pointer to the Stack.
+// The value is transferred to the Vector on successful insertion.</span>
 fn Stack&lt;T&gt;::push(Stack&lt;T&gt;* stack, T value)
     : Result&lt;bool, StackError&gt;
 {
@@ -3568,8 +3580,8 @@ fn Stack&lt;T&gt;::push(Stack&lt;T&gt;* stack, T value)
     };
 }
 
-// `pop` takes an explicit mutable pointer to the Stack and transfers
-// ownership of the removed value to the caller.
+<span style="color: #888;">// `pop` takes an explicit mutable pointer to the Stack and transfers
+// ownership of the removed value to the caller.</span>
 fn Stack&lt;T&gt;::pop(Stack&lt;T&gt;* stack)
     : Result&lt;T, StackError&gt;
 {
@@ -3582,8 +3594,8 @@ fn Stack&lt;T&gt;::pop(Stack&lt;T&gt;* stack)
     };
 }
 
-// `is_empty` requires only shared access because it does not mutate
-// the Stack or its Vector.
+<span style="color: #888;">// `is_empty` requires only shared access because it does not mutate
+// the Stack or its Vector.</span>
 fn Stack&lt;T&gt;::is_empty(Stack&lt;T&gt;* stack) : bool
 {
     return Vector&lt;T&gt;::len(&amp;stack.values) == 0;
@@ -3592,19 +3604,19 @@ fn Stack&lt;T&gt;::is_empty(Stack&lt;T&gt;* stack) : bool
 fn run_stack(Stack&lt;i32&gt;* stack)
     : Result&lt;bool, StackError&gt;
 {
-    // The successful Result carries a bool rather than a unit value.
+    <span style="color: #888;">// The successful Result carries a bool rather than a unit value.</span>
     bool pushed = Stack&lt;i32&gt;::push(stack, 10)?;
 
-    // `pushed` is initialized before it is read or destroyed.
+    <span style="color: #888;">// `pushed` is initialized before it is read.</span>
     if pushed
     {
         i32 value = Stack&lt;i32&gt;::pop(stack)?;
         println("popped value: {}", value);
     }
 
-    // This operation fails because the Stack is now empty.
+    <span style="color: #888;">// This operation fails because the Stack is now empty.
     //
-    // `?` propagates StackError::Empty to the caller.
+    // `?` propagates StackError::Empty to the caller.</span>
     Stack&lt;i32&gt;::pop(stack)?;
 
     return Ok(true);
@@ -3612,8 +3624,8 @@ fn run_stack(Stack&lt;i32&gt;* stack)
 
 fn main() : i32
 {
-    // `mut` applies to the local binding. It permits the binding to
-    // be mutably borrowed; it does not change the Stack type itself.
+    <span style="color: #888;">// `mut` applies to the local binding. It permits the binding to
+    // be mutably borrowed; it does not change the Stack type itself.</span>
     mut Stack&lt;i32&gt; stack = Stack&lt;i32&gt;::new();
 
     match run_stack(&amp;mut stack)
@@ -3638,10 +3650,11 @@ fn main() : i32
 
     return 0;
 }
-  </pre>
+</pre>
+
 
   <p>
-    With the standard library implementation providing the declared
+    With the standard-library implementation providing the declared
     <code>Vector&lt;T&gt;</code> operations, the example has the following
     intended observable output:
   </p>
@@ -3681,9 +3694,9 @@ stack is empty
 //
 //     0 &lt;= len &lt;= capacity
 //
-// The logical range [0, len) contains exactly the values owned by
-// the Vector. Storage outside that range contains no Vector-owned
-// live T values.
+// The Vector owns exactly `len` live T values. Their logical indices
+// are 0 through len - 1. Storage outside that logical range contains
+// no Vector-owned live T values.
 //
 // A concrete implementation may use an internal allocation mechanism
 // supplied by the runtime rather than the illustrative operations below.
@@ -3697,7 +3710,7 @@ Vector&lt;T&gt;::push(vector, value):
     transfer ownership of `value` to the Vector
     increment vector.len
 
-    return success
+    return Ok(true)
 
 Vector&lt;T&gt;::pop(vector):
 
@@ -3706,11 +3719,11 @@ Vector&lt;T&gt;::pop(vector):
 
     decrement vector.len
     move the value from the newly final logical position
-    return the moved value
+    return Ok(the moved value)
 
 Vector destruction:
 
-    destroy every live T value in [0, vector.len)
+    destroy every live T value owned by the Vector
     release the underlying allocation
 
 Vector growth:
@@ -3723,7 +3736,7 @@ Vector growth:
 
     The implementation MUST preserve the Vector invariant
     throughout the operation and MUST NOT invalidate a managed
-    pointer that the language's borrowing rules require to remain valid.
+    pointer in a manner prohibited by the language's borrowing rules.
   </pre>
 
   <p>
@@ -3761,6 +3774,7 @@ Vector growth:
       declarations from other modules using the standard CobaltC import syntax.
     </li>
 
+
 <li>
   <strong>Export Visibility:</strong>
   The supporting modules use explicit <code>export</code> blocks.
@@ -3777,9 +3791,10 @@ Vector growth:
 <li>
   <strong>Opaque Exported Representation:</strong>
   An exported <code>Vector&lt;T&gt;</code> hides its representation from
-  importing modules. External code uses its exported operations rather than
-  directly manipulating its internal storage.
+  importing modules. External code uses its exported operations rather
+  than directly manipulating its internal storage.
 </li>
+
 
   </ul>
 
@@ -3792,6 +3807,7 @@ Vector growth:
       <code>Stack&lt;T&gt;::push</code>, and <code>Stack&lt;T&gt;::pop</code>
       use type-qualified associated-function syntax.
     </li>
+
 
 <li>
   <strong>No Implicit Receiver:</strong>
@@ -3814,6 +3830,8 @@ Vector growth:
   takes no arguments and returns a newly constructed
   <code>Stack&lt;T&gt;</code>.
 </li>
+
+
   </ul>
 
   <h3>Ownership, Borrowing, and Lifetimes</h3>
@@ -3825,6 +3843,7 @@ Vector growth:
       and the Stack owns its <code>Vector&lt;i32&gt;</code>. The Vector is
       responsible for the values it contains.
     </li>
+
 
 <li>
   <strong>Mutable Borrowing:</strong>
@@ -3868,6 +3887,7 @@ Vector growth:
   storage on which that pointer depends has ceased to be valid.
 </li>
 
+
   </ul>
 
   <h3>Error Handling and Propagation</h3>
@@ -3878,6 +3898,7 @@ Vector growth:
       Fallible operations use <code>Result&lt;T, E&gt;</code> with the defined
       <code>Ok(T)</code> and <code>Err(E)</code> variants.
     </li>
+
 
 <li>
   <strong>No Unit-Valued Result:</strong>
@@ -3908,6 +3929,7 @@ Vector growth:
   variant of the corresponding enum.
 </li>
 
+
   </ul>
 
   <h3>Collections and Memory Safety</h3>
@@ -3918,6 +3940,7 @@ Vector growth:
       <code>Vector&lt;T&gt;</code> owns its dynamically allocated contiguous
       storage and the live values contained within its logical range.
     </li>
+
 
 <li>
   <strong>Length and Capacity:</strong>
@@ -3947,45 +3970,91 @@ Vector growth:
   mechanism. Those are implementation details provided that the specified
   observable semantics are preserved.
 </li>
+
+
   </ul>
 
-<h3>Associated and Ordinary Functions</h3> <p> Associated functions and ordinary functions use the same underlying function semantics. The difference is that an associated function has a type-qualified name and participates in associated-function lookup. </p> <p> For example, <code>Stack&lt;T&gt;::push</code> is declared as an ordinary function associated with <code>Stack&lt;T&gt;</code>: </p> <pre><code>fn Stack&lt;T&gt;::push(Stack&lt;T&gt;* stack, T value) { Vector&lt;T&gt;::push(&amp;mut stack.values, value); }</code></pre> <p> The associated function may be referenced using its qualified type name: </p> <pre><code>Stack&lt;i32&gt;::push(&amp;mut stack, 10);</code></pre> <p> It may also be referenced through a value whose statically known type is <code>Stack&lt;i32&gt;</code>: </p> <pre><code>stack::push(&amp;mut stack, 10);</code></pre> <p> In both cases, qualification selects the associated function, while the function's declared parameter list determines the arguments that must be supplied. </p> <p> Neither associated-function form introduces an implicit <code>this</code>, <code>self</code>, or equivalent receiver parameter. The value-qualified form uses <code>stack</code> to determine the associated type, but does not implicitly pass <code>stack</code> to the function. </p>
+  <h3>Associated and Ordinary Functions</h3>
 
-<h3>Conformance Status of the Example</h3>
+  <p>
+    Associated functions and ordinary functions use the same underlying
+    function semantics. The difference is that an associated function has a
+    type-qualified name and participates in associated-function lookup.
+  </p>
 
-<p>
-  The <code>stack_example</code> portion is intended as a positive
-  source-level example of the specified language constructs. The
-  <code>std.vector</code> implementation sketch is intentionally
-  non-normative because the current CobaltC 1.0.0 specification does not
-  define source-level raw allocation, raw-storage initialization, or explicit
-  destruction primitives.
-</p>
+  <p>
+    For example, <code>Stack&lt;T&gt;::push</code> is declared as an ordinary
+    function associated with <code>Stack&lt;T&gt;</code>:
+  </p>
 
-<p>
-  The formatting syntax used by <code>println</code> is a standard-library
-  facility rather than part of the core CobaltC grammar. A <code>{}</code>
-  sequence in a <code>println</code> format string is a format placeholder
-  and consumes the next formatting argument from left to right. The number
-  of <code>{}</code> placeholders must exactly equal the number of formatting
-  arguments; a mismatch is a compile-time error. For example,
-  <code>println("x = {}, y = {}", x, y)</code> is valid, while supplying
-  either too many or too few formatting arguments is invalid. A format string
-  containing no placeholders may be used without formatting arguments.
-</p>
+  <pre><code>fn Stack&lt;T&gt;::push(Stack&lt;T&gt;* stack, T value)
+{
+    Vector&lt;T&gt;::push(&amp;mut stack.values, value);
+}</code></pre>
 
-<p>
-  Accordingly, this section demonstrates conformance to selected language
-  rules; it does not constitute a complete conformance suite. A complete
-  conformance suite must separately test lexical and syntactic behavior,
-  name resolution, typing, initialization, ownership, moves, copying,
-  borrowing, lifetimes, destruction, nullability, bounds, patterns,
-  generics, <code>Result</code>, collections, strings, concurrency, unsafe
-  boundaries, runtime behavior, FFI, ABI requirements, diagnostics, and
-  regressions.
-</p>
+  <p>
+    The associated function may be referenced using its qualified type name:
+  </p>
+
+  <pre><code>Stack&lt;i32&gt;::push(&amp;mut stack, 10);</code></pre>
+
+  <p>
+    It may also be referenced through a value whose statically known type is
+    <code>Stack&lt;i32&gt;</code>:
+  </p>
+
+  <pre><code>stack::push(&amp;mut stack, 10);</code></pre>
+
+  <p>
+    In both cases, qualification selects the associated function, while the
+    function's declared parameter list determines the arguments that must be
+    supplied.
+  </p>
+
+  <p>
+    Neither associated-function form introduces an implicit <code>this</code>,
+    <code>self</code>, or equivalent receiver parameter. The value-qualified
+    form uses <code>stack</code> to determine the associated type, but does not
+    implicitly pass <code>stack</code> to the function.
+  </p>
+
+  <h3>Conformance Status of the Example</h3>
+
+  <p>
+    The <code>stack_example</code> portion is intended as a positive
+    source-level example of the specified language constructs. The
+    <code>std.vector</code> implementation sketch is intentionally
+    non-normative because the current CobaltC 1.0.0 specification does not
+    define source-level raw allocation, raw-storage initialization, or explicit
+    destruction primitives.
+  </p>
+
+  <p>
+    The formatting syntax used by <code>println</code> is a standard-library
+    facility rather than part of the core CobaltC grammar. A <code>{}</code>
+    sequence in a <code>println</code> format string is a format placeholder
+    and consumes the next formatting argument from left to right. The number
+    of <code>{}</code> placeholders must exactly equal the number of formatting
+    arguments; a mismatch is a compile-time error. For example,
+    <code>println("x = {}, y = {}", x, y)</code> is valid, while supplying
+    either too many or too few formatting arguments is invalid. A format
+    string containing no placeholders may be used without formatting
+    arguments.
+  </p>
+
+  <p>
+    Accordingly, this section demonstrates conformance to selected language
+    rules; it does not constitute a complete conformance suite. A complete
+    conformance suite must separately test lexical and syntactic behavior,
+    name resolution, typing, initialization, ownership, moves, copying,
+    borrowing, lifetimes, destruction, nullability, bounds, patterns,
+    generics, <code>Result</code>, collections, strings, concurrency, unsafe
+    boundaries, runtime behavior, FFI, ABI requirements, diagnostics, and
+    regressions.
+  </p>
 
 </section>
+
   
 <br><br>
 <hr>
