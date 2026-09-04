@@ -314,6 +314,7 @@ break
 const
 continue
 defer
+drop
 else
 enum
 export
@@ -334,6 +335,13 @@ struct
 true
 unsafe
 while</code></pre>
+
+<p>
+  <code>drop</code> is a reserved keyword. It identifies the
+  compiler-recognized operation used by destruction implementations to
+  consume an ownership responsibility and destroy the owned value according
+  to its destruction semantics.
+</p>
 
       <p>
         <code>let</code> is not a CobaltC 1.0 keyword, and MUST NOT become one.
@@ -511,6 +519,13 @@ f64</code></pre>
         <code>isize</code> and <code>usize</code> are pointer-sized integer
         types.
       </p>
+
+<p>
+  The implementation provides the predefined integer-limit constants,
+  whose value is the greatest value representable.
+</p>
+<p>Example: <code>usize_max</code></p>
+
     </section>
 
 
@@ -808,6 +823,11 @@ Vector destruction
   program code.
 </p>
 
+<p>
+  The compiler MAY invoke an unexported <code>destroy</code> operation as
+  required by the destruction rules. Such compiler invocation does not
+  make the operation externally accessible.
+</p>
 
 
     <section id="section-22">
@@ -1550,21 +1570,31 @@ print(*pointer);</code></pre><p>The compiler MUST reject a program when it can e
 
    
 
-    <section id="section-52">
-      <h2>52. Destruction</h2>
+   <section id="section-52">
+  <h2>52. Destruction</h2>
 
-      <p>
-        Owned values are destroyed deterministically.
-      </p>
+  <p>
+    Owned values are destroyed deterministically according to Section 21.
+    An ownership responsibility is destroyed exactly once.
+    Moved-from ownership does not cause a second destruction.
+  </p>
 
-      <p>
-        An ownership responsibility is destroyed exactly once.
-      </p>
+  <p>
+     The language provides the compiler-recognized <code>drop</code> operation
+    for explicitly destroying an owned value. When applied to an owned value,
+    <code>drop</code> destroys that value according to its destruction
+    semantics and consumes the ownership responsibility for that value.
+    If the value's type defines a <code>destroy</code> operation, that
+    operation is invoked. Otherwise, the compiler recursively destroys the
+    value's owned fields.
+  </p>
 
-      <p>
-        Moved-from ownership does not cause a second destruction.
-      </p>
-    </section>
+  <p>
+    The <code>drop</code> operation is available only to compiler-recognized
+    destruction implementations and MUST NOT be invoked explicitly by
+    ordinary program code.
+  </p>
+</section>
 
 
     <section id="section-53">
@@ -3580,8 +3610,9 @@ export
     a second destruction of values whose ownership has already been moved.
   </p>
   <p>
-    The following module is assuming the low-level allocator API is spelled
-    allocate<T>(n) / deallocate<T>(ptr, n) and returns Result.
+    The following module assumes a low-level allocator API with the forms
+    allocate<T>(n) and deallocate<T>(ptr, n), where allocation returns Result.
+    AllocationError is part of the assumed allocator interface, not CobaltC core.
   </p>
 
 <pre>
@@ -3636,9 +3667,9 @@ struct Vector&lt;T&gt;
     //
     // Access to data is performed only within unsafe code.</span>
 
-    data: raw T*;
-    len: usize;
-    capacity: usize;
+    data = raw T*;
+    len = usize;
+    capacity = usize;
 }
 
 <span style="color: #888;">// Grows the Vector so that it can hold at least required elements.
@@ -3718,9 +3749,9 @@ fn Vector&lt;T&gt;::new() : Vector&lt;T&gt;
 {
     return Vector&lt;T&gt;
     {
-        data: null,
-        len: 0,
-        capacity: 0
+        data = null,
+        len = 0,
+        capacity = 0
     };
 }
 
@@ -3754,7 +3785,7 @@ fn Vector&lt;T&gt;::push(Vector&lt;T&gt;* vector, T value) : Result&lt;usize, Ve
 {
     if (vector-&gt;len == vector-&gt;capacity)
     {
-        if (vector-&gt;len == usize.MAX)
+        if (vector-&gt;len == usize_max)
         {
             return Err(VectorPushError::CapacityOverflow);
         }
@@ -3844,7 +3875,7 @@ fn Vector&lt;T&gt;::clear(Vector&lt;T&gt;* vector)
 fn Vector&lt;T&gt;::reserve(Vector&lt;T&gt;* vector, usize additional)
     : Result&lt;usize, VectorPushError&gt;
 {
-    if (additional &gt; usize.MAX - vector-&gt;len)
+    if (additional &gt; usize_max - vector-&gt;len)
     {
         return Err(VectorPushError::CapacityOverflow);
     }
@@ -4011,7 +4042,7 @@ fn Vector&lt;T&gt;::shrink_to_fit(Vector&lt;T&gt;* vector) : Result&lt;usize, Ve
         return Ok(0);
     }
 
-    if (vector-&gt;len &gt; usize.MAX / sizeof(T))
+    if (vector-&gt;len &gt; usize_max / sizeof(T))
     {
         return Err(VectorPushError::CapacityOverflow);
     }
@@ -4045,15 +4076,12 @@ fn Vector&lt;T&gt;::shrink_to_fit(Vector&lt;T&gt;* vector) : Result&lt;usize, Ve
 
 <span style="color: #888;">// Destroys the Vector and all elements it owns.
 //
-// Vector owns resources that the compiler cannot release through ordinary field destruction.
-// The compiler invokes this types destroy operation when a Vector<T> owning lifetime ends.
+// Vector owns resources that the compiler cannot release through ordinary
+// field destruction. The compiler invokes this type's destroy operation
+// when a Vector owning lifetime ends.
 //
-// Every live element is destroyed exactly once.
-//
-// The backing allocation is then released.
-//
-// The compiler/runtime invokes this operation when the Vector's
-// owning lifetime ends.</span>
+// Each live element is destroyed exactly once.
+// The backing allocation is then released.</span>
 fn Vector&lt;T&gt;::destroy(Vector&lt;T&gt;* vector)
 {
     usize i = 0;
@@ -4062,7 +4090,7 @@ fn Vector&lt;T&gt;::destroy(Vector&lt;T&gt;* vector)
     {
         unsafe
         {
-            T::destroy(&amp;vector-&gt;data[i]);
+            drop(&amp;vector-&gt;data[i]);
         }
 
         i = i + 1;
@@ -4080,6 +4108,7 @@ fn Vector&lt;T&gt;::destroy(Vector&lt;T&gt;* vector)
     vector-&gt;len = 0;
     vector-&gt;capacity = 0;
 }
+
 </pre>
 
 
