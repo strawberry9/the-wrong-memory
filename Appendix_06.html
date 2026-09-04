@@ -1602,22 +1602,514 @@ print(*pointer);</code></pre><p>The compiler MUST reject a program when it can e
     </section>
 
 
-    <section id="section-63">
-      <h2>63. Slices</h2>
+<section id="section-63">
+  <h2>63. Slices</h2>
 
-      <p>
-        A slice provides borrowed access to contiguous storage.
-      </p>
+  <p>
+    A slice provides borrowed access to a contiguous range of elements in
+    another value. A slice does not own the elements or the storage to which
+    it refers.
+  </p>
 
-      <p>
-        A slice does not own the underlying storage.
-      </p>
+  <p>
+    A slice is therefore a non-owning view. Creating a slice does not copy the
+    elements in the selected range, and destroying a slice does not destroy
+    those elements.
+  </p>
 
-      <p>
-        A mutable slice provides exclusive mutable access subject to ordinary
-        borrow checking.
-      </p>
-    </section>
+  <p>
+    Slices are immutable by default. A slice binding may be declared
+    <code>mut</code> when mutable access to the elements in the slice is
+    required. A mutable slice remains non-owning.
+  </p>
+
+  <h3>63.1 Slice Syntax</h3>
+
+  <p>
+    A slice is created using range syntax applied to a contiguous sequence.
+    For a range of the form <code>start..end</code>, both the starting and
+    ending indices are included.
+  </p>
+
+  <pre>
+values[1..4]
+  </pre>
+
+  <p>
+    The expression above creates a slice containing the elements at indices
+    <code>1</code>, <code>2</code>, <code>3</code>, and <code>4</code>.
+  </p>
+
+  <p>
+    A range may omit its ending index using <code>...</code>. An omitted
+    ending index means the final element of the sequence.
+  </p>
+
+  <pre>
+values[1...]
+  </pre>
+
+  <p>
+    The expression above creates a slice beginning at index <code>1</code>
+    and continuing through the final element of <code>values</code>.
+  </p>
+
+  <p>
+    The entire sequence may be sliced using <code>...</code> without a
+    starting or ending index.
+  </p>
+
+  <pre>
+values[...]
+  </pre>
+
+  <p>
+    The expression above creates a slice containing every element of
+    <code>values</code>.
+  </p>
+
+  <p>
+    The following forms are therefore defined:
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Expression</th>
+        <th>Meaning</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>values[1..4]</code></td>
+        <td>Elements at indices <code>1</code> through <code>4</code>, inclusive</td>
+      </tr>
+      <tr>
+        <td><code>values[1...]</code></td>
+        <td>Element <code>1</code> through the final element</td>
+      </tr>
+      <tr>
+        <td><code>values[...]</code></td>
+        <td>The entire sequence</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>
+    The <code>...</code> token in a slice range denotes the final element of
+    the underlying sequence. It does not represent an arbitrary variadic or
+    omitted expression in other contexts.
+  </p>
+
+  <h3>63.2 Slice Types</h3>
+
+  <p>
+    A slice type is written using <code>Slice[T]</code>, where <code>T</code>
+    is the element type.
+  </p>
+
+  <pre>
+Slice[i32] values;
+Slice[String] names;
+Slice[Point] points;
+  </pre>
+
+  <p>
+    A slice type does not imply ownership. The owner of the underlying storage
+    remains responsible for the elements and their destruction.
+  </p>
+
+  <p>
+    An ordinary slice binding is immutable by default:
+  </p>
+
+  <pre>
+Slice[i32] slice = values[1..4];
+  </pre>
+
+  <p>
+    The elements may be read through <code>slice</code>, but they may not be
+    modified through that binding.
+  </p>
+
+  <pre>
+i32 value = slice[0];     // valid
+
+slice[0] = 10;            // compile-time error
+  </pre>
+
+  <p>
+    A mutable slice is declared by applying <code>mut</code> to the local
+    binding:
+  </p>
+
+  <pre>
+mut Slice[i32] slice = values[1..4];
+
+slice[0] = 10;            // valid, subject to borrow checking
+  </pre>
+
+  <p>
+    The <code>mut</code> qualifier applies to the binding's access capability.
+    It does not give the slice ownership of the underlying elements or
+    storage.
+  </p>
+
+  <h3>63.3 Slice Creation and Borrowing</h3>
+
+  <p>
+    Creating a slice creates a borrow of the selected range. It does not
+    transfer ownership of the underlying value.
+  </p>
+
+  <p>
+    An immutable slice requires shared access to the selected range.
+  </p>
+
+  <pre>
+i32[] values = ...;
+
+Slice[i32] first_half = values[0..3];
+Slice[i32] second_half = values[4..7];
+  </pre>
+
+  <p>
+    In the example above, <code>first_half</code> refers to indices
+    <code>0</code> through <code>3</code>, while <code>second_half</code>
+    refers to indices <code>4</code> through <code>7</code>. The two ranges
+    do not overlap.
+  </p>
+
+  <p>
+    Multiple immutable slices may exist simultaneously when permitted by the
+    ordinary borrowing rules.
+  </p>
+
+  <p>
+    Creating a mutable slice requires exclusive mutable access to the selected
+    range.
+  </p>
+
+  <pre>
+mut Slice[i32] middle = values[2..6];
+  </pre>
+
+  <p>
+    While <code>middle</code> is an active mutable borrow, conflicting shared
+    or mutable borrows of the same elements are prohibited.
+  </p>
+
+  <p>
+    Two mutable slices may coexist when their ranges are disjoint and the
+    borrowing rules can establish that they do not overlap.
+  </p>
+
+  <h3>63.4 Slice Bounds</h3>
+
+  <p>
+    A slice range must identify a valid range within the underlying sequence.
+    For a sequence of length <code>n</code>, a non-empty range with an
+    explicit ending index must satisfy:
+  </p>
+
+  <pre>
+0 &lt;= start &lt;= end &lt; n
+  </pre>
+
+  <p>
+    Because both endpoints are included, <code>n - 1</code> is the greatest
+    valid index for a sequence of length <code>n</code>.
+  </p>
+
+  <p>
+    For example, if <code>values</code> contains eight elements, the following
+    is valid:
+  </p>
+
+  <pre>
+values[0..7]
+  </pre>
+
+  <p>
+    and contains all eight elements.
+  </p>
+
+  <p>
+    The following is invalid because index <code>8</code> does not identify an
+    element in an eight-element sequence:
+  </p>
+
+  <pre>
+values[0..8]       // bounds violation
+  </pre>
+
+  <p>
+    The exact handling of a bounds violation is determined by the language's
+    bounds-checking rules.
+  </p>
+
+  <p>
+    An open-ended range of the form <code>start...</code> is valid when
+    <code>start</code> identifies an element in the underlying sequence. It
+    includes that element and every subsequent element through the final
+    element.
+  </p>
+
+  <p>
+    The complete-range form <code>...</code> selects every element in the
+    underlying sequence.
+  </p>
+
+  <h3>63.5 Slice Length</h3>
+
+  <p>
+    The <code>length</code> property returns the number of elements accessible
+    through a slice.
+  </p>
+
+  <pre>
+Slice[i32] slice = values[2..5];
+
+usize count = slice.length;
+  </pre>
+
+  <p>
+    The slice above contains four elements, at indices <code>2</code>,
+    <code>3</code>, <code>4</code>, and <code>5</code>. Therefore
+    <code>slice.length</code> is <code>4</code>.
+  </p>
+
+  <p>
+    For a range <code>start..end</code>, the length of the resulting slice is:
+  </p>
+
+  <pre>
+end - start + 1
+  </pre>
+
+  <p>
+    For an open-ended range <code>start...</code>, the length is the number of
+    elements from <code>start</code> through the final element of the
+    underlying sequence.
+  </p>
+
+  <p>
+    The complete-range form <code>values[...]</code> has a length equal to the
+    length of <code>values</code>.
+  </p>
+
+  <h3>63.6 Slice Element Access</h3>
+
+  <p>
+    Elements of a slice are accessed using ordinary indexing.
+  </p>
+
+  <pre>
+Slice[i32] slice = values[2..5];
+
+i32 first = slice[0];
+i32 second = slice[1];
+  </pre>
+
+  <p>
+    The index is relative to the beginning of the slice rather than the
+    beginning of the underlying sequence. In the example above,
+    <code>slice[0]</code> refers to <code>values[2]</code>, and
+    <code>slice[1]</code> refers to <code>values[3]</code>.
+  </p>
+
+  <p>
+    For a slice of length <code>length</code>, a valid index satisfies:
+  </p>
+
+  <pre>
+0 &lt;= index &lt; length
+  </pre>
+
+  <p>
+    An index outside this range is a bounds violation.
+  </p>
+
+  <h3>63.7 Slice Lifetimes</h3>
+
+  <p>
+    The lifetime of a slice cannot exceed the lifetime of the storage to which
+    it refers. A slice cannot be returned from a function, stored in another
+    value, or otherwise retained in a manner that would allow it to outlive
+    the underlying storage.
+  </p>
+
+  <p>
+    A slice does not keep its underlying owner alive merely by existing.
+    Ownership remains with the original owning value.
+  </p>
+
+  <p>
+    Destroying or otherwise invalidating the underlying storage while a slice
+    referring to that storage is active is prohibited.
+  </p>
+
+  <h3>63.8 Slices and Ownership</h3>
+
+  <p>
+    Passing a slice to a function passes borrowed access rather than ownership
+    of the elements.
+  </p>
+
+  <pre>
+fn sum(Slice[i32] values) : i32
+{
+    i32 total = 0;
+    usize index = 0;
+
+    while index &lt; values.length
+    {
+        total = total + values[index];
+        index = index + 1;
+    }
+
+    return total;
+}
+  </pre>
+
+  <p>
+    A function receiving a slice does not become responsible for destroying
+    the elements in that slice.
+  </p>
+
+  <h3>63.9 Mutable Slices</h3>
+
+  <p>
+    A mutable slice provides exclusive mutable access to the elements in its
+    range.
+  </p>
+
+  <pre>
+fn set_first(mut Slice[i32] values, i32 value) : void
+{
+    values[0] = value;
+}
+  </pre>
+
+  <p>
+    Calling a function with a mutable slice requires the caller to provide the
+    exclusive mutable access required by the borrow checker.
+  </p>
+
+  <pre>
+mut Slice[i32] slice = values[1..4];
+
+set_first(slice, 42);
+  </pre>
+
+  <p>
+    A mutable slice does not transfer ownership of its elements. When the
+    mutable borrow ends, ownership remains with the original owner.
+  </p>
+
+  <h3>63.10 Slices and Reallocation</h3>
+
+  <p>
+    A slice refers to the current storage of its owner. If an operation
+    relocates that storage, a slice referring to the old storage would no
+    longer be valid.
+  </p>
+
+  <p>
+    Consequently, an operation that may reallocate or otherwise invalidate
+    the storage underlying an active slice is prohibited while that slice is
+    active.
+  </p>
+
+  <p>
+    For example, a slice into an array or Vector prevents a conflicting
+    operation that could relocate or otherwise invalidate its elements:
+  </p>
+
+  <pre>
+i32[] values = ...;
+
+Slice[i32] view = values[1...];
+
+// An operation that may invalidate `values` while `view` is active
+// is prohibited by the borrowing rules.
+  </pre>
+
+  <p>
+    This rule applies regardless of whether the slice is immutable or mutable.
+    A mutable slice additionally imposes the exclusive-access requirements
+    described above.
+  </p>
+
+  <h3>63.11 Slice Destruction</h3>
+
+  <p>
+    A slice is non-owning. Destroying a slice ends the borrow represented by
+    that slice but does not destroy the elements to which it refers.
+  </p>
+
+  <p>
+    The owner of the underlying storage remains responsible for destroying
+    those elements according to the ordinary ownership and destruction rules.
+  </p>
+
+  <h3>63.12 Slice and Range Semantics</h3>
+
+  <p>
+    Slice ranges use inclusive endpoints. A range of the form
+    <code>start..end</code> includes both <code>start</code> and
+    <code>end</code>.
+  </p>
+
+  <pre>
+values[1..4]
+  </pre>
+
+  <p>
+    therefore selects the elements at indices <code>1</code>,
+    <code>2</code>, <code>3</code>, and <code>4</code>.
+  </p>
+
+  <p>
+    The number of elements in such a range is:
+  </p>
+
+  <pre>
+end - start + 1
+  </pre>
+
+  <p>
+    The open-ended form:
+  </p>
+
+  <pre>
+values[1...]
+  </pre>
+
+  <p>
+    selects the element at index <code>1</code> and every subsequent element
+    through the final element of <code>values</code>.
+  </p>
+
+  <p>
+    The complete-range form:
+  </p>
+
+  <pre>
+values[...]
+  </pre>
+
+  <p>
+    selects every element in the sequence.
+  </p>
+
+  <p>
+    The <code>...</code> token in these forms specifically denotes the end of
+    the sequence. CobaltC does not use <code>$</code> as an end-of-sequence
+    marker.
+  </p>
+</section>
+
 
 
     <section id="section-64">
