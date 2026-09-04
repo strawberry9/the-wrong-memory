@@ -3831,7 +3831,7 @@ fn grow(Vector&lt;T&gt;* vector, usize required) : Result&lt;usize, VectorPushEr
     while (new_capacity &lt; required)
     {
         <span style="color: #888;">// Prevent capacity multiplication from wrapping.</span>
-        if (new_capacity &gt; usize::MAX / 2)
+        if (new_capacity &gt; usize_max / 2)
         {
             new_capacity = required;
             break;
@@ -3841,7 +3841,7 @@ fn grow(Vector&lt;T&gt;* vector, usize required) : Result&lt;usize, VectorPushEr
     }
 
     <span style="color: #888;">// Prevent the element count from overflowing the allocation size.</span>
-    if (new_capacity &gt; usize::MAX / sizeof(T))
+    if (new_capacity &gt; usize_max / sizeof(T))
     {
         return Err(VectorPushError::CapacityOverflow);
     }
