@@ -3456,27 +3456,40 @@ Vector growth:
 
 <h3>Associated and Ordinary Functions</h3> <p> Associated functions and ordinary functions use the same underlying function semantics. The difference is that an associated function has a type-qualified name and participates in associated-function lookup. </p> <p> For example, <code>Stack&lt;T&gt;::push</code> is declared as an ordinary function associated with <code>Stack&lt;T&gt;</code>: </p> <pre><code>fn Stack&lt;T&gt;::push(Stack&lt;T&gt;* stack, T value) { Vector&lt;T&gt;::push(&amp;mut stack.values, value); }</code></pre> <p> The associated function may be referenced using its qualified type name: </p> <pre><code>Stack&lt;i32&gt;::push(&amp;mut stack, 10);</code></pre> <p> It may also be referenced through a value whose statically known type is <code>Stack&lt;i32&gt;</code>: </p> <pre><code>stack::push(&amp;mut stack, 10);</code></pre> <p> In both cases, qualification selects the associated function, while the function's declared parameter list determines the arguments that must be supplied. </p> <p> Neither associated-function form introduces an implicit <code>this</code>, <code>self</code>, or equivalent receiver parameter. The value-qualified form uses <code>stack</code> to determine the associated type, but does not implicitly pass <code>stack</code> to the function. </p>
 
-  <h3>Conformance Status of the Example</h3>
+<h3>Conformance Status of the Example</h3>
 
-  <p>
-    The <code>stack_example</code> portion is intended as a positive
-    source-level example of the specified language constructs. The
-    <code>std.vector</code> implementation sketch is intentionally
-    non-normative because the current CobaltC 1.0.0 specification does not
-    define source-level raw allocation, raw-storage initialization, or explicit
-    destruction primitives.
-  </p>
+<p>
+  The <code>stack_example</code> portion is intended as a positive
+  source-level example of the specified language constructs. The
+  <code>std.vector</code> implementation sketch is intentionally
+  non-normative because the current CobaltC 1.0.0 specification does not
+  define source-level raw allocation, raw-storage initialization, or explicit
+  destruction primitives.
+</p>
 
-  <p>
-    Accordingly, this section demonstrates conformance to selected language
-    rules; it does not constitute a complete conformance suite. A complete
-    conformance suite must separately test lexical and syntactic behavior,
-    name resolution, typing, initialization, ownership, moves, copying,
-    borrowing, lifetimes, destruction, nullability, bounds, patterns,
-    generics, <code>Result</code>, collections, strings, concurrency, unsafe
-    boundaries, runtime behavior, FFI, ABI requirements, diagnostics, and
-    regressions.
-  </p>
+<p>
+  The formatting syntax used by <code>println</code> is a standard-library
+  facility rather than part of the core CobaltC grammar. A <code>{}</code>
+  sequence in a <code>println</code> format string is a format placeholder
+  and consumes the next formatting argument from left to right. The number
+  of <code>{}</code> placeholders must exactly equal the number of formatting
+  arguments; a mismatch is a compile-time error. For example,
+  <code>println("x = {}, y = {}", x, y)</code> is valid, while supplying
+  either too many or too few formatting arguments is invalid. A format string
+  containing no placeholders may be used without formatting arguments.
+</p>
+
+<p>
+  Accordingly, this section demonstrates conformance to selected language
+  rules; it does not constitute a complete conformance suite. A complete
+  conformance suite must separately test lexical and syntactic behavior,
+  name resolution, typing, initialization, ownership, moves, copying,
+  borrowing, lifetimes, destruction, nullability, bounds, patterns,
+  generics, <code>Result</code>, collections, strings, concurrency, unsafe
+  boundaries, runtime behavior, FFI, ABI requirements, diagnostics, and
+  regressions.
+</p>
+
 </section>
   
 <br><br>
