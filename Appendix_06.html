@@ -3522,7 +3522,14 @@ print(*reference);</code></pre>
 <hr>
 
 <section class="cobalt-example">
-  <h2>Conformance Example Program</h2>
+  <h2>Conformance-Oriented Example Program</h2>
+
+<p>
+  The following program is a conformance-oriented example. It demonstrates
+  the language rules described by this specification but may rely on
+  implementation-defined facilities or APIs that are not themselves
+  specified by this document.
+</p>
 
   <p>
     This example demonstrates a generic <code>Stack&lt;T&gt;</code> abstraction
@@ -3589,10 +3596,9 @@ export
     The <code>Vector&lt;T&gt;</code> implementation below is deliberately
     separated from the conformance program. The specification defines
     <code>Vector&lt;T&gt;</code> semantically as an owning contiguous collection,
-    but it does not prescribe a particular allocation, raw-storage, or
-    destruction implementation. Consequently, the implementation is
-    non-normative and should not be interpreted as defining additional CobaltC
-    source-language facilities.
+    but it does not prescribe a particular allocation or raw-storage implementation.
+    Consequently, the implementation is non-normative and should not be interpreted
+    as defining additional CobaltC source-language facilities.
   </p>
 
   <p>
@@ -4536,8 +4542,7 @@ stack is empty
     source-level example of the specified language constructs. The
     <code>std.vector</code> implementation sketch is intentionally
     non-normative because the current CobaltC 1.0.0 specification does not
-    define source-level raw allocation, raw-storage initialization, or explicit
-    destruction primitives.
+    define source-level raw allocation or raw-storage initialization.
   </p>
 
   <p>
