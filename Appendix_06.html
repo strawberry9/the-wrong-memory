@@ -794,6 +794,21 @@ Vector destruction
 
 <p>destroy cleans up resources owned directly by the type; the compiler cleans up the type's owned fields.</p>
 
+<p>
+  A <code>destroy</code> operation MAY be listed in a module's
+  <code>export</code> block. Exporting a <code>destroy</code> operation does
+  not change the rules governing when destruction occurs.
+</p>
+
+<p>
+  The compiler invokes a type's <code>destroy</code> operation automatically
+  when the owning lifetime of a value of that type ends. Explicit invocation
+  could cause a resource to be destroyed more than once. Therefore, a
+  <code>destroy</code> operation MUST NOT be invoked explicitly by ordinary
+  program code.
+</p>
+
+
 
     <section id="section-22">
   <h2>22. Enums</h2>
