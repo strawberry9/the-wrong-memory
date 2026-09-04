@@ -747,8 +747,52 @@ fn Document::destroy(Document* document)
 }</code></pre>
 <p> When <code>Document</code> reaches the end of its owning lifetime, the compiler invokes <code>Document::destroy</code> to release resources directly owned by the Document. The compiler also destroys the owned fields according to their destruction semantics. </p> <p> In particular, the compiler will subsequently destroy <code>document-&gt;file</code> by invoking <code>File::destroy</code>. The <code>Document::destroy</code> function MUST NOT invoke <code>File::destroy</code> itself. </p> <p> This rule allows destruction to compose automatically across nested ownership without requiring destruction operations to be exposed as ordinary public functions or called manually by containing types. </p>
 
+<p>So for:</p>
 
+<pre><code>struct Document
+{
+    File file;
+    raw i32 metadata_handle;
+}
 
+fn Document::destroy(Document* document)
+{
+    close(document-&gt;metadata_handle);
+}</code></pre>
+
+<p>destruction is:</p>
+
+<pre><code>
+Document destruction
+    │
+    ├── Document::destroy()
+    │      └── close(metadata_handle)
+    │
+    └── destroy file
+           └── File::destroy()
+</code></pre>
+
+<p>And for <code>Vector&lt;T&gt;</code>:</p>
+
+<pre><code>
+Vector destruction
+    │
+    └── Vector::destroy()
+           ├── destroy data[0]
+           ├── destroy data[1]
+           ├── ...
+           └── deallocate backing storage
+</code></pre>
+
+<p>
+  When an owning value reaches the end of its lifetime, the compiler MUST
+  first invoke the value's <code>destroy</code> operation, if one is defined.
+  After the <code>destroy</code> operation returns, the compiler MUST
+  recursively destroy the value's owned fields according to their
+  destruction semantics.
+</p>
+
+<p>destroy cleans up resources owned directly by the type; the compiler cleans up the type's owned fields.</p>
 
 
     <section id="section-22">
