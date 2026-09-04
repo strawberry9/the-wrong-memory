@@ -660,26 +660,256 @@ f64</code></pre>
 
 <section id="section-20"> <h2>20. Interfaces</h2> <p>CobaltC does not provide interfaces.</p> <p> Types do not implement interfaces, and interfaces are not types, runtime values, or a mechanism for polymorphism. </p> <p> CobaltC provides parametric polymorphism through generics, but does not provide subtype polymorphism, inheritance, or dynamic dispatch. </p> </section>
 
-    <section id="section-21">
-      <h2>21. Structs</h2>
+<section id="section-21">
+  <h2>21. Structs</h2>
 
-      <p>A struct defines a nominal aggregate:</p>
+  <p>
+    A struct defines a nominal aggregate:
+  </p>
 
-      <pre><code>struct Point
+  <pre><code>struct Point
 {
     i32 x;
     i32 y;
 }</code></pre>
 
-      <p>
-        Struct fields have declared types.
-      </p>
+  <p>
+    Struct fields have declared types. A struct value owns its owned fields
+    according to their declared types and the language's ownership rules.
+  </p>
 
-      <p>
-        Owned fields participate in the enclosing value's ownership and
-        destruction semantics.
-      </p>
-    </section>
+  <p>
+    Structs do not contain function declarations. Operations on a struct may
+    instead be declared as associated functions using the struct's qualified
+    name.
+  </p>
+
+  <h3>21.1. Destruction</h3>
+
+  <p>
+    A type may define an associated function named <code>destroy</code> that
+    accepts a mutable managed pointer to the type:
+  </p>
+
+  <pre><code>fn File::destroy(File* file)
+{
+    ...
+}</code></pre>
+
+  <p>
+    The <code>destroy</code> function is the type's destruction operation.
+    When an owning binding reaches the end of its lifetime, the compiler
+    automatically invokes the associated <code>destroy</code> function for
+    the value, if one is defined.
+  </p>
+
+  <p>
+    The compiler MUST invoke a type's destruction operation exactly once for
+    each owned value. A value MUST NOT be automatically destroyed after its
+    ownership has been transferred by a move.
+  </p>
+
+  <p>
+    When a type defines an associated <code>destroy</code> function, that
+    function is solely responsible for destroying the value's owned
+    resources. The compiler MUST NOT perform an additional automatic
+    destruction pass over the value's fields after invoking the user-defined
+    <code>destroy</code> function.
+  </p>
+
+  <p>
+    A <code>destroy</code> function may therefore delegate destruction to
+    owned fields:
+  </p>
+
+  <pre><code>struct Stack&lt;T&gt;
+{
+    Vector&lt;T&gt; values;
+}
+
+fn Stack&lt;T&gt;::destroy(Stack&lt;T&gt;* stack)
+{
+    Vector&lt;T&gt;::destroy(&amp;mut stack-&gt;values);
+}</code></pre>
+
+  <p>
+    When an owning <code>Stack&lt;T&gt;</code> binding reaches the end of its
+    lifetime, the compiler invokes <code>Stack&lt;T&gt;::destroy</code>.
+    The function destroys the owned <code>Vector&lt;T&gt;</code>, which in turn
+    destroys its live elements and releases its backing storage.
+  </p>
+
+  <p>
+    Because <code>Stack&lt;T&gt;::destroy</code> is responsible for destroying
+    <code>values</code>, the compiler does not subsequently destroy
+    <code>values</code> a second time.
+  </p>
+
+  <h3>21.2. Structs Without Destruction Operations</h3>
+
+  <p>
+    A type does not require a <code>destroy</code> function merely because it
+    is a struct. Fundamental value types such as <code>i32</code>,
+    <code>usize</code>, and <code>bool</code> do not own resources requiring
+    destruction.
+  </p>
+
+  <p>
+    A struct containing only fields that require no destruction therefore
+    requires no user-defined <code>destroy</code> function:
+  </p>
+
+  <pre><code>struct Point
+{
+    i32 x;
+    i32 y;
+}
+
+mut Point point = Point
+{
+    x = 10,
+    y = 20
+};</code></pre>
+
+  <p>
+    When <code>point</code> reaches the end of its owning lifetime, no
+    destruction function is invoked because neither <code>Point</code> nor
+    its fields require destruction.
+  </p>
+
+  <p>
+    More generally, if a struct does not define <code>destroy</code> and
+    contains fields whose types require destruction, destruction proceeds
+    recursively according to the ownership of those fields. Each owned
+    field requiring destruction is destroyed exactly once.
+  </p>
+
+  <p>
+    For example:
+  </p>
+
+  <pre><code>struct Container&lt;T&gt;
+{
+    Vector&lt;T&gt; values;
+}
+
+mut Container&lt;i32&gt; container = Container&lt;i32&gt;
+{
+    values = Vector&lt;i32&gt;::new()
+};</code></pre>
+
+  <p>
+    If <code>Container&lt;T&gt;</code> does not define its own
+    <code>destroy</code> function, its owned <code>Vector&lt;T&gt;</code> field
+    is destroyed according to the Vector's destruction operation.
+  </p>
+
+  <h3>21.3. Destruction and Move Semantics</h3>
+
+  <p>
+    Destruction follows ownership. After a value has been moved, the
+    moved-from binding no longer owns the transferred value and therefore
+    MUST NOT destroy that value.
+  </p>
+
+  <pre><code>mut File a = open("data.txt");
+File b = move a;</code></pre>
+
+  <p>
+    At the end of <code>b</code>'s owning lifetime, the compiler invokes
+    <code>File::destroy</code> for the transferred <code>File</code>.
+    The moved-from binding <code>a</code> does not cause the same value to
+    be destroyed again.
+  </p>
+
+  <p>
+    Ownership transfer, borrowing, and destruction MUST preserve the
+    invariant that exactly one owner is responsible for each owned value.
+    Destruction MUST NOT cause the same owned value to be destroyed more
+    than once.
+  </p>
+
+  <h3>21.4. Destruction and Borrowing</h3>
+
+  <p>
+    An owning binding MUST NOT reach the end of its lifetime while a live
+    managed borrow would remain valid only while that binding exists.
+    The ownership, borrowing, and lifetime rules therefore prevent automatic
+    destruction from invalidating a live managed pointer.
+  </p>
+
+  <p>
+    For example:
+  </p>
+
+  <pre><code>mut Point point = Point
+{
+    x = 10,
+    y = 20
+};
+
+i32* p = &amp;point.x;</code></pre>
+
+  <p>
+    While <code>p</code> is a live managed borrow, the owning lifetime of
+    <code>point</code> cannot end. The compiler MUST reject any program in
+    which destruction of <code>point</code> would invalidate a live managed
+    pointer.
+  </p>
+
+  <h3>21.5. Destruction and Nested Ownership</h3>
+
+  <p>
+    Destruction of nested values follows the ownership hierarchy. For
+    example:
+  </p>
+
+  <pre><code>struct File
+{
+    raw i32 handle;
+}
+
+fn File::destroy(File* file)
+{
+    close(file-&gt;handle);
+}
+
+struct Document
+{
+    File file;
+    i32 line_count;
+}</code></pre>
+
+  <p>
+    If <code>Document</code> does not define a <code>destroy</code> function,
+    its owned <code>File</code> field is destroyed and its
+    <code>i32</code> field requires no destruction.
+  </p>
+
+  <p>
+    If <code>Document</code> defines its own <code>destroy</code> function,
+    that function becomes responsible for destroying its owned resources:
+  </p>
+
+  <pre><code>fn Document::destroy(Document* document)
+{
+    File::destroy(&amp;mut document-&gt;file);
+}</code></pre>
+
+  <p>
+    The compiler invokes <code>Document::destroy</code> exactly once when an
+    owning <code>Document</code> binding reaches the end of its lifetime.
+    The compiler does not additionally invoke <code>File::destroy</code> for
+    <code>file</code>.
+  </p>
+
+  <p>
+    This rule allows destruction to remain explicit and predictable while
+    permitting complex owning types to compose simpler owning types.
+  </p>
+</section>
+
+
 
 
     <section id="section-22">
@@ -3366,21 +3596,7 @@ print(*reference);</code></pre>
     error-propagation operator, and exhaustive pattern matching.
   </p>
 
-  <p>
-    The executable portion of the example uses only language constructs and
-    semantic forms established by CobaltC 1.0.0.
-  </p>
-
-  <p>
-    The <code>Vector&lt;T&gt;</code> implementation sketch below is deliberately
-    separated from the conformance program. The specification defines
-    <code>Vector&lt;T&gt;</code> semantically as an owning contiguous collection,
-    but it does not prescribe a particular allocation, raw-storage, or
-    destruction implementation. Consequently, the implementation sketch is
-    non-normative and must not be interpreted as defining additional CobaltC
-    source-language facilities.
-  </p>
-
+ 
   <h3>1. Result Type</h3>
 
   <pre>
@@ -3434,12 +3650,35 @@ export
   </p>
 
   <p>
-    The following module therefore exposes the operations required by the
-    example without presenting an implementation-specific raw-memory
-    mechanism as part of the CobaltC 1.0.0 language.
+    The <code>Vector&lt;T&gt;</code> implementation below is deliberately
+    separated from the conformance program. The specification defines
+    <code>Vector&lt;T&gt;</code> semantically as an owning contiguous collection,
+    but it does not prescribe a particular allocation, raw-storage, or
+    destruction implementation. Consequently, the implementation is
+    non-normative and should not be interpreted as defining additional CobaltC
+    source-language facilities.
   </p>
 
-  <pre>
+  <p>
+    The implementation must also ensure that any collection operation capable
+    of relocating elements must not be permitted while a live managed pointer
+    exists whose validity depends on the collection's current storage. This
+   follows from the collection borrowing and borrow-invalidation rules.
+  </p>
+  
+  <p>
+    A raw-storage implementation must distinguish the lifetime
+    of the allocation from the lifetime of the values stored within it.
+    Allocated storage does not, by itself, constitute a collection of live
+    <code>T</code> values. Likewise, releasing raw storage must not result in
+    a second destruction of values whose ownership has already been moved.
+  </p>
+  <p>
+    The following module is assuming the low-level allocator API is spelled
+    allocate<T>(n) / deallocate<T>(ptr, n) and returns Result.
+  </p>
+
+<pre>
 module std.vector;
 
 import std.result;
@@ -3451,86 +3690,511 @@ export
     VectorPopError;
 }
 
+
 enum VectorPushError
 {
     AllocationFailed,
     CapacityOverflow
 }
 
+
 enum VectorPopError
 {
     Empty
 }
 
+
 struct Vector&lt;T&gt;
-{<span style="color: #888;">
-    // The representation of Vector is intentionally implementation-defined.
+{
+    <span style="color: #888;">// The representation of Vector is intentionally implementation-defined.
     //
-    // A conforming standard-library implementation MUST ensure that:
+    // A conforming implementation MUST maintain:
     //
     //     0 &lt;= len &lt;= capacity
     //
-    // and that the Vector owns exactly the live elements represented
-    // by its logical length.
+    // The Vector owns exactly the live T values in [0, len).
     //
-    // The physical representation is not part of this example.</span>
+    // data is null when capacity == 0.
+    //
+    // Access to data is performed only within unsafe code.</span>
+
+    data: raw T*;
+    len: usize;
+    capacity: usize;
 }
-  </pre>
 
-  <p>
-    The following declarations describe the standard-library interface assumed
-    by the example. Their concrete implementations are supplied by the
-    standard library and runtime and are not defined by this example.
-  </p>
 
-  <pre><span style="color: #888;">
-// Standard-library associated functions:
+<span style="color: #888;">// Grows the Vector so that it can hold at least required elements.
 //
-//     Vector&lt;T&gt;::new()
-//     Vector&lt;T&gt;::len(...)
-//     Vector&lt;T&gt;::push(...)
-//     Vector&lt;T&gt;::pop(...)
+// This function is private to the module.
 //
-// These declarations are descriptive rather than function implementations.</span>
-  </pre>
+// The Vector is unchanged if allocation fails or the required capacity
+// cannot be represented.</span>
+fn Vector&lt;T&gt;::grow(Vector&lt;T&gt;* vector, usize required) : Result&lt;void, VectorPushError&gt;
+{
+    if (required &lt;= vector-&gt;capacity)
+    {
+        return Ok;
+    }
 
-  <p>
-    The interface used by the example has the following signatures:
-  </p>
+    usize new_capacity = vector-&gt;capacity;
 
-  <pre>
-Vector&lt;T&gt;::new() : Vector&lt;T&gt;
+    if (new_capacity == 0)
+    {
+        new_capacity = 1;
+    }
 
-Vector&lt;T&gt;::len(Vector&lt;T&gt;* vector) : usize
+    while (new_capacity &lt; required)
+    {
+        <span style="color: #888;">// Prevent capacity multiplication from wrapping.</span>
+        if (new_capacity &gt; usize::MAX / 2)
+        {
+            new_capacity = required;
+            break;
+        }
 
-Vector&lt;T&gt;::push(Vector&lt;T&gt;* vector, T value)
-    : Result&lt;bool, VectorPushError&gt;
+        new_capacity = new_capacity * 2;
+    }
 
-Vector&lt;T&gt;::pop(Vector&lt;T&gt;* vector)
-    : Result&lt;T, VectorPopError&gt;
-  </pre>
+    <span style="color: #888;">// Prevent the element count from overflowing the allocation size.</span>
+    if (new_capacity &gt; usize::MAX / sizeof(T))
+    {
+        return Err(VectorPushError::CapacityOverflow);
+    }
 
-  <p>
-    <code>Vector&lt;T&gt;::push</code> transfers ownership of <code>value</code>
-    into the Vector when the operation succeeds. On success it returns
-    <code>Ok(true)</code>. On failure, the Vector remains unchanged and the
-    returned <code>VectorPushError</code> identifies the failure.
-  </p>
+    unsafe
+    {
+        Result&lt;raw T*, AllocationError&gt; allocation = allocate&lt;T&gt;(new_capacity);
 
-  <p>
-    <code>Vector&lt;T&gt;::pop</code> transfers ownership of the final element
-    back to the caller. If the Vector is empty, it returns
-    <code>Err(VectorPopError::Empty)</code>.
-  </p>
+        if (allocation.is_err())
+        {
+            return Err(VectorPushError::AllocationFailed);
+        }
 
-  <p>
-    The <code>bool</code> success payload used by <code>push</code> is
-    intentional. CobaltC defines <code>Result&lt;T, E&gt;</code> in terms of
-    <code>Ok(T)</code> and <code>Err(E)</code>, while <code>void</code> is
-    specified as a function return type. This example therefore uses an
-    ordinary value rather than an unspecified unit value such as
-    <code>()</code>.
-  </p>
+        raw T* new_data = allocation.unwrap();
+
+        usize i = 0;
+
+        while (i &lt; vector-&gt;len)
+        {
+            new_data[i] = move vector-&gt;data[i];
+            i = i + 1;
+        }
+
+        if (vector-&gt;data != null)
+        {
+            deallocate&lt;T&gt;(vector-&gt;data, vector-&gt;capacity);
+        }
+
+        vector-&gt;data = new_data;
+        vector-&gt;capacity = new_capacity;
+    }
+
+    return Ok;
+}
+
+
+<span style="color: #888;">// Creates an empty Vector.
+//
+// No storage is allocated.</span>
+fn Vector&lt;T&gt;::new() : Vector&lt;T&gt;
+{
+    return Vector&lt;T&gt;
+    {
+        data: null,
+        len: 0,
+        capacity: 0
+    };
+}
+
+
+<span style="color: #888;">// Returns the number of live elements.</span>
+fn Vector&lt;T&gt;::len(Vector&lt;T&gt;* vector) : usize
+{
+    return vector-&gt;len;
+}
+
+
+<span style="color: #888;">// Returns the number of allocated T slots.</span>
+fn Vector&lt;T&gt;::capacity(Vector&lt;T&gt;* vector) : usize
+{
+    return vector-&gt;capacity;
+}
+
+
+<span style="color: #888;">// Returns true when the Vector contains no elements.</span>
+fn Vector&lt;T&gt;::is_empty(Vector&lt;T&gt;* vector) : bool
+{
+    return vector-&gt;len == 0;
+}
+
+
+<span style="color: #888;">// Appends value to the Vector.
+//
+// On success, ownership of value is transferred to the Vector.
+//
+// If allocation fails or capacity overflows, the Vector and value
+// remain unchanged.</span>
+fn Vector&lt;T&gt;::push(Vector&lt;T&gt;* vector, T value) : Result&lt;bool, VectorPushError&gt;
+{
+    if (vector-&gt;len == vector-&gt;capacity)
+    {
+        if (vector-&gt;len == usize.MAX)
+        {
+            return Err(VectorPushError::CapacityOverflow);
+        }
+
+        usize required = vector-&gt;len + 1;
+
+        Result&lt;void, VectorPushError&gt; result = Vector&lt;T&gt;::grow(vector, required);
+
+        if (result.is_err())
+        {
+            return Err(result.unwrap_err());
+        }
+    }
+
+    unsafe
+    {
+        vector-&gt;data[vector-&gt;len] = move value;
+    }
+
+    vector-&gt;len = vector-&gt;len + 1;
+
+    return Ok(true);
+}
+
+
+<span style="color: #888;">// Removes and returns the final live element.
+//
+// On success, ownership of the element is transferred to the caller.
+//
+// If the Vector is empty, returns Err(Empty).</span>
+fn Vector&lt;T&gt;::pop(Vector&lt;T&gt;* vector) : Result&lt;T, VectorPopError&gt;
+{
+    if (vector-&gt;len == 0)
+    {
+        return Err(VectorPopError::Empty);
+    }
+
+    vector-&gt;len = vector-&gt;len - 1;
+
+    unsafe
+    {
+        return Ok(move vector-&gt;data[vector-&gt;len]);
+    }
+}
+
+
+<span style="color: #888;">// Returns a borrowed pointer to the element at index.
+//
+// The language's normal bounds rules reject index &gt;= len.
+//
+// The returned managed pointer borrows the element from the Vector.</span>
+fn Vector&lt;T&gt;::get(Vector&lt;T&gt;* vector, usize index) : T*
+{
+    unsafe
+    {
+        return &amp;vector-&gt;data[index];
+    }
+}
+
+
+<span style="color: #888;">// Removes and destroys every live element.
+//
+// Allocated storage is retained.</span>
+fn Vector&lt;T&gt;::clear(Vector&lt;T&gt;* vector)
+{
+    usize i = 0;
+
+    while (i &lt; vector-&gt;len)
+    {
+        unsafe
+        {
+            T::destroy(&amp;vector-&gt;data[i]);
+        }
+
+        i = i + 1;
+    }
+
+    vector-&gt;len = 0;
+}
+
+
+<span style="color: #888;">// Ensures that the Vector has capacity for at least
+// len + additional elements.
+//
+// If sufficient capacity already exists, nothing is done.
+//
+// If allocation fails or capacity overflows, the Vector remains unchanged.</span>
+fn Vector&lt;T&gt;::reserve(Vector&lt;T&gt;* vector, usize additional)
+    : Result&lt;void, VectorPushError&gt;
+{
+    if (additional &gt; usize.MAX - vector-&gt;len)
+    {
+        return Err(VectorPushError::CapacityOverflow);
+    }
+
+    usize required = vector-&gt;len + additional;
+
+    return Vector&lt;T&gt;::grow(vector, required);
+}
+
+
+<span style="color: #888;">// Reduces the Vector's length to new_len.
+//
+// Elements removed from the Vector are destroyed exactly once.
+//
+// Allocated storage is retained.
+//
+// The language's bounds rules reject new_len &gt; len.</span>
+fn Vector&lt;T&gt;::truncate(Vector&lt;T&gt;* vector, usize new_len)
+{
+    if (new_len &gt;= vector-&gt;len)
+    {
+        return;
+    }
+
+    usize i = new_len;
+
+    while (i &lt; vector-&gt;len)
+    {
+        unsafe
+        {
+            T::destroy(&amp;vector-&gt;data[i]);
+        }
+
+        i = i + 1;
+    }
+
+    vector-&gt;len = new_len;
+}
+
+
+<span style="color: #888;">// Removes the element at index.
+//
+// Elements following index are moved toward the beginning.
+//
+// The language's bounds rules reject index &gt;= len.</span>
+fn Vector&lt;T&gt;::remove(Vector&lt;T&gt;* vector, usize index) : T
+{
+    unsafe
+    {
+        T removed = move vector-&gt;data[index];
+
+        usize i = index;
+
+        while (i + 1 &lt; vector-&gt;len)
+        {
+            vector-&gt;data[i] = move vector-&gt;data[i + 1];
+            i = i + 1;
+        }
+
+        vector-&gt;len = vector-&gt;len - 1;
+
+        return removed;
+    }
+}
+
+
+<span style="color: #888;">// Removes the element at index without preserving order.
+//
+// If index is not the final element, the final element is moved
+// into the removed element's position.
+//
+// The language's bounds rules reject index &gt;= len.</span>
+fn Vector&lt;T&gt;::swap_remove(Vector&lt;T&gt;* vector, usize index) : T
+{
+    unsafe
+    {
+        usize last = vector-&gt;len - 1;
+
+        T removed = move vector-&gt;data[index];
+
+        if (index != last)
+        {
+            vector-&gt;data[index] = move vector-&gt;data[last];
+        }
+
+        vector-&gt;len = last;
+
+        return removed;
+    }
+}
+
+
+<span style="color: #888;">// Inserts value before index.
+//
+// index == len is equivalent to push.
+//
+// On success, ownership of value is transferred to the Vector.
+//
+// If allocation fails or capacity overflows, the Vector and value
+// remain unchanged.
+//
+// The language's bounds rules reject index &gt; len.</span>
+fn Vector&lt;T&gt;::insert(Vector&lt;T&gt;* vector, usize index, T value) : Result&lt;void, VectorPushError&gt;
+{
+    if (index == vector-&gt;len)
+    {
+        Result&lt;bool, VectorPushError&gt; result = Vector&lt;T&gt;::push(vector, move value);
+
+        if (result.is_err())
+        {
+            return Err(result.unwrap_err());
+        }
+
+        return Ok;
+    }
+
+    Result&lt;void, VectorPushError&gt; result = Vector&lt;T&gt;::reserve(vector, 1);
+
+    if (result.is_err())
+    {
+        return result;
+    }
+
+    unsafe
+    {
+        usize i = vector-&gt;len;
+
+        while (i &gt; index)
+        {
+            vector-&gt;data[i] = move vector-&gt;data[i - 1];
+            i = i - 1;
+        }
+
+        vector-&gt;data[index] = move value;
+    }
+
+    vector-&gt;len = vector-&gt;len + 1;
+
+    return Ok;
+}
+
+
+<span style="color: #888;">// Attempts to reduce capacity to len.
+//
+// If len is zero, the allocation is released.
+//
+// If len is non-zero, a new allocation of exactly len elements
+// is created and the live elements are moved into it.
+//
+// If allocation fails, the Vector remains unchanged.</span>
+fn Vector&lt;T&gt;::shrink_to_fit(Vector&lt;T&gt;* vector) : Result&lt;void, VectorPushError&gt;
+{
+    if (vector-&gt;len == vector-&gt;capacity)
+    {
+        return Ok;
+    }
+
+    if (vector-&gt;len == 0)
+    {
+        unsafe
+        {
+            if (vector-&gt;data != null)
+            {
+                deallocate&lt;T&gt;(vector-&gt;data, vector-&gt;capacity);
+            }
+        }
+
+        vector-&gt;data = null;
+        vector-&gt;capacity = 0;
+
+        return Ok;
+    }
+
+    if (vector-&gt;len &gt; usize.MAX / sizeof(T))
+    {
+        return Err(VectorPushError::CapacityOverflow);
+    }
+
+    unsafe
+    {
+        Result&lt;raw T*, AllocationError&gt; allocation = allocate&lt;T&gt;(vector-&gt;len);
+
+        if (allocation.is_err())
+        {
+            return Err(VectorPushError::AllocationFailed);
+        }
+
+        raw T* new_data = allocation.unwrap();
+
+        usize i = 0;
+
+        while (i &lt; vector-&gt;len)
+        {
+            new_data[i] = move vector-&gt;data[i];
+            i = i + 1;
+        }
+
+        deallocate&lt;T&gt;(vector-&gt;data, vector-&gt;capacity);
+
+        vector-&gt;data = new_data;
+        vector-&gt;capacity = vector-&gt;len;
+    }
+
+    return Ok;
+}
+
+
+<span style="color: #888;">// Destroys the Vector and all elements it owns.
+//
+// Every live element is destroyed exactly once.
+//
+// The backing allocation is then released.
+//
+// The compiler/runtime invokes this operation when the Vector's
+// owning lifetime ends.</span>
+fn Vector&lt;T&gt;::destroy(Vector&lt;T&gt;* vector)
+{
+    usize i = 0;
+
+    while (i &lt; vector-&gt;len)
+    {
+        unsafe
+        {
+            T::destroy(&amp;vector-&gt;data[i]);
+        }
+
+        i = i + 1;
+    }
+
+    unsafe
+    {
+        if (vector-&gt;data != null)
+        {
+            deallocate&lt;T&gt;(vector-&gt;data, vector-&gt;capacity);
+        }
+    }
+
+    vector-&gt;data = null;
+    vector-&gt;len = 0;
+    vector-&gt;capacity = 0;
+}
+</pre>
+
+
+<p>
+  <code>Vector&lt;T&gt;::push</code> transfers ownership of <code>value</code>
+  into the Vector when the operation succeeds. On success it returns
+  <code>Ok(true)</code>. On failure, the Vector remains unchanged and the
+  returned <code>VectorPushError</code> identifies the failure.
+</p>
+
+<p>
+  <code>Vector&lt;T&gt;::pop</code> transfers ownership of the final element
+  back to the caller. If the Vector is empty, it returns
+  <code>Err(VectorPopError::Empty)</code>.
+</p>
+
+<p>
+  The <code>bool</code> success payload used by <code>push</code> is
+  intentional. <code>push</code> returns
+  <code>Result&lt;bool, VectorPushError&gt;</code>, so successful completion
+  is represented by <code>Ok(true)</code>.
+</p>
+
 
   <h3>4. Stack Example</h3>
 
@@ -3541,6 +4205,7 @@ import std.result;
 import std.io { println };
 import std.vector;
 
+
 enum StackError
 {
     Empty,
@@ -3548,10 +4213,12 @@ enum StackError
     CapacityOverflow
 }
 
+
 struct Stack&lt;T&gt;
 {
     Vector&lt;T&gt; values;
 }
+
 
 <span style="color: #888;">// `new` is an ordinary associated function. It has no implicit
 // receiver and takes no arguments.</span>
@@ -3563,10 +4230,10 @@ fn Stack&lt;T&gt;::new() : Stack&lt;T&gt;
     };
 }
 
+
 <span style="color: #888;">// `push` takes an explicit mutable pointer to the Stack.
 // The value is transferred to the Vector on successful insertion.</span>
-fn Stack&lt;T&gt;::push(Stack&lt;T&gt;* stack, T value)
-    : Result&lt;bool, StackError&gt;
+fn Stack&lt;T&gt;::push(Stack&lt;T&gt;* stack, T value) : Result&lt;bool, StackError&gt;
 {
     return match Vector&lt;T&gt;::push(&amp;mut stack.values, value)
     {
@@ -3580,10 +4247,10 @@ fn Stack&lt;T&gt;::push(Stack&lt;T&gt;* stack, T value)
     };
 }
 
+
 <span style="color: #888;">// `pop` takes an explicit mutable pointer to the Stack and transfers
 // ownership of the removed value to the caller.</span>
-fn Stack&lt;T&gt;::pop(Stack&lt;T&gt;* stack)
-    : Result&lt;T, StackError&gt;
+fn Stack&lt;T&gt;::pop(Stack&lt;T&gt;* stack) : Result&lt;T, StackError&gt;
 {
     return match Vector&lt;T&gt;::pop(&amp;mut stack.values)
     {
@@ -3594,6 +4261,7 @@ fn Stack&lt;T&gt;::pop(Stack&lt;T&gt;* stack)
     };
 }
 
+
 <span style="color: #888;">// `is_empty` requires only shared access because it does not mutate
 // the Stack or its Vector.</span>
 fn Stack&lt;T&gt;::is_empty(Stack&lt;T&gt;* stack) : bool
@@ -3601,10 +4269,20 @@ fn Stack&lt;T&gt;::is_empty(Stack&lt;T&gt;* stack) : bool
     return Vector&lt;T&gt;::len(&amp;stack.values) == 0;
 }
 
-fn run_stack(Stack&lt;i32&gt;* stack)
-    : Result&lt;bool, StackError&gt;
+
+<span style="color: #888;">// Destroys the Stack and the Vector it owns.
+//
+// Vector destruction destroys all live elements and releases the
+// Vector's backing storage.</span>
+fn Stack&lt;T&gt;::destroy(Stack&lt;T&gt;* stack)
 {
-    <span style="color: #888;">// The successful Result carries a bool rather than a unit value.</span>
+    Vector&lt;T&gt;::destroy(&amp;mut stack.values);
+}
+
+
+fn run_stack(Stack&lt;i32&gt;* stack) : Result&lt;bool, StackError&gt;
+{
+    <span style="color: #888;">// The successful Result carries a bool.</span>
     bool pushed = Stack&lt;i32&gt;::push(stack, 10)?;
 
     <span style="color: #888;">// `pushed` is initialized before it is read.</span>
@@ -3621,6 +4299,7 @@ fn run_stack(Stack&lt;i32&gt;* stack)
 
     return Ok(true);
 }
+
 
 fn main() : i32
 {
@@ -3664,95 +4343,6 @@ popped value: 10
 stack is empty
   </pre>
 
-  <h3>5. Non-Normative Vector Implementation Sketch</h3>
-
-  <p>
-    A concrete implementation of <code>Vector&lt;T&gt;</code> may use raw
-    storage internally. Such an implementation is outside the conformance
-    program above because CobaltC 1.0.0 specifies the semantic safety boundary
-    for raw memory without defining source-level functions such as
-    <code>allocate_raw&lt;T&gt;</code>, <code>deallocate_raw&lt;T&gt;</code>, or
-    <code>destroy</code>.
-  </p>
-
-  <p>
-    The following is therefore pseudocode describing the obligations of a
-    possible implementation. It is not CobaltC 1.0.0 source and MUST NOT be
-    used as evidence that these names or operations form part of the language.
-  </p>
-
-  <pre>
-// NON-NORMATIVE IMPLEMENTATION PSEUDOCODE
-//
-// A possible Vector representation:
-//
-//     data       -> contiguous storage for capacity T values
-//     len        -> number of live T values
-//     capacity   -> number of allocated T slots
-//
-// Required invariant:
-//
-//     0 &lt;= len &lt;= capacity
-//
-// The Vector owns exactly `len` live T values. Their logical indices
-// are 0 through len - 1. Storage outside that logical range contains
-// no Vector-owned live T values.
-//
-// A concrete implementation may use an internal allocation mechanism
-// supplied by the runtime rather than the illustrative operations below.
-
-Vector&lt;T&gt;::push(vector, value):
-
-    if vector.len == vector.capacity
-        grow vector
-
-    initialize the next unused storage position with `value`
-    transfer ownership of `value` to the Vector
-    increment vector.len
-
-    return Ok(true)
-
-Vector&lt;T&gt;::pop(vector):
-
-    if vector.len == 0
-        return Err(Empty)
-
-    decrement vector.len
-    move the value from the newly final logical position
-    return Ok(the moved value)
-
-Vector destruction:
-
-    destroy every live T value owned by the Vector
-    release the underlying allocation
-
-Vector growth:
-
-    calculate a larger capacity without overflowing usize
-    allocate suitably aligned storage for the new capacity
-    move every live T value into the corresponding position
-    release the old storage
-    update data and capacity
-
-    The implementation MUST preserve the Vector invariant
-    throughout the operation and MUST NOT invalidate a managed
-    pointer in a manner prohibited by the language's borrowing rules.
-  </pre>
-
-  <p>
-    In particular, a raw-storage implementation must distinguish the lifetime
-    of the allocation from the lifetime of the values stored within it.
-    Allocated storage does not, by itself, constitute a collection of live
-    <code>T</code> values. Likewise, releasing raw storage must not result in
-    a second destruction of values whose ownership has already been moved.
-  </p>
-
-  <p>
-    The implementation must also ensure that any collection operation capable
-    of relocating elements is incompatible with a live managed pointer whose
-    validity depends on the old storage. This follows from the collection
-    borrowing and borrow-invalidation rules.
-  </p>
 
   <h3>Semantics Visible in the Example</h3>
 
@@ -3903,7 +4493,7 @@ Vector growth:
 <li>
   <strong>No Unit-Valued Result:</strong>
   The example deliberately does not use <code>Result&lt;void, E&gt;</code>
-  or <code>Ok(())</code>. The specification defines <code>void</code> as a
+  or <code>Ok</code>. The specification defines <code>void</code> as a
   function return type and does not define <code>()</code> as a CobaltC
   value; tuples are explicitly absent from the language.
 </li>
