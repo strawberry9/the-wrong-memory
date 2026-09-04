@@ -684,53 +684,7 @@ f64</code></pre>
     name.
   </p>
 
-<h3>21.1. Destruction</h3>
-
-<p>
-  The underlying principle is that the compiler owns the responsibility for
-  deciding when destruction occurs, while the type defines how its own
-  resources are released.
-</p>
-
-<p>
-  A type may define an associated function named <code>destroy</code> that
-  accepts a mutable managed pointer to the type:
-</p>
-
-<pre><code>fn File::destroy(File* file)
-{
-    close(file-&gt;handle);
-}</code></pre>
-
-<p>
-  The <code>destroy</code> function is the type's destruction operation.
-  It is a language-recognized lifecycle operation rather than an ordinary
-  public associated function.
-</p>
-
-<p>
-  For every owned value whose type defines a <code>destroy</code> function
-  with the required destruction signature, the compiler MUST invoke that
-  function exactly once when the owning lifetime ends.
-</p>
-
-<p>
-  A type's <code>destroy</code> function is responsible for releasing the
-  resources directly owned by that type. The compiler remains responsible
-  for recursively destroying the type's owned fields according to their
-  own destruction semantics.
-</p>
-
-<p>
-  A <code>destroy</code> function MUST NOT explicitly destroy an owned field
-  merely because that field requires destruction. The compiler will destroy
-  the field as part of destruction of the containing value.
-</p>
-
-<p>
-  For example:
-</p>
-
+<h3>21.1. Destruction</h3> <p> The underlying principle is that the compiler owns the responsibility for deciding when destruction occurs, while a type's <code>destroy</code> operation is responsible for releasing resources directly owned by that type. </p> <p> A type MAY define a <code>destroy</code> operation when destruction of the type requires behavior beyond the destruction of its owned fields. The <code>destroy</code> operation is responsible for releasing resources directly owned by the type. The compiler is responsible for invoking destruction operations and for recursively destroying owned fields. </p> <pre><code>fn File::destroy(File* file) { close(file-&gt;handle); }</code></pre> <p> The <code>destroy</code> function is the type's destruction operation. It is a language-recognized lifecycle operation rather than an ordinary public associated function. </p> <p> For every owned value whose type defines a <code>destroy</code> function with the required destruction signature, the compiler MUST invoke that function exactly once when the owning lifetime ends. </p> <p> The compiler MUST also recursively destroy the owned fields of the value according to their destruction semantics. A type's <code>destroy</code> operation is responsible only for resources directly owned by that type and MUST NOT explicitly destroy an owned field merely because that field requires destruction. </p> <p> For example: </p>
 <pre><code>struct File
 {
     raw i32 handle;
@@ -743,73 +697,20 @@ fn File::destroy(File* file)
 
 struct Document
 {
-    File file;
-    i32 line_count;
+    File file; i32 line_count;
 }</code></pre>
 
-<p>
-  When an owning <code>Document</code> reaches the end of its lifetime, the
-  compiler destroys its owned fields. The <code>File</code> field is
-  destroyed by invoking <code>File::destroy</code>, while the
-  <code>i32</code> field requires no destruction.
-</p>
-
-<p>
-  If a type does not define a <code>destroy</code> function, the compiler
-  recursively destroys its owned fields according to their destruction
-  semantics.
-</p>
-
-<p>
-  A value MUST NOT be automatically destroyed after its ownership has been
-  transferred by a move, and the compiler MUST ensure that each owned value
-  is destroyed exactly once.
-</p>
-
-
-<h3>21.2. Structs Without Destruction Operations</h3>
-
-<p>
-  A type does not require a <code>destroy</code> function merely because it
-  is a struct. Fundamental value types such as <code>i32</code>,
-  <code>usize</code>, and <code>bool</code> do not own resources requiring
-  destruction.
-</p>
-
-<p>
-  A struct containing only fields that require no destruction therefore
-  requires no user-defined <code>destroy</code> function:
-</p>
-
+<p> When an owning <code>Document</code> reaches the end of its lifetime, the compiler destroys its owned fields. The <code>File</code> field is destroyed by invoking <code>File::destroy</code>, while the <code>i32</code> field requires no destruction. </p> <p> If a type does not define a <code>destroy</code> function, the compiler recursively destroys its owned fields according to their destruction semantics. </p> <p> A value MUST NOT be automatically destroyed after its ownership has been transferred by a move, and the compiler MUST ensure that each owned value is destroyed exactly once. </p> <h3>21.2. Structs Without Destruction Operations</h3> <p> A type does not require a <code>destroy</code> function merely because it is a struct. Fundamental value types such as <code>i32</code>, <code>usize</code>, and <code>bool</code> do not own resources requiring destruction. </p> <p> A struct containing only fields that require no destruction therefore requires no user-defined <code>destroy</code> function: </p>
 <pre><code>struct Point
 {
-    i32 x;
-    i32 y;
-}
+    i32 x; i32 y;
+} 
 
 mut Point point = Point
 {
-    x = 10,
-    y = 20
+    x = 10, y = 20
 };</code></pre>
-
-<p>
-  When <code>point</code> reaches the end of its owning lifetime, no
-  destruction operation is required because neither <code>Point</code>
-  nor its fields require destruction.
-</p>
-
-<p>
-  More generally, if a struct does not define <code>destroy</code> and
-  contains fields whose types require destruction, the compiler destroys
-  those fields recursively according to their destruction semantics.
-  Each owned field requiring destruction is destroyed exactly once.
-</p>
-
-<p>
-  For example:
-</p>
-
+<p> When <code>point</code> reaches the end of its owning lifetime, no destruction operation is required because neither <code>Point</code> nor its fields require destruction. </p> <p> More generally, if a struct does not define <code>destroy</code> and contains fields whose types require destruction, the compiler destroys those fields recursively according to their destruction semantics. Each owned field requiring destruction is destroyed exactly once. </p> <p> For example: </p>
 <pre><code>struct Container&lt;T&gt;
 {
     Vector&lt;T&gt; values;
@@ -819,78 +720,7 @@ mut Container&lt;i32&gt; container = Container&lt;i32&gt;
 {
     values = Vector&lt;i32&gt;::new()
 };</code></pre>
-
-<p>
-  If <code>Container&lt;T&gt;</code> does not define its own
-  <code>destroy</code> function, the compiler automatically destroys its
-  owned <code>Vector&lt;T&gt;</code> field when <code>container</code>'s
-  owning lifetime ends. Destruction of the Vector invokes the Vector's
-  destruction operation, which destroys its live elements and releases
-  its backing storage.
-</p>
-
-
-<h3>21.3. Destruction and Move Semantics</h3>
-
-<p>
-  Destruction follows ownership. After a value has been moved, the
-  moved-from binding no longer owns the transferred value and therefore
-  MUST NOT destroy that value.
-</p>
-
-<pre><code>mut File a = open("data.txt");
-File b = move a;</code></pre>
-
-<p>
-  At the end of <code>b</code>'s owning lifetime, the compiler invokes
-  <code>File::destroy</code> for the transferred <code>File</code>.
-  The moved-from binding <code>a</code> does not cause the same value to
-  be destroyed again.
-</p>
-
-<p>
-  Ownership transfer, borrowing, and destruction MUST preserve the
-  invariant that exactly one owner is responsible for each owned value.
-  Destruction MUST NOT cause the same owned value to be destroyed more
-  than once.
-</p>
-
-
-<h3>21.4. Destruction and Borrowing</h3>
-
-<p>
-  An owning binding MUST NOT reach the end of its lifetime while a live
-  managed borrow would remain valid only while that binding exists. The
-  ownership, borrowing, and lifetime rules therefore prevent automatic
-  destruction from invalidating a live managed pointer.
-</p>
-
-<p>
-  For example:
-</p>
-
-<pre><code>mut Point point = Point
-{
-    x = 10,
-    y = 20
-};
-
-i32* p = &amp;point.x;</code></pre>
-
-<p>
-  While <code>p</code> is a live managed borrow, the owning lifetime of
-  <code>point</code> cannot end. The compiler MUST reject any program in
-  which destruction of <code>point</code> would invalidate a live managed
-  pointer.
-</p>
-
-
-<h3>21.5. Destruction and Nested Ownership</h3>
-
-<p>
-  Destruction of nested values follows the ownership hierarchy.
-</p>
-
+<p> If <code>Container&lt;T&gt;</code> does not define its own <code>destroy</code> function, the compiler automatically destroys its owned <code>Vector&lt;T&gt;</code> field when <code>container</code>'s owning lifetime ends. Destruction of the Vector invokes the Vector's destruction operation, which destroys its live elements and releases its backing storage. </p> <h3>21.3. Destruction and Move Semantics</h3> <p> Destruction follows ownership. After a value has been moved, the moved-from binding no longer owns the transferred value and therefore MUST NOT destroy that value. </p> <pre><code>mut File a = open("data.txt"); File b = move a;</code></pre> <p> At the end of <code>b</code>'s owning lifetime, the compiler invokes <code>File::destroy</code> for the transferred <code>File</code>. The moved-from binding <code>a</code> does not cause the same value to be destroyed again. </p> <p> Ownership transfer, borrowing, and destruction MUST preserve the invariant that exactly one owner is responsible for each owned value. Destruction MUST NOT cause the same owned value to be destroyed more than once. </p> <h3>21.4. Destruction and Borrowing</h3> <p> An owning binding MUST NOT reach the end of its lifetime while a live managed borrow would remain valid only while that binding exists. The ownership, borrowing, and lifetime rules therefore prevent automatic destruction from invalidating a live managed pointer. </p> <p> For example: </p> <pre><code>mut Point point = Point { x = 10, y = 20 }; i32* p = &amp;point.x;</code></pre> <p> While <code>p</code> is a live managed borrow, the owning lifetime of <code>point</code> cannot end. The compiler MUST reject any program in which destruction of <code>point</code> would invalidate a live managed pointer. </p> <h3>21.5. Destruction and Nested Ownership</h3> <p> Destruction of nested values follows the ownership hierarchy. </p>
 <pre><code>struct File
 {
     raw i32 handle;
@@ -903,74 +733,20 @@ fn File::destroy(File* file)
 
 struct Document
 {
-    File file;
-    i32 line_count;
+    File file; i32 line_count;
 }</code></pre>
-
-<p>
-  If <code>Document</code> does not define a <code>destroy</code> function,
-  the compiler automatically destroys its owned <code>File</code> field.
-  This invokes <code>File::destroy</code>. The <code>i32</code> field
-  requires no destruction.
-</p>
-
-<p>
-  A containing type does not need to define a <code>destroy</code> function
-  merely to cause its owned fields to be destroyed. Field destruction is
-  performed automatically by the compiler.
-</p>
-
-<p>
-  For example, the following requires no explicit destruction operation:
-</p>
-
-<pre><code>struct Stack&lt;T&gt;
-{
-    Vector&lt;T&gt; values;
-}</code></pre>
-
-<p>
-  When an owning <code>Stack&lt;T&gt;</code> binding reaches the end of its
-  lifetime, the compiler destroys <code>values</code>. Destruction of
-  <code>values</code> invokes the Vector's destruction operation, which
-  destroys the Vector's live elements and releases its backing storage.
-</p>
-
-<p>
-  A containing type MAY define a <code>destroy</code> function when it owns
-  resources that require custom release logic:
-</p>
-
+<p> If <code>Document</code> does not define a <code>destroy</code> function, the compiler automatically destroys its owned <code>File</code> field. This invokes <code>File::destroy</code>. The <code>i32</code> field requires no destruction. </p> <p> A containing type does not need to define a <code>destroy</code> function merely to cause its owned fields to be destroyed. Field destruction is performed automatically by the compiler. </p> <p> For example, the following requires no explicit destruction operation: </p> <pre><code>struct Stack&lt;T&gt; { Vector&lt;T&gt; values; }</code></pre> <p> When an owning <code>Stack&lt;T&gt;</code> binding reaches the end of its lifetime, the compiler destroys <code>values</code>. Destruction of <code>values</code> invokes the Vector's destruction operation, which destroys the Vector's live elements and releases its backing storage. </p> <p> A containing type MAY define a <code>destroy</code> function when it owns resources that require custom release logic: </p>
 <pre><code>struct Document
 {
-    File file;
-    raw i32 metadata_handle;
+    File file; raw i32 metadata_handle;
 }
 
 fn Document::destroy(Document* document)
 {
     close(document-&gt;metadata_handle);
 }</code></pre>
+<p> When <code>Document</code> reaches the end of its owning lifetime, the compiler invokes <code>Document::destroy</code> to release resources directly owned by the Document. The compiler also destroys the owned fields according to their destruction semantics. </p> <p> In particular, the compiler will subsequently destroy <code>document-&gt;file</code> by invoking <code>File::destroy</code>. The <code>Document::destroy</code> function MUST NOT invoke <code>File::destroy</code> itself. </p> <p> This rule allows destruction to compose automatically across nested ownership without requiring destruction operations to be exposed as ordinary public functions or called manually by containing types. </p>
 
-<p>
-  When <code>Document</code> reaches the end of its owning lifetime, the
-  compiler invokes <code>Document::destroy</code> to release resources
-  directly owned by the Document and also destroys its owned fields
-  according to their destruction semantics.
-</p>
-
-<p>
-  In particular, the compiler will subsequently destroy
-  <code>document-&gt;file</code> by invoking <code>File::destroy</code>.
-  The <code>Document::destroy</code> function MUST NOT invoke
-  <code>File::destroy</code> itself.
-</p>
-
-<p>
-  This rule allows destruction to compose automatically across nested
-  ownership without requiring destruction operations to be exposed as
-  ordinary public functions or called manually by containing types.
-</p>
 
 
 
@@ -4209,6 +3985,9 @@ fn Vector&lt;T&gt;::shrink_to_fit(Vector&lt;T&gt;* vector) : Result&lt;usize, Ve
 }
 
 <span style="color: #888;">// Destroys the Vector and all elements it owns.
+//
+// Vector owns resources that the compiler cannot release through ordinary field destruction.
+// The compiler invokes this types destroy operation when a Vector<T> owning lifetime ends.
 //
 // Every live element is destroyed exactly once.
 //
