@@ -684,190 +684,54 @@ f64</code></pre>
     name.
   </p>
 
-  <h3>21.1. Destruction</h3>
+<h3>21.1. Destruction</h3>
 
-  <p>The underlying principle: The compiler owns the responsibility of deciding
-     when destruction occurs; the type's destroy function owns the responsibility
-     of deciding how that type's resources are destroyed.
-  </p>
+<p>
+  The underlying principle is that the compiler owns the responsibility for
+  deciding when destruction occurs, while the type defines how its own
+  resources are released.
+</p>
 
-  <p>
-    A type may define an associated function named <code>destroy</code> that
-    accepts a mutable managed pointer to the type:
-  </p>
+<p>
+  A type may define an associated function named <code>destroy</code> that
+  accepts a mutable managed pointer to the type:
+</p>
 
-  <pre><code>fn File::destroy(File* file)
+<pre><code>fn File::destroy(File* file)
 {
-    ...
+    close(file-&gt;handle);
 }</code></pre>
 
 <p>
   The <code>destroy</code> function is the type's destruction operation.
-  For every owned value whose type defines an associated
-  <code>destroy</code> function with the required destruction signature,
-  the compiler MUST invoke that function exactly once when the owning
-  lifetime ends. Automatic destruction of such a value consists solely
-  of invoking that function. The compiler MUST NOT additionally perform
-  automatic destruction of the value's fields.
+  It is a language-recognized lifecycle operation rather than an ordinary
+  public associated function.
 </p>
 
 <p>
-  If a type does not define an associated <code>destroy</code> function,
-  the compiler MUST destroy the value's owned components recursively
-  according to their destruction semantics. A value MUST NOT be
-  automatically destroyed after its ownership has been transferred by
-  a move, and the compiler MUST ensure that each owned value is
-  destroyed exactly once.
+  For every owned value whose type defines a <code>destroy</code> function
+  with the required destruction signature, the compiler MUST invoke that
+  function exactly once when the owning lifetime ends.
 </p>
 
-  <p>
-    A <code>destroy</code> function may therefore delegate destruction to
-    owned fields:
-  </p>
+<p>
+  A type's <code>destroy</code> function is responsible for releasing the
+  resources directly owned by that type. The compiler remains responsible
+  for recursively destroying the type's owned fields according to their
+  own destruction semantics.
+</p>
 
-  <pre><code>struct Stack&lt;T&gt;
-{
-    Vector&lt;T&gt; values;
-}
+<p>
+  A <code>destroy</code> function MUST NOT explicitly destroy an owned field
+  merely because that field requires destruction. The compiler will destroy
+  the field as part of destruction of the containing value.
+</p>
 
-fn Stack&lt;T&gt;::destroy(Stack&lt;T&gt;* stack)
-{
-    Vector&lt;T&gt;::destroy(&amp;mut stack-&gt;values);
-}</code></pre>
+<p>
+  For example:
+</p>
 
-  <p>
-    When an owning <code>Stack&lt;T&gt;</code> binding reaches the end of its
-    lifetime, the compiler invokes <code>Stack&lt;T&gt;::destroy</code>.
-    The function destroys the owned <code>Vector&lt;T&gt;</code>, which in turn
-    destroys its live elements and releases its backing storage.
-  </p>
-
-  <p>
-    Because <code>Stack&lt;T&gt;::destroy</code> is responsible for destroying
-    <code>values</code>, the compiler does not subsequently destroy
-    <code>values</code> a second time.
-  </p>
-
-  <h3>21.2. Structs Without Destruction Operations</h3>
-
-  <p>
-    A type does not require a <code>destroy</code> function merely because it
-    is a struct. Fundamental value types such as <code>i32</code>,
-    <code>usize</code>, and <code>bool</code> do not own resources requiring
-    destruction.
-  </p>
-
-  <p>
-    A struct containing only fields that require no destruction therefore
-    requires no user-defined <code>destroy</code> function:
-  </p>
-
-  <pre><code>struct Point
-{
-    i32 x;
-    i32 y;
-}
-
-mut Point point = Point
-{
-    x = 10,
-    y = 20
-};</code></pre>
-
-  <p>
-    When <code>point</code> reaches the end of its owning lifetime, no
-    destruction function is invoked because neither <code>Point</code> nor
-    its fields require destruction.
-  </p>
-
-  <p>
-    More generally, if a struct does not define <code>destroy</code> and
-    contains fields whose types require destruction, destruction proceeds
-    recursively according to the ownership of those fields. Each owned
-    field requiring destruction is destroyed exactly once.
-  </p>
-
-  <p>
-    For example:
-  </p>
-
-  <pre><code>struct Container&lt;T&gt;
-{
-    Vector&lt;T&gt; values;
-}
-
-mut Container&lt;i32&gt; container = Container&lt;i32&gt;
-{
-    values = Vector&lt;i32&gt;::new()
-};</code></pre>
-
-  <p>
-    If <code>Container&lt;T&gt;</code> does not define its own
-    <code>destroy</code> function, its owned <code>Vector&lt;T&gt;</code> field
-    is destroyed according to the Vector's destruction operation.
-  </p>
-
-  <h3>21.3. Destruction and Move Semantics</h3>
-
-  <p>
-    Destruction follows ownership. After a value has been moved, the
-    moved-from binding no longer owns the transferred value and therefore
-    MUST NOT destroy that value.
-  </p>
-
-  <pre><code>mut File a = open("data.txt");
-File b = move a;</code></pre>
-
-  <p>
-    At the end of <code>b</code>'s owning lifetime, the compiler invokes
-    <code>File::destroy</code> for the transferred <code>File</code>.
-    The moved-from binding <code>a</code> does not cause the same value to
-    be destroyed again.
-  </p>
-
-  <p>
-    Ownership transfer, borrowing, and destruction MUST preserve the
-    invariant that exactly one owner is responsible for each owned value.
-    Destruction MUST NOT cause the same owned value to be destroyed more
-    than once.
-  </p>
-
-  <h3>21.4. Destruction and Borrowing</h3>
-
-  <p>
-    An owning binding MUST NOT reach the end of its lifetime while a live
-    managed borrow would remain valid only while that binding exists.
-    The ownership, borrowing, and lifetime rules therefore prevent automatic
-    destruction from invalidating a live managed pointer.
-  </p>
-
-  <p>
-    For example:
-  </p>
-
-  <pre><code>mut Point point = Point
-{
-    x = 10,
-    y = 20
-};
-
-i32* p = &amp;point.x;</code></pre>
-
-  <p>
-    While <code>p</code> is a live managed borrow, the owning lifetime of
-    <code>point</code> cannot end. The compiler MUST reject any program in
-    which destruction of <code>point</code> would invalidate a live managed
-    pointer.
-  </p>
-
-  <h3>21.5. Destruction and Nested Ownership</h3>
-
-  <p>
-    Destruction of nested values follows the ownership hierarchy. For
-    example:
-  </p>
-
-  <pre><code>struct File
+<pre><code>struct File
 {
     raw i32 handle;
 }
@@ -883,34 +747,230 @@ struct Document
     i32 line_count;
 }</code></pre>
 
-  <p>
-    If <code>Document</code> does not define a <code>destroy</code> function,
-    its owned <code>File</code> field is destroyed and its
-    <code>i32</code> field requires no destruction.
-  </p>
+<p>
+  When an owning <code>Document</code> reaches the end of its lifetime, the
+  compiler destroys its owned fields. The <code>File</code> field is
+  destroyed by invoking <code>File::destroy</code>, while the
+  <code>i32</code> field requires no destruction.
+</p>
 
-  <p>
-    If <code>Document</code> defines its own <code>destroy</code> function,
-    that function becomes responsible for destroying its owned resources:
-  </p>
+<p>
+  If a type does not define a <code>destroy</code> function, the compiler
+  recursively destroys its owned fields according to their destruction
+  semantics.
+</p>
 
-  <pre><code>fn Document::destroy(Document* document)
+<p>
+  A value MUST NOT be automatically destroyed after its ownership has been
+  transferred by a move, and the compiler MUST ensure that each owned value
+  is destroyed exactly once.
+</p>
+
+
+<h3>21.2. Structs Without Destruction Operations</h3>
+
+<p>
+  A type does not require a <code>destroy</code> function merely because it
+  is a struct. Fundamental value types such as <code>i32</code>,
+  <code>usize</code>, and <code>bool</code> do not own resources requiring
+  destruction.
+</p>
+
+<p>
+  A struct containing only fields that require no destruction therefore
+  requires no user-defined <code>destroy</code> function:
+</p>
+
+<pre><code>struct Point
 {
-    File::destroy(&amp;mut document-&gt;file);
+    i32 x;
+    i32 y;
+}
+
+mut Point point = Point
+{
+    x = 10,
+    y = 20
+};</code></pre>
+
+<p>
+  When <code>point</code> reaches the end of its owning lifetime, no
+  destruction operation is required because neither <code>Point</code>
+  nor its fields require destruction.
+</p>
+
+<p>
+  More generally, if a struct does not define <code>destroy</code> and
+  contains fields whose types require destruction, the compiler destroys
+  those fields recursively according to their destruction semantics.
+  Each owned field requiring destruction is destroyed exactly once.
+</p>
+
+<p>
+  For example:
+</p>
+
+<pre><code>struct Container&lt;T&gt;
+{
+    Vector&lt;T&gt; values;
+}
+
+mut Container&lt;i32&gt; container = Container&lt;i32&gt;
+{
+    values = Vector&lt;i32&gt;::new()
+};</code></pre>
+
+<p>
+  If <code>Container&lt;T&gt;</code> does not define its own
+  <code>destroy</code> function, the compiler automatically destroys its
+  owned <code>Vector&lt;T&gt;</code> field when <code>container</code>'s
+  owning lifetime ends. Destruction of the Vector invokes the Vector's
+  destruction operation, which destroys its live elements and releases
+  its backing storage.
+</p>
+
+
+<h3>21.3. Destruction and Move Semantics</h3>
+
+<p>
+  Destruction follows ownership. After a value has been moved, the
+  moved-from binding no longer owns the transferred value and therefore
+  MUST NOT destroy that value.
+</p>
+
+<pre><code>mut File a = open("data.txt");
+File b = move a;</code></pre>
+
+<p>
+  At the end of <code>b</code>'s owning lifetime, the compiler invokes
+  <code>File::destroy</code> for the transferred <code>File</code>.
+  The moved-from binding <code>a</code> does not cause the same value to
+  be destroyed again.
+</p>
+
+<p>
+  Ownership transfer, borrowing, and destruction MUST preserve the
+  invariant that exactly one owner is responsible for each owned value.
+  Destruction MUST NOT cause the same owned value to be destroyed more
+  than once.
+</p>
+
+
+<h3>21.4. Destruction and Borrowing</h3>
+
+<p>
+  An owning binding MUST NOT reach the end of its lifetime while a live
+  managed borrow would remain valid only while that binding exists. The
+  ownership, borrowing, and lifetime rules therefore prevent automatic
+  destruction from invalidating a live managed pointer.
+</p>
+
+<p>
+  For example:
+</p>
+
+<pre><code>mut Point point = Point
+{
+    x = 10,
+    y = 20
+};
+
+i32* p = &amp;point.x;</code></pre>
+
+<p>
+  While <code>p</code> is a live managed borrow, the owning lifetime of
+  <code>point</code> cannot end. The compiler MUST reject any program in
+  which destruction of <code>point</code> would invalidate a live managed
+  pointer.
+</p>
+
+
+<h3>21.5. Destruction and Nested Ownership</h3>
+
+<p>
+  Destruction of nested values follows the ownership hierarchy.
+</p>
+
+<pre><code>struct File
+{
+    raw i32 handle;
+}
+
+fn File::destroy(File* file)
+{
+    close(file-&gt;handle);
+}
+
+struct Document
+{
+    File file;
+    i32 line_count;
 }</code></pre>
 
-  <p>
-    The compiler invokes <code>Document::destroy</code> exactly once when an
-    owning <code>Document</code> binding reaches the end of its lifetime.
-    The compiler does not additionally invoke <code>File::destroy</code> for
-    <code>file</code>.
-  </p>
+<p>
+  If <code>Document</code> does not define a <code>destroy</code> function,
+  the compiler automatically destroys its owned <code>File</code> field.
+  This invokes <code>File::destroy</code>. The <code>i32</code> field
+  requires no destruction.
+</p>
 
-  <p>
-    This rule allows destruction to remain explicit and predictable while
-    permitting complex owning types to compose simpler owning types.
-  </p>
-</section>
+<p>
+  A containing type does not need to define a <code>destroy</code> function
+  merely to cause its owned fields to be destroyed. Field destruction is
+  performed automatically by the compiler.
+</p>
+
+<p>
+  For example, the following requires no explicit destruction operation:
+</p>
+
+<pre><code>struct Stack&lt;T&gt;
+{
+    Vector&lt;T&gt; values;
+}</code></pre>
+
+<p>
+  When an owning <code>Stack&lt;T&gt;</code> binding reaches the end of its
+  lifetime, the compiler destroys <code>values</code>. Destruction of
+  <code>values</code> invokes the Vector's destruction operation, which
+  destroys the Vector's live elements and releases its backing storage.
+</p>
+
+<p>
+  A containing type MAY define a <code>destroy</code> function when it owns
+  resources that require custom release logic:
+</p>
+
+<pre><code>struct Document
+{
+    File file;
+    raw i32 metadata_handle;
+}
+
+fn Document::destroy(Document* document)
+{
+    close(document-&gt;metadata_handle);
+}</code></pre>
+
+<p>
+  When <code>Document</code> reaches the end of its owning lifetime, the
+  compiler invokes <code>Document::destroy</code> to release resources
+  directly owned by the Document and also destroys its owned fields
+  according to their destruction semantics.
+</p>
+
+<p>
+  In particular, the compiler will subsequently destroy
+  <code>document-&gt;file</code> by invoking <code>File::destroy</code>.
+  The <code>Document::destroy</code> function MUST NOT invoke
+  <code>File::destroy</code> itself.
+</p>
+
+<p>
+  This rule allows destruction to compose automatically across nested
+  ownership without requiring destruction operations to be exposed as
+  ordinary public functions or called manually by containing types.
+</p>
 
 
 
@@ -3358,7 +3418,7 @@ hash_remove(table, key);</code></pre>
 
 <p>but MUST NOT directly access the internal representation of <code>HashTable</code>.</p>
 
-<p>When a struct type is exported by a module, all its associated functions of that type are implicitly exported and need not be listed separately in the module's export block.</p>
+<p>Nothing is exported implicitly. A declaration is exported only if it appears in the module's export { ... } block.</p>
 
 <h3>98.12.4 API Stability</h3>
 <p>The <code>export</code> block defines the source-level API boundary of a module.</p>
@@ -3452,13 +3512,21 @@ export
 
 <hr>
 
-<h3>98.13 Structs and Associated Functions</h3> <p>This section clarifies the semantics of associated functions defined in Section 25.</p> <p>CobaltC 1.0.0 defines a struct as a data type whose declaration describes its data representation. A struct declaration MUST NOT contain method or member-function declarations.</p> <p>Functions operating on a struct are ordinary functions and MAY be declared independently of the struct declaration. A function MAY accept a struct value, pointer, or reference as an argument and MAY return a struct value, pointer, or reference, subject to the normal rules of the type system.</p> <p>CobaltC 1.0.0 does not define an implicit <code>this</code>, <code>self</code>, or equivalent receiver parameter for functions operating on a struct.</p> <h4>98.13.1 Ordinary Struct Functions</h4> <p>A function MAY operate on a struct without being associated with that type. Such a function is an ordinary function and is declared using the normal function declaration syntax.</p> <p>For example:</p> <pre><code>struct HashTable { usize capacity; } fn hash_insert(HashTable *table, Key key, Value value) { ... }</code></pre> <p>In this example, <code>hash_insert</code> is an ordinary function. It is not associated with or a member of <code>HashTable</code>.</p> <p>The caller MUST provide the <code>HashTable</code> argument explicitly:</p> <pre><code>hash_insert(&amp;table, key, value);</code></pre> <h4>98.13.2 Associated Functions</h4> <p>A function MAY be associated with a struct by using the <code>Type::function</code> declaration syntax:</p> <pre><code>fn HashTable::hash_insert(HashTable *table, Key key, Value value) { ... }</code></pre> <p>An associated function is an ordinary function with a type-qualified name. Association provides type-oriented organization and lookup but does not make the function a member of the struct or introduce an implicit receiver.</p> <p>All parameters of an associated function MUST be declared explicitly. Association does not alter the function's parameter list, calling convention, ownership, borrowing, or return-value semantics.</p> <p>An associated function MAY therefore be declared without a parameter referring to its associated type:</p> <pre><code>fn HashTable::new(usize capacity) : HashTable { ... }</code></pre> <p>An associated function MAY also explicitly accept a value, pointer, or reference to its associated type:</p> <pre><code>fn HashTable::insert(HashTable *table, Key key, Value value) { ... }</code></pre> <h4>98.13.3 Qualified Names and Calls</h4> <p>An associated function MAY be referenced through its associated type using a type-qualified name:</p> <pre><code>HashTable::new(100); HashTable::insert(&amp;table, key, value);</code></pre> <p>For a generic type, the type arguments form part of the qualification:</p> <pre><code>Stack&lt;i32&gt;::new(); Stack&lt;i32&gt;::push(&amp;stack, 10);</code></pre> <p>An associated function MAY also be referenced through a value whose statically known type is the associated type:</p>
+<h3>98.13 Structs and Associated Functions</h3> <p>This section clarifies the semantics of associated functions defined in Section 25.</p> <p>CobaltC 1.0.0 defines a struct as a data type whose declaration describes its data representation. A struct declaration MUST NOT contain method or member-function declarations.</p> <p>Functions operating on a struct are ordinary functions and MAY be declared independently of the struct declaration. A function MAY accept a struct value, pointer, or reference as an argument and MAY return a struct value, pointer, or reference, subject to the normal rules of the type system.</p> <p>CobaltC 1.0.0 does not define an implicit <code>this</code>, <code>self</code>, or equivalent receiver parameter for functions operating on a struct.</p>
+<h4>98.13.1 Ordinary Struct Functions</h4> <p>A function MAY operate on a struct without being associated with that type. Such a function is an ordinary function and is declared using the normal function declaration syntax.</p> <p>For example:</p> <pre><code>struct HashTable { usize capacity; } fn hash_insert(HashTable *table, Key key, Value value) { ... }</code></pre> <p>In this example, <code>hash_insert</code> is an ordinary function. It is not associated with or a member of <code>HashTable</code>.</p> <p>The caller MUST provide the <code>HashTable</code> argument explicitly:</p> <pre><code>hash_insert(&amp;table, key, value);</code></pre>
+<h4>98.13.2 Associated Functions</h4> <p>A function MAY be associated with a struct by using the <code>Type::function</code> declaration syntax:</p> <pre><code>fn HashTable::hash_insert(HashTable *table, Key key, Value value) { ... }</code></pre> <p>An associated function is an ordinary function with a type-qualified name. Association provides type-oriented organization and lookup but does not make the function a member of the struct or introduce an implicit receiver.</p> <p>All parameters of an associated function MUST be declared explicitly. Association does not alter the function's parameter list, calling convention, ownership, borrowing, or return-value semantics.</p>
+<h4>98.13.3 Qualified Names and Calls</h4> <p>An associated function MAY be referenced through its associated type using a type-qualified name:</p> <pre><code>HashTable::new(100); HashTable::insert(&amp;table, key, value);</code></pre> <p>For a generic type, the type arguments form part of the qualification:</p> <pre><code>Stack&lt;i32&gt;::new(); Stack&lt;i32&gt;::push(&amp;stack, 10);</code></pre> <p>An associated function MAY also be referenced through a value whose statically known type is the associated type:</p>
 <pre><code>mut Stack&lt;i32&gt; stack = Stack&lt;i32&gt;::new();
 stack::push(&amp;stack, 10);
 stack::push(&amp;stack, 20);
 stack::push(&amp;stack, 30);
 </code></pre>
-<p>When an associated function is referenced through a value, the compiler determines the associated type from the value's statically known type and performs associated-function lookup on that type. The value used for qualification is not implicitly passed to the function.</p> <p>Consequently, if <code>stack</code> has type <code>Stack&lt;i32&gt;</code>, the following calls identify the same associated function:</p> <pre><code>Stack&lt;i32&gt;::push(&amp;stack, 10); stack::push(&amp;stack, 10);</code></pre> <p>In both calls, <code>&amp;stack</code> is an explicit argument because the selected function declares the corresponding parameter.</p> <p>The <code>::</code> operator qualifies a function name with a type or value for associated-function lookup. It does not imply an implicit receiver or alter the function's declared parameter list. The <code>.</code> operator remains field access and MUST NOT introduce implicit method lookup or invocation.</p> <p>The number and types of arguments supplied in a call MUST satisfy the selected function's signature. A function with a return type other than <code>void</code> MUST return a value compatible with its declared return type. A <code>void</code> function MUST NOT return a value.</p> <h4>98.13.4 Associated Functions and Ordinary Functions</h4> <p>An operation on a struct MAY be implemented either as an ordinary function or as an associated function. The two forms have the same fundamental function semantics; association determines how the function is named and discovered.</p> <p>For example, the following declarations define equivalent forms of an operation:</p> <pre><code>fn Stack_push(Stack *stack, i32 value) { ... } fn Stack::push(Stack *stack, i32 value) { ... }</code></pre> <p>The associated form does not constitute a separate function model and does not introduce object-oriented method dispatch or implicit receiver semantics.</p> <h4>98.13.5 Constructors and Factory Functions</h4> <p>An associated function is not required to operate on an existing value of its associated type. It MAY create and return a new value.</p> <p>For example:</p> <pre><code>Stack&lt;i32&gt; stack = Stack&lt;i32&gt;::new();</code></pre> <p>Because <code>new</code> has no receiver parameter, it MAY be called through the associated type without an existing <code>Stack&lt;i32&gt;</code> value.</p> <p>CobaltC does not treat <code>new</code> as a special constructor mechanism. It is an ordinary associated function whose declared return type determines the value produced by the call.</p> <h4>98.13.6 Modules and External Interfaces</h4> <p>Ordinary functions and associated functions MAY be declared within the same module as the types on which they operate. A module MAY use its export block to define which types and ordinary functions form its external interface.</p> <p>Exporting a type implicitly exports its associated functions. An associated function therefore need not be listed separately in the module's export block.</p> <h4>98.13.7 Associated Function Identity and Name Resolution</h4> <p>An associated function is identified by its associated type and function name.</p> <p>Associated functions with the same function name MAY exist for different types and are distinct functions. For example, <code>Stack::push</code> and <code>HashTable::push</code> identify different associated functions:</p> <pre><code>fn Stack::push(Stack *stack, i32 value) { ... } fn HashTable::push(HashTable *table, i32 value) { ... }</code></pre> <p>An ordinary function and an associated function MAY also have the same unqualified function name:</p> <pre><code>fn push(i32 value) { ... } fn Stack::push(Stack *stack, i32 value) { ... }</code></pre> <p>These declarations identify distinct functions. An unqualified call refers only to an ordinary function:</p> <pre><code>push(10);</code></pre> <p>A type-qualified call refers to the associated function of the specified type:</p> <pre><code>Stack::push(&amp;stack, 10);</code></pre> <p>A value-qualified call uses the statically known type of the qualifying value to determine the associated type:</p> <pre><code>stack::push(&amp;stack, 10);</code></pre> <p>The existence of an ordinary function with the same unqualified name MUST NOT cause it to be selected by a type-qualified or value-qualified associated-function call. Likewise, the existence of an associated function MUST NOT cause it to be selected by an unqualified call.</p> <p>Qualification determines whether ordinary-function or associated-function lookup is performed. Once an associated function has been selected, its declared parameter list determines whether the call is valid.</p> <h4>98.13.8 Rationale</h4> <p>CobaltC deliberately keeps struct declarations focused on the representation of data and does not introduce method or member-function declarations within structures.</p> <p>Functions remain ordinary functions, making their parameters, return values, calling conventions, ownership, and borrowing behavior explicit. The <code>Type::function</code> syntax provides type-oriented organization and lookup without introducing implicit <code>this</code> or <code>self</code> parameters or object-oriented method semantics.</p> <p>Value-qualified lookup provides a concise alternative when an existing value is available. The qualifying value determines the static type used for lookup but is passed to the selected function only when it is explicitly supplied as an argument.</p> <p>The result is a programming model that retains the explicitness of C-like functions while allowing APIs to be organized naturally around their associated types.</p>
+<p>When an associated function is referenced through a value, the compiler determines the associated type from the value's statically known type and performs associated-function lookup on that type. The value used for qualification is not implicitly passed to the function.</p> <p>Consequently, if <code>stack</code> has type <code>Stack&lt;i32&gt;</code>, the following calls identify the same associated function:</p> <pre><code>Stack&lt;i32&gt;::push(&amp;stack, 10); stack::push(&amp;stack, 10);</code></pre> <p>In both calls, <code>&amp;stack</code> is an explicit argument because the selected function declares the corresponding parameter.</p> <p>The <code>::</code> operator qualifies a function name with a type or value for associated-function lookup. It does not imply an implicit receiver or alter the function's declared parameter list. The <code>.</code> operator remains field access and MUST NOT introduce implicit method lookup or invocation.</p> <p>The number and types of arguments supplied in a call MUST satisfy the selected function's signature. A function with a return type other than <code>void</code> MUST return a value compatible with its declared return type. A <code>void</code> function MUST NOT return a value.</p>
+<h4>98.13.4 Associated Functions and Ordinary Functions</h4> <p>An operation on a struct MAY be implemented either as an ordinary function or as an associated function. The two forms have the same fundamental function semantics; association determines how the function is named and discovered.</p> <p>For example, the following declarations define equivalent forms of an operation (although they are separate functions):</p> <pre><code>fn Stack_push(Stack *stack, i32 value) { ... } fn Stack::push(Stack *stack, i32 value) { ... }</code></pre> <p>The associated form does not introduce object-oriented method dispatch or implicit receiver semantics.</p>
+<h4>98.13.5 Constructors and Factory Functions</h4> <p>An associated function is not required to operate on an existing value of its associated type. It MAY create and return a new value.</p> <p>For example:</p> <pre><code>Stack&lt;i32&gt; stack = Stack&lt;i32&gt;::new();</code></pre> <p>Because <code>new</code> has no receiver parameter, it MAY be called through the associated type without an existing <code>Stack&lt;i32&gt;</code> value.</p> <p>CobaltC does not treat <code>new</code> as a special constructor mechanism. It is an ordinary associated function whose declared return type determines the value produced by the call.</p>
+<h4>98.13.6 Modules and External Interfaces</h4> <p>Ordinary functions and associated functions MAY be declared within the same module as the types on which they operate. A module MAY use its export block to define which types and ordinary functions form its external interface.</p> <p>Nothing is exported implicitly. A declaration is exported only if it appears in the module's export { ... } block.</p>
+<h4>98.13.7 Associated Function Identity and Name Resolution</h4> <p>An associated function is identified by its associated type and function name.</p> <p>Associated functions with the same function name MAY exist for different types and are distinct functions. For example, <code>Stack::push</code> and <code>HashTable::push</code> identify different associated functions:</p> <pre><code>fn Stack::push(Stack *stack, i32 value) { ... } fn HashTable::push(HashTable *table, i32 value) { ... }</code></pre> <p>An ordinary function and an associated function MAY also have the same unqualified function name:</p> <pre><code>fn push(i32 value) { ... } fn Stack::push(Stack *stack, i32 value) { ... }</code></pre> <p>These declarations identify distinct functions. An unqualified call refers only to an ordinary function:</p> <pre><code>push(10);</code></pre> <p>A type-qualified call refers to the associated function of the specified type:</p> <pre><code>Stack::push(&amp;stack, 10);</code></pre> <p>A value-qualified call uses the statically known type of the qualifying value to determine the associated type:</p> <pre><code>stack::push(&amp;stack, 10);</code></pre> <p>The existence of an ordinary function with the same unqualified name MUST NOT cause it to be selected by a type-qualified or value-qualified associated-function call. Likewise, the existence of an associated function MUST NOT cause it to be selected by an unqualified call.</p> <p>Qualification determines whether ordinary-function or associated-function lookup is performed. Once an associated function has been selected, its declared parameter list determines whether the call is valid.</p>
+<h4>98.13.8 Rationale</h4> <p>CobaltC deliberately keeps struct declarations focused on the representation of data and does not introduce method or member-function declarations within structures.</p> <p>Functions remain ordinary functions, making their parameters, return values, calling conventions, ownership, and borrowing behavior explicit. The <code>Type::function</code> syntax provides type-oriented organization and lookup without introducing implicit <code>this</code> or <code>self</code> parameters or object-oriented method semantics.</p> <p>Value-qualified lookup provides a concise alternative when an existing value is available. The qualifying value determines the static type used for lookup but is passed to the selected function only when it is explicitly supplied as an argument.</p> <p>The result is a programming model that retains the explicitness of C-like functions while allowing APIs to be organized naturally around their associated types.</p>
 
 <hr>
 
@@ -3691,8 +3759,22 @@ export
     Vector;
     VectorPushError;
     VectorPopError;
-}
 
+    Vector::new;
+    Vector::push;
+    Vector::pop;
+    Vector::get;
+    Vector::len;
+    Vector::capacity;
+    Vector::is_empty;
+    Vector::clear;
+    Vector::reserve;
+    Vector::truncate;
+    Vector::remove;
+    Vector::swap_remove;
+    Vector::insert;
+    Vector::shrink_to_fit;
+}
 
 enum VectorPushError
 {
@@ -3700,12 +3782,10 @@ enum VectorPushError
     CapacityOverflow
 }
 
-
 enum VectorPopError
 {
     Empty
 }
-
 
 struct Vector&lt;T&gt;
 {
@@ -3726,18 +3806,19 @@ struct Vector&lt;T&gt;
     capacity: usize;
 }
 
-
 <span style="color: #888;">// Grows the Vector so that it can hold at least required elements.
 //
 // This function is private to the module.
 //
 // The Vector is unchanged if allocation fails or the required capacity
-// cannot be represented.</span>
-fn Vector&lt;T&gt;::grow(Vector&lt;T&gt;* vector, usize required) : Result&lt;void, VectorPushError&gt;
+// cannot be represented.
+//
+// On success, returns the new capacity.</span>
+fn grow(Vector&lt;T&gt;* vector, usize required) : Result&lt;usize, VectorPushError&gt;
 {
     if (required &lt;= vector-&gt;capacity)
     {
-        return Ok;
+        return Ok(vector-&gt;capacity);
     }
 
     usize new_capacity = vector-&gt;capacity;
@@ -3769,12 +3850,11 @@ fn Vector&lt;T&gt;::grow(Vector&lt;T&gt;* vector, usize required) : Result&lt;vo
     {
         Result&lt;raw T*, AllocationError&gt; allocation = allocate&lt;T&gt;(new_capacity);
 
-        if (allocation.is_err())
+        raw T* new_data = match allocation
         {
-            return Err(VectorPushError::AllocationFailed);
-        }
-
-        raw T* new_data = allocation.unwrap();
+            Ok(data) =&gt; data,
+            Err(_) =&gt; return Err(VectorPushError::AllocationFailed)
+        };
 
         usize i = 0;
 
@@ -3793,9 +3873,8 @@ fn Vector&lt;T&gt;::grow(Vector&lt;T&gt;* vector, usize required) : Result&lt;vo
         vector-&gt;capacity = new_capacity;
     }
 
-    return Ok;
+    return Ok(new_capacity);
 }
-
 
 <span style="color: #888;">// Creates an empty Vector.
 //
@@ -3810,13 +3889,11 @@ fn Vector&lt;T&gt;::new() : Vector&lt;T&gt;
     };
 }
 
-
 <span style="color: #888;">// Returns the number of live elements.</span>
 fn Vector&lt;T&gt;::len(Vector&lt;T&gt;* vector) : usize
 {
     return vector-&gt;len;
 }
-
 
 <span style="color: #888;">// Returns the number of allocated T slots.</span>
 fn Vector&lt;T&gt;::capacity(Vector&lt;T&gt;* vector) : usize
@@ -3824,21 +3901,21 @@ fn Vector&lt;T&gt;::capacity(Vector&lt;T&gt;* vector) : usize
     return vector-&gt;capacity;
 }
 
-
 <span style="color: #888;">// Returns true when the Vector contains no elements.</span>
 fn Vector&lt;T&gt;::is_empty(Vector&lt;T&gt;* vector) : bool
 {
     return vector-&gt;len == 0;
 }
 
-
 <span style="color: #888;">// Appends value to the Vector.
 //
 // On success, ownership of value is transferred to the Vector.
 //
+// On success, returns the new length of the Vector.
+//
 // If allocation fails or capacity overflows, the Vector and value
 // remain unchanged.</span>
-fn Vector&lt;T&gt;::push(Vector&lt;T&gt;* vector, T value) : Result&lt;bool, VectorPushError&gt;
+fn Vector&lt;T&gt;::push(Vector&lt;T&gt;* vector, T value) : Result&lt;usize, VectorPushError&gt;
 {
     if (vector-&gt;len == vector-&gt;capacity)
     {
@@ -3849,12 +3926,13 @@ fn Vector&lt;T&gt;::push(Vector&lt;T&gt;* vector, T value) : Result&lt;bool, Vec
 
         usize required = vector-&gt;len + 1;
 
-        Result&lt;void, VectorPushError&gt; result = Vector&lt;T&gt;::grow(vector, required);
+        Result&lt;usize, VectorPushError&gt; result = grow(vector, required);
 
-        if (result.is_err())
+        match result
         {
-            return Err(result.unwrap_err());
-        }
+            Ok(_) =&gt; {},
+            Err(error) =&gt; return Err(error)
+        };
     }
 
     unsafe
@@ -3864,9 +3942,8 @@ fn Vector&lt;T&gt;::push(Vector&lt;T&gt;* vector, T value) : Result&lt;bool, Vec
 
     vector-&gt;len = vector-&gt;len + 1;
 
-    return Ok(true);
+    return Ok(vector-&gt;len);
 }
-
 
 <span style="color: #888;">// Removes and returns the final live element.
 //
@@ -3888,7 +3965,6 @@ fn Vector&lt;T&gt;::pop(Vector&lt;T&gt;* vector) : Result&lt;T, VectorPopError&g
     }
 }
 
-
 <span style="color: #888;">// Returns a borrowed pointer to the element at index.
 //
 // The language's normal bounds rules reject index &gt;= len.
@@ -3901,7 +3977,6 @@ fn Vector&lt;T&gt;::get(Vector&lt;T&gt;* vector, usize index) : T*
         return &amp;vector-&gt;data[index];
     }
 }
-
 
 <span style="color: #888;">// Removes and destroys every live element.
 //
@@ -3923,15 +3998,16 @@ fn Vector&lt;T&gt;::clear(Vector&lt;T&gt;* vector)
     vector-&gt;len = 0;
 }
 
-
 <span style="color: #888;">// Ensures that the Vector has capacity for at least
 // len + additional elements.
 //
 // If sufficient capacity already exists, nothing is done.
 //
+// On success, returns the resulting capacity.
+//
 // If allocation fails or capacity overflows, the Vector remains unchanged.</span>
 fn Vector&lt;T&gt;::reserve(Vector&lt;T&gt;* vector, usize additional)
-    : Result&lt;void, VectorPushError&gt;
+    : Result&lt;usize, VectorPushError&gt;
 {
     if (additional &gt; usize.MAX - vector-&gt;len)
     {
@@ -3940,9 +4016,8 @@ fn Vector&lt;T&gt;::reserve(Vector&lt;T&gt;* vector, usize additional)
 
     usize required = vector-&gt;len + additional;
 
-    return Vector&lt;T&gt;::grow(vector, required);
+    return grow(vector, required);
 }
-
 
 <span style="color: #888;">// Reduces the Vector's length to new_len.
 //
@@ -3973,7 +4048,6 @@ fn Vector&lt;T&gt;::truncate(Vector&lt;T&gt;* vector, usize new_len)
     vector-&gt;len = new_len;
 }
 
-
 <span style="color: #888;">// Removes the element at index.
 //
 // Elements following index are moved toward the beginning.
@@ -3998,7 +4072,6 @@ fn Vector&lt;T&gt;::remove(Vector&lt;T&gt;* vector, usize index) : T
         return removed;
     }
 }
-
 
 <span style="color: #888;">// Removes the element at index without preserving order.
 //
@@ -4025,37 +4098,32 @@ fn Vector&lt;T&gt;::swap_remove(Vector&lt;T&gt;* vector, usize index) : T
     }
 }
 
-
 <span style="color: #888;">// Inserts value before index.
 //
 // index == len is equivalent to push.
 //
 // On success, ownership of value is transferred to the Vector.
 //
+// On success, returns the new length of the Vector.
+//
 // If allocation fails or capacity overflows, the Vector and value
 // remain unchanged.
 //
 // The language's bounds rules reject index &gt; len.</span>
-fn Vector&lt;T&gt;::insert(Vector&lt;T&gt;* vector, usize index, T value) : Result&lt;void, VectorPushError&gt;
+fn Vector&lt;T&gt;::insert(Vector&lt;T&gt;* vector, usize index, T value) : Result&lt;usize, VectorPushError&gt;
 {
     if (index == vector-&gt;len)
     {
-        Result&lt;bool, VectorPushError&gt; result = Vector&lt;T&gt;::push(vector, move value);
-
-        if (result.is_err())
-        {
-            return Err(result.unwrap_err());
-        }
-
-        return Ok;
+        return Vector&lt;T&gt;::push(vector, move value);
     }
 
-    Result&lt;void, VectorPushError&gt; result = Vector&lt;T&gt;::reserve(vector, 1);
+    Result&lt;usize, VectorPushError&gt; result = Vector&lt;T&gt;::reserve(vector, 1);
 
-    if (result.is_err())
+    match result
     {
-        return result;
-    }
+        Ok(_) =&gt; {},
+        Err(error) =&gt; return Err(error)
+    };
 
     unsafe
     {
@@ -4072,9 +4140,8 @@ fn Vector&lt;T&gt;::insert(Vector&lt;T&gt;* vector, usize index, T value) : Resu
 
     vector-&gt;len = vector-&gt;len + 1;
 
-    return Ok;
+    return Ok(vector-&gt;len);
 }
-
 
 <span style="color: #888;">// Attempts to reduce capacity to len.
 //
@@ -4083,12 +4150,14 @@ fn Vector&lt;T&gt;::insert(Vector&lt;T&gt;* vector, usize index, T value) : Resu
 // If len is non-zero, a new allocation of exactly len elements
 // is created and the live elements are moved into it.
 //
+// On success, returns the resulting capacity.
+//
 // If allocation fails, the Vector remains unchanged.</span>
-fn Vector&lt;T&gt;::shrink_to_fit(Vector&lt;T&gt;* vector) : Result&lt;void, VectorPushError&gt;
+fn Vector&lt;T&gt;::shrink_to_fit(Vector&lt;T&gt;* vector) : Result&lt;usize, VectorPushError&gt;
 {
     if (vector-&gt;len == vector-&gt;capacity)
     {
-        return Ok;
+        return Ok(vector-&gt;capacity);
     }
 
     if (vector-&gt;len == 0)
@@ -4104,7 +4173,7 @@ fn Vector&lt;T&gt;::shrink_to_fit(Vector&lt;T&gt;* vector) : Result&lt;void, Vec
         vector-&gt;data = null;
         vector-&gt;capacity = 0;
 
-        return Ok;
+        return Ok(0);
     }
 
     if (vector-&gt;len &gt; usize.MAX / sizeof(T))
@@ -4116,12 +4185,11 @@ fn Vector&lt;T&gt;::shrink_to_fit(Vector&lt;T&gt;* vector) : Result&lt;void, Vec
     {
         Result&lt;raw T*, AllocationError&gt; allocation = allocate&lt;T&gt;(vector-&gt;len);
 
-        if (allocation.is_err())
+        raw T* new_data = match allocation
         {
-            return Err(VectorPushError::AllocationFailed);
-        }
-
-        raw T* new_data = allocation.unwrap();
+            Ok(data) =&gt; data,
+            Err(_) =&gt; return Err(VectorPushError::AllocationFailed)
+        };
 
         usize i = 0;
 
@@ -4137,9 +4205,8 @@ fn Vector&lt;T&gt;::shrink_to_fit(Vector&lt;T&gt;* vector) : Result&lt;void, Vec
         vector-&gt;capacity = vector-&gt;len;
     }
 
-    return Ok;
+    return Ok(vector-&gt;capacity);
 }
-
 
 <span style="color: #888;">// Destroys the Vector and all elements it owns.
 //
@@ -4181,8 +4248,9 @@ fn Vector&lt;T&gt;::destroy(Vector&lt;T&gt;* vector)
 <p>
   <code>Vector&lt;T&gt;::push</code> transfers ownership of <code>value</code>
   into the Vector when the operation succeeds. On success it returns
-  <code>Ok(true)</code>. On failure, the Vector remains unchanged and the
-  returned <code>VectorPushError</code> identifies the failure.
+  <code>Ok(vector-&gt;len)</code>, where the payload is the new length of the
+  Vector. On failure, the Vector remains unchanged and the returned
+  <code>VectorPushError</code> identifies the failure.
 </p>
 
 <p>
@@ -4192,10 +4260,10 @@ fn Vector&lt;T&gt;::destroy(Vector&lt;T&gt;* vector)
 </p>
 
 <p>
-  The <code>bool</code> success payload used by <code>push</code> is
-  intentional. <code>push</code> returns
-  <code>Result&lt;bool, VectorPushError&gt;</code>, so successful completion
-  is represented by <code>Ok(true)</code>.
+  Operations such as <code>clear</code> and <code>truncate</code> cannot
+  fail and therefore return <code>void</code>. Operations that may fail
+  due to allocation or capacity overflow return a <code>Result</code>
+  containing a meaningful success value.
 </p>
 
 
@@ -4208,7 +4276,6 @@ import std.result;
 import std.io { println };
 import std.vector;
 
-
 enum StackError
 {
     Empty,
@@ -4216,12 +4283,10 @@ enum StackError
     CapacityOverflow
 }
 
-
 struct Stack&lt;T&gt;
 {
     Vector&lt;T&gt; values;
 }
-
 
 <span style="color: #888;">// `new` is an ordinary associated function. It has no implicit
 // receiver and takes no arguments.</span>
@@ -4233,14 +4298,16 @@ fn Stack&lt;T&gt;::new() : Stack&lt;T&gt;
     };
 }
 
-
 <span style="color: #888;">// `push` takes an explicit mutable pointer to the Stack.
-// The value is transferred to the Vector on successful insertion.</span>
-fn Stack&lt;T&gt;::push(Stack&lt;T&gt;* stack, T value) : Result&lt;bool, StackError&gt;
+// The value is transferred to the Vector on successful insertion.
+//
+// On success, the returned usize is the new number of elements
+// in the Stack.</span>
+fn Stack&lt;T&gt;::push(Stack&lt;T&gt;* stack, T value) : Result&lt;usize, StackError&gt;
 {
     return match Vector&lt;T&gt;::push(&amp;mut stack.values, value)
     {
-        Ok(inserted) =&gt; Ok(inserted),
+        Ok(length) =&gt; Ok(length),
 
         Err(VectorPushError::AllocationFailed) =&gt;
             Err(StackError::AllocationFailed),
@@ -4249,7 +4316,6 @@ fn Stack&lt;T&gt;::push(Stack&lt;T&gt;* stack, T value) : Result&lt;bool, StackE
             Err(StackError::CapacityOverflow)
     };
 }
-
 
 <span style="color: #888;">// `pop` takes an explicit mutable pointer to the Stack and transfers
 // ownership of the removed value to the caller.</span>
@@ -4264,7 +4330,6 @@ fn Stack&lt;T&gt;::pop(Stack&lt;T&gt;* stack) : Result&lt;T, StackError&gt;
     };
 }
 
-
 <span style="color: #888;">// `is_empty` requires only shared access because it does not mutate
 // the Stack or its Vector.</span>
 fn Stack&lt;T&gt;::is_empty(Stack&lt;T&gt;* stack) : bool
@@ -4272,24 +4337,13 @@ fn Stack&lt;T&gt;::is_empty(Stack&lt;T&gt;* stack) : bool
     return Vector&lt;T&gt;::len(&amp;stack.values) == 0;
 }
 
-
-<span style="color: #888;">// Destroys the Stack and the Vector it owns.
-//
-// Vector destruction destroys all live elements and releases the
-// Vector's backing storage.</span>
-fn Stack&lt;T&gt;::destroy(Stack&lt;T&gt;* stack)
+fn run_stack(Stack&lt;i32&gt;* stack) : Result&lt;usize, StackError&gt;
 {
-    Vector&lt;T&gt;::destroy(&amp;mut stack.values);
-}
+    <span style="color: #888;">// The successful Result carries the new Stack length.</span>
+    usize length = Stack&lt;i32&gt;::push(stack, 10)?;
 
-
-fn run_stack(Stack&lt;i32&gt;* stack) : Result&lt;bool, StackError&gt;
-{
-    <span style="color: #888;">// The successful Result carries a bool.</span>
-    bool pushed = Stack&lt;i32&gt;::push(stack, 10)?;
-
-    <span style="color: #888;">// `pushed` is initialized before it is read.</span>
-    if pushed
+    <span style="color: #888;">// `length` is initialized before it is read.</span>
+    if length &gt; 0
     {
         i32 value = Stack&lt;i32&gt;::pop(stack)?;
         println("popped value: {}", value);
@@ -4300,9 +4354,8 @@ fn run_stack(Stack&lt;i32&gt;* stack) : Result&lt;bool, StackError&gt;
     // `?` propagates StackError::Empty to the caller.</span>
     Stack&lt;i32&gt;::pop(stack)?;
 
-    return Ok(true);
+    return Ok(Vector&lt;i32&gt;::len(&amp;stack.values));
 }
-
 
 fn main() : i32
 {
@@ -4312,12 +4365,9 @@ fn main() : i32
 
     match run_stack(&amp;mut stack)
     {
-        Ok(completed) =&gt;
+        Ok(length) =&gt;
         {
-            if completed
-            {
-                println("stack operation completed");
-            }
+            println("stack operation completed, length: {}", length);
         },
 
         Err(StackError::AllocationFailed) =&gt;
@@ -4333,6 +4383,7 @@ fn main() : i32
     return 0;
 }
 </pre>
+
 
 
   <p>
