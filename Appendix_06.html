@@ -696,26 +696,24 @@ f64</code></pre>
     ...
 }</code></pre>
 
-  <p>
-    The <code>destroy</code> function is the type's destruction operation.
-    When an owning binding reaches the end of its lifetime, the compiler
-    automatically invokes the associated <code>destroy</code> function for
-    the value, if one is defined.
-  </p>
+<p>
+  The <code>destroy</code> function is the type's destruction operation.
+  For every owned value whose type defines an associated
+  <code>destroy</code> function with the required destruction signature,
+  the compiler MUST invoke that function exactly once when the owning
+  lifetime ends. Automatic destruction of such a value consists solely
+  of invoking that function. The compiler MUST NOT additionally perform
+  automatic destruction of the value's fields.
+</p>
 
-  <p>
-    The compiler MUST invoke a type's destruction operation exactly once for
-    each owned value. A value MUST NOT be automatically destroyed after its
-    ownership has been transferred by a move.
-  </p>
-
-  <p>
-    When a type defines an associated <code>destroy</code> function, that
-    function is solely responsible for destroying the value's owned
-    resources. The compiler MUST NOT perform an additional automatic
-    destruction pass over the value's fields after invoking the user-defined
-    <code>destroy</code> function.
-  </p>
+<p>
+  If a type does not define an associated <code>destroy</code> function,
+  the compiler MUST destroy the value's owned components recursively
+  according to their destruction semantics. A value MUST NOT be
+  automatically destroyed after its ownership has been transferred by
+  a move, and the compiler MUST ensure that each owned value is
+  destroyed exactly once.
+</p>
 
   <p>
     A <code>destroy</code> function may therefore delegate destruction to
