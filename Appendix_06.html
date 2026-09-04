@@ -3007,11 +3007,7 @@ fn Vector&lt;T&gt;::push(Vector&lt;T&gt;* vector, T value) : Result&lt;void, Vec
     {
         unsafe
         {
-            match Vector&lt;T&gt;::grow(vector)
-            {
-                Ok(()) => {},
-                Err(error) => return Err(error)
-            }
+            Vector&lt;T&gt;::grow(vector)?;
         }
     }
 
@@ -3037,7 +3033,6 @@ fn Vector&lt;T&gt;::push(Vector&lt;T&gt;* vector, T value) : Result&lt;void, Vec
 
     return Ok(());
 }
-
 
 fn Vector&lt;T&gt;::pop(Vector&lt;T&gt;* vector) : Result&lt;T, VectorError&gt;
 {
@@ -3084,7 +3079,7 @@ fn Vector&lt;T&gt;::pop(Vector&lt;T&gt;* vector) : Result&lt;T, VectorError&gt;
 // The lifetime of a T value is separate from the lifetime of the raw storage
 // containing it.</span>
 
-unsafe fn Vector&lt;T&gt;::grow(Vector&lt;T&gt;* vector)
+unsafe fn Vector&lt;T&gt;::grow(Vector&lt;T&gt;* vector) : Result&lt;void, VectorError&gt;
 {
     usize new_capacity;
 
@@ -3098,9 +3093,12 @@ unsafe fn Vector&lt;T&gt;::grow(Vector&lt;T&gt;* vector)
     }
 
     <span style="color: #888;">// Allocate a new region of suitably sized and aligned raw storage.
+    // At this point the new allocation contains no live T values.
     //
-    // At this point the new allocation contains no live T values.</span>
-    raw T* new_data = allocate_raw&lt;T&gt;(new_capacity);
+    // A failed grow must leave the original vector completely untouched.
+    // If allocation fails, return the error before moving any values out
+    // of the existing allocation.</span>
+    raw T* new_data = allocate_raw&lt;T&gt;(new_capacity)?;
 
     usize index = 0;
 
@@ -3132,6 +3130,8 @@ unsafe fn Vector&lt;T&gt;::grow(Vector&lt;T&gt;* vector)
     <span style="color: #888;">// The invariant still holds:
     //
     //     0 &lt;= vector.len &lt;= vector.capacity</span>
+
+    return Ok(());
 }
 
 
