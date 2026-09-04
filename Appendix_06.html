@@ -3257,7 +3257,6 @@ Vector growth:
       declarations from other modules using the standard CobaltC import syntax.
     </li>
 
-```
 <li>
   <strong>Export Visibility:</strong>
   The supporting modules use explicit <code>export</code> blocks.
@@ -3273,11 +3272,10 @@ Vector growth:
 
 <li>
   <strong>Opaque Exported Representation:</strong>
-  An exported <code>Vector&lt;T&gt;</code> may hide its representation from
+  An exported <code>Vector&lt;T&gt;</code> hides its representation from
   importing modules. External code uses its exported operations rather than
   directly manipulating its internal storage.
 </li>
-```
 
   </ul>
 
@@ -3291,7 +3289,6 @@ Vector growth:
       use type-qualified associated-function syntax.
     </li>
 
-```
 <li>
   <strong>No Implicit Receiver:</strong>
   Associated functions do not receive an implicit
@@ -3313,8 +3310,6 @@ Vector growth:
   takes no arguments and returns a newly constructed
   <code>Stack&lt;T&gt;</code>.
 </li>
-```
-
   </ul>
 
   <h3>Ownership, Borrowing, and Lifetimes</h3>
@@ -3327,7 +3322,6 @@ Vector growth:
       responsible for the values it contains.
     </li>
 
-```
 <li>
   <strong>Mutable Borrowing:</strong>
   <code>&amp;mut stack</code> provides mutable access to the Stack without
@@ -3369,7 +3363,6 @@ Vector growth:
   permit a managed pointer to an element to remain usable after the
   storage on which that pointer depends has ceased to be valid.
 </li>
-```
 
   </ul>
 
@@ -3382,7 +3375,6 @@ Vector growth:
       <code>Ok(T)</code> and <code>Err(E)</code> variants.
     </li>
 
-```
 <li>
   <strong>No Unit-Valued Result:</strong>
   The example deliberately does not use <code>Result&lt;void, E&gt;</code>
@@ -3411,7 +3403,6 @@ Vector growth:
   <code>VectorPopError</code>, and <code>StackError</code> enumerate every
   variant of the corresponding enum.
 </li>
-```
 
   </ul>
 
@@ -3424,7 +3415,6 @@ Vector growth:
       storage and the live values contained within its logical range.
     </li>
 
-```
 <li>
   <strong>Length and Capacity:</strong>
   The Vector invariant is
@@ -3453,7 +3443,6 @@ Vector growth:
   mechanism. Those are implementation details provided that the specified
   observable semantics are preserved.
 </li>
-```
 
   </ul>
 
