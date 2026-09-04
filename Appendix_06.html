@@ -686,6 +686,11 @@ f64</code></pre>
 
   <h3>21.1. Destruction</h3>
 
+  <p>The underlying principle: The compiler owns the responsibility of deciding
+     when destruction occurs; the type's destroy function owns the responsibility
+     of deciding how that type's resources are destroyed.
+  </p>
+
   <p>
     A type may define an associated function named <code>destroy</code> that
     accepts a mutable managed pointer to the type:
