@@ -2103,14 +2103,13 @@ values[1...] // from index 1 through the final valid index
 values[...] // from index 0 through the final valid index
   </pre>
 
-  <p>
-    selects every element in the sequence.
-  </p>
+  <p>selects every element in the sequence.</p>
+
+  <p>The important distinction is that ... means "through the final valid element", not "one past the end.</p>
 
   <p>
     The <code>...</code> token in these forms specifically denotes the end of
-    the sequence. CobaltC does not use <code>$</code> as an end-of-sequence
-    marker.
+    the sequence.
   </p>
 </section>
 
