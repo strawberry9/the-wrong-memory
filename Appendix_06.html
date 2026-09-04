@@ -2853,15 +2853,13 @@ print(*reference);</code></pre>
 <section class="cobalt-example">
   <h2>A Conformance Example Program</h2>
 
-  <p>
-    This example defines a generic <code>Stack&lt;T&gt;</code> backed by
-    <code>Vector&lt;T&gt;</code>, then demonstrates associated functions for
-    creating, modifying, inspecting, and removing values from a stack.
-    It also demonstrates <code>Result&lt;T, E&gt;</code>-based error handling
-    and exhaustive pattern matching.
-  </p>
+<p>&#x20; &nbsp; This example defines a generic <code>Stack&lt;T&gt;</code> backed by
+<code>Vector&lt;T&gt;</code>, then demonstrates associated functions for
+creating, modifying, inspecting, and removing values from a stack.
+It also demonstrates <code>Result&lt;T, E&gt;</code>-based error handling
+and exhaustive pattern matching.</p>
 
-<pre><code>
+<pre>
 module std.result;
 
 export
@@ -2875,10 +2873,9 @@ enum Result&lt;T, E&gt;
     Ok(T), <span style="color: #888;">// operation succeeded and carries a value of type T</span>
     Err(E) <span style="color: #888;">// operation failed and carries an error of type E</span>
 }
+</pre>
 
-</code></pre>
-
-<pre><code>
+<pre>
 module std.io;
 
 import std.result;
@@ -2890,11 +2887,10 @@ export
 }
 
 ...
+</pre>
 
-</code></pre>
-
-
-<pre><code>module std.vector;
+<pre>
+module std.vector;
 
 import std.result;
 
@@ -2910,18 +2906,26 @@ import std.result;
 
 // The vector implementation takes responsibility for maintaining the invariants:
 // data points to allocation of capacity T slots
-// 0 <= len <= capacity
+// 0 &lt;= len &lt;= capacity
 // [0, len) contains live T values
-// [len, capacity) contains no live T values.
-</span>
+// [len, capacity) contains no live T values.</span>
 
 export
 {
     Vector;
-    VectorError;
+    VectorPushError;
+    VectorPopError;
 }
 
-enum VectorError
+<span style="color: #888;">// Errors that can be produced by Vector::push.</span>
+enum VectorPushError
+{
+    AllocationFailed,
+    CapacityOverflow
+}
+
+<span style="color: #888;">// Errors that can be produced by Vector::pop.</span>
+enum VectorPopError
 {
     Empty
 }
@@ -2957,7 +2961,6 @@ struct Vector&lt;T&gt;
     usize capacity;
 }
 
-
 <span style="color: #888;">// -----------------------------------------------------------------------------
 // Construction
 // -----------------------------------------------------------------------------</span>
@@ -2984,7 +2987,6 @@ fn Vector&lt;T&gt;::new() : Vector&lt;T&gt;
     };
 }
 
-
 <span style="color: #888;">// -----------------------------------------------------------------------------
 // Inspection
 // -----------------------------------------------------------------------------</span>
@@ -2994,12 +2996,11 @@ fn Vector&lt;T&gt;::len(Vector&lt;T&gt;* vector) : usize
     return vector.len;
 }
 
-
 <span style="color: #888;">// -----------------------------------------------------------------------------
 // Mutation
 // -----------------------------------------------------------------------------</span>
 
-fn Vector&lt;T&gt;::push(Vector&lt;T&gt;* vector, T value) : Result&lt;void, VectorError&gt;
+fn Vector&lt;T&gt;::push(Vector&lt;T&gt;* vector, T value) : Result&lt;void, VectorPushError&gt;
 {
     <span style="color: #888;">// A vector may only create a new live element in allocated storage.
     // If all allocated slots are occupied, obtain a larger allocation first.</span>
@@ -3034,11 +3035,11 @@ fn Vector&lt;T&gt;::push(Vector&lt;T&gt;* vector, T value) : Result&lt;void, Vec
     return Ok(());
 }
 
-fn Vector&lt;T&gt;::pop(Vector&lt;T&gt;* vector) : Result&lt;T, VectorError&gt;
+fn Vector&lt;T&gt;::pop(Vector&lt;T&gt;* vector) : Result&lt;T, VectorPopError&gt;
 {
     if vector.len == 0
     {
-        return Err(VectorError::Empty);
+        return Err(VectorPopError::Empty);
     }
 
     <span style="color: #888;">// Remove the final live element from the vector's logical range.
@@ -3059,7 +3060,6 @@ fn Vector&lt;T&gt;::pop(Vector&lt;T&gt;* vector) : Result&lt;T, VectorError&gt;
     <span style="color: #888;">// The allocation itself remains available for future pushes.</span>
 }
 
-
 <span style="color: #888;">// -----------------------------------------------------------------------------
 // Internal allocation
 // -----------------------------------------------------------------------------
@@ -3079,7 +3079,7 @@ fn Vector&lt;T&gt;::pop(Vector&lt;T&gt;* vector) : Result&lt;T, VectorError&gt;
 // The lifetime of a T value is separate from the lifetime of the raw storage
 // containing it.</span>
 
-unsafe fn Vector&lt;T&gt;::grow(Vector&lt;T&gt;* vector) : Result&lt;void, VectorError&gt;
+unsafe fn Vector&lt;T&gt;::grow(Vector&lt;T&gt;* vector) : Result&lt;void, VectorPushError&gt;
 {
     usize new_capacity;
 
@@ -3089,6 +3089,13 @@ unsafe fn Vector&lt;T&gt;::grow(Vector&lt;T&gt;* vector) : Result&lt;void, Vecto
     }
     else
     {
+        <span style="color: #888;">// Prevent capacity from wrapping around if doubling would exceed
+        // the maximum representable usize value.</span>
+        if vector.capacity &gt; usize::MAX / 2
+        {
+            return Err(VectorPushError::CapacityOverflow);
+        }
+
         new_capacity = vector.capacity * 2;
     }
 
@@ -3133,7 +3140,6 @@ unsafe fn Vector&lt;T&gt;::grow(Vector&lt;T&gt;* vector) : Result&lt;void, Vecto
 
     return Ok(());
 }
-
 
 <span style="color: #888;">// -----------------------------------------------------------------------------
 // Destruction
@@ -3181,11 +3187,11 @@ unsafe fn Vector&lt;T&gt;::grow(Vector&lt;T&gt;* vector) : Result&lt;void, Vecto
 // invalidate an active reference.
 //
 // The raw pointer `data` is an implementation detail and is never required
-// by callers of the safe Vector interface.</span></code></pre>
+// by callers of the safe Vector interface.</span>
+</pre>
 
-
-
-<pre><code>module stack_example;
+<pre>
+module stack_example;
 
 import std.result;
 import std.io { print, println };
@@ -3194,7 +3200,8 @@ import std.vector;
 enum StackError
 {
     Empty,
-    AllocationFailed
+    AllocationFailed,
+    CapacityOverflow
 }
 
 struct Stack&lt;T&gt;
@@ -3226,7 +3233,10 @@ fn Stack&lt;T&gt;::push(Stack&lt;T&gt;* stack, T value) : Result&lt;void, StackE
     return match Vector&lt;T&gt;::push(&amp;mut stack.values, value)
     {
         Ok(()) =&gt; Ok(()),
-        Err(VectorError::AllocationFailed) =&gt; Err(StackError::AllocationFailed)
+        Err(VectorPushError::AllocationFailed) =&gt;
+            Err(StackError::AllocationFailed),
+        Err(VectorPushError::CapacityOverflow) =&gt;
+            Err(StackError::CapacityOverflow)
     };
 }
 
@@ -3236,13 +3246,13 @@ fn Stack&lt;T&gt;::pop(Stack&lt;T&gt;* stack) : Result&lt;T, StackError&gt;
     <span style="color: #888;">// Create a mutable borrow to permit the mutating operation.
     // No ownership of the Stack is transferred.
     //
-    // Vector&lt;T&gt;::pop cannot allocate, so the only possible VectorError
+    // Vector&lt;T&gt;::pop cannot allocate, so the only possible VectorPopError
     // is Empty.</span>
 
     return match Vector&lt;T&gt;::pop(&amp;mut stack.values)
     {
         Ok(value) =&gt; Ok(value),
-        Err(VectorError::Empty) =&gt; Err(StackError::Empty)
+        Err(VectorPopError::Empty) =&gt; Err(StackError::Empty)
     };
 }
 
@@ -3269,25 +3279,27 @@ fn main() : i32
     mut Stack&lt;i32&gt; stack = Stack&lt;i32&gt;::new();
 
 
-    match stack::push(&amp;mut stack, 10)
+    match Stack&lt;i32&gt;::push(&amp;mut stack, 10)
     {
         Ok(()) =&gt; {},
         Err(StackError::AllocationFailed) =&gt;
-            println("failed to allocate storage")
+            println("failed to allocate storage"),
+        Err(StackError::CapacityOverflow) =&gt;
+            println("stack capacity limit reached")
     }
 
 
-    match stack::pop(&amp;mut stack)
+    match Stack&lt;i32&gt;::pop(&amp;mut stack)
     {
         Ok(value) =&gt;
-            println("popped value: {}", value), <span style="color: #888;">// popped value: 10</span>
+            println("popped value: {}", value) <span style="color: #888;">// popped value: 10</span>
 
         Err(StackError::Empty) =&gt;
             println("stack is empty")
     }
 
 
-    match stack::pop(&amp;mut stack)
+    match Stack&lt;i32&gt;::pop(&amp;mut stack)
     {
         Ok(value) =&gt;
             println("popped value: {}", value),
@@ -3298,7 +3310,8 @@ fn main() : i32
 
 
     return 0;
-}</code></pre>
+}
+</pre>
 
 
 
