@@ -396,10 +396,10 @@ VALUE</code></pre>
       </p>
 
       <p>
-        Modules MAY import declarations from other modules:
+        Modules MAY import declarations, or selective declarations, from other modules:
       </p>
 
-      <pre><code>import io;</code></pre>
+      <pre><code>import io;</code></pre> <pre><code>import io { print, println };</code></pre> 
 
       <p>
         Name resolution is lexical and module-aware.
@@ -2518,7 +2518,7 @@ struct</code></pre>
 <hr>
 <h2>98.12 Module and Name Resolution</h2>
 <p>CobaltC 1.0.0 uses the module syntax defined in Section 8:</p><pre><code>module example;</code></pre>
-<p>and imports modules using:</p> <pre><code>import io;</code></pre> <p>These forms are normative.</p>
+<p>and imports modules using:</p> <pre><code>import io;</code></pre> <pre><code>import io { print, println };</code></pre> <p>These forms are normative.</p>
 <p>An implementation MUST NOT replace them with an alternative module declaration or import syntax while claiming that the alternative syntax is standard CobaltC 1.0.0.</p>
 <p>Module names establish namespaces. Name resolution is lexical and module-aware. An unresolved name is a compile-time error.</p>
 <p>An implementation MAY map modules to source files, directories, packages, compilation units, or another internal representation, provided that the resulting module and name-resolution behavior conforms to Section 8 and this section.</p>
@@ -2999,7 +2999,7 @@ fn Vector&lt;T&gt;::len(Vector&lt;T&gt;* vector) : usize
 // Mutation
 // -----------------------------------------------------------------------------</span>
 
-fn Vector&lt;T&gt;::push(Vector&lt;T&gt;* vector, T value)
+fn Vector&lt;T&gt;::push(Vector&lt;T&gt;* vector, T value) : Result&lt;void, VectorError&gt;
 {
     <span style="color: #888;">// A vector may only create a new live element in allocated storage.
     // If all allocated slots are occupied, obtain a larger allocation first.</span>
@@ -3007,7 +3007,11 @@ fn Vector&lt;T&gt;::push(Vector&lt;T&gt;* vector, T value)
     {
         unsafe
         {
-            Vector&lt;T&gt;::grow(vector);
+            match Vector&lt;T&gt;::grow(vector)
+            {
+                Ok(()) => {},
+                Err(error) => return Err(error)
+            }
         }
     }
 
@@ -3030,6 +3034,8 @@ fn Vector&lt;T&gt;::push(Vector&lt;T&gt;* vector, T value)
     <span style="color: #888;">// The vector invariant is restored:
     //
     //     0 &lt;= vector.len &lt;= vector.capacity</span>
+
+    return Ok(());
 }
 
 
@@ -3182,7 +3188,7 @@ unsafe fn Vector&lt;T&gt;::grow(Vector&lt;T&gt;* vector)
 <pre><code>module stack_example;
 
 import std.result;
-import std.io;
+import std.io { print, println };
 import std.vector;
 
 enum StackError
