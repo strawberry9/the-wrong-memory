@@ -2851,34 +2851,64 @@ print(*reference);</code></pre>
 <hr>
 
 <section class="cobalt-example">
-  <h2>A Conformance Example Program</h2>
+  <h2>Conformance Example Program</h2>
 
-<p>&#x20; &nbsp; This example defines a generic <code>Stack&lt;T&gt;</code> backed by
-<code>Vector&lt;T&gt;</code>, then demonstrates associated functions for
-creating, modifying, inspecting, and removing values from a stack.
-It also demonstrates <code>Result&lt;T, E&gt;</code>-based error handling
-and exhaustive pattern matching.</p>
+  <p>
+    This example demonstrates a generic <code>Stack&lt;T&gt;</code> abstraction
+    backed by <code>Vector&lt;T&gt;</code>. It exercises associated functions,
+    generic types, explicit borrowing, ownership transfer, <code>Result&lt;T, E&gt;</code>
+    error handling, the <code>?</code> error-propagation operator, and exhaustive
+    pattern matching.
+  </p>
 
-<pre>
+  <p>
+    The executable portion of the example uses only language constructs and
+    semantic forms established by CobaltC 1.0.0. In particular, it does not use
+    tuples or a unit value: <code>void</code> is a function return type in
+    CobaltC, not a separately specified value type, and therefore it is not used
+    as the success payload of <code>Result&lt;T, E&gt;</code>.
+  </p>
+
+  <p>
+    The <code>Vector&lt;T&gt;</code> implementation sketch below is deliberately
+    separated from the conformance program. The specification defines
+    <code>Vector&lt;T&gt;</code> semantically as an owning contiguous collection,
+    but it does not prescribe a particular allocation, raw-storage, or
+    destruction implementation. Consequently, the implementation sketch is
+    non-normative and must not be interpreted as defining additional CobaltC
+    source-language facilities.
+  </p>
+
+  <h3>1. Result Type</h3>
+
+  <pre>
 module std.result;
 
 export
 {
-    Result;    
+    Result;
 }
 
-<span style="color: #888;">// Result is a type that represents either success (Ok) or failure (Err).</span>
+// Result represents either successful completion carrying a value
+// of type T or failure carrying an error of type E.
 enum Result&lt;T, E&gt;
 {
-    Ok(T), <span style="color: #888;">// operation succeeded and carries a value of type T</span>
-    Err(E) <span style="color: #888;">// operation failed and carries an error of type E</span>
+    Ok(T),
+    Err(E)
 }
-</pre>
+  </pre>
 
-<pre>
+  <h3>2. Standard I/O Interface</h3>
+
+  <p>
+    The standard I/O module is shown here as an interface declaration rather
+    than as an invented implementation. Section 85 requires standard I/O
+    facilities but does not prescribe the internal implementation of those
+    facilities.
+  </p>
+
+  <pre>
 module std.io;
-
-import std.result;
 
 export
 {
@@ -2886,29 +2916,31 @@ export
     println;
 }
 
-...
-</pre>
+// The concrete implementation of standard I/O is supplied by the
+// standard library/runtime implementation. The declarations above
+// describe the names used by this example.
+  </pre>
 
-<pre>
+  <h3>3. Vector Interface and Implementation Boundary</h3>
+
+  <p>
+    Section 62 specifies that <code>Vector&lt;T&gt;</code> owns dynamically
+    allocated contiguous storage, that its capacity may exceed its length,
+    and that operations capable of invalidating references are governed by
+    the ordinary borrowing rules. The specification intentionally does not
+    prescribe the internal representation or allocation strategy.
+  </p>
+
+  <p>
+    The following module therefore exposes the operations required by the
+    example without presenting an implementation-specific raw-memory
+    mechanism as part of the CobaltC 1.0.0 language.
+  </p>
+
+  <pre>
 module std.vector;
 
 import std.result;
-
-<span style="color: #888;">// This is an example, conceptual implementation of Vector.
-// It is provided to illustrate how the language's ownership, borrowing,
-// unsafe, raw-storage, and deterministic-destruction semantics can be used
-// to implement a growable collection.
-
-// This implementation is not normative and does not define the required
-// implementation of std.vector. Allocation primitives, destruction
-// mechanisms, and other implementation details may differ in a concrete
-// standard-library implementation.
-
-// The vector implementation takes responsibility for maintaining the invariants:
-// data points to allocation of capacity T slots
-// 0 &lt;= len &lt;= capacity
-// [0, len) contains live T values
-// [len, capacity) contains no live T values.</span>
 
 export
 {
@@ -2917,284 +2949,83 @@ export
     VectorPopError;
 }
 
-<span style="color: #888;">// Errors that can be produced by Vector::push.</span>
 enum VectorPushError
 {
     AllocationFailed,
     CapacityOverflow
 }
 
-<span style="color: #888;">// Errors that can be produced by Vector::pop.</span>
 enum VectorPopError
 {
     Empty
 }
 
-<span style="color: #888;">// -----------------------------------------------------------------------------
-// Vector
-// -----------------------------------------------------------------------------
-//
-// Vector owns a dynamically allocated, contiguous region of storage.
-//
-// The representation is hidden from importing modules by the exported-type
-// rules. These fields are implementation details of std.vector.
-//
-// Invariants:
-//
-//     0 &lt;= len &lt;= capacity
-//
-// `len` is the number of live T values currently owned by the vector.
-// `capacity` is the number of T values for which raw storage has been
-// allocated.
-//
-// Storage beyond `len` is allocated but does not contain live vector-owned
-// values.
-//
-// `data` is null when capacity is zero.
-//
-// Raw storage is accessed and manipulated only from unsafe code.</span>
-
 struct Vector&lt;T&gt;
 {
-    raw T* data;
-    usize len;
-    usize capacity;
+    // The representation of Vector is intentionally implementation-defined.
+    //
+    // A conforming standard-library implementation MUST ensure that:
+    //
+    //     0 &lt;= len &lt;= capacity
+    //
+    // and that exactly the elements in the logical range [0, len)
+    // are owned by the Vector.
+    //
+    // The physical representation is not part of this example's
+    // source-level conformance test.
 }
+  </pre>
 
-<span style="color: #888;">// -----------------------------------------------------------------------------
-// Construction
-// -----------------------------------------------------------------------------</span>
+  <p>
+    The following declarations describe the interface assumed by the example.
+    Their concrete implementation belongs to the standard library/runtime.
+  </p>
 
+  <pre>
 fn Vector&lt;T&gt;::new() : Vector&lt;T&gt;
 {
-    <span style="color: #888;">// No storage is allocated for an empty vector.
-    //
-    // Initial state:
-    //
-    //     data     = null
-    //     len      = 0
-    //     capacity = 0
-    //
-    // Therefore the vector satisfies:
-    //
-    //     0 &lt;= len &lt;= capacity</span>
-
-    return Vector&lt;T&gt;
-    {
-        data = null,
-        len = 0,
-        capacity = 0
-    };
+    // Implementation supplied by std.vector.
 }
-
-<span style="color: #888;">// -----------------------------------------------------------------------------
-// Inspection
-// -----------------------------------------------------------------------------</span>
 
 fn Vector&lt;T&gt;::len(Vector&lt;T&gt;* vector) : usize
 {
-    return vector.len;
+    // Implementation supplied by std.vector.
 }
 
-<span style="color: #888;">// -----------------------------------------------------------------------------
-// Mutation
-// -----------------------------------------------------------------------------</span>
-
-fn Vector&lt;T&gt;::push(Vector&lt;T&gt;* vector, T value) : Result&lt;void, VectorPushError&gt;
+fn Vector&lt;T&gt;::push(Vector&lt;T&gt;* vector, T value)
+    : Result&lt;bool, VectorPushError&gt;
 {
-    <span style="color: #888;">// A vector may only create a new live element in allocated storage.
-    // If all allocated slots are occupied, obtain a larger allocation first.</span>
-    if vector.len == vector.capacity
-    {
-        unsafe
-        {
-            Vector&lt;T&gt;::grow(vector)?;
-        }
-    }
-
-    unsafe
-    {
-        <span style="color: #888;">// The growth check guarantees:
-        //
-        //     vector.len &lt; vector.capacity
-        //
-        // Therefore this position belongs to the vector's allocated storage
-        // but does not currently contain a live T value.
-        //
-        // Moving `value` into the slot creates the next live element owned by
-        // the vector.</span>
-        vector.data[vector.len] = move value;
-    }
-
-    vector.len = vector.len + 1;
-
-    <span style="color: #888;">// The vector invariant is restored:
+    // Implementation supplied by std.vector.
     //
-    //     0 &lt;= vector.len &lt;= vector.capacity</span>
-
-    return Ok(());
+    // On success, the value is transferred into the Vector and
+    // the function returns Ok(true).
+    //
+    // On failure, the Vector remains unchanged and an appropriate
+    // VectorPushError is returned.
 }
 
 fn Vector&lt;T&gt;::pop(Vector&lt;T&gt;* vector) : Result&lt;T, VectorPopError&gt;
 {
-    if vector.len == 0
-    {
-        return Err(VectorPopError::Empty);
-    }
-
-    <span style="color: #888;">// Remove the final live element from the vector's logical range.
-    //
-    // The slot at the new value of len is now considered unoccupied by the
-    // vector, even though its underlying storage remains allocated.</span>
-    vector.len = vector.len - 1;
-
-    unsafe
-    {
-        <span style="color: #888;">// Move the element out of its storage and return ownership to the
-        // caller. The vector no longer owns a live T at this position.</span>
-        T value = move vector.data[vector.len];
-
-        return Ok(value);
-    }
-
-    <span style="color: #888;">// The allocation itself remains available for future pushes.</span>
+    // Implementation supplied by std.vector.
 }
+  </pre>
 
-<span style="color: #888;">// -----------------------------------------------------------------------------
-// Internal allocation
-// -----------------------------------------------------------------------------
-//
-// grow() is unsafe because it directly manipulates raw pointers and raw
-// storage.
-//
-// The function preserves the Vector invariants and does not change the number
-// of live elements.
-//
-// IMPORTANT:
-//
-// `allocate_raw&lt;T&gt;` allocates storage only. It does NOT create T values.
-//
-// `deallocate_raw&lt;T&gt;` releases storage only. It does NOT destroy T values.
-//
-// The lifetime of a T value is separate from the lifetime of the raw storage
-// containing it.</span>
+  <p>
+    The <code>bool</code> success payload used by <code>push</code> is
+    intentional. CobaltC defines <code>Result&lt;T, E&gt;</code> in terms of
+    <code>Ok(T)</code> and <code>Err(E)</code>, while <code>void</code> is
+    specified as a function return type. This example therefore uses an
+    ordinary value rather than an unspecified unit value such as
+    <code>()</code>.
+  </p>
 
-unsafe fn Vector&lt;T&gt;::grow(Vector&lt;T&gt;* vector) : Result&lt;void, VectorPushError&gt;
-{
-    usize new_capacity;
+  <h3>4. Stack Example</h3>
 
-    if vector.capacity == 0
-    {
-        new_capacity = 4;
-    }
-    else
-    {
-        <span style="color: #888;">// Prevent capacity from wrapping around if doubling would exceed
-        // the maximum representable usize value.</span>
-        if vector.capacity &gt; usize::MAX / 2
-        {
-            return Err(VectorPushError::CapacityOverflow);
-        }
-
-        new_capacity = vector.capacity * 2;
-    }
-
-    <span style="color: #888;">// Allocate a new region of suitably sized and aligned raw storage.
-    // At this point the new allocation contains no live T values.
-    //
-    // A failed grow must leave the original vector completely untouched.
-    // If allocation fails, return the error before moving any values out
-    // of the existing allocation.</span>
-    raw T* new_data = allocate_raw&lt;T&gt;(new_capacity)?;
-
-    usize index = 0;
-
-    while index &lt; vector.len
-    {
-        <span style="color: #888;">// `index &lt; vector.len` means this position contains a live T value.
-        //
-        // Move the value into the corresponding position in the new
-        // allocation. Ownership is transferred to the new allocation.</span>
-        new_data[index] = move vector.data[index];
-
-        index = index + 1;
-    }
-
-    if vector.data != null
-    {
-        <span style="color: #888;">// Every live T value has now been moved out of the old allocation.
-        //
-        // Consequently, destroying the old elements here would be incorrect.
-        // Only the raw storage itself needs to be released.</span>
-        deallocate_raw&lt;T&gt;(vector.data, vector.capacity);
-    }
-
-    <span style="color: #888;">// The number of live elements has not changed.
-    // Only their storage location has changed.</span>
-    vector.data = new_data;
-    vector.capacity = new_capacity;
-
-    <span style="color: #888;">// The invariant still holds:
-    //
-    //     0 &lt;= vector.len &lt;= vector.capacity</span>
-
-    return Ok(());
-}
-
-<span style="color: #888;">// -----------------------------------------------------------------------------
-// Destruction
-// -----------------------------------------------------------------------------
-//
-// When a Vector&lt;T&gt; is destroyed, each live T value must first be destroyed
-// according to T's destruction semantics.
-//
-// Conceptually:
-//
-//     usize index = 0;
-//
-//     while index &lt; vector.len
-//     {
-//         destroy(vector.data[index]);
-//         index = index + 1;
-//     }
-//
-//     if vector.data != null
-//     {
-//         deallocate_raw&lt;T&gt;(vector.data, vector.capacity);
-//     }
-//
-// The unused portion of the allocation contains no live T values and therefore
-// must not be destroyed.
-//
-// A concrete compiler implementation may generate or invoke the appropriate
-// destruction operation for T.</span>
-
-
-<span style="color: #888;">// -----------------------------------------------------------------------------
-// Safety and borrowing
-// -----------------------------------------------------------------------------
-//
-// The public Vector operations form a safe abstraction over the raw storage.
-//
-// `push` and `pop` require mutable access to the Vector because they modify
-// its length, element ownership, and potentially its allocation.
-//
-// In particular, `push` may call grow(), which can relocate every live
-// element. References into the vector's element storage therefore cannot
-// remain valid across a reallocation.
-//
-// The borrow checker is responsible for preventing an operation that may
-// invalidate an active reference.
-//
-// The raw pointer `data` is an implementation detail and is never required
-// by callers of the safe Vector interface.</span>
-</pre>
-
-<pre>
+  <pre>
 module stack_example;
 
 import std.result;
-import std.io { print, println };
+import std.io { println };
 import std.vector;
 
 enum StackError
@@ -3209,9 +3040,8 @@ struct Stack&lt;T&gt;
     Vector&lt;T&gt; values;
 }
 
-
-<span style="color: #888;">// `new` isn't special. It is an ordinary associated function
-// that takes no arguments and returns a new Stack&lt;T&gt;.</span>
+// `new` is an ordinary associated function. It has no implicit
+// receiver and takes no arguments.
 fn Stack&lt;T&gt;::new() : Stack&lt;T&gt;
 {
     return Stack&lt;T&gt;
@@ -3220,150 +3050,438 @@ fn Stack&lt;T&gt;::new() : Stack&lt;T&gt;
     };
 }
 
-
-fn Stack&lt;T&gt;::push(Stack&lt;T&gt;* stack, T value) : Result&lt;void, StackError&gt;
+// `push` takes an explicit mutable pointer to the Stack.
+// The value is transferred to the Vector on successful insertion.
+fn Stack&lt;T&gt;::push(Stack&lt;T&gt;* stack, T value)
+    : Result&lt;bool, StackError&gt;
 {
-    <span style="color: #888;">// Create a mutable borrow to permit the mutating operation.
-    // No ownership of the Stack is transferred.
-    //
-    // Vector&lt;T&gt;::push takes ownership of `value` if the push succeeds.
-    // If allocation fails, Vector leaves itself unchanged and reports
-    // the failure.</span>
-
     return match Vector&lt;T&gt;::push(&amp;mut stack.values, value)
     {
-        Ok(()) =&gt; Ok(()),
+        Ok(inserted) =&gt; Ok(inserted),
+
         Err(VectorPushError::AllocationFailed) =&gt;
             Err(StackError::AllocationFailed),
+
         Err(VectorPushError::CapacityOverflow) =&gt;
             Err(StackError::CapacityOverflow)
     };
 }
 
-
-fn Stack&lt;T&gt;::pop(Stack&lt;T&gt;* stack) : Result&lt;T, StackError&gt;
+// `pop` takes an explicit mutable pointer to the Stack and transfers
+// ownership of the removed value to the caller.
+fn Stack&lt;T&gt;::pop(Stack&lt;T&gt;* stack)
+    : Result&lt;T, StackError&gt;
 {
-    <span style="color: #888;">// Create a mutable borrow to permit the mutating operation.
-    // No ownership of the Stack is transferred.
-    //
-    // Vector&lt;T&gt;::pop cannot allocate, so the only possible VectorPopError
-    // is Empty.</span>
-
     return match Vector&lt;T&gt;::pop(&amp;mut stack.values)
     {
         Ok(value) =&gt; Ok(value),
-        Err(VectorPopError::Empty) =&gt; Err(StackError::Empty)
+
+        Err(VectorPopError::Empty) =&gt;
+            Err(StackError::Empty)
     };
 }
 
-
+// `is_empty` requires only shared access because it does not mutate
+// the Stack or its Vector.
 fn Stack&lt;T&gt;::is_empty(Stack&lt;T&gt;* stack) : bool
 {
-    <span style="color: #888;">// Create a shared borrow for a read-only operation.
-    // No ownership is transferred and no mutation occurs.</span>
-
     return Vector&lt;T&gt;::len(&amp;stack.values) == 0;
 }
 
-
-fn run_stack(Stack&lt;i32&gt;* stack) : Result&lt;void, StackError&gt;
+fn run_stack(Stack&lt;i32&gt;* stack)
+    : Result&lt;bool, StackError&gt;
 {
-    <span style="color: #888;">// Push 10, propagating any allocation or capacity errors automatically</span>
-    Stack&lt;i32&gt;::push(stack, 10)?;
+    // The successful Result carries a bool rather than a unit value.
+    bool pushed = Stack&lt;i32&gt;::push(stack, 10)?;
 
-    <span style="color: #888;">// Pop the first value, short-circuiting if the stack is empty</span>
-    i32 val1 = Stack&lt;i32&gt;::pop(stack)?;
-    println("popped value: {}", val1); <span style="color: #888;">// popped value: 10</span>
+    // `pushed` is initialized before it is read or destroyed.
+    if pushed
+    {
+        i32 value = Stack&lt;i32&gt;::pop(stack)?;
+        println("popped value: {}", value);
+    }
 
-    <span style="color: #888;">// Pop the second value (will fail and return StackError::Empty)</span>
-    i32 val2 = Stack&lt;i32&gt;::pop(stack)?;
-    println("popped value: {}", val2);
+    // This operation fails because the Stack is now empty.
+    //
+    // `?` propagates StackError::Empty to the caller.
+    Stack&lt;i32&gt;::pop(stack)?;
 
-    return Ok(());
+    return Ok(true);
 }
 
 fn main() : i32
 {
-    <span style="color: #888;">// The `mut` means that the local binding `stack` is permitted</span>
-    <span style="color: #888;">// to be mutably borrowed.</span>
-    <span style="color: #888;">//</span>
-    <span style="color: #888;">// Without `mut`, attempting to create `&amp;mut stack` would violate</span>
-    <span style="color: #888;">// the language's mutability and borrowing rules.</span>
-    <span style="color: #888;">//</span>
-    <span style="color: #888;">// `mut` belongs to the local binding, not to the Stack type.</span>
+    // `mut` applies to the local binding. It permits the binding to
+    // be mutably borrowed; it does not change the Stack type itself.
     mut Stack&lt;i32&gt; stack = Stack&lt;i32&gt;::new();
 
-    <span style="color: #888;">// Use a match on the helper function to handle errors at the top-level boundary</span>
     match run_stack(&amp;mut stack)
     {
-        Ok(()) =&gt; {},
+        Ok(completed) =&gt;
+        {
+            if completed
+            {
+                println("stack operation completed");
+            }
+        },
+
         Err(StackError::AllocationFailed) =&gt;
             println("failed to allocate storage"),
+
         Err(StackError::CapacityOverflow) =&gt;
             println("stack capacity limit reached"),
+
         Err(StackError::Empty) =&gt;
-            println("stack is empty") <span style="color: #888;">// stack is empty</span>
+            println("stack is empty")
     }
 
     return 0;
 }
-</pre>
+  </pre>
 
+  <p>
+    With the standard library implementation providing the declared
+    <code>Vector&lt;T&gt;</code> operations, the example has the following
+    intended observable output:
+  </p>
 
-<h3>Semantics Visible in the Example</h3>
+  <pre>
+popped value: 10
+stack is empty
+  </pre>
 
-<p>
-    The example intentionally exercises several of the normative semantic
-    rules established by the CobaltC 1.0 specification.
-</p>
+  <h3>5. Non-Normative Vector Implementation Sketch</h3>
 
-<div class="spec-semantics-comprehensive">
-  <p>The example intentionally exercises the complete scope of normative semantic rules established by the CobaltC 1.0 specification. The mapping below breaks down how every code construct aligns with the language model:</p>
+  <p>
+    A concrete implementation of <code>Vector&lt;T&gt;</code> may use raw
+    storage internally. Such an implementation is outside the conformance
+    program above because CobaltC 1.0.0 specifies the semantic safety boundary
+    for raw memory without defining source-level functions such as
+    <code>allocate_raw&lt;T&gt;</code>, <code>deallocate_raw&lt;T&gt;</code>, or
+    <code>destroy</code>.
+  </p>
+
+  <p>
+    The following is therefore pseudocode describing the obligations of a
+    possible implementation. It is not CobaltC 1.0.0 source and MUST NOT be
+    used as evidence that these names or operations form part of the language.
+  </p>
+
+  <pre>
+// NON-NORMATIVE IMPLEMENTATION PSEUDOCODE
+//
+// A possible Vector representation:
+//
+//     data       -> contiguous storage for capacity T values
+//     len        -> number of live T values
+//     capacity   -> number of allocated T slots
+//
+// Required invariant:
+//
+//     0 &lt;= len &lt;= capacity
+//
+// The logical range [0, len) contains exactly the values owned by
+// the Vector. Storage outside that range contains no Vector-owned
+// live T values.
+//
+// A concrete implementation may use an internal allocation mechanism
+// supplied by the runtime rather than the illustrative operations below.
+
+Vector&lt;T&gt;::push(vector, value):
+
+    if vector.len == vector.capacity
+        grow vector
+
+    initialize the next unused storage position with `value`
+    transfer ownership of `value` to the Vector
+    increment vector.len
+
+    return success
+
+Vector&lt;T&gt;::pop(vector):
+
+    if vector.len == 0
+        return Err(Empty)
+
+    decrement vector.len
+    move the value from the newly final logical position
+    return the moved value
+
+Vector destruction:
+
+    destroy every live T value in [0, vector.len)
+    release the underlying allocation
+
+Vector growth:
+
+    calculate a larger capacity without overflowing usize
+    allocate suitably aligned storage for the new capacity
+    move every live T value into the corresponding position
+    release the old storage
+    update data and capacity
+
+    The implementation MUST preserve the Vector invariant
+    throughout the operation and MUST NOT invalidate a managed
+    pointer that the language's borrowing rules require to remain valid.
+  </pre>
+
+  <p>
+    In particular, a raw-storage implementation must distinguish the lifetime
+    of the allocation from the lifetime of the values stored within it.
+    Allocated storage does not, by itself, constitute a collection of live
+    <code>T</code> values. Likewise, releasing raw storage must not result in
+    a second destruction of values whose ownership has already been moved.
+  </p>
+
+  <p>
+    The implementation must also ensure that any collection operation capable
+    of relocating elements is incompatible with a live managed pointer whose
+    validity depends on the old storage. This follows from the collection
+    borrowing and borrow-invalidation rules.
+  </p>
+
+  <h3>Semantics Visible in the Example</h3>
+
+  <p>
+    The example intentionally exercises several of the normative semantic rules
+    established by the CobaltC 1.0.0 specification. It is not intended to
+    exercise the complete language or complete conformance suite. Section 92
+    requires a conformance suite to contain multiple positive and negative
+    tests covering the language as a whole; one example cannot substitute for
+    that suite.
+  </p>
 
   <h3>Modules, Visibility, and Types</h3>
+
   <ul>
-    <li><strong>Modules and Imports:</strong> The code is structured into the <code>stack_example</code> module, which explicitly imports required declarations from <code>std.result</code>, <code>std.io</code>, and <code>std.vector</code>.</li>
-    <li><strong>Export Visibility:</strong> Supporting modules like <code>std.vector</code> use explicit <code>export</code> blocks to control accessibility. Non-exported items remain private to their module.</li>
-    <li><strong>Generic Nominal Types:</strong> <code>Vector&lt;T&gt;</code>, <code>Stack&lt;T&gt;</code>, and <code>Result&lt;T, E&gt;</code> are statically checked nominal types instantiated as concrete configurations (e.g., <code>Vector&lt;i32&gt;</code>, <code>Stack&lt;i32&gt;</code>).</li>
-    <li><strong>Opaque Exported Types:</strong> <code>Vector&lt;T&gt;</code> is exported while hiding its internal representation, allowing external code to use the type safely without direct access to private internal fields.</li>
+    <li>
+      <strong>Modules and Imports:</strong>
+      Each source module begins with a single module declaration and imports
+      declarations from other modules using the standard CobaltC import syntax.
+    </li>
+
+```
+<li>
+  <strong>Export Visibility:</strong>
+  The supporting modules use explicit <code>export</code> blocks.
+  Declarations not listed in an export block remain module-local.
+</li>
+
+<li>
+  <strong>Generic Nominal Types:</strong>
+  <code>Result&lt;T, E&gt;</code>, <code>Vector&lt;T&gt;</code>, and
+  <code>Stack&lt;T&gt;</code> are generic nominal types. The concrete
+  example instantiates <code>Stack&lt;i32&gt;</code>.
+</li>
+
+<li>
+  <strong>Opaque Exported Representation:</strong>
+  An exported <code>Vector&lt;T&gt;</code> may hide its representation from
+  importing modules. External code uses its exported operations rather than
+  directly manipulating its internal storage.
+</li>
+```
+
   </ul>
 
   <h3>Functions and Call Semantics</h3>
+
   <ul>
-    <li><strong>Associated Functions:</strong> Functions are bound to types via type-qualified syntax (e.g., <code>Vector&lt;T&gt;::new</code>, <code>Stack&lt;T&gt;::push</code>).</li>
-    <li><strong>No Implicit Receiver:</strong> Associated functions do not receive implicit <code>this</code> or <code>self</code> arguments; functions operating on an existing instance must explicitly declare their pointer receiver.</li>
-    <li><strong>Constructor Associated Functions:</strong> Functions like <code>Stack&lt;T&gt;::new()</code> are ordinary associated functions taking no parameters that construct and return a new value.</li>
-    <li><strong>Value-Qualified Lookup &amp; Explicit Arguments:</strong> Method execution relies on type-qualified lookup (e.g., <code>Vector&lt;T&gt;::push(&amp;mut stack.values, value)</code>) where arguments are passed explicitly.</li>
+    <li>
+      <strong>Associated Functions:</strong>
+      Functions such as <code>Stack&lt;T&gt;::new</code>,
+      <code>Stack&lt;T&gt;::push</code>, and <code>Stack&lt;T&gt;::pop</code>
+      use type-qualified associated-function syntax.
+    </li>
+
+```
+<li>
+  <strong>No Implicit Receiver:</strong>
+  Associated functions do not receive an implicit
+  <code>this</code> or <code>self</code> parameter. A function operating
+  on an existing Stack explicitly declares its pointer parameter.
+</li>
+
+<li>
+  <strong>Explicit Arguments:</strong>
+  The receiver-like object is passed explicitly, for example
+  <code>Stack&lt;i32&gt;::push(&amp;mut stack, 10)</code>.
+  Type qualification selects the associated function; it does not
+  manufacture an implicit argument.
+</li>
+
+<li>
+  <strong>Ordinary Constructor Function:</strong>
+  <code>Stack&lt;T&gt;::new()</code> is an ordinary associated function that
+  takes no arguments and returns a newly constructed
+  <code>Stack&lt;T&gt;</code>.
+</li>
+```
+
   </ul>
 
   <h3>Ownership, Borrowing, and Lifetimes</h3>
+
   <ul>
-    <li><strong>Ownership Hierarchy:</strong> Local bindings like <code>Stack&lt;i32&gt; stack</code> own the stack, which owns its internal <code>Vector&lt;T&gt;</code>, which in turn owns its live elements and raw storage.</li>
-    <li><strong>Deterministic Destruction:</strong> Owned local values are automatically and deterministically destroyed when leaving scope, correctly sequencing element cleanup and raw memory release.</li>
-    <li><strong>Borrowing Mechanics:</strong> Shared borrows (<code>&amp;stack.values</code>) provide read-only access, while mutable borrows (<code>&amp;mut stack</code>) provide exclusive write access subject to strict aliasing rules.</li>
-    <li><strong>Field Borrowing:</strong> Sub-field mutable borrowing (<code>&amp;mut stack.values</code>) enables safe delegation to inner structures without transferring parent ownership.</li>
-    <li><strong>Move Semantics:</strong> Values are explicitly transferred using the <code>move</code> keyword during vector pops and reallocation phases, rendering moved-from bindings unavailable.</li>
+    <li>
+      <strong>Ownership:</strong>
+      The local <code>stack</code> owns its <code>Stack&lt;i32&gt;</code> value,
+      and the Stack owns its <code>Vector&lt;i32&gt;</code>. The Vector is
+      responsible for the values it contains.
+    </li>
+
+```
+<li>
+  <strong>Mutable Borrowing:</strong>
+  <code>&amp;mut stack</code> provides mutable access to the Stack without
+  transferring ownership. The mutable borrow is required for operations
+  that modify the Stack.
+</li>
+
+<li>
+  <strong>Field Borrowing:</strong>
+  <code>&amp;mut stack.values</code> borrows the Vector field directly.
+  The field-borrowing rules permit such access where the relevant storage
+  is disjoint from conflicting borrows.
+</li>
+
+<li>
+  <strong>Shared Borrowing:</strong>
+  <code>Stack&lt;T&gt;::is_empty</code> and
+  <code>Vector&lt;T&gt;::len</code> require only shared access because they
+  do not modify their referents.
+</li>
+
+<li>
+  <strong>Move Semantics:</strong>
+  A successful push transfers ownership of the supplied value to the
+  Vector, while a successful pop transfers ownership of the removed value
+  to the caller.
+</li>
+
+<li>
+  <strong>Deterministic Destruction:</strong>
+  Owned values are destroyed deterministically according to the scope and
+  ownership rules. A moved-from ownership responsibility does not cause a
+  second destruction.
+</li>
+
+<li>
+  <strong>Borrow Invalidation:</strong>
+  A concrete Vector implementation that relocates its elements must not
+  permit a managed pointer to an element to remain usable after the
+  storage on which that pointer depends has ceased to be valid.
+</li>
+```
+
   </ul>
 
   <h3>Error Handling and Propagation</h3>
+
   <ul>
-    <li><strong>Result-Based Error Handling:</strong> Fallible operations use explicit <code>Result&lt;T, E&gt;</code> enums containing <code>Ok</code> and <code>Err</code> variants rather than runtime exceptions.</li>
-    <li><strong>Error Translation Layer:</strong> Wrapper methods like <code>Stack&lt;T&gt;::push</code> translate low-level vector errors into high-level <code>StackError</code> variants using exhaustive pattern matching.</li>
-    <li><strong>Error Propagation Flow:</strong> The helper function <code>run_stack</code> leverages the <code>?</code> operator to seamlessly short-circuit execution on any failure, propagating errors without verbose manual boilerplate.</li>
-    <li><strong>Exhaustive Matching:</strong> All <code>match</code> expressions must handle every variant of a type, enforced statically at compile time.</li>
+    <li>
+      <strong>Result-Based Errors:</strong>
+      Fallible operations use <code>Result&lt;T, E&gt;</code> with the defined
+      <code>Ok(T)</code> and <code>Err(E)</code> variants.
+    </li>
+
+```
+<li>
+  <strong>No Unit-Valued Result:</strong>
+  The example deliberately does not use <code>Result&lt;void, E&gt;</code>
+  or <code>Ok(())</code>. The specification defines <code>void</code> as a
+  function return type and does not define <code>()</code> as a CobaltC
+  value; tuples are explicitly absent from the language.
+</li>
+
+<li>
+  <strong>Error Translation:</strong>
+  <code>Stack&lt;T&gt;::push</code> and
+  <code>Stack&lt;T&gt;::pop</code> translate the Vector error types into
+  the Stack-level error type using exhaustive pattern matching.
+</li>
+
+<li>
+  <strong>Error Propagation:</strong>
+  The <code>?</code> operator propagates compatible errors from
+  <code>run_stack</code> rather than acting as an exception or panic
+  mechanism.
+</li>
+
+<li>
+  <strong>Exhaustive Matching:</strong>
+  The matches over <code>VectorPushError</code>,
+  <code>VectorPopError</code>, and <code>StackError</code> enumerate every
+  variant of the corresponding enum.
+</li>
+```
+
   </ul>
 
-  <h3>Memory Management, Raw Pointers, and Unsafe Code</h3>
-  <ul>
-    <li><strong>Contiguous Storage &amp; Invariants:</strong> Vectors manage contiguous allocations, tracking length and capacity to maintain the absolute invariant $0 \le \text{len} \le \text{capacity}$.</li>
-    <li><strong>Capacity Growth Policy:</strong> Reaching capacity triggers an automatic growth routine that doubles storage allocation starting from an initial capacity of 4.</li>
-    <li><strong>Raw Pointers &amp; Unsafe Contexts:</strong> Internal raw storage is handled via raw pointers (<code>raw T*</code>), isolating raw pointer manipulation, allocation, and release inside explicit <code>unsafe</code> blocks.</li>
-    <li><strong>Safe Abstraction:</strong> Unsafe storage operations are fully encapsulated behind safe public APIs, freeing callers from unsafe interactions.</li>
-    <li><strong>Reallocation &amp; Borrow Invalidation:</strong> Growing a vector relocates elements. CobaltC's static rules prohibit operations that would invalidate active references across reallocations.</li>
-    <li><strong>Element Lifetime vs. Storage Release:</strong> Storage allocation is decoupled from element lifetime. Only active positions $[0, \text{len})$ contain live elements requiring destruction prior to raw storage deallocation.</li>
-  </ul>
-</div>
+  <h3>Collections and Memory Safety</h3>
 
+  <ul>
+    <li>
+      <strong>Vector Ownership:</strong>
+      <code>Vector&lt;T&gt;</code> owns its dynamically allocated contiguous
+      storage and the live values contained within its logical range.
+    </li>
+
+```
+<li>
+  <strong>Length and Capacity:</strong>
+  The Vector invariant is
+  <code>0 &lt;= len &lt;= capacity</code>. Capacity may exceed length.
+</li>
+
+<li>
+  <strong>Reallocation:</strong>
+  A Vector implementation may change its storage when additional capacity
+  is required. Such an operation is subject to the ordinary borrowing and
+  lifetime rules.
+</li>
+
+<li>
+  <strong>Unsafe Boundary:</strong>
+  Raw pointer manipulation and manual allocation/deallocation are unsafe
+  facilities. A concrete standard-library implementation may encapsulate
+  them behind a safe Vector interface, provided the implementation
+  maintains the invariants promised by that interface.
+</li>
+
+<li>
+  <strong>Implementation Freedom:</strong>
+  The specification does not require a particular representation,
+  allocation algorithm, growth factor, or compiler-generated destruction
+  mechanism. Those are implementation details provided that the specified
+  observable semantics are preserved.
+</li>
+```
+
+  </ul>
+
+  <h3>Conformance Status of the Example</h3>
+
+  <p>
+    The <code>stack_example</code> portion is intended as a positive
+    source-level example of the specified language constructs. The
+    <code>std.vector</code> implementation sketch is intentionally
+    non-normative because the current CobaltC 1.0.0 specification does not
+    define source-level raw allocation, raw-storage initialization, or explicit
+    destruction primitives.
+  </p>
+
+  <p>
+    Accordingly, this section demonstrates conformance to selected language
+    rules; it does not constitute a complete conformance suite. A complete
+    conformance suite must separately test lexical and syntactic behavior,
+    name resolution, typing, initialization, ownership, moves, copying,
+    borrowing, lifetimes, destruction, nullability, bounds, patterns,
+    generics, <code>Result</code>, collections, strings, concurrency, unsafe
+    boundaries, runtime behavior, FFI, ABI requirements, diagnostics, and
+    regressions.
+  </p>
+</section>
 
 <h3>Associated and Ordinary Functions</h3> <p> Associated functions and ordinary functions use the same underlying function semantics. The difference is that an associated function has a type-qualified name and participates in associated-function lookup. </p> <p> For example, <code>Stack&lt;T&gt;::push</code> is declared as an ordinary function associated with <code>Stack&lt;T&gt;</code>: </p> <pre><code>fn Stack&lt;T&gt;::push(Stack&lt;T&gt;* stack, T value) { Vector&lt;T&gt;::push(&amp;mut stack.values, value); }</code></pre> <p> The associated function may be referenced using its qualified type name: </p> <pre><code>Stack&lt;i32&gt;::push(&amp;mut stack, 10);</code></pre> <p> It may also be referenced through a value whose statically known type is <code>Stack&lt;i32&gt;</code>: </p> <pre><code>stack::push(&amp;mut stack, 10);</code></pre> <p> In both cases, qualification selects the associated function, while the function's declared parameter list determines the arguments that must be supplied. </p> <p> Neither associated-function form introduces an implicit <code>this</code>, <code>self</code>, or equivalent receiver parameter. The value-qualified form uses <code>stack</code> to determine the associated type, but does not implicitly pass <code>stack</code> to the function. </p>
 <h3>Conformance Significance</h3> <p> This example is useful as a conformance example because it exercises the interaction between several parts of the specification rather than testing an isolated feature. In particular, it combines modules, imports and exports, generic types, associated functions, value-qualified lookup, owned values, borrowing, mutable access, field borrowing, collection operations, <code>Result</code>-based error handling, and exhaustive pattern matching. It also places the program within the ownership and deterministic-destruction model defined by the language.</p> <p> The example also demonstrates the distinction between CobaltC's C-like free-function model and its explicit associated-function syntax. A function may be associated with a type using <code>Stack&lt;T&gt;::push</code>. An associated function may then be referenced through either its type or a value of that type. Association qualifies the function name and affects lookup, but does not introduce an implicit receiver or otherwise change the fundamental function semantics. </p>
