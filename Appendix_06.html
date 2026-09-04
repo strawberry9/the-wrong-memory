@@ -4081,7 +4081,7 @@ fn Vector&lt;T&gt;::shrink_to_fit(Vector&lt;T&gt;* vector) : Result&lt;usize, Ve
 // when a Vector owning lifetime ends.
 //
 // Each live element is destroyed exactly once.
-// The backing allocation is then released.</span>
+// The backing allocation is released after all live elements are destroyed.</span>
 fn Vector&lt;T&gt;::destroy(Vector&lt;T&gt;* vector)
 {
     usize i = 0;
