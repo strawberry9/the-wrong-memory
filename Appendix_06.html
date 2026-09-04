@@ -174,7 +174,7 @@
       <li><a href="#section-73"><del>Channels</del></a></li>
       <li><a href="#section-74">Data Races</a></li>
       <li><a href="#section-75">Memory Model</a></li>
-      <li><a href="#section-76">Unsafe Blocks</a></li>
+      <li><a href="#section-76">Unsafe Code and Functions</a></li>
       <li><a href="#section-77">Raw Memory</a></li>
       <li><a href="#section-78">Safe Abstractions over Unsafe Code</a></li>
       <li><a href="#section-79">Foreign Functions</a></li>
@@ -1746,25 +1746,34 @@ print(*pointer);</code></pre><p>The compiler MUST reject a program when it can e
 
 
     <section id="section-76">
-      <h2>76. Unsafe Blocks</h2>
+    <h2>76. Unsafe Code and Functions</h2>
 
-      <p>
-        Unsafe operations require an explicit unsafe context:
-      </p>
+    <p>
+        Unsafe operations require an explicit unsafe context, established either through an unsafe block or an unsafe function declaration:
+    </p>
 
-      <pre><code>unsafe
+    <pre><code>unsafe
+{
+    ...
+}
+
+unsafe fn some_function()
 {
     ...
 }</code></pre>
 
-      <p>
-        Unsafe permits operations requiring programmer-supplied invariants.
-      </p>
+    <p>
+        Marking a function as <code>unsafe</code> permits it to contain unsafe operations and indicates to callers that calling the function requires an enclosing unsafe context or block.
+    </p>
 
-      <p>
+    <p>
+        Unsafe permits operations requiring programmer-supplied invariants.
+    </p>
+
+    <p>
         It does not make an invalid operation intrinsically correct.
-      </p>
-    </section>
+    </p>
+</section>
 
 
     <section id="section-77">
