@@ -68,7 +68,12 @@
 <p>This specification defines what a conforming implementation MUST do; it does not prescribe a particular implementation technique unless this document explicitly makes an implementation property normative.</p>
 <p>CobaltC is a statically typed systems programming language providing explicit ownership, deterministic destruction, compiler-checked borrowing, inferred lifetimes, explicit nullability, bounds-safe operations, structured error handling, safe concurrency, explicit unsafe operations, and explicit foreign-function interfaces.</p>
 <p>The language is intended for software requiring predictable resource management, strong memory safety, native execution, and controlled interaction with low-level facilities.</p>
-<p>CobaltC is C-like data plus ordinary functions, generics, explicit memory and ownership safety, and modules. It does not provide object-oriented inheritance or dynamic dispatch.</p>
+
+<div class="note">
+    <p><strong>Core Design:</strong> CobaltC is C-like data plus ordinary functions, generics, explicit memory and ownership safety, and modules.</p>
+    <p>CobaltC does not provide object-oriented inheritance or dynamic dispatch.</p>
+</div>
+
 <p>The specification deliberately leaves implementation technique, representation, and compiler architecture to the implementor except where those choices affect a normative language guarantee. The examples in this specification are normative illustrations of source syntax unless stated otherwise.</p>
 </section><section id="section-2"><h2>2. Normative Terminology</h2>
 <p>The words <strong>MUST</strong>, <strong>MUST NOT</strong>, <strong>SHOULD</strong>, <strong>SHOULD NOT</strong>, and <strong>MAY</strong> are normative.</p>
@@ -95,9 +100,10 @@
 
 <h3>Module Visibility</h3>
 
-<p>CobaltC deliberately does not require <code>public</code>, <code>private</code>, <code>protected</code>, or equivalent visibility attributes on individual declarations.</p>
-
-<p>Visibility is expressed at the module boundary. Declarations describe the implementation of a module, while the module's <code>export</code> block describes the declarations made available as part of its external interface.</p>
+<div class="note">
+    <p><strong>Module Visibility:</strong> CobaltC deliberately does not require <code>public</code>, <code>private</code>, <code>protected</code>, or equivalent visibility attributes on individual declarations.</p>
+    <p>Visibility is expressed at the module boundary. Declarations describe the implementation of a module, while the module's <code>export</code> block describes the declarations made available as part of its external interface.</p>
+</div>
 
 <p>A declaration is externally accessible only when it is exported by its defining module. Nothing is exported implicitly.</p>
 
@@ -144,7 +150,8 @@
 <p>Block comments do not nest. An unterminated block comment is a lexical error. Comments have no semantic effect.</p>
 </section><section id="section-5"><h2>5. Keywords</h2>
 <p>The following words are reserved:</p>
-<pre><code>as
+<pre><code>alias
+as
 break
 const
 continue
@@ -169,8 +176,11 @@ struct
 true
 unsafe
 while
-type</code></pre>
-<p><code>drop</code> is reserved for compiler-recognized destruction semantics but has no ordinary source-language production. <code>type</code> introduces a type-alias declaration. The word <code>let</code> is not a CobaltC keyword and is not introduced by this edition.</p>
+</code></pre>
+<p><code>drop</code> is reserved for compiler-recognized destruction semantics but has no ordinary source-language production.</p>
+<p><code>alias</code> introduces a type-alias declaration.</p>
+<p>An alias declaration has the form <code>alias Name = ExistingType;</code>. An alias is transparent for type compatibility and does not create a new nominal type.</p>
+<p>The word <code>let</code> is not a CobaltC keyword and is not introduced by this edition.</p>
 <p>A keyword is recognized only when the complete lexical token is the keyword; a longer identifier such as <code>returnValue</code> remains an identifier.</p>
 </section><section id="section-6"><h2>6. Identifiers</h2>
 <p>An identifier begins with a Unicode identifier-start character and may contain subsequent identifier characters and digits. Identifiers are case-sensitive.</p>
@@ -207,12 +217,11 @@ import io { print, println };</code></pre>
 <h2>9. Declarations</h2>
 <p>CobaltC provides:</p>
 <pre><code>const
-type
+alias
 struct
 enum
 fn</code></pre>
 <p>Declarations are introduced into their applicable lexical or module namespace.</p>
-<p>A type alias has the form <code>type Name = ExistingType;</code>. A type alias is transparent for type compatibility and does not create a new nominal type.</p>
 <p>
         Inner declarations MAY shadow outer declarations where permitted.
       </p>
@@ -630,7 +639,8 @@ else
 <p>A value MUST be initialized before it is read.</p>
 <p>The compiler MUST perform control-flow-sensitive definite-initialization analysis sufficient to establish whether every path reaching a read has initialized the value.</p>
 <pre><code>i32 value;
-if condition {
+if condition
+{
     value = 10;
 }
 print(value);</code></pre>
@@ -1094,7 +1104,8 @@ print(*pointer);</code></pre>
 <p><code>null</code> cannot inhabit a non-nullable managed pointer type.</p>
 <p>Before dereferencing a nullable managed pointer, non-nullness MUST have been established by a test or equivalent language rule. Flow-sensitive refinement is permitted:</p>
 <pre><code>String*? value = find();
-if (value != null) {
+if (value != null)
+{
     print(*value);
 }</code></pre>
 <p>A refinement remains valid until the refined binding is assigned or another operation can change the condition on which the refinement depends. Passing the pointer by ordinary value does not itself invalidate the refinement.</p>
