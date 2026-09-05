@@ -429,7 +429,7 @@ else
 <pre><code>fn update_shared_state(Mutex* mutex)
 {
     Lock lock = Mutex::lock(mutex);
-    defer { Lock::unlock(&amp;lock); }
+    defer { print("update complete"); }
     modify_shared_state();
 }</code></pre>
 <p>Deferred blocks execute in reverse registration order. They execute before owned locals in the exited scope are destroyed.</p>
@@ -621,9 +621,9 @@ print(*pointer); // ERROR: referent no longer exists</code></pre>
     return length_of(*value);
 }</code></pre>
 <p>A function MAY return a managed pointer when the returned pointer remains valid after the function returns. A returned borrow derived from an input borrow MUST NOT outlive that input borrow.</p>
-<pre><code>fn first(String* value) : char*
+<pre><code>fn identity_borrow(String* value) : String*
 {
-    return &amp;value[0];
+    return value;
 }</code></pre>
 <p>A compiler MUST reject a returned borrow when it cannot establish the required lifetime relationship. A managed pointer to an ordinary local variable MUST NOT be returned.</p>
 </section><section id="section-46">
@@ -976,7 +976,7 @@ values[...]
 <p>A slice type is written <code>Slice[T]</code>. For slices, binding mutability is explicitly part of the slice access model: a <code>Slice[T]</code> provides shared read-only access, while a <code>mut Slice[T]</code> provides mutable access to the borrowed elements. This is a language-defined exception to the general distinction between binding mutability and managed-pointer capability described in Section 16.</p>
 <pre><code>Slice[i32] view = values[1..4];
 mut Slice[i32] view = values[1..4];</code></pre>
-<p>A slice's lifetime cannot exceed the lifetime of the storage it refers to. Passing a slice to a function passes borrowed access, not ownership.</p>
+<p>Slice access is subject to the same borrowing, aliasing, lifetime, and invalidation requirements as other borrowed access to the underlying storage. A slice's lifetime cannot exceed the lifetime of the storage it refers to. Passing a slice to a function passes borrowed access, not ownership.</p>
 </section><section id="section-62"><h2>62. Threads</h2>
 <p>CobaltC supports concurrent execution through threads. A value transferred to another thread MUST satisfy all applicable ownership, borrowing, lifetime, and concurrency requirements.</p>
 <p>An ordinary borrow of a local value MUST NOT be transferred when the referent may cease to exist before all uses of the transferred reference have ended.</p>
@@ -1122,7 +1122,7 @@ unsafe fn some_function()
 </section><section id="section-75"><h2>75. Standard I/O</h2>
 <p>The Standard-conforming library provides basic text and resource I/O operations, including <code>print</code>, <code>println</code>, <code>open</code>, <code>read</code>, <code>write</code>, and <code>close</code>.</p>
 <p>Expected I/O failures are represented using <code>Result</code>-style APIs.</p>
-<p>A resource-owning I/O object releases its resources deterministically according to the normal destruction rules.</p>
+<p>A resource-owning I/O object releases its resources deterministically according to the normal destruction rules. An explicit resource-release operation MUST leave the owning object in a valid state such that subsequent destruction does not release the same external resource again.</p>
 <p>The exact concrete error and stream types are part of the selected standard-library profile; the operation names and error-reporting model described here are normative for Standard Conformance.</p>
 </section><section id="section-76">
 <h2>76. Security and Safety Boundary</h2>
