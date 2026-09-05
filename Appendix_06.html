@@ -936,10 +936,20 @@ if (value != null) {
 }</code></pre>
 <p>The operator evaluates its operand. If the operand is a successful <code>Result</code>, the contained value continues the expression. If it is an <code>Err</code>, that error is returned from the current function.</p>
 <p>The operand of <code>?</code> MUST have an error-propagation form defined by this section, and the propagated error MUST be compatible with the enclosing function result. <code>?</code> is not an exception mechanism and does not implicitly unwind scopes other than the ordinary control-flow consequences of returning.</p>
+
 </section><section id="section-59"><h2>59. Strings</h2>
-<p><code>String</code> owns UTF-8 text storage. <code>Str</code> represents borrowed UTF-8 text.</p>
-<p>A valid text value MUST contain valid UTF-8. Arbitrary bytes require byte-oriented APIs.</p>
-<p>A string literal has type <code>String</code>. Where a borrowed string is required, an ordinary shared borrow may produce <code>Str</code> according to the standard library's string APIs.</p>
+<p><code>String</code> is an owned text type that owns its UTF-8 storage.</p>
+<p>A valid text value MUST contain valid UTF-8. Arbitrary byte sequences are not text values and require byte-oriented types or APIs.</p>
+<p>A string literal has type <code>String</code>. A <code>String</code> MAY be borrowed through the ordinary shared-borrow rules, producing a shared managed pointer to the string.</p>
+<pre><code>String message = "hello, CobaltC";
+String* view = &amp;message;
+
+print(*view);</code></pre>
+
+<p>In this example, <code>message</code> remains the owner of the string storage and <code>view</code> provides borrowed read-only access to that storage. The borrow MUST remain valid for the entire period in which <code>view</code> is used.</p>
+</section>
+
+
 </section><section id="section-60">
 <h2>60. Vector&lt;T&gt;</h2>
 <p>
