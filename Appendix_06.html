@@ -1507,7 +1507,7 @@ fn main()
 
     State state = Ready;
 
-    println(describe(state));
+    println(describe(state)); // ready
 
     while counter.value &lt; limit
     {
@@ -1522,8 +1522,15 @@ fn main()
     state = Finished;
 
     String message = describe(state);
-    println(message);
+    println(message); // finished
 }</code></pre>
+
+<p>Expected output:
+<code><pre>ready
+count = 1
+count = 2
+count = 3
+finished</code></pre>
 
 <p>The example is intended to show the syntactic character of CobaltC rather than prescribe a particular programming style. In particular, the explicit parameter to <code>Counter::increment</code> demonstrates that associated functions do not acquire an implicit receiver. The expression <code>&amp;mut counter</code> explicitly supplies the mutable borrow required by the function parameter.</p>
 
