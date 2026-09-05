@@ -2391,11 +2391,13 @@ values[...]
     </tbody>
   </table>
 
+<br>
   <p>
-    The <code>...</code> token in a slice range denotes the final element of
-    the underlying sequence. It does not represent an arbitrary variadic or
-    omitted expression in other contexts.
-  </p>
+  The <code>...</code> token denotes the final valid index of the
+  underlying sequence. When used without a starting index, as in
+  <code>values[...]</code>, the range begins at index <code>0</code> and
+  extends through the final valid index.
+</p>
 
   <h3>63.2 Slice Types</h3>
 
