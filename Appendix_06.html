@@ -70,9 +70,14 @@
 <p>The language is intended for software requiring predictable resource management, strong memory safety, native execution, and controlled interaction with low-level facilities.</p>
 
 <div class="note">
-    <p><strong>Core Design:</strong> CobaltC is C-like data plus ordinary functions, generics, explicit memory and ownership safety, and modules.</p>
-    <p>CobaltC does not provide object-oriented inheritance or dynamic dispatch.</p>
+    <p><strong>Core Design:</strong></p>
+    <p>CobaltC is C-like data plus ordinary functions, generics, explicit memory and ownership safety, and modules.</p>
+    <p>CobaltC provides C-like systems programming, but ownership, lifetime, bounds, nullability, and data-race rules are language semantics rather than programmer discipline.</p>
+    <p>CobaltC provides deterministic resource management and compiler-enforced borrowing rather than relying on garbage collection or programmer convention.</p>
+    <p>Unsafe operations and foreign interfaces form explicit boundaries outside the automatic safety guarantees of safe CobaltC.</p>
+    <p>CobaltC does <strong>not</strong> provide object-oriented inheritance or dynamic dispatch.</p>
 </div>
+
 
 <p>The specification deliberately leaves implementation technique, representation, and compiler architecture to the implementor except where those choices affect a normative language guarantee. The examples in this specification are normative illustrations of source syntax unless stated otherwise.</p>
 </section><section id="section-2"><h2>2. Normative Terminology</h2>
