@@ -75,12 +75,68 @@
 <p><strong>Implementation-defined</strong> means that an implementation chooses the behavior from the alternatives permitted by this specification and documents that choice.</p>
 <p><strong>Unspecified</strong> means that this specification permits more than one behavior and does not require an implementation to document which permitted behavior it chooses.</p>
 <p><strong>Undefined behavior</strong> is behavior for which this specification imposes no requirements. Safe CobaltC operations MUST NOT introduce undefined behavior merely through ordinary use.</p>
-</section><section id="section-3"><h2>3. Source Files</h2>
-<p>A CobaltC program consists of one or more source modules. A translation unit MUST define exactly one module.</p>
+</section>
+
+<section id="section-3"><h2>3. Source Files</h2>
+
+<p>A CobaltC program consists of one or more source modules.</p>
+
+<p>A translation unit defines exactly one module. The module declaration of a translation unit establishes the module defined by that translation unit. A translation unit MUST contain exactly one module declaration.</p>
+
+<p>Submodules are distinct modules and MUST be defined by separate translation units. A submodule is not part of its parent module merely because it is organized beneath that module in a source-file hierarchy.</p>
+
+<p>An implementation MAY use any source-file, directory, project, or compilation-unit organization internally, provided that the resulting module structure and behavior conform to this specification.</p>
+
 <p>Source text is UTF-8 encoded Unicode. The source representation is interpreted as Unicode scalar values. Unicode normalization is not applied to identifiers; identifier comparison uses the source code-point sequence after lexical classification.</p>
+
 <p>Identifiers are case-sensitive.</p>
+
 <p>Whitespace separates lexical tokens where necessary and otherwise has no semantic meaning. An implementation MAY accept additional source encodings as extensions, but a conforming implementation MUST accept UTF-8.</p>
-</section><section id="section-4"><h2>4. Comments</h2>
+
+<h3>Module Visibility</h3>
+
+<p>CobaltC deliberately does not require <code>public</code>, <code>private</code>, <code>protected</code>, or equivalent visibility attributes on individual declarations.</p>
+
+<p>Visibility is expressed at the module boundary. Declarations describe the implementation of a module, while the module's <code>export</code> block describes the declarations made available as part of its external interface.</p>
+
+<p>A declaration is externally accessible only when it is exported by its defining module. Nothing is exported implicitly.</p>
+
+<p>A declaration that is not exported remains available only within the access permitted by the ordinary name-resolution and module rules. External code MUST NOT access a non-exported declaration merely because it knows its name or because the declaration appears in a source file belonging to the module.</p>
+
+<p>The export boundary provides an explicit software-engineering boundary: declarations that are not exported MAY be changed without changing the externally visible interface, provided that the specified behavior and requirements of the exported interface remain compatible.</p>
+
+<p>The same principle applies to submodules. A module hierarchy provides organization and namespaces but does not weaken encapsulation. Each module independently controls its external contract, and a parent module does not implicitly export, import, or expose declarations from a submodule.</p>
+
+<p>An implementation MAY provide additional visibility mechanisms as extensions, but such mechanisms MUST be distinguishable from standard CobaltC behavior and MUST NOT silently alter the semantics of a valid CobaltC 1.0.0 program.</p>
+
+<h3>Source-File Organization</h3>
+
+<p>The language does not prescribe a particular source-file or directory layout. For example, a real CobaltC program might be organized as follows:</p>
+
+<pre><code>src/
+    main.cb
+    cli.cb
+
+    database/
+        database.cb
+        record.cb
+        index.cb
+
+    filesystem/
+        scanner.cb
+        path.cb
+
+    text/
+        tokenizer.cb
+        matcher.cb
+</code></pre>
+
+<p>This layout is illustrative only. The language defines modules and their relationships through module declarations, imports, and exports, not through directory names or file-system conventions.</p>
+
+</section>
+
+
+<section id="section-4"><h2>4. Comments</h2>
 <p>CobaltC supports line comments:</p><pre><code>// comment</code></pre>
 <p>A line comment extends to the next line terminator or end of file. CobaltC also supports block comments:</p><pre><code>/*
    comment
@@ -305,7 +361,8 @@ mut String* p = &amp;mut value;</code></pre>
 }</code></pre>
 <p>Struct fields have declared types. A struct value owns its owned fields according to their declared types and the language's ownership rules.</p>
 <p>Struct construction uses the form <code>Type { field = expression, ... }</code>. Field names identify the destination fields, and each field MUST be initialized exactly once.</p>
-<pre><code>Point point = Point {
+<pre><code>Point point = Point
+{
     x = 10,
     y = 20
 };</code></pre>
@@ -337,26 +394,146 @@ mut String* p = &amp;mut value;</code></pre>
 <p>The number and types of initializer elements MUST match the array type.</p>
 <p>A zero-length array <code>T[0]</code> is permitted. It contains no elements and cannot be indexed, but it may be sliced with <code>...</code> to produce an empty slice.</p>
 <p>Safe indexing MUST remain within the valid range.</p>
-</section><section id="section-24"><h2>24. Functions</h2>
+
+<section id="section-24"><h2>24. Functions</h2>
+
 <p>A function is declared by specifying its name, parameters, and optionally its return type:</p>
+
 <pre><code>fn add(i32 a, i32 b) : i32
 {
     return a + b;
 }</code></pre>
+
 <p>If the return type is omitted, the return type is <code>void</code>:</p>
+
 <pre><code>fn log(String message)
 {
     print(message);
 }</code></pre>
-<p>An explicit <code>void</code> return type is also permitted.</p>
-<p>Associated functions use the form <code>Type::function</code>. The qualifier selects the associated function and does not provide an implicit receiver.</p>
-<pre><code>fn Stack&lt;T&gt;::new() : Stack&lt;T&gt; { ... }
-Vector&lt;i32&gt;::new();</code></pre>
-<p>A value may also qualify an associated function. The value is used only for type-directed lookup and is not passed implicitly:</p>
-<pre><code>values::push(&amp;mut values, 40);</code></pre>
-<p>Function names MUST NOT be overloaded within the same lookup scope. Associated functions are distinct when their associated types differ.</p>
-<p>A non-<code>void</code> function MUST return a compatible value on every successful control-flow path. A <code>void</code> function MUST NOT return a value.</p>
-</section><section id="section-25"><h2>25. Expressions</h2>
+
+<p>An explicit <code>void</code> return type is also permitted. A function parameter has the declared type and access capability specified in its declaration. Ownership, borrowing, mutability, and lifetime semantics apply to parameters and return values according to their types and the ordinary rules of this specification.</p>
+
+<p>A non-<code>void</code> function MUST return a value compatible with its declared return type on every successful control-flow path. A <code>void</code> function MUST NOT return a value.</p>
+
+<p>Function names MUST NOT be overloaded within the same unqualified lookup scope. Associated functions are identified separately by their associated type and function name.</p>
+
+<h3>Associated Functions</h3>
+
+<p>An associated function is declared using the form <code>Type::function</code>. Association provides type-qualified organization and lookup but does not introduce object-oriented method dispatch, an implicit receiver, or an implicit <code>this</code> or <code>self</code> parameter.</p>
+
+<pre><code>fn Stack::push(mut Stack* stack, i32 value)
+{
+    ...
+}</code></pre>
+
+<p>An associated function is otherwise an ordinary function. All parameters MUST be declared explicitly, and association does not alter the function's parameter list, calling convention, ownership, borrowing, mutability, lifetime, or return-value semantics.</p>
+
+<p>An operation on a type MAY instead be declared as an ordinary function:</p>
+
+<pre><code>fn Stack_push(mut Stack* stack, i32 value)
+{
+    ...
+}</code></pre>
+
+<p>The ordinary and associated forms have the same fundamental function semantics. They are separate functions; association determines how the function is named and discovered.</p>
+
+<h3>Function Parameters and Mutable Access</h3>
+
+<p>A parameter of an ordinary value type receives an owned value according to the function-call and ownership rules.</p>
+
+<p>A parameter of type <code>T*</code> provides shared, read-only access to a referent. A parameter of type <code>mut T*</code> provides exclusive mutable access to a referent. A mutable parameter therefore MUST be declared with the <code>mut</code> qualifier on the managed-pointer type when the function is intended to modify the referenced value.</p>
+
+<pre><code>fn append_value(mut String* value)
+{
+    append(*value, "!");
+}
+
+mut String text = "hello";
+append_value(&amp;mut text);</code></pre>
+
+<p>The <code>mut</code> qualifier on a managed-pointer parameter specifies the access capability of that parameter. A separate binding-level <code>mut</code> on the parameter is not required.</p>
+
+<p>When an argument of type <code>mut T*</code> is supplied to a parameter of type <code>T*</code>, the argument undergoes a shared reborrow. This conversion does not move the original mutable managed pointer; the original mutable capability is temporarily restricted while the shared reborrow remains live.</p>
+
+<h3>Type-Qualified Associated Functions</h3>
+
+<p>An associated function MAY be referenced through its associated type using a type-qualified name:</p>
+
+<pre><code>Stack&lt;i32&gt;::new();
+Stack&lt;i32&gt;::push(&amp;mut stack, 10);</code></pre>
+
+<p>For a generic type, the type arguments form part of the qualification. A type-qualified call does not provide an implicit receiver. The selected function receives only the arguments explicitly supplied by the call.</p>
+
+<p>An associated function is not required to operate on an existing value of its associated type. It MAY create and return a new value:</p>
+
+<pre><code>Stack&lt;i32&gt; stack = Stack&lt;i32&gt;::new();</code></pre>
+
+<p><code>new</code> is not a special constructor mechanism. It is an ordinary associated function whose declared return type determines the value produced by the call.</p>
+
+<h3>Value-Qualified Associated Functions</h3>
+
+<p>An associated function MAY also be referenced through a value whose statically known type is the associated type:</p>
+
+<pre><code>mut Stack&lt;i32&gt; stack = Stack&lt;i32&gt;::new();
+
+stack::push(&amp;mut stack, 10);
+stack::push(&amp;mut stack, 20);
+stack::push(&amp;mut stack, 30);</code></pre>
+
+<p>A value-qualified call is not method syntax. The qualifying value determines the type used for associated-function lookup but is not implicitly passed to the selected function.</p>
+
+<p>Consequently, when <code>stack</code> has type <code>Stack&lt;i32&gt;</code>, the following calls identify the same associated function:</p>
+
+<pre><code>Stack&lt;i32&gt;::push(&amp;mut stack, 10);
+stack::push(&amp;mut stack, 10);</code></pre>
+
+<p>In both calls, <code>&amp;mut stack</code> is an explicit argument because the selected function declares a parameter of type <code>mut Stack*</code>.</p>
+
+<p>The <code>::</code> qualification syntax determines whether associated-function lookup is performed. It does not alter the function's declared parameter list or introduce an implicit receiver. The <code>.</code> operator remains member access and MUST NOT introduce implicit method lookup or invocation.</p>
+
+<h3>Associated Function Identity and Name Resolution</h3>
+
+<p>An associated function is identified by its associated type and function name. Associated functions with the same name MAY exist for different types and are distinct functions:</p>
+
+<pre><code>fn Stack::push(mut Stack* stack, i32 value) { ... }
+fn HashTable::push(mut HashTable* table, i32 value) { ... }</code></pre>
+
+<p>An ordinary function and an associated function MAY also have the same unqualified function name:</p>
+
+<pre><code>fn push(i32 value) { ... }
+fn Stack::push(mut Stack* stack, i32 value) { ... }</code></pre>
+
+<p>These declarations identify distinct functions. An unqualified call performs ordinary-function lookup:</p>
+
+<pre><code>push(10);</code></pre>
+
+<p>A type-qualified call performs associated-function lookup for the specified type:</p>
+
+<pre><code>Stack&lt;i32&gt;::push(&amp;mut stack, 10);</code></pre>
+
+<p>A value-qualified call performs associated-function lookup using the statically known type of the qualifying value:</p>
+
+<pre><code>stack::push(&amp;mut stack, 10);</code></pre>
+
+<p>The existence of an ordinary function with the same unqualified name MUST NOT cause it to be selected by a type-qualified or value-qualified associated-function call. Likewise, the existence of an associated function MUST NOT cause it to be selected by an unqualified call.</p>
+
+<p>Once an associated function has been selected, the number and types of the explicitly supplied arguments MUST satisfy that function's signature. Ordinary function-call rules, including evaluation order, ownership, borrowing, mutability, lifetime, and type compatibility, then apply.</p>
+
+<h3>Modules and External Interfaces</h3>
+
+<p>Ordinary functions and associated functions MAY be declared within the same module as the types on which they operate. A module MAY export types and functions through its <code>export { ... }</code> block to form its external interface.</p>
+
+<p>Nothing is exported implicitly. A declaration is externally accessible only when it is exported by the defining module.</p>
+
+<h3>Function Semantics</h3>
+
+<p>Functions do not acquire special semantics merely because they are associated with a type. Functions remain ordinary callable entities whose ownership, parameter, borrowing, mutability, lifetime, and return-value behavior is determined by their declarations and by the general rules of this specification.</p>
+
+<p>This design permits APIs to be organized around associated types while retaining explicit argument passing and C-like function semantics. In particular, an existing value may be used to select an associated function through value-qualified lookup, but the value is passed to that function only when it is explicitly supplied as an argument.</p>
+
+</section>
+
+<section id="section-25"><h2>25. Expressions</h2>
 <p>Expressions produce values or perform operations. Core expression forms include names, literals, calls, construction, member access, indexing, borrowing, unary operators, binary operators, assignment, postfix error propagation, and range/slice expressions.</p>
 <p>Member access uses <code>.</code>. Pointer member access uses <code>-&gt;</code> and is shorthand for dereferencing the pointer and then performing member access:</p>
 <pre><code>pointer-&gt;field
