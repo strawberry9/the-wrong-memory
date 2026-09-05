@@ -110,7 +110,7 @@
       <li><a href="#section-11">Constants</a></li>
       <li><a href="#section-12">Primitive Types</a></li>
       <li><a href="#section-13">Compound Types</a></li>
-      <li><a href="#section-14">Managed Pointers</a></li>
+      <li><a href="#section-14">Managed Pointer Types</a></li>
       <li><a href="#section-15">Raw Pointers</a></li>
       <li><a href="#section-16">Mutability</a></li>
       <li><a href="#section-17">Type Compatibility</a></li>
@@ -167,13 +167,13 @@
       <li><a href="#section-66"><del>Arc&lt;T&gt;</del></a></li>
       <li><a href="#section-67"><del>Weak&lt;T&gt;</del></a></li>
       <li><a href="#section-68">Threads</a></li>
-      <li><a href="#section-69"><del>Synchronization</del></a></li>
+      <li><a href="#section-69">Synchronization</a></li>
       <li><a href="#section-70">Mutex</a></li>
       <li><a href="#section-71"><del>RwLock</del></a></li>
       <li><a href="#section-72"><del>Atomics</del></a></li>
       <li><a href="#section-73"><del>Channels</del></a></li>
       <li><a href="#section-74">Data Races</a></li>
-      <li><a href="#section-75"><s>Memory Model</s></a></li>
+      <li><a href="#section-75">Memory Model</a></li>
       <li><a href="#section-76">Unsafe Code and Functions</a></li>
       <li><a href="#section-77">Raw Memory</a></li>
       <li><a href="#section-78">Safe Abstractions over Unsafe Code</a></li>
@@ -554,121 +554,267 @@ f64</code></pre>
     </section>
 
 
-   <section id="section-14">
-  <h2>14. Managed Pointers</h2>
-
-  <p>The notation:</p>
-
-  <pre><code>T*</code></pre>
+<section id="section-14">
+  <h2>14. Managed Pointer Types</h2>
 
   <p>
-    represents a managed, non-null pointer.
+    A managed pointer type specifies the referenced type, whether the pointer
+    is nullable, and the access capability held by the pointer.
   </p>
 
-  <p>The notation:</p>
-
-  <pre><code>T*?</code></pre>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Meaning</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>T*</code></td>
+        <td>Shared, non-null managed pointer to <code>T</code>.</td>
+      </tr>
+      <tr>
+        <td><code>mut T*</code></td>
+        <td>Exclusive, mutable, non-null managed pointer to <code>T</code>.</td>
+      </tr>
+      <tr>
+        <td><code>T*?</code></td>
+        <td>Nullable shared managed pointer to <code>T</code>.</td>
+      </tr>
+      <tr>
+        <td><code>mut T*?</code></td>
+        <td>Nullable mutable managed pointer to <code>T</code>.</td>
+      </tr>
+    </tbody>
+  </table>
 
   <p>
-    represents a nullable managed pointer.
+    A shared managed pointer permits read-only access to its referent. A
+    mutable managed pointer permits mutation of its referent and represents
+    exclusive access to that referent for the duration of the mutable borrow.
   </p>
 
   <p>
-    Managed pointers participate in ownership, borrowing, and lifetime
-    checking.
+    The mutability of a managed pointer is part of its type. The compiler MUST
+    preserve this distinction when determining type compatibility, assignment
+    compatibility, parameter compatibility, return-type compatibility, and
+    borrow compatibility.
+  </p>
+
+  <p>
+    Taking a shared borrow produces a value of type <code>T*</code>:
+  </p>
+
+  <pre><code>T* p = &amp;value;</code></pre>
+
+  <p>
+    Taking a mutable borrow produces a value of type <code>mut T*</code>:
+  </p>
+
+  <pre><code>mut T* p = &amp;mut value;</code></pre>
+
+  <p>
+    A mutable managed pointer MAY be reborrowed or implicitly converted to a
+    shared managed pointer. Such a conversion does not transfer ownership of
+    the referent.
+  </p>
+
+  <pre><code>mut T* mutable = &amp;mut value;
+T* shared = mutable;</code></pre>
+
+  <p>
+    A shared managed pointer MUST NOT be converted, reborrowed, or otherwise
+    used to obtain a mutable managed pointer.
+  </p>
+
+  <pre><code>T* shared = &amp;value;
+mut T* mutable = shared;  // compile-time error</code></pre>
+
+  <p>
+    A mutable managed pointer MUST be exclusive for the duration of its live
+    mutable borrow. The compiler MUST reject any operation that would create
+    two simultaneous mutable managed pointers to the same memory, or a
+    mutable managed pointer while a conflicting shared managed pointer to the
+    same memory remains live.
+  </p>
+
+  <p>
+    Managed pointers participate in the ownership and borrowing rules defined
+    by Sections 16 through 18 and the lifetime rules defined by Section 51.
+    A managed pointer MUST NOT outlive the lifetime of the memory to which it
+    refers.
+  </p>
+
+  <p>
+    Managed pointers are non-owning references to their referents unless a
+    specific language rule explicitly states otherwise. Destroying or
+    discarding a managed pointer does not destroy the value to which it refers.
+  </p>
+</section>
+
+<section id="section-15">
+  <h2>15. Raw Pointers</h2>
+
+  <p>
+    Raw pointers are represented by:
+  </p>
+
+  <pre><code>raw T*</code></pre>
+
+  <p>
+    A raw pointer is an unmanaged address referring to a value of type
+    <code>T</code>. Raw pointers do not participate in the ordinary managed
+    ownership, borrowing, lifetime, or destruction guarantees of CobaltC.
+  </p>
+
+  <p>
+    A raw pointer MAY be null, invalid, dangling, or otherwise refer to memory
+    that is not currently a valid value of type <code>T</code>. The language
+    does not automatically establish the validity or lifetime of a raw
+    pointer.
+  </p>
+
+  <p>
+    Raw-pointer dereference, conversion between raw pointers and managed
+    pointers, pointer arithmetic, and unrestricted manipulation of raw
+    addresses require an unsafe context unless another language rule
+    explicitly permits the operation.
+  </p>
+
+  <p>
+    A raw pointer MUST NOT be used to bypass the ownership or borrowing rules
+    of safe CobaltC code. Code that uses raw pointers to access managed memory
+    is responsible for maintaining the validity, lifetime, alignment, and
+    aliasing requirements of the accessed value.
+  </p>
+
+  <p>
+    The compiler MUST NOT infer ownership, borrowing, or lifetime guarantees
+    from the existence of a raw pointer.
   </p>
 </section>
 
 
-    <section id="section-15">
-      <h2>15. Raw Pointers</h2>
+<section id="section-16"> <h2>16. Mutability</h2>
 
-      <p>Raw pointers are represented:</p>
+<p> Mutability is a semantic property that determines whether a value may be modified through a particular binding or managed pointer capability. </p>
 
-      <pre><code>raw T*</code></pre>
+<p> A mutable binding permits mutation of the value associated with that binding where no ownership or borrowing rule prohibits the operation. </p>
 
-      <p>
-        Raw pointers are outside the ordinary managed ownership and lifetime
-        guarantees.
-      </p>
+<p> A shared managed pointer of type <code>T*</code> provides read-only access to its referent. A mutable managed pointer of type <code>mut T*</code> provides exclusive mutable access to its referent for the duration of the live mutable borrow. </p>
 
-      <p>
-        Raw-pointer dereference and unrestricted pointer manipulation require
-        an unsafe context.
-      </p>
-    </section>
+<p> Binding mutability and managed-pointer mutability are distinct semantic properties. A mutable binding does not by itself create a mutable managed pointer. </p>
 
+<p> For function parameters whose type is a managed pointer, the mutability specified by the managed pointer type determines the access capability of the parameter. A separate binding-level <code>mut</code> is not required to obtain mutable access through a <code>mut T*</code> parameter. </p>
 
-    <section id="section-16">
-      <h2>16. Mutability</h2>
+<p> Thus: </p>
 
-      <p>
-        A mutable binding permits mutation through that binding where no
-        ownership or borrowing rule prohibits the operation.
-      </p>
+<pre><code>fn update(mut String* value) { append(*value, "!"); }</code></pre>
 
-      <p>
-        Mutability does not override aliasing rules.
-      </p>
+<p> declares a parameter of type <code>mut String*</code>. The parameter provides exclusive mutable access to its referent subject to the ordinary borrowing and lifetime rules. </p>
 
-      <p>
-        For example, having a mutable owner does not permit mutation while an
-        incompatible borrow remains active.
-      </p>
-    </section>
+<p> Mutability does not override ownership, aliasing, borrowing, or lifetime rules. </p>
 
+<p> The compiler MUST reject any operation that would mutate a value through a shared managed pointer or otherwise violate the exclusivity requirements of a mutable managed pointer. </p> </section>
 
-    <section id="section-17">
-      <h2>17. Type Compatibility</h2>
+<section id="section-17">
+  <h2>17. Type Compatibility</h2>
 
-      <p>
-        Assignments, function arguments and return values MUST have
-        compatible types.
-      </p>
+  <p>
+    Assignments, function arguments, and return values MUST have compatible
+    types.
+  </p>
 
-      <p>
-        Implicit conversions MUST NOT silently:
-      </p>
+  <p>
+    For managed pointer types, compatibility MUST account for the referenced
+    type, access capability, and nullability.
+  </p>
 
-      <ul>
-        <li>remove nullability;</li>
-        <li>create ownership;</li>
-        <li>destroy ownership;</li>
-        <li>violate mutability;</li>
-        <li>invalidate a lifetime guarantee;</li>
-        <li>perform unsafe reinterpretation.</li>
-      </ul>
+  <p>
+    In particular, <code>T*</code> and <code>mut T*</code> are distinct managed
+    pointer types. A shared managed pointer MUST NOT be used where a mutable
+    managed pointer is required.
+  </p>
 
-      <p>
-        Explicit conversion facilities MAY be provided.
-      </p>
-    </section>
+  <p>
+    A mutable managed pointer MAY be used where a shared managed pointer is
+    required, subject to the borrowing and lifetime rules. This operation
+    creates or represents a shared reborrow and MUST NOT permit mutation
+    through the resulting shared pointer.
+  </p>
 
+  <p>
+    Implicit conversions MUST NOT silently:
+  </p>
 
-    <section id="section-18">
-      <h2>18. Type Inference</h2>
+  <ul>
+    <li>remove nullability;</li>
+    <li>create ownership;</li>
+    <li>destroy ownership;</li>
+    <li>increase access capability or convert <code>T*</code> to
+      <code>mut T*</code>;</li>
+    <li>invalidate a lifetime guarantee;</li>
+    <li>perform unsafe reinterpretation.</li>
+  </ul>
 
-      <p>
-        CobaltC permits inference where the language grammar and context
-        establish a unique type.
-      </p>
+  <p>
+    An implicit conversion from <code>mut T*</code> to <code>T*</code> MAY be
+    permitted because it does not increase access capability. Such a
+    conversion MUST remain subject to the borrowing and lifetime rules.
+  </p>
 
-      <p>
-        Inference MUST preserve all semantic distinctions relevant to:
-      </p>
+  <p>
+    Explicit conversion facilities MAY be provided, but an explicit
+    conversion MUST NOT be specified as a mechanism for bypassing the
+    ownership, borrowing, lifetime, or safety rules of safe CobaltC code.
+  </p>
+</section>
 
-      <ul>
-        <li>ownership;</li>
-        <li>mutability;</li>
-        <li>nullability;</li>
-        <li>borrowing;</li>
-        <li>lifetime.</li>
-      </ul>
+<section id="section-18">
+  <h2>18. Type Inference</h2>
 
-      <p>
-        Inference MUST NOT make an unsafe operation appear safe.
-      </p>
-    </section>
+  <p>
+    CobaltC permits type inference where the language grammar and surrounding
+    context establish a unique type.
+  </p>
+
+  <p>
+    Inference MUST preserve all semantic distinctions relevant to:
+  </p>
+
+  <ul>
+    <li>ownership;</li>
+    <li>binding mutability;</li>
+    <li>managed-pointer access capability;</li>
+    <li>nullability;</li>
+    <li>borrowing;</li>
+    <li>lifetime.</li>
+  </ul>
+
+  <p>
+    When inference produces a managed pointer type, the inferred type MUST
+    preserve whether the pointer is shared or mutable and whether it is
+    nullable.
+  </p>
+
+  <p>
+    For example, the type inferred from a shared borrow MUST be
+    <code>T*</code>, while the type inferred from a mutable borrow MUST be
+    <code>mut T*</code>.
+  </p>
+
+  <p>
+    Inference MUST NOT infer <code>mut T*</code> from an expression whose
+    available capability is only <code>T*</code>.
+  </p>
+
+  <p>
+    Inference MUST NOT make an unsafe operation appear safe or permit an
+    operation that would violate ownership, borrowing, mutability,
+    nullability, or lifetime requirements.
+  </p>
+</section>
 
 
    <section id="section-19"> <h2>19. Generic Types and Functions</h2> <p> Generic types and functions are statically checked. </p> <p> A generic type or function declaration defines a single type or function. Supplying type arguments produces a specialization of that declaration and does not define a separate type or function. </p> <p>Example:</p> <pre><code>fn identity&lt;T&gt;(T value) : T { return value; }</code></pre> <p> <code>identity&lt;i32&gt;</code> and <code>identity&lt;f64&gt;</code> are specializations of the same <code>identity</code> function declaration. </p> </section>
@@ -1369,128 +1515,342 @@ File b = move a;</code></pre>
       </p>
     </section>
 
-    <section id="section-42"><h2 id="section-42-borrowing">42. Borrowing</h2><p>A borrow provides access to an owned value without transferring ownership. Borrowing does not create a new owner of the borrowed value.</p><p>CobaltC supports shared borrows and mutable borrows. A shared borrow provides read access to its referent (the thing being pointed to). A mutable borrow provides exclusive mutable access to its referent.</p><p>The managed pointer type <code>T*</code> represents a managed, non-null pointer. The expression <code>&amp;expr</code> creates a shared borrow, and the expression <code>&amp;mut expr</code> creates a mutable borrow when the applicable ownership and mutability rules permit the operation.</p><p>The fundamental borrowing rule is:</p><pre><code>zero or more compatible shared borrows OR one mutable borrow</code></pre><p>A shared borrow is compatible with another shared borrow when neither borrow provides conflicting access to the same storage. A mutable borrow is incompatible with any other borrow of the same storage that would permit conflicting access.</p><p>Conflicting borrows MUST be rejected.</p><pre><code>String value = "hello";
+<section id="section-42"><h2 id="section-42-borrowing">42. Borrowing</h2>
+
+<p>
+  A borrow provides access to an owned value without transferring ownership.
+  Borrowing does not create a new owner of the borrowed value.
+</p>
+
+<p>
+  CobaltC supports shared borrows and mutable borrows. A shared borrow
+  provides read-only access to its referent. A mutable borrow provides
+  exclusive mutable access to its referent.
+</p>
+
+<p>
+  The managed pointer type <code>T*</code> represents a shared, non-null
+  managed pointer. The managed pointer type <code>mut T*</code> represents an
+  exclusive, mutable, non-null managed pointer.
+</p>
+
+<p>
+  The expression <code>&amp;expr</code> creates a shared borrow of type
+  <code>T*</code>. The expression <code>&amp;mut expr</code> creates a mutable
+  borrow of type <code>mut T*</code> when the applicable ownership,
+  mutability, and borrowing rules permit the operation.
+</p>
+
+<p>
+  The fundamental borrowing rule is:
+</p>
+
+<pre><code>zero or more compatible shared borrows OR one mutable borrow</code></pre>
+
+<p>
+  A shared borrow is compatible with another shared borrow when neither
+  borrow provides conflicting access to the same storage. A mutable borrow is
+  incompatible with any other borrow of the same storage that would permit
+  conflicting access.
+</p>
+
+<p>
+  Conflicting borrows MUST be rejected.
+</p>
+
+<pre><code>String value = "hello";
 String* pointer = &amp;value;
 print(*pointer);
-print(value);</code></pre><p>The borrow does not transfer ownership of <code>value</code>. The binding <code>value</code> remains the owner of the string.</p><p>A value MUST NOT be moved while a live borrow of that value would be invalidated by the move.</p><pre><code>String value = "hello";
+print(value);</code></pre>
+
+<p>
+  The borrow does not transfer ownership of <code>value</code>. The binding
+  <code>value</code> remains the owner of the string.
+</p>
+
+<p>
+  A value MUST NOT be moved while a live borrow of that value would be
+  invalidated by the move.
+</p>
+
+<pre><code>String value = "hello";
 String* pointer = &amp;value;
 String moved = move value;
-print(*pointer); // ERROR: `value` was moved while borrowed</code></pre><p>A borrow MUST NOT outlive its referent. A managed pointer MUST NOT be used after the storage required by that pointer has ceased to be valid.</p>
+print(*pointer); // ERROR: `value` was moved while borrowed</code></pre>
+
+<p>
+  A borrow MUST NOT outlive its referent. A managed pointer MUST NOT be used
+  after the storage required by that pointer has ceased to be valid.
+</p>
+</section>
 
 <section id="section-43">
 <h2 id="section-43-shared-borrows">43. Shared Borrows</h2>
-<p>A shared borrow provides read access to its referent. Multiple compatible shared borrows MAY exist simultaneously.</p><pre><code>String value = "hello";
+
+<p>
+  A shared borrow provides read-only access to its referent. Multiple
+  compatible shared borrows MAY exist simultaneously.
+</p>
+
+<pre><code>String value = "hello";
 String* first = &amp;value;
 String* second = &amp;value;
 print(*first);
-print(*second);</code></pre><p>Shared borrows MAY alias the same value when they provide only compatible shared access.</p><pre><code>String value = "hello";
+print(*second);</code></pre>
+
+<p>
+  Shared borrows MAY alias the same value when they provide only compatible
+  shared access.
+</p>
+
+<pre><code>String value = "hello";
 String* first = &amp;value;
 String* second = &amp;value;
 String* third = &amp;value;
 print(*first);
 print(*second);
-print(*third);</code></pre><p>A shared borrow MUST NOT be used to perform mutable access to its referent.</p><pre><code>String value = "hello";
+print(*third);</code></pre>
+
+<p>
+  A shared borrow MUST NOT be used to perform mutable access to its referent.
+</p>
+
+<pre><code>String value = "hello";
 String* pointer = &amp;value;
-append(*pointer, "!"); // ERROR: shared borrow does not permit mutation</code></pre><p>A mutable borrow MUST NOT be created while an incompatible shared borrow remains live.</p><pre><code>mut String value = "hello";
+append(*pointer, "!"); // ERROR: shared borrow does not permit mutation</code></pre>
+
+<p>
+  A mutable borrow MUST NOT be created while an incompatible shared borrow
+  remains live.
+</p>
+
+<pre><code>mut String value = "hello";
 String* shared = &amp;value;
-String* mutable = &amp;mut value; // ERROR: `value` is already borrowed
+mut String* mutable = &amp;mut value; // ERROR: `value` is already borrowed
 print(*shared);
-append(*mutable, "!");</code></pre><p>The implementation MUST permit multiple compatible shared borrows and MUST reject conflicting mutable access.</p>
+append(*mutable, "!");</code></pre>
+
+<p>
+  The compiler MUST permit multiple compatible shared borrows and MUST reject
+  conflicting mutable access.
+</p>
+</section>
 
 <section id="section-44">
 <h2 id="section-44-mutable-borrows">44. Mutable Borrows</h2>
-<p>A mutable borrow provides exclusive mutable access to its referent.</p><p>A mutable borrow requires a mutable owner or otherwise mutable storage as defined by the applicable type rules.</p><pre><code>mut String value = "hello";
-String* pointer = &amp;mut value;
+
+<p>
+  A mutable borrow provides exclusive mutable access to its referent.
+</p>
+
+<p>
+  A mutable borrow requires a mutable owner or otherwise mutable storage as
+  defined by the applicable type rules.
+</p>
+
+<pre><code>mut String value = "hello";
+mut String* pointer = &amp;mut value;
 append(*pointer, " world");
-print(*pointer);</code></pre><p>While a mutable borrow is live, another mutable borrow of overlapping storage MUST NOT be created.</p><pre><code>mut String value = "hello";
-String* first = &amp;mut value;
-String* second = &amp;mut value; // ERROR: conflicting mutable borrow
+print(*pointer);</code></pre>
+
+<p>
+  While a mutable borrow is live, another mutable borrow of overlapping
+  storage MUST NOT be created.
+</p>
+
+<pre><code>mut String value = "hello";
+mut String* first = &amp;mut value;
+mut String* second = &amp;mut value; // ERROR: conflicting mutable borrow
 append(*first, "!");
-append(*second, "?");</code></pre><p>A mutable borrow MUST NOT coexist with a conflicting shared borrow.</p><pre><code>mut String value = "hello";
+append(*second, "?");</code></pre>
+
+<p>
+  A mutable borrow MUST NOT coexist with a conflicting shared borrow.
+</p>
+
+<pre><code>mut String value = "hello";
 String* shared = &amp;value;
-String* mutable = &amp;mut value; // ERROR: conflicting borrow
+mut String* mutable = &amp;mut value; // ERROR: conflicting borrow
 print(*shared);
-append(*mutable, "!");</code></pre><p>A mutable pointer MAY subsequently be used for shared access when no conflicting mutable use of that pointer remains live.</p><pre><code>mut String value = "hello";
-String* mutable = &amp;mut value;
+append(*mutable, "!");</code></pre>
+
+<p>
+  A mutable managed pointer MAY subsequently be reborrowed or converted to a
+  shared managed pointer when the resulting shared access satisfies the
+  applicable borrowing and lifetime rules.
+</p>
+
+<pre><code>mut String value = "hello";
+mut String* mutable = &amp;mut value;
 append(*mutable, "!");
 String* shared = mutable;
-print(*shared);</code></pre><p>Mutable access MUST remain exclusive for the duration of the applicable mutable borrow.</p>
+print(*shared);</code></pre>
+
+<p>
+  The resulting shared pointer provides only shared access. The mutable
+  capability MUST NOT be used in a conflicting manner while the shared
+  reborrow remains live.
+</p>
+
+<p>
+  Mutable access MUST remain exclusive for the duration of the applicable
+  mutable borrow.
+</p>
+</section>
 
 <section id="section-45">
 <h2 id="section-45-borrow-lifetime">45. Borrow Lifetime</h2>
-<p>A borrow has a lifetime during which its managed pointer remains valid and the associated borrowing restrictions apply.</p><p>A borrow lifetime MUST NOT exceed the lifetime of its referent.</p><pre><code>String* pointer;
+
+<p>
+  A borrow has a lifetime during which its managed pointer remains valid and
+  the associated borrowing restrictions apply.
+</p>
+
+<p>
+  A borrow lifetime MUST NOT exceed the lifetime of its referent.
+</p>
+
+<pre><code>String* pointer;
 {
     String value = "hello";
     pointer = &amp;value;
     print(*pointer);
 }
-print(*pointer); // ERROR: `value` no longer exists</code></pre><p>A borrow is live at a program point when a managed pointer derived from that borrow may subsequently be used and the borrow is therefore required to remain valid at that point.</p><p>A borrow MAY cease to be live before the end of its enclosing lexical scope when no subsequent use of a managed pointer derived from that borrow requires the borrow to remain live.</p><pre><code>mut String value = "hello";
+print(*pointer); // ERROR: `value` no longer exists</code></pre>
+
+<p>
+  A borrow is live at a program point when a managed pointer derived from that
+  borrow may subsequently be used and the borrow is therefore required to
+  remain valid at that point.
+</p>
+
+<p>
+  A borrow MAY cease to be live before the end of its enclosing lexical scope
+  when no subsequent use of a managed pointer derived from that borrow
+  requires the borrow to remain live.
+</p>
+
+<pre><code>mut String value = "hello";
 {
     String* pointer = &amp;value;
     print(*pointer);
 }
-String* mutable = &amp;mut value;
-append(*mutable, " world");</code></pre><p>The preceding program is valid because the shared borrow is no longer live when the mutable borrow is created.</p><p>The compiler MUST reject a program in which a managed pointer could be used after the lifetime of its referent has ended.</p><p>A borrow MUST remain valid across every operation in which the corresponding managed pointer is used.</p>
+mut String* mutable = &amp;mut value;
+append(*mutable, " world");</code></pre>
 
-<section id="section-46">
-<h2 id="section-46-function-parameters-and-returned-borrows">46. Function Parameters and Returned Borrows</h2>
-<p>A function MAY accept a managed pointer as a parameter. Passing a managed pointer to a function provides access to the referenced value and does not transfer ownership.</p>
+<p>
+  The preceding program is valid because the shared borrow is no longer live
+  when the mutable borrow is created.
+</p>
+
+<p>
+  The compiler MUST reject a program in which a managed pointer could be used
+  after the lifetime of its referent has ended.
+</p>
+
+<p>
+  A borrow MUST remain valid across every operation in which the corresponding
+  managed pointer is used.
+</p>
+</section>
+
+<section id="section-46"> <h2 id="section-46-function-parameters-and-returned-borrows">46. Function Parameters and Returned Borrows</h2>
+
+<p> A function MAY accept a managed pointer as a parameter. Passing a managed pointer to a function provides access to the referenced value and does not transfer ownership. </p>
+
+<p> A parameter of type <code>T*</code> provides shared access to its referent. A parameter of type <code>mut T*</code> provides exclusive mutable access to its referent. </p>
+
 <pre><code>fn length(String* value) : usize
 {
     return length_of(*value);
 }
 
 String value = "hello";
-usize size = length(&value);
-print(value);
-print(size);</code></pre><p>A function MAY return a borrowed managed pointer when the returned pointer is guaranteed not to outlive its referent.</p>
-<pre><code>fn identity(String* value) : String*
-{
-    return value;
-}
+usize size = length(&amp;value);
+print(value); print(size);</code></pre>
 
-String value = "hello";
-String* result = identity(&value);
-print(*result);</code></pre><p>When a returned managed pointer is derived from a borrowed parameter, the returned pointer MUST NOT outlive the source borrow.</p>
-<pre><code>fn first(String* value) : String*
-{
-    return value;
-}
+<p> A function MAY accept a mutable managed pointer: </p>
 
-String value = "hello";
-{
-    String* result = first(&value);
-    print(*result);
-}</code></pre>
-<p>A function MUST NOT return a managed pointer to an ordinary local value whose lifetime ends when the function returns.</p>
-<pre><code>fn invalid() : String*
-{
-    String value = "hello";
-    return &value; // ERROR: returned borrow outlives `value`
-}</code></pre>
-<p>A function MAY return a managed pointer to storage whose lifetime is independently guaranteed to outlive the returned pointer.</p><p>CobaltC uses inferred borrow lifetimes. The compiler MUST determine whether parameter borrows, returned borrows, and the referenced storage satisfy the applicable lifetime and borrowing rules.</p><p>Ownership MUST NOT be inferred from a borrowed return value. Returning a managed pointer provides access to an existing value; it does not transfer ownership unless an explicitly defined ownership operation is used.</p>
-
-<section id="section-47">
-<h2 id="section-47-reborrowing">47. Reborrowing</h2>
-<p>A managed pointer MAY itself be borrowed. Such an operation is a reborrow.</p>
-<p>A reborrow creates a new borrow whose access is derived from the existing managed pointer. Reborrowing MUST preserve the ownership, lifetime, and aliasing guarantees of the original borrow.</p><p>A mutable pointer MAY be temporarily reborrowed as a mutable pointer.</p>
-<pre><code>fn append_exclamation(String* value)
+<pre><code>fn append_exclamation(mut String* value)
 {
     append(*value, "!");
 }
 
 mut String value = "hello";
-String* pointer = &mut value;
-append_exclamation(&mut *pointer);
-append(*pointer, "?");</code></pre><p>While a conflicting reborrow is live, the original managed pointer MUST NOT be used in a conflicting manner.</p><pre><code>mut String value = "hello";
-String* pointer = &mut value;
-String* reborrow = &mut *pointer;
+mut String* pointer = &amp;
+mut value; append_exclamation(pointer);
+print(value);</code></pre>
+
+<p> A function MAY return a borrowed managed pointer when the returned pointer is guaranteed not to outlive its referent. </p>
+
+<section id="section-47">
+<h2 id="section-47-reborrowing">47. Reborrowing</h2>
+
+<p>
+  A managed pointer MAY itself be borrowed. Such an operation is a reborrow.
+</p>
+
+<p>
+  A reborrow creates a new borrow whose access capability is derived from the
+  existing managed pointer. Reborrowing MUST preserve the ownership, lifetime,
+  and aliasing guarantees of the original borrow.
+</p>
+
+<p>
+  A mutable managed pointer MAY be temporarily reborrowed as a mutable managed
+  pointer.
+</p>
+
+<pre><code>fn append_exclamation(mut String* value)
+{
+    append(*value, "!");
+}
+
+mut String value = "hello";
+mut String* pointer = &amp;mut value;
+append_exclamation(&amp;mut *pointer);
+append(*pointer, "?");</code></pre>
+
+<p>
+  A mutable managed pointer MAY also be reborrowed as a shared managed pointer
+  when the resulting shared borrow satisfies the applicable lifetime and
+  aliasing rules.
+</p>
+
+<pre><code>mut String value = "hello";
+mut String* pointer = &amp;mut value;
+String* shared = &amp;*pointer;
+print(*shared);</code></pre>
+
+<p>
+  While a conflicting reborrow is live, the original managed pointer MUST NOT
+  be used in a conflicting manner.
+</p>
+
+<pre><code>mut String value = "hello";
+mut String* pointer = &amp;mut value;
+mut String* reborrow = &amp;mut *pointer;
 append(*pointer, "!"); // ERROR: `pointer` is reborrowed
-append(*reborrow, "?");</code></pre><p>Once the reborrow is no longer live, the original managed pointer MAY be used again, subject to the ordinary borrowing rules.</p><p>Reborrowing does not transfer ownership of the underlying value.</p>
+append(*reborrow, "?");</code></pre>
+
+<p>
+  Once the reborrow is no longer live, the original managed pointer MAY be
+  used again, subject to the ordinary borrowing rules.
+</p>
+
+<p>
+  Reborrowing does not transfer ownership of the underlying value.
+</p>
+</section>
 
 <section id="section-48">
 <h2 id="section-48-field-and-partial-borrows">48. Field and Partial Borrows</h2>
-<p>A field of a structure MAY be borrowed independently of another disjoint field.</p>
+
+<p>
+  A field of a structure MAY be borrowed independently of another disjoint
+  field.
+</p>
+
 <pre><code>struct Pair
 {
     String first;
@@ -1498,186 +1858,364 @@ append(*reborrow, "?");</code></pre><p>Once the reborrow is no longer live, the 
 }
 
 mut Pair pair = { first: "one", second: "two" };
-String* first = &mut pair.first;
-String* second = &mut pair.second;
+mut String* first = &amp;mut pair.first;
+mut String* second = &amp;mut pair.second;
 append(*first, "!");
-append(*second, "?");</code></pre><p>A borrow of one field does not, by itself, prevent access to a disjoint field.</p><pre><code>mut Pair pair = { first: "one", second: "two" };
-String* first = &mut pair.first;
+append(*second, "?");</code></pre>
+
+<p>
+  A borrow of one field does not, by itself, prevent access to a disjoint
+  field.
+</p>
+
+<pre><code>mut Pair pair = { first: "one", second: "two" };
+mut String* first = &amp;mut pair.first;
 append(pair.second, "!");
-append(*first, "?");</code></pre><p>Two field paths are disjoint when they identify distinct, non-overlapping storage within the same aggregate value.</p><p>The compiler MUST permit simultaneous borrows of fields that are established to be disjoint.</p><p>The compiler MUST reject simultaneous mutable borrows when the borrowed field paths may refer to overlapping storage.</p><pre><code>mut Pair pair = { first: "one", second: "two" };
-Pair* whole = &mut pair;
-String* first = &mut pair.first;
-use(*whole); // ERROR: conflicting borrow</code></pre><p>A borrow of an entire aggregate conflicts with a mutable borrow of any overlapping part of that aggregate.</p><p>Partial borrowing MUST preserve the same aliasing, lifetime, and exclusivity guarantees as borrowing an entire value.</p>
+append(*first, "?");</code></pre>
+
+<p>
+  Two field paths are disjoint when they identify distinct, non-overlapping
+  storage within the same aggregate value.
+</p>
+
+<p>
+  The compiler MUST permit simultaneous borrows of fields that are established
+  to be disjoint.
+</p>
+
+<p>
+  The compiler MUST reject simultaneous mutable borrows when the borrowed
+  field paths may refer to overlapping storage.
+</p>
+
+<pre><code>mut Pair pair = { first: "one", second: "two" };
+mut Pair* whole = &amp;mut pair;
+mut String* first = &amp;mut pair.first;
+use(*whole); // ERROR: conflicting borrow</code></pre>
+
+<p>
+  A borrow of an entire aggregate conflicts with a mutable borrow of any
+  overlapping part of that aggregate.
+</p>
+
+<p>
+  Partial borrowing MUST preserve the same aliasing, lifetime, and exclusivity
+  guarantees as borrowing an entire value.
+</p>
+</section>
 
 <section id="section-49">
 <h2 id="section-49-aliasing">49. Aliasing</h2>
-<p>Aliasing occurs when more than one managed pointer provides access to the same underlying storage.</p><p>Multiple compatible shared managed pointers MAY alias the same storage.</p><pre><code>String value = "hello";
+
+<p>
+  Aliasing occurs when more than one managed pointer provides access to the
+  same underlying storage.
+</p>
+
+<p>
+  Multiple compatible shared managed pointers MAY alias the same storage.
+</p>
+
+<pre><code>String value = "hello";
 String* first = &amp;value;
 String* second = &amp;value;
 print(*first);
-print(*second);</code></pre><p>A mutable managed pointer is exclusive. A mutable managed pointer MUST NOT coexist with another managed pointer that permits conflicting access to the same storage.</p><pre><code>mut String value = "hello";
-String* first = &amp;mut value;
-String* second = &amp;mut value; // ERROR: mutable aliases are prohibited
+print(*second);</code></pre>
+
+<p>
+  A mutable managed pointer is exclusive. A mutable managed pointer MUST NOT
+  coexist with another managed pointer that permits conflicting access to the
+  same storage.
+</p>
+
+<pre><code>mut String value = "hello";
+mut String* first = &amp;mut value;
+mut String* second = &amp;mut value; // ERROR: mutable aliases are prohibited
 append(*first, "!");
-append(*second, "?");</code></pre><p>For any storage location accessible through managed pointers, CobaltC MUST enforce the following invariant:</p><pre><code>multiple compatible shared managed pointers OR one mutable managed pointer</code></pre><p>A mutable managed pointer MUST NOT coexist with a conflicting shared managed pointer. Two mutable managed pointers MUST NOT provide conflicting access to the same storage.</p><pre><code>shared shared shared</code></pre><p>is therefore permitted when all managed pointers provide compatible shared access, while:</p><pre><code>mutable mutable</code></pre><p>and:</p><pre><code>shared mutable</code></pre><p>are prohibited when the managed pointers provide conflicting access to the same storage.</p><p>These aliasing requirements apply to direct managed pointers, reborrows, field borrows, function parameters, returned borrows, and collection element borrows.</p><p>Safe CobaltC operations MUST NOT provide a means to bypass these aliasing requirements.</p>
+append(*second, "?");</code></pre>
+
+<p>
+  For any storage location accessible through managed pointers, CobaltC MUST
+  enforce the following invariant:
+</p>
+
+<pre><code>multiple compatible shared managed pointers OR one mutable managed pointer</code></pre>
+
+<p>
+  A mutable managed pointer MUST NOT coexist with a conflicting shared managed
+  pointer. Two mutable managed pointers MUST NOT provide conflicting access
+  to the same storage.
+</p>
+
+<p>
+  The following is therefore permitted when all managed pointers provide
+  compatible shared access:
+</p>
+
+<pre><code>shared shared shared</code></pre>
+
+<p>
+  The following are prohibited when the managed pointers provide conflicting
+  access to the same storage:
+</p>
+
+<pre><code>mutable mutable</code></pre>
+
+<pre><code>shared mutable</code></pre>
+
+<p>
+  These aliasing requirements apply to direct managed pointers, reborrows,
+  field borrows, function parameters, returned borrows, and collection
+  element borrows.
+</p>
+
+<p>
+  Safe CobaltC operations MUST NOT provide a means to bypass these aliasing
+  requirements.
+</p>
+</section>
 
 <section id="section-50">
 <h2 id="section-50-collection-borrowing">50. Collection Borrowing</h2>
-<p>Elements of a collection MAY be borrowed when the collection operation and element type permit the corresponding access.</p><p>A shared element borrow provides shared access to the element.</p><pre><code>Vector&lt;i32&gt; values = [10, 20, 30];
+
+<p>
+  Elements of a collection MAY be borrowed when the collection operation and
+  element type permit the corresponding access.
+</p>
+
+<p>
+  A shared element borrow provides shared access to the element.
+</p>
+
+<pre><code>Vector&lt;i32&gt; values = [10, 20, 30];
 i32* first = &amp;values[0];
 i32* second = &amp;values[1];
 print(*first);
-print(*second);</code></pre><p>A mutable element MAY be borrowed when the collection and element permit mutable access.</p><pre><code>mut Vector&lt;i32&gt; values = [10, 20, 30];
-i32* first = &amp;mut values[0];
+print(*second);</code></pre>
+
+<p>
+  A mutable element MAY be borrowed when the collection and element permit
+  mutable access.
+</p>
+
+<pre><code>mut Vector&lt;i32&gt; values = [10, 20, 30];
+mut i32* first = &amp;mut values[0];
 *first = *first + 1;
-print(values[0]);</code></pre><p>A collection operation that requires mutable access MUST NOT occur while a conflicting borrow of the collection or of storage within the collection remains live.</p><pre><code>mut Vector&lt;i32&gt; values = [10, 20, 30];
+print(values[0]);</code></pre>
+
+<p>
+  A collection operation that requires mutable access MUST NOT occur while a
+  conflicting borrow of the collection or of storage within the collection
+  remains live.
+</p>
+
+<pre><code>mut Vector&lt;i32&gt; values = [10, 20, 30];
 i32* first = &amp;values[0];
-values::push(&mut values, 40); // ERROR: conflicting borrow of `values`
-print(*first);</code></pre><p>If a collection operation may invalidate managed pointers to elements, the operation MUST NOT occur while such a pointer remains live.</p><p>An implementation MUST NOT permit a managed pointer to a collection element to be used after the underlying storage required by that pointer has ceased to be valid.</p><p>Collection-specific borrowing rules MAY impose additional restrictions where required to preserve ownership, lifetime, aliasing, or storage validity.</p>
+values::push(&amp;mut values, 40); // ERROR: conflicting borrow of `values`
+print(*first);</code></pre>
+
+<p>
+  If a collection operation may invalidate managed pointers to elements, the
+  operation MUST NOT occur while such a pointer remains live.
+</p>
+
+<p>
+  An implementation MUST NOT permit a managed pointer to a collection element
+  to be used after the underlying storage required by that pointer has ceased
+  to be valid.
+</p>
+
+<p>
+  Collection-specific borrowing rules MAY impose additional restrictions where
+  required to preserve ownership, lifetime, aliasing, or storage validity.
+</p>
+</section>
 
 <section id="section-51">
 <h2 id="section-51-borrow-invalidation">51. Borrow Invalidation</h2>
-<p>A managed pointer is valid only while its referent remains valid and the pointer satisfies the applicable borrowing rules.</p><p>An operation that conflicts with a live borrow MUST be rejected. A conflicting operation does not by itself make an otherwise valid managed pointer safe to use; the operation is prohibited while the conflicting borrow remains live.</p><p>A managed pointer MUST NOT be used after its referent has ceased to exist or after storage required by that pointer has ceased to be valid.</p><pre><code>String* pointer;
+
+<p>
+  A managed pointer is valid only while its referent remains valid and the
+  pointer satisfies the applicable borrowing rules.
+</p>
+
+<p>
+  An operation that conflicts with a live borrow MUST be rejected. A
+  conflicting operation does not by itself make an otherwise valid managed
+  pointer safe to use; the operation is prohibited while the conflicting
+  borrow remains live.
+</p>
+
+<p>
+  A managed pointer MUST NOT be used after its referent has ceased to exist or
+  after storage required by that pointer has ceased to be valid.
+</p>
+
+<pre><code>String* pointer;
 {
     String value = "hello";
     pointer = &amp;value;
 }
-print(*pointer); // ERROR: referent has been destroyed</code></pre><p>A value MUST NOT be moved while a live borrow of that value would be invalidated by the move.</p><pre><code>String value = "hello";
+print(*pointer); // ERROR: referent has been destroyed</code></pre>
+
+<p>
+  A value MUST NOT be moved while a live borrow of that value would be
+  invalidated by the move.
+</p>
+
+<pre><code>String value = "hello";
 String* pointer = &amp;value;
 String moved = move value;
-print(*pointer); // ERROR: `value` was moved while borrowed</code></pre><p>A borrow MAY cease to restrict a value once the corresponding managed pointer is no longer used and the borrow is therefore no longer live.</p><pre><code>mut String value = "hello";
+print(*pointer); // ERROR: `value` was moved while borrowed</code></pre>
+
+<p>
+  A borrow MAY cease to restrict a value once the corresponding managed
+  pointer is no longer used and the borrow is therefore no longer live.
+</p>
+
+<pre><code>mut String value = "hello";
 {
     String* pointer = &amp;value;
     print(*pointer);
 }
 append(value, " world");
-print(value);</code></pre><p>A collection operation that could invalidate an active element borrow MUST be rejected while that borrow remains live.</p><pre><code>mut Vector&lt;String&gt; values = ["hello"];
+print(value);</code></pre>
+
+<p>
+  A collection operation that could invalidate an active element borrow MUST
+  be rejected while that borrow remains live.
+</p>
+
+<pre><code>mut Vector&lt;String&gt; values = ["hello"];
 String* pointer = &amp;values[0];
-values::push(&mut values, "world"); // ERROR: active element borrow
-print(*pointer);</code></pre><p>The compiler MUST reject a program when it can establish that a managed pointer would be used after its referent becomes invalid, or when an operation would violate the shared-borrow, mutable-borrow, lifetime, move, aliasing, or collection-borrowing rules.</p>
-</section>
-</section>
-</section>
-</section>
-</section>
-</section>
-</section>
-</section>
-</section>
-<section>
-</section>
+values::push(&amp;mut values, "world"); // ERROR: active element borrow
+print(*pointer);</code></pre>
+
+<p>
+  The compiler MUST reject a program when it can establish that a managed
+  pointer would be used after its referent becomes invalid, or when an
+  operation would violate the shared-borrow, mutable-borrow, lifetime, move,
+  aliasing, or collection-borrowing rules.
+</p>
 </section>
 
-   
+<section id="section-52">
+<h2>52. Destruction</h2>
 
-   <section id="section-52">
-  <h2>52. Destruction</h2>
+<p>
+  Owned values are destroyed deterministically according to Section 21.
+  An ownership responsibility is destroyed exactly once. Moved-from ownership
+  does not cause a second destruction.
+</p>
 
-  <p>
-    Owned values are destroyed deterministically according to Section 21.
-    An ownership responsibility is destroyed exactly once.
-    Moved-from ownership does not cause a second destruction.
-  </p>
+<p>
+  The compiler provides an internal <code>drop</code> operation for performing
+  destruction of an owned value. The <code>drop</code> operation is a
+  compiler-level operation and is not ordinary source-language syntax.
+</p>
 
-  <p>
-     The language provides the compiler-recognized <code>drop</code> operation
-    for explicitly destroying an owned value. When applied to an owned value,
-    <code>drop</code> destroys that value according to its destruction
-    semantics and consumes the ownership responsibility for that value.
-    If the value's type defines a <code>destroy</code> operation, that
-    operation is invoked. Otherwise, the compiler recursively destroys the
-    value's owned fields.
-  </p>
+<p>
+  When the compiler performs <code>drop</code> on an owned value, the value is
+  destroyed according to its destruction semantics and the ownership
+  responsibility for that value is consumed.
+</p>
 
-  <p>
-    The <code>drop</code> operation is available only to compiler-recognized
-    destruction implementations and MUST NOT be invoked explicitly by
-    ordinary program code.
-  </p>
+<p>
+  If the value's type defines a <code>destroy</code> operation, that operation
+  is invoked according to Section 21. Otherwise, the compiler recursively
+  destroys the value's owned fields according to their destruction semantics.
+</p>
+
+<p>
+  Ordinary program code MUST NOT invoke the compiler-level <code>drop</code>
+  operation explicitly.
+</p>
 </section>
 
+<section id="section-53">
+<h2>53. Scope Destruction</h2>
 
-    <section id="section-53">
-      <h2>53. Scope Destruction</h2>
+<p>
+  For ordinary scope exit:
+</p>
 
-      <p>
-        For ordinary scope exit:
-      </p>
+<ul>
+  <li>deferred blocks execute;</li>
+  <li>owned locals are destroyed in reverse declaration order;</li>
+  <li>control proceeds to the enclosing scope.</li>
+</ul>
 
-      <ul>
-        <li>deferred blocks execute;</li>
-        <li>owned locals are destroyed in reverse declaration order;</li>
-        <li>control proceeds to the enclosing scope.</li>
-      </ul>
+<p>
+  An implementation MUST preserve the observable consequences of this
+  ordering.
+</p>
+</section>
 
-      <p>
-        An implementation MUST preserve the observable consequences of this
-        ordering.
-      </p>
-    </section>
+<section id="section-54">
+<h2>54. Unwinding</h2>
 
+<p>
+  If the implementation supports unwinding, scopes exited by supported
+  unwinding MUST perform their specified destruction.
+</p>
+</section>
 
-    <section id="section-54">
-      <h2>54. Unwinding</h2>
+<section id="section-55">
+<h2>55. Abort</h2>
 
-      <p>
-        If the implementation supports unwinding, scopes exited by supported
-        unwinding MUST perform their specified destruction.
-      </p>
-    </section>
+<p>
+  An abort terminates execution immediately.
+</p>
 
+<p>
+  Normal destruction is not guaranteed after an abort.
+</p>
+</section>
 
-    <section id="section-55">
-      <h2>55. Abort</h2>
+<section id="section-56">
+<h2>56. Nullability</h2>
 
-      <p>
-        An abort terminates execution immediately.
-      </p>
+<p>
+  Nullable managed pointers are explicitly represented by nullable pointer
+  types.
+</p>
 
-      <p>
-        Normal destruction is not guaranteed after an abort.
-      </p>
-    </section>
+<p>
+  <code>null</code> cannot inhabit a non-nullable managed pointer type.
+</p>
 
+<p>
+  Before dereferencing a nullable managed pointer, the compiler MUST establish
+  that it is non-null.
+</p>
 
-    <section id="section-56">
-      <h2>56. Nullability</h2>
+<p>
+  Flow-sensitive refinement is permitted.
+</p>
 
-      <p>
-        Nullable values are explicitly represented by nullable types.
-      </p>
+<p>
+  The access capability of a nullable managed pointer is preserved by
+  nullability. Thus <code>T*?</code> is a nullable shared managed pointer,
+  while <code>mut T*?</code> is a nullable mutable managed pointer.
+</p>
+</section>
 
-      <p>
-        <code>null</code> cannot inhabit a non-nullable type.
-      </p>
+<section id="section-57">
+<h2>57. Bounds Safety</h2>
 
-      <p>
-        Before dereferencing a nullable reference, the compiler MUST
-        establish that it is non-null.
-      </p>
+<p>
+  Safe indexing MUST remain within valid bounds.
+</p>
 
-      <p>
-        Flow-sensitive refinement is permitted.
-      </p>
-    </section>
+<p>
+  The compiler MAY eliminate runtime bounds checks when validity has been
+  proven statically.
+</p>
 
-
-    <section id="section-57">
-      <h2>57. Bounds Safety</h2>
-
-      <p>
-        Safe indexing MUST remain within valid bounds.
-      </p>
-
-      <p>
-        The compiler MAY eliminate runtime bounds checks when validity has
-        been proven statically.
-      </p>
-
-      <p>
-        Unchecked indexing belongs to unsafe facilities.
-      </p>
-    </section>
+<p>
+  Unchecked indexing belongs to unsafe facilities.
+</p>
+</section>
 
 
     <section id="section-58">
@@ -2319,9 +2857,40 @@ values[...] // from index 0 through the final valid index
 
 
     <section id="section-69">
-      <h2><s>69. Synchronization</s></h2>
-      <p>Not applicable.</p> 
-    </section>
+  <h2>69. Synchronization</h2>
+
+  <p>
+    CobaltC programs that access shared mutable state concurrently MUST use
+    synchronization appropriate to that state.
+  </p>
+
+  <p>
+    A shared mutable object MUST NOT be accessed concurrently by multiple
+    execution contexts unless those accesses are ordered by a synchronization
+    mechanism defined by the language or its standard library.
+  </p>
+
+  <p>
+    The synchronization mechanism MUST establish the ordering required to
+    prevent an ordinary unsynchronized data race as defined by Section 74.
+  </p>
+
+  <p>
+    The compiler MUST reject a program when its ownership, borrowing, or
+    concurrency rules establish that shared mutable state would otherwise be
+    accessed in a manner that violates these requirements.
+  </p>
+
+  <p>
+    The primary synchronization primitive specified by CobaltC is
+    <code>Mutex</code>, as defined in Section 70.
+  </p>
+
+  <p>
+    Synchronization does not transfer ownership and does not alter the
+    destruction or borrowing rules of the protected value.
+  </p>
+</section>
 
 
     <section id="section-70">
@@ -2360,25 +2929,118 @@ values[...] // from index 0 through the final valid index
     </section>
 
 
-    <section id="section-74">
-      <h2>74. Data Races</h2>
+<section id="section-74">
+  <h2>74. Data Races</h2>
 
-      <p>
-        Safe CobaltC code MUST NOT contain an ordinary unsynchronized data
-        race.
-      </p>
+  <p>
+    Safe CobaltC code MUST NOT contain an ordinary unsynchronized data race.
+  </p>
 
-      <p>
-        The language does not guarantee freedom from logical concurrency
-        errors such as deadlocks or livelocks.
-      </p>
-    </section>
+  <p>
+    An ordinary data race occurs when two or more execution contexts access
+    the same mutable memory concurrently, at least one access is a write, and
+    the accesses are not ordered by a synchronization mechanism defined by
+    this specification or by a conforming standard-library synchronization
+    facility.
+  </p>
+
+  <p>
+    Concurrent access to immutable data does not constitute a data race,
+    provided that the data remains immutable for the duration of those
+    accesses.
+  </p>
+
+  <p>
+    Accesses to distinct memory locations do not constitute a data race,
+    even when the accesses occur concurrently.
+  </p>
+
+  <p>
+    A data race is distinct from a logical concurrency error. The language
+    does not guarantee freedom from deadlocks, livelocks, starvation, or
+    other incorrect program behavior caused by the ordering of otherwise
+    synchronized operations.
+  </p>
+
+  <p>
+    An implementation MUST NOT introduce an ordinary data race into a
+    program that is valid under the ownership, borrowing, and synchronization
+    rules of this specification.
+  </p>
+</section>
 
 
-    <section id="section-75">
-      <h2><s>75. Memory Model</s></h2>
-      <p>Not applicable.</p>
-    </section>
+
+  <section id="section-75">
+  <h2>75. Memory Model</h2>
+
+  <p>
+    The CobaltC memory model defines the observable ordering and visibility
+    guarantees for evaluations that access memory, including evaluations
+    performed by different execution contexts.
+  </p>
+
+  <p>
+    Within a single execution context, evaluations are sequenced in program
+    order unless a language rule explicitly specifies otherwise.
+  </p>
+
+  <p>
+    An ordinary read or write of memory is valid only when permitted by the
+    ownership, borrowing, lifetime, mutability, and synchronization rules of
+    this specification.
+  </p>
+
+  <p>
+    Conflicting ordinary accesses to the same memory location MUST NOT occur
+    concurrently unless the accesses are ordered by a synchronization
+    mechanism or are otherwise permitted by a concurrency facility explicitly
+    defined by this specification.
+  </p>
+
+  <p>
+    A synchronization operation establishes an ordering relationship between
+    the relevant operations performed before that synchronization operation
+    and the operations performed after the corresponding synchronization
+    operation.
+  </p>
+
+  <p>
+    In particular, a successful unlock of a <code>Mutex</code> synchronizes
+    with a subsequent successful lock of the same <code>Mutex</code>.
+  </p>
+
+  <p>
+    Consequently, when one execution context modifies shared mutable state
+    while holding a <code>Mutex</code> and successfully unlocks that
+    <code>Mutex</code>, another execution context that subsequently
+    successfully locks the same <code>Mutex</code> MUST observe the effects
+    of those modifications that are otherwise observable through the
+    protected state.
+  </p>
+
+  <p>
+    A program MUST NOT rely on the relative ordering or visibility of
+    conflicting ordinary accesses that are not ordered by a synchronization
+    mechanism. Such conflicting accesses constitute a data race and are
+    prohibited by Section 74.
+  </p>
+
+  <p>
+    An implementation MAY use hardware-specific memory-ordering mechanisms,
+    compiler barriers, runtime synchronization, or equivalent techniques to
+    implement these requirements. Such implementation mechanisms are not
+    themselves part of the CobaltC source language unless explicitly defined
+    elsewhere in this specification.
+  </p>
+
+  <p>
+    The implementation MUST provide the observable ordering and visibility
+    guarantees required by this section for every conforming execution.
+  </p>
+</section>
+
+
 
 
     <section id="section-76">
@@ -3096,28 +3758,80 @@ T*?</code></pre>
 <h2>98.8 Panic and Unwinding</h2>
 <p>CobaltC does not define a panic or exception-unwinding mechanism. An implementation MAY use internal unwinding or other mechanisms for its own purposes, but such mechanisms MUST NOT introduce additional CobaltC source-language semantics or observable behavior beyond that specified by CobaltC.</p>
 <hr>
+
+
 <h2>98.9 Concurrency Safety</h2>
-<p>Section 68 requires values transferred between threads to satisfy the applicable ownership and thread-transfer constraints.</p>
-<p>Section 69 requires synchronization for shared mutable state.</p>
-<p>These requirements are semantic requirements of CobaltC and do not require particular source-level marker traits or interfaces.</p>
-<p>An implementation MAY internally classify types according to whether they may safely be transferred between threads or accessed concurrently.</p>
-<p>Such classifications MAY be derived from:</p>
-<p>* the type&#x27;s fields;<br>
-* ownership properties;<br>
-* borrowing properties;<br>
-* synchronization types;<br>
-* atomic types;<br>
-* implementation-defined runtime properties; or<br>
-* other sound static analysis.</p>
-<p>The internal classification MUST produce behavior consistent with Sections 68-75.</p>
+
+<p> Sections 68 through 75 define the concurrency-safety requirements of CobaltC 1.0.0. These requirements are semantic requirements of the language and apply independently of the internal representation or implementation strategy used by a compiler. </p>
+
+<p> A value transferred to another thread MUST satisfy the ownership, lifetime, and thread-transfer requirements applicable to that value. Shared access to a value MUST satisfy the borrowing and aliasing rules applicable to that access. </p>
+
+<p> Shared ownership does not by itself provide permission for concurrent mutation. In particular, reference-counted or otherwise shared ownership MUST NOT be interpreted as synchronization. </p>
+
+<p> Concurrent access to shared mutable state MUST satisfy the synchronization requirements of Section 69 and the data-race requirements of Section 74. </p>
+
+<p> The compiler MAY internally classify types, values, storage locations, or operations according to whether their use satisfies the applicable concurrency requirements. </p>
+
+<p> Such internal classification MAY be derived from: </p>
+
+<p> * the type's fields;<br> * ownership properties;<br> * borrowing properties;<br> * synchronization operations;<br> * atomic operations;<br> * lifetime relationships;<br> * control-flow analysis;<br> * alias analysis; or<br> * other sound static or dynamic analysis. </p>
+
+<p> Internal classifications are implementation mechanisms and MUST NOT be exposed as additional CobaltC source-language requirements unless they are already defined by the normative language. </p>
+
+<p> An implementation MUST enforce the observable concurrency guarantees established by Sections 68 through 75. It MUST NOT rely solely on the machine representation of a value to determine whether concurrent access is permitted. </p>
+
 <h3>98.9.1 Thread Transfer</h3>
-<p>A value transferred to another thread MUST satisfy all ownership and lifetime requirements applicable to the transfer.</p>
-<p>An ordinary borrow of a local value MUST NOT be transferred to a thread if the referent may cease to exist before the borrow can no longer be used.</p>
-<p>An implementation MUST reject such a transfer when the required lifetime cannot be established.</p>
+
+<p> A value transferred to another thread MUST satisfy all ownership and lifetime requirements applicable to the transfer. </p>
+
+<p> An ordinary borrow of a local value MUST NOT be transferred to another thread when the referent may cease to exist before every use of the transferred managed pointer has ended. </p>
+
+<p> A managed pointer transferred to another thread MUST remain valid for the entire interval during which the receiving thread may use it. </p>
+
+<p> A compiler MUST reject a thread transfer when it can establish that the transfer would violate an ownership, borrowing, lifetime, or applicable concurrency requirement. </p>
+
+<p> If the compiler cannot establish that the required lifetime and ownership relationships are satisfied, it MUST NOT assume that the transfer is valid merely because the referenced storage happens to remain allocated in a particular implementation. </p>
+
 <h3>98.9.2 Synchronization</h3>
-<p>The existence of shared ownership does not by itself provide synchronization.</p>
-<p>In particular, reference-counted ownership does not permit unsynchronized conflicting mutation.</p>
-<p>Shared mutable state MUST continue to obey the synchronization requirements of Sections 69-74.</p>
+
+<p> Synchronization is required whenever concurrent access to shared state would otherwise permit conflicting unsynchronized access. </p>
+
+<p> A synchronization operation establishes the ordering and visibility guarantees specified by Section 75 for the accesses governed by that synchronization operation. </p>
+
+<p> Synchronization does not transfer ownership unless the operation is otherwise defined to perform an ownership transfer. </p>
+
+<p> Likewise, ownership transfer does not by itself establish synchronization for accesses that occur after the transfer. </p>
+
+<p> Reference-counted ownership, shared managed pointers, or multiple compatible shared borrows MUST NOT be treated as synchronization merely because they permit multiple references to the same storage. </p>
+
+<p> A program containing concurrent accesses to shared mutable state MUST provide the synchronization required by Section 69, unless the accesses are otherwise governed by a concurrency mechanism whose semantics are explicitly defined by this specification. </p>
+
+<h3>98.9.3 Data-Race Requirement</h3>
+
+<p> Safe CobaltC code MUST NOT contain an ordinary unsynchronized data race. </p>
+
+<p> An ordinary data race occurs when two or more threads access the same memory location concurrently, at least one access is a write, and the accesses are not ordered or otherwise governed by a synchronization or atomic mechanism specified by the language. </p>
+
+<p> The prohibition on ordinary data races is a language-safety requirement. It is not merely a recommendation for programmers or an optimization assumption made by the compiler. </p>
+
+<p> The compiler MUST reject a program when its static analysis establishes that an ordinary unsynchronized data race is necessarily present. </p>
+
+<p> An implementation MAY conservatively reject a program when it cannot establish that potentially concurrent conflicting accesses are synchronized, subject to the conformance requirements of Section 88. </p>
+
+<p> The language does not guarantee freedom from logical concurrency errors such as deadlocks, livelocks, starvation, or incorrect synchronization protocols unless another normative section explicitly provides such a guarantee. </p>
+
+<h3>98.9.4 Relationship Between Borrowing and Concurrency</h3>
+
+<p> The borrowing rules and concurrency rules are complementary. </p>
+
+<p> Borrowing rules govern whether aliases and accesses are permitted for the relevant storage. Concurrency rules additionally govern whether accesses performed by different threads are sufficiently ordered and synchronized. </p>
+
+<p> A program MUST satisfy both sets of requirements. </p>
+
+<p> Consequently, a program does not become concurrency-safe merely because its individual managed pointers satisfy the ordinary shared-borrow and mutable-borrow rules. Conversely, synchronization MUST NOT be used to justify an otherwise invalid ownership, lifetime, or borrowing operation. </p>
+
+<p> Synchronization and ownership therefore address distinct properties: synchronization establishes the required ordering and visibility between concurrent accesses, while ownership and borrowing determine which accesses to storage are permitted. </p>
+
 <hr>
 <h2>98.10 Diagnostics and Source Locations</h2>
 <p>A conforming compiler MUST reject programs that violate normative static rules, as specified by Section 88.</p>
@@ -3461,26 +4175,33 @@ print(*reference);</code></pre>
 <p>The compiler toolchain MUST cross-reference identifiers against the official Unicode Confusables database (<code>confusables.txt</code>). Any identifier that resolves to a whole-script or mixed-script confusable matching a protected keyword, core type, or existing local variable MUST trigger a compilation error.</p>
 <p>Format characters, zero-width spaces (such as U+200B), and bidirectional text override characters (such as U+202E) MUST NOT appear inside any identifier token.</p>
 <hr>
+
 <h2>98.24 Conformance Requirement</h2>
-<p>A conforming implementation MUST implement the observable semantics established by Sections 1-97 together with the clarifications in this section.</p>
-<p>A clarification in this section MUST be applied only to the extent that it resolves an ambiguity or makes an existing requirement precise.</p>
-<p>If two interpretations are possible and one interpretation would introduce a new language feature while the other preserves the existing CobaltC 1.0.0 model, the interpretation preserving the existing model MUST be used.</p>
+
+<p> A conforming implementation MUST implement the observable semantics established by Sections 1-97 together with the clarifications in this section. </p>
+
+<p> A clarification in this section MUST be applied only to the extent that it resolves an ambiguity or makes an existing requirement precise. </p>
+
+<p> In particular, the concurrency requirements of Sections 68-75 are normative language requirements. An implementation MUST NOT weaken those requirements merely because a particular target architecture provides stronger memory-ordering behavior or because a particular machine representation happens to make an otherwise invalid operation appear to work. </p>
+
+<p> If two interpretations are possible and one interpretation would introduce a new language feature while the other preserves the existing CobaltC 1.0.0 model, the interpretation preserving the existing model MUST be used. </p>
+
 <hr>
 <h2>98.25 (removed)</h2>
 <hr>
 <h2>98.26 Relationship to the Final Safety Theorem</h2>
-<p>Nothing in this errata section weakens the Final Safety Theorem of Section 95.</p>
-<p>In particular, conforming safe CobaltC code MUST continue to prevent:</p>
-<p>* use-before-initialization;<br>
-* use-after-move;<br>
-* double ownership;<br>
-* invalid borrow lifetimes;<br>
-* conflicting mutable aliasing;<br>
-* unchecked nullable dereference;<br>
-* unchecked safe out-of-bounds access; and<br>
-* ordinary unsynchronized data races.</p>
-<p>Where an implementation&#x27;s internal analysis is more conservative than strictly necessary, the implementation MAY reject a program that it cannot prove safe, subject to the conformance requirements of this specification.</p>
-<p>An implementation MUST NOT accept an unsafe program merely because its internal representation cannot detect the violation.</p>
+
+<p> Nothing in this errata section weakens the Final Safety Theorem of Section 95. </p>
+
+<p> In particular, conforming safe CobaltC code MUST continue to prevent: </p>
+
+<p> * use-before-initialization;<br> * use-after-move;<br> * double ownership;<br> * invalid borrow lifetimes;<br> * conflicting mutable aliasing;<br> * unchecked nullable dereference;<br> * unchecked safe out-of-bounds access; and<br> * ordinary unsynchronized data races. </p>
+
+<p> The concurrency guarantee includes both the synchronization requirements of Section 69 and the memory-ordering and visibility requirements of Section 75. </p>
+
+<p> An implementation MAY use a more conservative internal analysis than is strictly necessary to establish safety. Subject to the conformance requirements of this specification, such an implementation MAY reject a program when it cannot prove that the applicable ownership, borrowing, lifetime, synchronization, or memory-model requirements are satisfied. </p>
+
+<p> An implementation MUST NOT accept an operation that violates a normative ownership, borrowing, lifetime, synchronization, or memory-model requirement merely because its internal representation cannot detect the violation. </p>
 <hr>
 <h2>98.27 Status of This Section</h2>
 <p>This section is an errata and clarification section for CobaltC 1.0.0.</p>
@@ -3506,12 +4227,12 @@ print(*reference);</code></pre>
 <section class="cobalt-example">
   <h2>Conformance-Oriented Example Program</h2>
 
-<p>
-  The following program is a conformance-oriented example. It demonstrates
-  the language rules described by this specification but may rely on
-  implementation-defined facilities or APIs that are not themselves
-  specified by this document.
-</p>
+  <p>
+    The following program is a conformance-oriented example. It demonstrates
+    the language rules described by this specification but may rely on
+    implementation-defined facilities or APIs that are not themselves
+    specified by this document.
+  </p>
 
   <p>
     This example demonstrates a generic <code>Stack&lt;T&gt;</code> abstraction
@@ -3521,25 +4242,20 @@ print(*reference);</code></pre>
     error-propagation operator, and exhaustive pattern matching.
   </p>
 
- 
   <h3>1. Result Type</h3>
 
-  <pre>
-module std.result;
+  <pre><code>module std.result;
 
 export
 {
     Result;
 }
 
-<span style="color: #888;">// Result represents either successful completion carrying a value
-// of type T or failure carrying an error of type E.</span>
 enum Result&lt;T, E&gt;
 {
     Ok(T),
     Err(E)
-}
-  </pre>
+}</code></pre>
 
   <h3>2. Standard I/O Interface</h3>
 
@@ -3550,19 +4266,17 @@ enum Result&lt;T, E&gt;
     facilities.
   </p>
 
-  <pre>
-module std.io;
+  <pre><code>module std.io;
 
 export
 {
     print;
     println;
 }
-<span style="color: #888;">
-// The concrete implementation of standard I/O is supplied by the
+
+<span style="color: #888;">// The concrete implementation of standard I/O is supplied by the
 // standard library/runtime implementation. The declarations above
-// describe the names used by this example.</span>
-  </pre>
+// describe the names used by this example.</code></pre></span>
 
   <h3>3. Vector Interface and Implementation Boundary</h3>
 
@@ -3578,33 +4292,36 @@ export
     The <code>Vector&lt;T&gt;</code> implementation below is deliberately
     separated from the conformance program. The specification defines
     <code>Vector&lt;T&gt;</code> semantically as an owning contiguous collection,
-    but it does not prescribe a particular allocation or raw-storage implementation.
-    Consequently, the implementation is non-normative and should not be interpreted
-    as defining additional CobaltC source-language facilities.
+    but it does not prescribe a particular allocation or raw-storage
+    implementation. Consequently, the implementation is non-normative and
+    should not be interpreted as defining additional CobaltC source-language
+    facilities.
   </p>
 
   <p>
     The implementation must also ensure that any collection operation capable
     of relocating elements must not be permitted while a live managed pointer
     exists whose validity depends on the collection's current storage. This
-   follows from the collection borrowing and borrow-invalidation rules.
+    follows from the collection borrowing and borrow-invalidation rules.
   </p>
-  
+
   <p>
-    A raw-storage implementation must distinguish the lifetime
-    of the allocation from the lifetime of the values stored within it.
-    Allocated storage does not, by itself, constitute a collection of live
+    A raw-storage implementation must distinguish the lifetime of the
+    allocation from the lifetime of the values stored within it. Allocated
+    storage does not, by itself, constitute a collection of live
     <code>T</code> values. Likewise, releasing raw storage must not result in
     a second destruction of values whose ownership has already been moved.
   </p>
+
   <p>
     The following module assumes a low-level allocator API with the forms
-    allocate<T>(n) and deallocate<T>(ptr, n), where allocation returns Result.
-    AllocationError is part of the assumed allocator interface, not CobaltC core.
+    <code>allocate&lt;T&gt;(n)</code> and
+    <code>deallocate&lt;T&gt;(ptr, n)</code>, where allocation returns
+    <code>Result</code>. <code>AllocationError</code> is part of the assumed
+    allocator interface, not CobaltC core.
   </p>
 
-<pre>
-module std.vector;
+<pre><code>module std.vector;
 
 import std.result;
 
@@ -3664,11 +4381,15 @@ struct Vector&lt;T&gt;
 //
 // This function is private to the module.
 //
+// The mutable managed pointer provides exclusive mutable access to the
+// Vector for the duration of this operation.
+//
 // The Vector is unchanged if allocation fails or the required capacity
 // cannot be represented.
 //
 // On success, returns the new capacity.</span>
-fn grow(Vector&lt;T&gt;* vector, usize required) : Result&lt;usize, VectorPushError&gt;
+
+fn grow(mut Vector&lt;T&gt;* vector, usize required) : Result&lt;usize, VectorPushError&gt;
 {
     if (required &lt;= vector-&gt;capacity)
     {
@@ -3685,6 +4406,7 @@ fn grow(Vector&lt;T&gt;* vector, usize required) : Result&lt;usize, VectorPushEr
     while (new_capacity &lt; required)
     {
         <span style="color: #888;">// Prevent capacity multiplication from wrapping.</span>
+
         if (new_capacity &gt; usize_max / 2)
         {
             new_capacity = required;
@@ -3695,6 +4417,7 @@ fn grow(Vector&lt;T&gt;* vector, usize required) : Result&lt;usize, VectorPushEr
     }
 
     <span style="color: #888;">// Prevent the element count from overflowing the allocation size.</span>
+
     if (new_capacity &gt; usize_max / sizeof(T))
     {
         return Err(VectorPushError::CapacityOverflow);
@@ -3733,6 +4456,7 @@ fn grow(Vector&lt;T&gt;* vector, usize required) : Result&lt;usize, VectorPushEr
 <span style="color: #888;">// Creates an empty Vector.
 //
 // No storage is allocated.</span>
+
 fn Vector&lt;T&gt;::new() : Vector&lt;T&gt;
 {
     return Vector&lt;T&gt;
@@ -3743,19 +4467,31 @@ fn Vector&lt;T&gt;::new() : Vector&lt;T&gt;
     };
 }
 
-<span style="color: #888;">// Returns the number of live elements.</span>
+<span style="color: #888;">// Returns the number of live elements.
+//
+// A shared managed pointer is sufficient because this operation does not
+// modify the Vector.</span>
+
 fn Vector&lt;T&gt;::len(Vector&lt;T&gt;* vector) : usize
 {
     return vector-&gt;len;
 }
 
-<span style="color: #888;">// Returns the number of allocated T slots.</span>
+<span style="color: #888;">// Returns the number of allocated T slots.
+//
+// A shared managed pointer is sufficient because this operation does not
+// modify the Vector.</span>
+
 fn Vector&lt;T&gt;::capacity(Vector&lt;T&gt;* vector) : usize
 {
     return vector-&gt;capacity;
 }
 
-<span style="color: #888;">// Returns true when the Vector contains no elements.</span>
+<span style="color: #888;">// Returns true when the Vector contains no elements.
+//
+// A shared managed pointer is sufficient because this operation does not
+// modify the Vector.</span>
+
 fn Vector&lt;T&gt;::is_empty(Vector&lt;T&gt;* vector) : bool
 {
     return vector-&gt;len == 0;
@@ -3763,13 +4499,17 @@ fn Vector&lt;T&gt;::is_empty(Vector&lt;T&gt;* vector) : bool
 
 <span style="color: #888;">// Appends value to the Vector.
 //
+// The mutable managed pointer provides exclusive mutable access to the
+// Vector for the duration of the operation.
+//
 // On success, ownership of value is transferred to the Vector.
 //
 // On success, returns the new length of the Vector.
 //
 // If allocation fails or capacity overflows, the Vector and value
 // remain unchanged.</span>
-fn Vector&lt;T&gt;::push(Vector&lt;T&gt;* vector, T value) : Result&lt;usize, VectorPushError&gt;
+
+fn Vector&lt;T&gt;::push(mut Vector&lt;T&gt;* vector, T value) : Result&lt;usize, VectorPushError&gt;
 {
     if (vector-&gt;len == vector-&gt;capacity)
     {
@@ -3780,7 +4520,7 @@ fn Vector&lt;T&gt;::push(Vector&lt;T&gt;* vector, T value) : Result&lt;usize, Ve
 
         usize required = vector-&gt;len + 1;
 
-        Result&lt;usize, VectorPushError&gt; result = grow(vector, required);
+        Result&lt;usize, VectorPushError&gt; result = grow(vector,required);
 
         match result
         {
@@ -3801,10 +4541,14 @@ fn Vector&lt;T&gt;::push(Vector&lt;T&gt;* vector, T value) : Result&lt;usize, Ve
 
 <span style="color: #888;">// Removes and returns the final live element.
 //
+// The mutable managed pointer provides exclusive mutable access to the
+// Vector for the duration of the operation.
+//
 // On success, ownership of the element is transferred to the caller.
 //
 // If the Vector is empty, returns Err(Empty).</span>
-fn Vector&lt;T&gt;::pop(Vector&lt;T&gt;* vector) : Result&lt;T, VectorPopError&gt;
+
+fn Vector&lt;T&gt;::pop(mut Vector&lt;T&gt;* vector) : Result&lt;T, VectorPopError&gt;
 {
     if (vector-&gt;len == 0)
     {
@@ -3819,11 +4563,16 @@ fn Vector&lt;T&gt;::pop(Vector&lt;T&gt;* vector) : Result&lt;T, VectorPopError&g
     }
 }
 
-<span style="color: #888;">// Returns a borrowed pointer to the element at index.
+<span style="color: #888;">// Returns a shared borrowed pointer to the element at index.
 //
-// The language's normal bounds rules reject index &gt;= len.
+// The returned managed pointer has type T* and therefore provides
+// read-only access to the referenced element.
 //
-// The returned managed pointer borrows the element from the Vector.</span>
+// The returned pointer is non-owning and MUST NOT outlive the Vector
+// storage to which it refers.
+//
+// The language's normal bounds rules reject index &gt;= len.</span>
+
 fn Vector&lt;T&gt;::get(Vector&lt;T&gt;* vector, usize index) : T*
 {
     unsafe
@@ -3834,8 +4583,12 @@ fn Vector&lt;T&gt;::get(Vector&lt;T&gt;* vector, usize index) : T*
 
 <span style="color: #888;">// Removes and destroys every live element.
 //
+// The mutable managed pointer provides exclusive mutable access to the
+// Vector for the duration of the operation.
+//
 // Allocated storage is retained.</span>
-fn Vector&lt;T&gt;::clear(Vector&lt;T&gt;* vector)
+
+fn Vector&lt;T&gt;::clear(mut Vector&lt;T&gt;* vector)
 {
     usize i = 0;
 
@@ -3855,13 +4608,16 @@ fn Vector&lt;T&gt;::clear(Vector&lt;T&gt;* vector)
 <span style="color: #888;">// Ensures that the Vector has capacity for at least
 // len + additional elements.
 //
+// The mutable managed pointer provides exclusive mutable access to the
+// Vector for the duration of the operation.
+//
 // If sufficient capacity already exists, nothing is done.
 //
 // On success, returns the resulting capacity.
 //
 // If allocation fails or capacity overflows, the Vector remains unchanged.</span>
-fn Vector&lt;T&gt;::reserve(Vector&lt;T&gt;* vector, usize additional)
-    : Result&lt;usize, VectorPushError&gt;
+
+fn Vector&lt;T&gt;::reserve(mut Vector&lt;T&gt;* vector, usize additional) : Result&lt;usize, VectorPushError&gt;
 {
     if (additional &gt; usize_max - vector-&gt;len)
     {
@@ -3870,17 +4626,24 @@ fn Vector&lt;T&gt;::reserve(Vector&lt;T&gt;* vector, usize additional)
 
     usize required = vector-&gt;len + additional;
 
-    return grow(vector, required);
+    return grow(
+        vector,
+        required
+    );
 }
 
 <span style="color: #888;">// Reduces the Vector's length to new_len.
+//
+// The mutable managed pointer provides exclusive mutable access to the
+// Vector for the duration of the operation.
 //
 // Elements removed from the Vector are destroyed exactly once.
 //
 // Allocated storage is retained.
 //
 // The language's bounds rules reject new_len &gt; len.</span>
-fn Vector&lt;T&gt;::truncate(Vector&lt;T&gt;* vector, usize new_len)
+
+fn Vector&lt;T&gt;::truncate(mut Vector&lt;T&gt;* vector, usize new_len)
 {
     if (new_len &gt;= vector-&gt;len)
     {
@@ -3904,10 +4667,14 @@ fn Vector&lt;T&gt;::truncate(Vector&lt;T&gt;* vector, usize new_len)
 
 <span style="color: #888;">// Removes the element at index.
 //
+// The mutable managed pointer provides exclusive mutable access to the
+// Vector for the duration of the operation.
+//
 // Elements following index are moved toward the beginning.
 //
 // The language's bounds rules reject index &gt;= len.</span>
-fn Vector&lt;T&gt;::remove(Vector&lt;T&gt;* vector, usize index) : T
+
+fn Vector&lt;T&gt;::remove(mut Vector&lt;T&gt;* vector, usize index) : T
 {
     unsafe
     {
@@ -3918,6 +4685,7 @@ fn Vector&lt;T&gt;::remove(Vector&lt;T&gt;* vector, usize index) : T
         while (i + 1 &lt; vector-&gt;len)
         {
             vector-&gt;data[i] = move vector-&gt;data[i + 1];
+
             i = i + 1;
         }
 
@@ -3929,11 +4697,15 @@ fn Vector&lt;T&gt;::remove(Vector&lt;T&gt;* vector, usize index) : T
 
 <span style="color: #888;">// Removes the element at index without preserving order.
 //
+// The mutable managed pointer provides exclusive mutable access to the
+// Vector for the duration of the operation.
+//
 // If index is not the final element, the final element is moved
 // into the removed element's position.
 //
 // The language's bounds rules reject index &gt;= len.</span>
-fn Vector&lt;T&gt;::swap_remove(Vector&lt;T&gt;* vector, usize index) : T
+
+fn Vector&lt;T&gt;::swap_remove(mut Vector&lt;T&gt;* vector, usize index) : T
 {
     unsafe
     {
@@ -3954,6 +4726,9 @@ fn Vector&lt;T&gt;::swap_remove(Vector&lt;T&gt;* vector, usize index) : T
 
 <span style="color: #888;">// Inserts value before index.
 //
+// The mutable managed pointer provides exclusive mutable access to the
+// Vector for the duration of the operation.
+//
 // index == len is equivalent to push.
 //
 // On success, ownership of value is transferred to the Vector.
@@ -3964,7 +4739,8 @@ fn Vector&lt;T&gt;::swap_remove(Vector&lt;T&gt;* vector, usize index) : T
 // remain unchanged.
 //
 // The language's bounds rules reject index &gt; len.</span>
-fn Vector&lt;T&gt;::insert(Vector&lt;T&gt;* vector, usize index, T value) : Result&lt;usize, VectorPushError&gt;
+
+fn Vector&lt;T&gt;::insert(mut Vector&lt;T&gt;* vector, usize index, T value) : Result&lt;usize, VectorPushError&gt;
 {
     if (index == vector-&gt;len)
     {
@@ -3986,6 +4762,7 @@ fn Vector&lt;T&gt;::insert(Vector&lt;T&gt;* vector, usize index, T value) : Resu
         while (i &gt; index)
         {
             vector-&gt;data[i] = move vector-&gt;data[i - 1];
+
             i = i - 1;
         }
 
@@ -3999,6 +4776,9 @@ fn Vector&lt;T&gt;::insert(Vector&lt;T&gt;* vector, usize index, T value) : Resu
 
 <span style="color: #888;">// Attempts to reduce capacity to len.
 //
+// The mutable managed pointer provides exclusive mutable access to the
+// Vector for the duration of the operation.
+//
 // If len is zero, the allocation is released.
 //
 // If len is non-zero, a new allocation of exactly len elements
@@ -4007,7 +4787,8 @@ fn Vector&lt;T&gt;::insert(Vector&lt;T&gt;* vector, usize index, T value) : Resu
 // On success, returns the resulting capacity.
 //
 // If allocation fails, the Vector remains unchanged.</span>
-fn Vector&lt;T&gt;::shrink_to_fit(Vector&lt;T&gt;* vector) : Result&lt;usize, VectorPushError&gt;
+
+fn Vector&lt;T&gt;::shrink_to_fit(mut Vector&lt;T&gt;* vector) : Result&lt;usize, VectorPushError&gt;
 {
     if (vector-&gt;len == vector-&gt;capacity)
     {
@@ -4039,23 +4820,27 @@ fn Vector&lt;T&gt;::shrink_to_fit(Vector&lt;T&gt;* vector) : Result&lt;usize, Ve
     {
         Result&lt;raw T*, AllocationError&gt; allocation = allocate&lt;T&gt;(vector-&gt;len);
 
-        raw T* new_data = match allocation
-        {
-            Ok(data) =&gt; data,
-            Err(_) =&gt; return Err(VectorPushError::AllocationFailed)
-        };
+        raw T* new_data =
+            match allocation
+            {
+                Ok(data) =&gt; data,
+
+                Err(_) =&gt; return Err(VectorPushError::AllocationFailed)
+            };
 
         usize i = 0;
 
         while (i &lt; vector-&gt;len)
         {
             new_data[i] = move vector-&gt;data[i];
+
             i = i + 1;
         }
 
         deallocate&lt;T&gt;(vector-&gt;data, vector-&gt;capacity);
 
         vector-&gt;data = new_data;
+
         vector-&gt;capacity = vector-&gt;len;
     }
 
@@ -4064,13 +4849,17 @@ fn Vector&lt;T&gt;::shrink_to_fit(Vector&lt;T&gt;* vector) : Result&lt;usize, Ve
 
 <span style="color: #888;">// Destroys the Vector and all elements it owns.
 //
+// The mutable managed pointer provides exclusive mutable access to the
+// Vector for the duration of destruction.
+//
 // Vector owns resources that the compiler cannot release through ordinary
 // field destruction. The compiler invokes this type's destroy operation
 // when a Vector owning lifetime ends.
 //
 // Each live element is destroyed exactly once.
 // The backing allocation is released after all live elements are destroyed.</span>
-fn Vector&lt;T&gt;::destroy(Vector&lt;T&gt;* vector)
+
+fn Vector&lt;T&gt;::destroy(mut Vector&lt;T&gt;* vector)
 {
     usize i = 0;
 
@@ -4095,37 +4884,32 @@ fn Vector&lt;T&gt;::destroy(Vector&lt;T&gt;* vector)
     vector-&gt;data = null;
     vector-&gt;len = 0;
     vector-&gt;capacity = 0;
-}
+}</code></pre>
 
-</pre>
+  <p>
+    <code>Vector&lt;T&gt;::push</code> transfers ownership of
+    <code>value</code> into the Vector when the operation succeeds. On
+    success it returns <code>Ok(vector-&gt;len)</code>, where the payload is
+    the new length of the Vector. On failure, the Vector remains unchanged
+    and the returned <code>VectorPushError</code> identifies the failure.
+  </p>
 
+  <p>
+    <code>Vector&lt;T&gt;::pop</code> transfers ownership of the final element
+    back to the caller. If the Vector is empty, it returns
+    <code>Err(VectorPopError::Empty)</code>.
+  </p>
 
-<p>
-  <code>Vector&lt;T&gt;::push</code> transfers ownership of <code>value</code>
-  into the Vector when the operation succeeds. On success it returns
-  <code>Ok(vector-&gt;len)</code>, where the payload is the new length of the
-  Vector. On failure, the Vector remains unchanged and the returned
-  <code>VectorPushError</code> identifies the failure.
-</p>
-
-<p>
-  <code>Vector&lt;T&gt;::pop</code> transfers ownership of the final element
-  back to the caller. If the Vector is empty, it returns
-  <code>Err(VectorPopError::Empty)</code>.
-</p>
-
-<p>
-  Operations such as <code>clear</code> and <code>truncate</code> cannot
-  fail and therefore return <code>void</code>. Operations that may fail
-  due to allocation or capacity overflow return a <code>Result</code>
-  containing a meaningful success value.
-</p>
-
+  <p>
+    Operations such as <code>clear</code> and <code>truncate</code> cannot
+    fail and therefore return <code>void</code>. Operations that may fail
+    due to allocation or capacity overflow return a <code>Result</code>
+    containing a meaningful success value.
+  </p>
 
   <h3>4. Stack Example</h3>
 
-<pre>
-module stack_example;
+<pre><code>module stack_example;
 
 import std.result;
 import std.io { println };
@@ -4145,6 +4929,7 @@ struct Stack&lt;T&gt;
 
 <span style="color: #888;">// `new` is an ordinary associated function. It has no implicit
 // receiver and takes no arguments.</span>
+
 fn Stack&lt;T&gt;::new() : Stack&lt;T&gt;
 {
     return Stack&lt;T&gt;
@@ -4153,16 +4938,29 @@ fn Stack&lt;T&gt;::new() : Stack&lt;T&gt;
     };
 }
 
-<span style="color: #888;">// `push` takes an explicit mutable pointer to the Stack.
+<span style="color: #888;">// `push` takes an explicit mutable managed pointer to the Stack.
+// The parameter therefore has type `mut Stack&lt;T&gt;*`.
+//
+// The mutable pointer provides exclusive mutable access to the Stack
+// for the duration of the call.
+//
 // The value is transferred to the Vector on successful insertion.
 //
 // On success, the returned usize is the new number of elements
 // in the Stack.</span>
-fn Stack&lt;T&gt;::push(Stack&lt;T&gt;* stack, T value) : Result&lt;usize, StackError&gt;
+
+fn Stack&lt;T&gt;::push(
+    mut Stack&lt;T&gt;* stack,
+    T value
+) : Result&lt;usize, StackError&gt;
 {
-    return match Vector&lt;T&gt;::push(&amp;mut stack.values, value)
+    return match Vector&lt;T&gt;::push(
+        &amp;mut stack-&gt;values,
+        value
+    )
     {
-        Ok(length) =&gt; Ok(length),
+        Ok(length) =&gt;
+            Ok(length),
 
         Err(VectorPushError::AllocationFailed) =&gt;
             Err(StackError::AllocationFailed),
@@ -4172,13 +4970,21 @@ fn Stack&lt;T&gt;::push(Stack&lt;T&gt;* stack, T value) : Result&lt;usize, Stack
     };
 }
 
-<span style="color: #888;">// `pop` takes an explicit mutable pointer to the Stack and transfers
-// ownership of the removed value to the caller.</span>
-fn Stack&lt;T&gt;::pop(Stack&lt;T&gt;* stack) : Result&lt;T, StackError&gt;
+<span style="color: #888;">// `pop` takes an explicit mutable managed pointer to the Stack.
+// The parameter therefore has type `mut Stack&lt;T&gt;*`.
+//
+// The removed value is transferred to the caller.</span>
+
+fn Stack&lt;T&gt;::pop(
+    mut Stack&lt;T&gt;* stack
+) : Result&lt;T, StackError&gt;
 {
-    return match Vector&lt;T&gt;::pop(&amp;mut stack.values)
+    return match Vector&lt;T&gt;::pop(
+        &amp;mut stack-&gt;values
+    )
     {
-        Ok(value) =&gt; Ok(value),
+        Ok(value) =&gt;
+            Ok(value),
 
         Err(VectorPopError::Empty) =&gt;
             Err(StackError::Empty)
@@ -4186,60 +4992,104 @@ fn Stack&lt;T&gt;::pop(Stack&lt;T&gt;* stack) : Result&lt;T, StackError&gt;
 }
 
 <span style="color: #888;">// `is_empty` requires only shared access because it does not mutate
-// the Stack or its Vector.</span>
-fn Stack&lt;T&gt;::is_empty(Stack&lt;T&gt;* stack) : bool
+// the Stack or its Vector.
+//
+// The parameter therefore has type `Stack&lt;T&gt;*`.</span>
+
+fn Stack&lt;T&gt;::is_empty(
+    Stack&lt;T&gt;* stack
+) : bool
 {
-    return Vector&lt;T&gt;::len(&amp;stack.values) == 0;
+    return Vector&lt;T&gt;::len(
+        &amp;stack-&gt;values
+    ) == 0;
 }
 
-fn run_stack(Stack&lt;i32&gt;* stack) : Result&lt;usize, StackError&gt;
+<span style="color: #888;">// `run_stack` mutates the Stack through its parameter.
+//
+// The parameter therefore has type `mut Stack&lt;i32&gt;*`.</span>
+
+fn run_stack(
+    mut Stack&lt;i32&gt;* stack
+) : Result&lt;usize, StackError&gt;
 {
     <span style="color: #888;">// The successful Result carries the new Stack length.</span>
-    usize length = Stack&lt;i32&gt;::push(stack, 10)?;
+
+    usize length =
+        Stack&lt;i32&gt;::push(
+            stack,
+            10
+        )?;
 
     <span style="color: #888;">// `length` is initialized before it is read.</span>
-    if length &gt; 0
+
+    if (length &gt; 0)
     {
-        i32 value = Stack&lt;i32&gt;::pop(stack)?;
-        println("popped value: {}", value);
+        i32 value =
+            Stack&lt;i32&gt;::pop(
+                stack
+            )?;
+
+        println(
+            "popped value: {}",
+            value
+        );
     }
 
     <span style="color: #888;">// This operation fails because the Stack is now empty.
     //
     // `?` propagates StackError::Empty to the caller.</span>
+
     Stack&lt;i32&gt;::pop(stack)?;
 
-    return Ok(Vector&lt;i32&gt;::len(&amp;stack.values));
+    return Ok(
+        Vector&lt;i32&gt;::len(
+            &amp;stack-&gt;values
+        )
+    );
 }
 
 fn main() : i32
 {
-    <span style="color: #888;">// `mut` applies to the local binding. It permits the binding to
-    // be mutably borrowed; it does not change the Stack type itself.</span>
-    mut Stack&lt;i32&gt; stack = Stack&lt;i32&gt;::new();
+    <span style="color: #888;">// `mut` applies to the local binding. It permits the binding to be
+    // mutably borrowed; it does not change the Stack type itself.</span>
 
-    match run_stack(&amp;mut stack)
+    mut Stack&lt;i32&gt; stack =
+        Stack&lt;i32&gt;::new();
+
+    <span style="color: #888;">// `&amp;mut stack` produces a managed pointer of type
+    // `mut Stack&lt;i32&gt;*`.</span>
+
+    match run_stack(
+        &amp;mut stack
+    )
     {
         Ok(length) =&gt;
         {
-            println("stack operation completed, length: {}", length);
+            println(
+                "stack operation completed, length: {}",
+                length
+            );
         },
 
         Err(StackError::AllocationFailed) =&gt;
-            println("failed to allocate storage"),
+            println(
+                "failed to allocate storage"
+            ),
 
         Err(StackError::CapacityOverflow) =&gt;
-            println("stack capacity limit reached"),
+            println(
+                "stack capacity limit reached"
+            ),
 
         Err(StackError::Empty) =&gt;
-            println("stack is empty")
+            println(
+                "stack is empty"
+            )
     }
 
     return 0;
-}
-</pre>
-
-
+}</code></pre>
 
   <p>
     With the standard-library implementation providing the declared
