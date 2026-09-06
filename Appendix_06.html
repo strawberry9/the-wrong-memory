@@ -71,7 +71,8 @@
 
 <div class="note">
     <p><strong>Core Design:</strong></p>
-    <p>CobaltC is C-like data plus ordinary functions, generics, explicit memory and ownership safety, and modules. Managed pointers are the source-language representation of borrow capabilities. A borrow is the semantic relationship between an access capability and a referent; a managed pointer is the value that carries that capability. Managed pointers do not represent ownership unless a language rule explicitly states otherwise.</p>
+    <p>CobaltC is C-like data plus ordinary functions, generics, explicit memory and ownership safety, and modules.</p>
+    <p>Managed pointers are the source-language representation of borrow capabilities. A borrow is the semantic relationship between an access capability and a referent; a managed pointer is the value that carries that capability. Managed pointers do not represent ownership unless a language rule explicitly states otherwise.</p>
     <p>CobaltC provides C-like systems programming, but ownership, lifetime, bounds, nullability, and data-race rules are language semantics rather than programmer convention.</p>
     <p>CobaltC provides deterministic resource management through destruction at language-defined ownership and scope boundaries and compiler-enforced borrowing rather than relying on garbage collection or programmer convention.</p>
     <p>Visibility is defined at the module boundary through explicit <code>export</code> declarations; CobaltC does not use <code>public</code>, <code>private</code>, or <code>protected</code> declarations.</p>
@@ -149,13 +150,50 @@
 </section>
 
 
-<section id="section-4"><h2>4. Comments</h2>
-<p>CobaltC supports line comments:</p><pre><code>// comment</code></pre>
-<p>A line comment extends to the next line terminator or end of file. CobaltC also supports block comments:</p><pre><code>/*
+<section id="section-4">
+  <h2>4. Comments</h2>
+
+  <p>CobaltC supports line comments:</p>
+
+  <pre><code>// comment</code></pre>
+
+  <p>
+    A line comment extends to the next line terminator or the end of the
+    source file.
+  </p>
+
+  <p>CobaltC also supports block comments:</p>
+
+  <pre><code>/*
    comment
 */</code></pre>
-<p>Block comments do not nest. An unterminated block comment is a lexical error. Comments have no semantic effect.</p>
-</section><section id="section-5"><h2>5. Keywords</h2>
+
+  <p>Block comments may be nested:</p>
+
+  <pre><code>/* outer comment
+   /* nested comment */
+   still inside outer comment
+*/</code></pre>
+
+  <p>
+    Nested block comments are useful for temporarily commenting out blocks of
+    code that already contain block comments.
+  </p>
+
+  <p>
+    When lexing a block comment, the nesting depth is initially one. Each
+    <code>/*</code> encountered within the comment increases the nesting depth
+    by one, and each <code>*/</code> decreases it by one. The block comment
+    ends when the nesting depth reaches zero.
+  </p>
+
+  <p>
+    An unterminated block comment is a lexical error. Comments have no
+    semantic effect.
+  </p>
+</section>
+
+<section id="section-5"><h2>5. Keywords</h2>
 <p>The following words are reserved:</p>
 <pre><code>alias
 as
