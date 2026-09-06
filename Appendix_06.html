@@ -71,7 +71,7 @@
 
 <div class="note">
     <p><strong>Core Design:</strong></p>
-    <p>CobaltC is C-like data plus ordinary functions, generics, explicit memory and ownership safety, and modules.</p>
+    <p>CobaltC is C-like data plus ordinary functions, generics, explicit memory and ownership safety, and modules. Managed pointers are the source-language representation of borrow capabilities; they do not represent ownership unless a language rule explicitly states otherwise.</p>
     <p>CobaltC provides C-like systems programming, but ownership, lifetime, bounds, nullability, and data-race rules are language semantics rather than programmer discipline.</p>
     <p>CobaltC provides deterministic resource management and compiler-enforced borrowing rather than relying on garbage collection or programmer convention.</p>
     <p>Visibility is defined at the module boundary through explicit <code>export</code> declarations; CobaltC does not use <code>public</code>, <code>private</code>, or <code>protected</code> declarations.</p>
@@ -83,6 +83,7 @@
 <p>The specification deliberately leaves implementation technique, representation, and compiler architecture to the implementor except where those choices affect a normative language guarantee. The examples in this specification are normative illustrations of source syntax unless stated otherwise.</p>
 </section><section id="section-2"><h2>2. Normative Terminology</h2>
 <p>The words <strong>MUST</strong>, <strong>MUST NOT</strong>, <strong>SHOULD</strong>, <strong>SHOULD NOT</strong>, and <strong>MAY</strong> are normative.</p>
+<p><strong>CobaltC 1.0</strong> refers to the language edition. <strong>Specification version 1.0.0</strong> refers to this document revision.</p>
 <p><strong>Implementation-defined</strong> means that an implementation chooses the behavior from the alternatives permitted by this specification and documents that choice.</p>
 <p><strong>Unspecified</strong> means that this specification permits more than one behavior and does not require an implementation to document which permitted behavior it chooses.</p>
 <p><strong>Undefined behavior</strong> is behavior for which this specification imposes no requirements. Safe CobaltC operations MUST NOT introduce undefined behavior merely through ordinary use.</p>
@@ -277,7 +278,7 @@ T*?
 mut T*?</code></pre>
 <p>Array types use <code>T[N]</code>. Function types use the function declaration form described by Section 24.</p>
 </section><section id="section-14"><h2>14. Managed Pointer Types</h2>
-<p>A managed pointer type specifies the referenced type, whether the pointer is nullable, and the access capability held by the pointer.</p>
+<p>A managed pointer type specifies the referenced type, whether the pointer is nullable, and the access capability held by the pointer. A managed pointer is a borrow capability rather than an ownership capability unless a language rule explicitly states otherwise.</p>
 <table><thead><tr><th>Type</th><th>Meaning</th></tr></thead><tbody>
 <tr><td><code>T*</code></td><td>Shared, non-null managed pointer to <code>T</code>.</td></tr>
 <tr><td><code>mut T*</code></td><td>Exclusive, mutable, non-null managed pointer to <code>T</code>.</td></tr>
@@ -285,8 +286,10 @@ mut T*?</code></pre>
 <tr><td><code>mut T*?</code></td><td>Nullable mutable managed pointer to <code>T</code>.</td></tr>
 </tbody></table>
 <p>A shared managed pointer permits read-only access. A mutable managed pointer permits exclusive mutable access for the duration of the applicable borrow.</p>
-<p>Taking a shared borrow produces <code>T*</code>; taking a mutable borrow produces <code>mut T*</code>:</p><pre><code>String* p = &amp;value;
-mut String* p = &amp;mut value;</code></pre>
+<p>Taking a shared borrow produces <code>T*</code>; taking a mutable borrow produces <code>mut T*</code>:</p>
+<p>The following forms illustrate the two borrow operations:</p>
+<pre><code>String* p = &amp;value; // taking a shared borrow
+mut String* p = &amp;mut value; // taking a mutable borrow</code></pre>
 <p>A mutable managed pointer may be reborrowed or converted to a shared managed pointer. The shared reborrow temporarily prevents conflicting use of the original mutable capability while it remains live.</p>
 <p>Shared managed pointers are copyable capabilities. Mutable managed pointers are moveable but are not implicitly copyable. Copying a shared managed pointer creates another shared borrow of the same referent; it does not create ownership.</p>
 <p>Managed pointers are non-owning references unless a language rule explicitly states otherwise. Destroying or discarding one does not destroy its referent.</p>
@@ -302,7 +305,7 @@ mut String* p = &amp;mut value;</code></pre>
     ownership, borrowing, lifetime, or destruction guarantees of CobaltC.
   </p>
 <p>
-    A raw pointer MAY be null, invalid, dangling, or otherwise refer to memory
+    A raw pointer value MAY represent an address that is null, invalid, dangling, or otherwise refer to memory
     that is not currently a valid value of type <code>T</code>. The language
     does not automatically establish the validity or lifetime of a raw
     pointer.
@@ -324,7 +327,7 @@ mut String* p = &amp;mut value;</code></pre>
     from the existence of a raw pointer.
   </p>
 </section><section id="section-16"> <h2>16. Mutability</h2>
-<p> Mutability is a semantic property that determines whether a value may be modified through a particular binding or managed pointer capability. </p>
+<p> Mutability is a semantic property that determines whether a value may be modified through a particular binding or managed pointer capability. When applied before a declaration, `mut` modifies the mutability of the binding. When applied before a type, `mut` modifies the access capability of that type. </p>
 <p> A mutable binding permits mutation of the value associated with that binding where no ownership or borrowing rule prohibits the operation. </p>
 <p> A shared managed pointer of type <code>T*</code> provides read-only access to its referent. A mutable managed pointer of type <code>mut T*</code> provides exclusive mutable access to its referent for the duration of the live mutable borrow. </p>
 <p> Binding mutability and managed-pointer mutability are distinct semantic properties. A mutable binding does not by itself create a mutable managed pointer. </p>
@@ -352,7 +355,7 @@ mut String* p = &amp;mut value;</code></pre>
     return value;
 }</code></pre>
 <p>Generic type arguments MUST satisfy the ordinary type-compatibility and ownership rules applicable to the instantiated declaration. A generic declaration MUST NOT rely on properties of a type argument that are not established by the declaration's constraints or by the ordinary rules of the language.</p>
-<p>CobaltC 1.0 does not define a user-facing generic type-constraint syntax. Generic declarations may therefore rely only on properties guaranteed for all type arguments. An operation that requires additional properties is valid only when those properties are established by the language's ordinary rules for the instantiated type.</p>
+<p>CobaltC 1.0 does not define a user-facing generic type-constraint syntax. Generic declarations may therefore rely only on properties guaranteed for all type arguments. CobaltC 1.0 intentionally provides unconstrained generics only; user-facing generic constraints are outside this edition. An operation that requires additional properties is valid only when those properties are established by the language's ordinary rules for the instantiated type.</p>
 </section>
 
 <section id="section-20"><h2>20. Exported Types</h2>
@@ -383,9 +386,53 @@ mut String* p = &amp;mut value;</code></pre>
 };</code></pre>
 <p>Structs do not contain function declarations. Operations on a struct may instead be declared as associated functions using the type's qualified name.</p>
 <h3>Destruction</h3>
-<p>A type MAY define a destruction hook of the form <code>fn T::destroy(mut T* value)</code>. The hook has privileged exclusive access to the owned value while destruction is performed and releases resources directly managed by <code>T</code> that are not represented by independently owned fields. The hook MUST NOT independently destroy owned fields that the compiler will subsequently destroy. The compiler recursively destroys owned fields after the destruction hook completes.</p>
-<p>The destruction hook MUST return <code>void</code> and MUST NOT be invoked explicitly by ordinary program code. It is a compiler-invoked destruction hook rather than an ordinary callable function. The compiler invokes it exactly once for each owned value whose type defines one.</p>
+
+<p>A type MAY define a compiler-recognized destruction hook using associated-function syntax of the form `fn T::destroy(mut T* value)`. The hook has privileged exclusive access to the owned value while destruction is performed and releases resources directly managed by `T` that are not represented by owned fields. The hook MUST NOT independently destroy owned fields that the compiler will subsequently destroy. The compiler recursively destroys owned fields after the destruction hook completes.</p>
+<p>The destruction hook MUST return `void` and MUST NOT be invoked explicitly by ordinary program code. It is a compiler-invoked destruction hook rather than an ordinary callable function. The compiler invokes it exactly once for each owned value whose type defines one.</p>
 <p>If a type has no destruction hook, its owned fields are recursively destroyed according to their own destruction semantics.</p>
+<pre><code>
+T.destroy()
+    │
+    ├── releases resources managed directly by T
+    │   (but not represented by owned fields)
+    │
+    └── compiler destroys owned fields
+        ├── field A → its destruction semantics
+        ├── field B → its destruction semantics
+        └── ...
+</code></pre>
+
+<p>Example:</p>
+<pre><code>
+struct File
+{
+    String path;
+    raw Handle handle;
+}
+
+fn File::destroy(mut File* file)
+{
+    unsafe
+    {
+        close_handle(file->handle);
+    }
+}
+</code></pre>
+
+<p>The intended destruction sequence is:</p>
+<pre><code>
+File destroyed
+    │
+    ├── File::destroy(&mut file)
+    │     └── closes the OS handle
+    │
+    └── compiler destroys owned fields
+          └── file.path → String destruction
+</code></pre>
+
+<p>path is an owned CobaltC field, so File::destroy does not destroy it. The compiler does that afterward.</p>
+<p>Meanwhile, the handle is a resource managed directly by File; it is represented as a raw Handle and therefore isn't something the ordinary CobaltC field-destruction machinery would recursively release.</p>
+
 </section><section id="section-22"><h2>22. Enums</h2>
 <p>An enum defines a finite set of named variants:</p>
 <pre><code>enum Status
@@ -670,6 +717,8 @@ File b = move a;</code></pre>
 <p>For aggregate values, an individual owned component MAY be moved independently when the compiler can track the resulting state.</p>
 <p>A moved component cannot subsequently be used through its original ownership path. Unaffected components remain usable.</p>
 <p>The moved component MUST NOT be destroyed again through the original aggregate ownership path. If the aggregate itself later reaches destruction, only the components that remain owned by that aggregate are destroyed.</p>
+
+
 </section><section id="section-41"><h2 id="section-41-borrowing">41. Borrowing</h2>
 <p>
   A borrow provides access to an owned value without transferring ownership.
@@ -696,22 +745,27 @@ File b = move a;</code></pre>
 </p>
 <pre><code>zero or more compatible shared borrows OR one mutable borrow</code></pre>
 <p>
-  A shared borrow is compatible with another shared borrow when neither
-  borrow provides conflicting access to the same storage. A mutable borrow is
-  incompatible with any other borrow of the same storage that would permit
-  conflicting access.
-</p>
-<p>
-  Conflicting borrows MUST be rejected.
+  Multiple compatible shared borrows MAY exist simultaneously. A shared
+  borrow is compatible with another shared borrow when neither borrow
+  provides conflicting access to the same storage.
 </p>
 <pre><code>String value = "hello";
 String* pointer = &amp;value;
 print(*pointer);
 print(value);</code></pre>
 <p>
+  The example is valid because both accesses are read-only shared access.
   The borrow does not transfer ownership of <code>value</code>. The binding
   <code>value</code> remains the owner of the string.
 </p>
+<p>
+  A mutable borrow is incompatible with any other borrow of the same storage
+  that would permit conflicting access. Conflicting borrows MUST be rejected.
+</p>
+<pre><code>mut String value = "hello";
+String* shared = &amp;value;
+print(*shared);
+mut String* mutable = &amp;mut value; // ERROR: conflicting borrow</code></pre>
 <p>
   A value MUST NOT be moved while a live borrow of that value would be
   invalidated by the move.
@@ -724,6 +778,7 @@ print(*pointer); // ERROR: `value` was moved while borrowed</code></pre>
   A borrow MUST NOT outlive its referent. A managed pointer MUST NOT be used
   after the storage required by that pointer has ceased to be valid.
 </p>
+
 </section><section id="section-42">
 <h2 id="section-42-shared-borrows">42. Shared Borrows</h2>
 <p>
@@ -846,8 +901,12 @@ print(*pointer); // ERROR: referent no longer exists</code></pre>
   and aliasing guarantees of the original borrow.
 </p>
 <p>
-  A mutable managed pointer MAY be temporarily reborrowed as a mutable managed
-  pointer.
+  A reborrow operates on the storage referred to by the managed pointer; it
+  does not move or transfer ownership of the managed pointer itself.
+</p>
+<p>
+  A mutable managed pointer MAY be reborrowed as a mutable managed pointer,
+  provided no conflicting borrow of the same storage is live.
 </p>
 <pre><code>fn append_exclamation(mut String* value)
 {
@@ -856,8 +915,14 @@ print(*pointer); // ERROR: referent no longer exists</code></pre>
 
 mut String value = "hello";
 mut String* pointer = &amp;mut value;
+
+// Reborrow the referent mutably for the duration of the call.
+// &amp;mut *pointer does not move pointer. The original mutable capability
+// may be used again after the reborrow is no longer live.
 append_exclamation(&amp;mut *pointer);
+
 append(*pointer, "?");</code></pre>
+
 <p>
   A mutable managed pointer MAY also be reborrowed as a shared managed pointer
   when the resulting shared borrow satisfies the applicable lifetime and
@@ -866,17 +931,25 @@ append(*pointer, "?");</code></pre>
 </p>
 <pre><code>mut String value = "hello";
 mut String* pointer = &amp;mut value;
+
 String* shared = &amp;*pointer;
-print(*shared);</code></pre>
+print(*shared);
+
+// `pointer` MUST NOT be used for conflicting mutable access while
+// the shared reborrow remains live.</code></pre>
+
 <p>
   While a conflicting reborrow is live, the original managed pointer MUST NOT
   be used in a conflicting manner.
 </p>
 <pre><code>mut String value = "hello";
 mut String* pointer = &amp;mut value;
+
 mut String* reborrow = &amp;mut *pointer;
-append(*pointer, "!"); // ERROR: `pointer` is reborrowed
+
+append(*pointer, "!"); // ERROR: `pointer` conflicts with live reborrow
 append(*reborrow, "?");</code></pre>
+
 <p>
   Once the reborrow is no longer live, the original managed pointer MAY be
   used again, subject to the ordinary borrowing rules.
@@ -884,6 +957,7 @@ append(*reborrow, "?");</code></pre>
 <p>
   Reborrowing does not transfer ownership of the underlying value.
 </p>
+
 </section><section id="section-47">
 <h2 id="section-47-field-and-partial-borrows">47. Field and Partial Borrows</h2>
 <p>
