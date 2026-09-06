@@ -686,13 +686,76 @@ fn Stack::push(mut Stack* stack, i32 value) { ... }</code></pre>
 </tbody></table>
 <p>Binary operators are left-associative unless otherwise specified. Assignment is right-associative. <code>::</code> is name-qualification syntax, not an operator. <code>start..end</code> and <code>start...</code> are slice syntax rather than general binary operators.</p>
 <p><code>&amp;&amp;</code> and <code>||</code> are short-circuiting: the right operand of <code>&amp;&amp;</code> is evaluated only when the left operand is true, and the right operand of <code>||</code> is evaluated only when the left operand is false.</p>
-</section><section id="section-27"><h2>27. Arithmetic</h2>
-<p>Integer and floating-point operations follow the semantics of their respective types.</p>
-<p>For integers, an operation whose mathematical result is outside the destination type's range is an arithmetic failure. Such a failure MUST NOT silently wrap in safe code. An implementation MAY report the failure by a checked arithmetic error, a defined runtime trap, or another documented failure mechanism that does not produce undefined memory behavior.</p>
-<p>Division by zero is an arithmetic failure. Signed division whose mathematical quotient is not representable is also an arithmetic failure.</p>
-<p>Shift counts outside the valid range for the left operand's width are arithmetic failures in safe code.</p>
-<p>Floating-point operations follow the implementation's documented floating-point model. The model MUST define the behavior of infinities and NaNs if the implementation exposes them.</p>
-</section><section id="section-28"><h2>28. Equality</h2>
+
+<section id="section-27">
+<h2>27. Arithmetic</h2>
+
+<p>
+  Integer and floating-point operations follow the semantics of their
+  respective types.
+</p>
+
+<p>
+  For integers, an operation whose mathematical result is outside the
+  destination type's range is an arithmetic failure. Such an operation MUST
+  NOT silently wrap, produce an unspecified value, or otherwise produce a
+  value that is treated as a successful result in safe code.
+</p>
+
+<p>
+  Division by zero is an arithmetic failure. Signed division whose
+  mathematical quotient is not representable by the destination type is also
+  an arithmetic failure.
+</p>
+
+<p>
+  Shift counts outside the valid range for the left operand's width are
+  arithmetic failures in safe code.
+</p>
+
+<p>
+  An arithmetic failure that can be determined at compile time MUST be
+  diagnosed as a compile-time error. The implementation MUST NOT generate
+  code that evaluates such an operation as a successful operation.
+</p>
+
+<pre><code>i32 x = 2147483647;
+i32 y = x + 1; // ERROR: integer overflow</code></pre>
+
+<p>
+  An arithmetic failure that cannot be determined at compile time MUST be
+  detected when the operation is evaluated at runtime. A runtime arithmetic
+  failure MUST NOT produce a value, and execution MUST NOT continue past the
+  failed operation as though it had successfully completed.
+</p>
+
+<pre><code>i32 x = read_i32();
+i32 y = x + 1; // May fail at runtime if x is 2147483647</code></pre>
+
+<p>
+  The mechanism used to report a runtime arithmetic failure is
+  implementation-defined. An implementation MAY use a checked error, a
+  runtime trap, program termination, or another documented failure mechanism,
+  provided that the mechanism preserves the guarantees of safe code. The
+  implementation MUST document the mechanism it uses.
+</p>
+
+<p>
+  The implementation-defined reporting mechanism MUST NOT change whether the
+  operation is considered to have failed. Portable programs MUST NOT depend
+  on a particular reporting mechanism, but MAY rely on the guarantees that a
+  failed arithmetic operation produces no value, does not silently succeed,
+  and does not result in undefined memory behavior.
+</p>
+
+<p>
+  Floating-point operations follow the implementation's documented
+  floating-point model. The model MUST define the behavior of infinities and
+  NaNs if the implementation exposes them.
+</p>
+</section>
+
+<section id="section-28"><h2>28. Equality</h2>
 <p>Equality requires compatible operands. Value equality compares values according to the type's equality semantics.</p>
 <p>For floating-point values, equality follows the implementation's documented floating-point model. If NaN values are supported, implementations MUST document whether NaN compares equal to itself; the default CobaltC rule is that NaN is not equal to any value, including itself.</p>
 <p>Managed-pointer equality compares pointer identity rather than recursively comparing referents. Pointer identity is the identity of the abstract referent allocation or storage location, not merely a machine address; destruction followed by reuse of an address does not make two different referents identical.</p>
@@ -1705,11 +1768,47 @@ mut Slice[i32] view = values[0..3];</code></pre>
 
 </section>
 
-<section id="section-62"><h2>62. Threads</h2>
-<p>CobaltC supports concurrent execution through threads. A value transferred to another thread MUST satisfy all applicable ownership, borrowing, lifetime, and concurrency requirements.</p>
-<p>An ordinary borrow of a local value MUST NOT be transferred when the referent may cease to exist before all uses of the transferred reference have ended.</p>
-<p>Thread creation and joining are provided by the runtime or standard library. A thread entry operation receives an owned value or otherwise explicitly specified argument capabilities; the language does not implicitly extend the lifetime of ordinary local borrows merely because a thread exists.</p>
-</section><section id="section-63"><h2>63. Synchronization</h2>
+<section id="section-62">
+<h2>62. Threads</h2>
+
+<p>
+  CobaltC permits implementations to provide concurrent execution through
+  threads. Thread creation and management are provided by the runtime or
+  standard library rather than being fully defined by the core language.
+</p>
+
+<p>
+  Values and managed pointers transferred to another thread MUST satisfy all
+  applicable ownership, borrowing, lifetime, and concurrency requirements.
+  A thread boundary MUST NOT implicitly transfer ownership, extend a borrow,
+  or extend the lifetime of a local value.
+</p>
+
+<p>
+  An ordinary borrow of a local value MUST NOT be transferred to another
+  thread when the referent may cease to exist before all uses of the
+  transferred borrow have ended.
+</p>
+
+<p>
+  A thread entry operation receives an owned value or other explicitly
+  specified argument capabilities. The mechanism used to transfer those
+  arguments and the capabilities permitted across a thread boundary are
+  implementation-defined, subject to the ownership, borrowing, and lifetime
+  guarantees of this specification.
+</p>
+
+<p>
+  The core language does not define a general thread-sharing or atomic-memory
+  model. Implementations that provide shared mutable state, synchronization
+  primitives, or atomic operations MUST document their applicable concurrency
+  semantics and MUST NOT weaken the memory-safety guarantees of safe CobaltC
+  code.
+</p>
+
+</section>
+
+<section id="section-63"><h2>63. Synchronization</h2>
 <p>Programs that access shared mutable state concurrently MUST use synchronization appropriate to that state.</p>
 <p>A shared mutable object MUST NOT be accessed concurrently by multiple execution contexts unless those accesses are ordered by a synchronization mechanism defined by the language or its standard library.</p>
 <p>Synchronization does not transfer ownership and does not alter the destruction rules of the protected value.</p>
