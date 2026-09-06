@@ -1808,27 +1808,95 @@ mut Slice[i32] view = values[0..3];</code></pre>
 
 </section>
 
-<section id="section-63"><h2>63. Synchronization</h2>
-<p>Programs that access shared mutable state concurrently MUST use synchronization appropriate to that state.</p>
-<p>A shared mutable object MUST NOT be accessed concurrently by multiple execution contexts unless those accesses are ordered by a synchronization mechanism defined by the language or its standard library.</p>
-<p>Synchronization does not transfer ownership and does not alter the destruction rules of the protected value.</p>
-</section><section id="section-64"><h2>64. Mutex</h2>
-<p>A mutex provides exclusive synchronized access.</p>
-<p>A lock guard represents possession of the lock. While a guard is live, the guard's owner is responsible for retaining the lock. Destroying the guard releases the lock.</p>
-<p>Lock acquisition blocks until the mutex can be acquired unless the standard-library API explicitly provides a non-blocking operation. A thread MUST NOT destroy a mutex while a live guard still refers to it.</p>
-<p>A lock guard is moveable but not copyable. Moving a guard transfers responsibility for releasing the lock.</p>
-</section><section id="section-65"><h2>65. Data Races</h2>
+<section id="section-63">
+<h2>63. Synchronization</h2>
+
+<p>
+  Implementations that provide shared mutable state or concurrent access to
+  shared values MUST provide synchronization mechanisms appropriate to their
+  documented concurrency semantics.
+</p>
+
+<p>
+  Programs that access shared mutable state concurrently MUST use
+  synchronization or atomic operations as required by the applicable
+  concurrency semantics. Concurrent access MUST NOT violate the ownership,
+  borrowing, lifetime, or concurrency requirements of this specification.
+</p>
+
+<p>
+  A synchronization mechanism MUST NOT implicitly transfer ownership, permit
+  an otherwise invalid borrow to cross a thread boundary, extend a borrow,
+  or extend the lifetime of a value.
+</p>
+
+<p>
+  Synchronization does not alter the destruction rules of a value. In
+  particular, preventing concurrent access to a value does not by itself
+  keep that value alive or make a borrow valid after the value would
+  otherwise cease to exist.
+</p>
+
+<p>
+  The ordering, visibility, atomicity, and other concurrency guarantees
+  provided by synchronization mechanisms are defined by the language or
+  standard library where specified, and otherwise MUST be documented by the
+  implementation providing those mechanisms.
+</p>
+
+</section>
+
+<section id="section-64">
+<h2>64. Mutex</h2>
+
+<p>
+  A mutex provides mutual exclusion for access protected by the mutex.
+  Concurrent access to protected shared state MUST conform to the concurrency
+  semantics specified for the mutex by the language or standard library.
+</p>
+
+<p>
+  A lock guard represents an acquired mutex. While a guard is live, the guard
+  is responsible for retaining the lock. Destroying the guard releases the
+  lock.
+</p>
+
+<p>
+  Lock acquisition blocks until the mutex can be acquired unless the
+  standard-library API explicitly provides a non-blocking operation. A mutex
+  MUST NOT be destroyed while a live guard refers to or otherwise depends on
+  that mutex.
+</p>
+
+<p>
+  A lock guard is moveable but not copyable. Moving a guard transfers
+  responsibility for releasing the lock to the destination guard.
+</p>
+
+<p>
+  A mutex or lock guard does not by itself transfer ownership, extend a
+  borrow, extend the lifetime of a value, or alter the destruction rules of
+  protected state.
+</p>
+
+</section>
+
+<section id="section-65"><h2>65. Data Races</h2>
 <p>Safe CobaltC code MUST NOT contain an ordinary unsynchronized data race.</p>
 <p>An ordinary data race occurs when two or more execution contexts access the same mutable memory concurrently, at least one access is a write, and the accesses are not ordered by a synchronization mechanism defined by this specification or a conforming standard-library synchronization facility.</p>
 <p>Concurrent access to immutable data does not constitute a data race provided the data remains immutable for the duration of those accesses. Accesses to distinct memory locations do not constitute a data race.</p>
 <p>The language does not guarantee freedom from deadlocks, livelocks, starvation, or logical errors in otherwise synchronized programs.</p>
-</section><section id="section-66"><h2>66. Memory Model</h2>
+</section>
+
+<section id="section-66"><h2>66. Memory Model</h2>
 <p>The CobaltC memory model defines observable ordering and visibility guarantees for evaluations that access memory.</p>
 <p>Within a single execution context, evaluations are sequenced in program order unless a language rule explicitly specifies otherwise.</p>
 <p>Conflicting ordinary accesses to the same memory location MUST NOT occur concurrently unless ordered by synchronization.</p>
 <p>A successful unlock of a <code>Mutex</code> synchronizes with a subsequent successful lock of the same <code>Mutex</code>. Effects on protected state that occur before the unlock MUST be observable to the execution context after the subsequent successful lock, subject to the ordinary visibility of that state.</p>
 <p>Thread start and successful join also establish the synchronization required by their respective runtime operations.</p>
-</section><section id="section-67">
+</section>
+
+<section id="section-67">
 <h2>67. Unsafe Code and Functions</h2>
 <p>
         Unsafe operations require an explicit unsafe context, established either through an unsafe block or an unsafe function declaration:
