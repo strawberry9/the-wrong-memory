@@ -317,12 +317,37 @@ mut T*?</code></pre>
 <p>Array types use <code>T[N]</code>. Function types use the function declaration form described by Section 24.</p>
 </section><section id="section-14"><h2>14. Managed Pointer Types</h2>
 <p>A managed pointer type specifies the referenced type, whether the pointer is nullable, and the access capability held by the pointer. A managed pointer is a borrow capability rather than an ownership capability unless a language rule explicitly states otherwise.</p>
-<table><thead><tr><th>Type</th><th>Meaning</th></tr></thead><tbody>
-<tr><td><code>T*</code></td><td>Shared, non-null managed pointer to <code>T</code>.</td></tr>
-<tr><td><code>mut T*</code></td><td>Exclusive, mutable, non-null managed pointer to <code>T</code>.</td></tr>
-<tr><td><code>T*?</code></td><td>Nullable shared managed pointer to <code>T</code>.</td></tr>
-<tr><td><code>mut T*?</code></td><td>Nullable mutable managed pointer to <code>T</code>.</td></tr>
-</tbody></table>
+
+<p>A pointer type is formed by appending <code>*</code> to the pointee type. For example, <code>String*</code> denotes a pointer to <code>String</code>.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left;">Type</th>
+      <th style="text-align: left;">Meaning</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>T*</code></td>
+      <td>Shared, <strong>non-null</strong> managed pointer to <code>T</code>.</td>
+    </tr>
+    <tr>
+      <td><code>T*?</code></td>
+      <td>Shared, <strong>nullable</strong> managed pointer to <code>T</code>.</td>
+    </tr>
+    <tr>
+      <td><code>mut T*</code></td>
+      <td>Exclusive, mutable, <strong>non-null</strong> managed pointer to <code>T</code>.</td>
+    </tr>
+    <tr>
+      <td><code>mut T*?</code></td>
+      <td>Exclusive, mutable, <strong>nullable</strong> managed pointer to <code>T</code>.</td>
+    </tr>
+  </tbody>
+</table>
+
+<p></p>
 <p>A shared managed pointer permits read-only access. A mutable managed pointer permits exclusive mutable access for the duration of the applicable borrow.</p>
 <p>Taking a shared borrow produces <code>T*</code>; taking a mutable borrow produces <code>mut T*</code>:</p>
 <p>The following forms illustrate the two borrow operations:</p>
