@@ -352,7 +352,7 @@ mut String* p = &amp;mut value;</code></pre>
     return value;
 }</code></pre>
 <p>Generic type arguments MUST satisfy the ordinary type-compatibility and ownership rules applicable to the instantiated declaration. A generic declaration MUST NOT rely on properties of a type argument that are not established by the declaration's constraints or by the ordinary rules of the language.</p>
-<p>CobaltC 1.0 does not define a user-facing type-constraint syntax. Generic constraints are therefore limited to properties universally guaranteed by the language and to concrete operations made valid by the instantiated type.</p>
+<p>CobaltC 1.0 does not define a user-facing generic type-constraint syntax. Generic declarations may therefore rely only on properties guaranteed for all type arguments. An operation that requires additional properties is valid only when those properties are established by the language's ordinary rules for the instantiated type.</p>
 </section>
 
 <section id="section-20"><h2>20. Exported Types</h2>
@@ -383,7 +383,7 @@ mut String* p = &amp;mut value;</code></pre>
 };</code></pre>
 <p>Structs do not contain function declarations. Operations on a struct may instead be declared as associated functions using the type's qualified name.</p>
 <h3>Destruction</h3>
-<p>A type MAY define a destruction hook of the form <code>fn T::destroy(mut T* value)</code>. The hook has privileged exclusive access to the owned value while destruction is performed and releases resources directly owned by <code>T</code>. The compiler recursively destroys owned fields after the destruction hook completes.</p>
+<p>A type MAY define a destruction hook of the form <code>fn T::destroy(mut T* value)</code>. The hook has privileged exclusive access to the owned value while destruction is performed and releases resources directly managed by <code>T</code> that are not represented by independently owned fields. The hook MUST NOT independently destroy owned fields that the compiler will subsequently destroy. The compiler recursively destroys owned fields after the destruction hook completes.</p>
 <p>The destruction hook MUST return <code>void</code> and MUST NOT be invoked explicitly by ordinary program code. It is a compiler-invoked destruction hook rather than an ordinary callable function. The compiler invokes it exactly once for each owned value whose type defines one.</p>
 <p>If a type has no destruction hook, its owned fields are recursively destroyed according to their own destruction semantics.</p>
 </section><section id="section-22"><h2>22. Enums</h2>
@@ -409,6 +409,7 @@ mut String* p = &amp;mut value;</code></pre>
 <p>The number and types of initializer elements MUST match the array type.</p>
 <p>A zero-length array <code>T[0]</code> is permitted. It contains no elements and cannot be indexed, but it may be sliced with <code>...</code> to produce an empty slice.</p>
 <p>Safe indexing MUST remain within the valid range.</p>
+</section>
 
 <section id="section-24"><h2>24. Functions</h2>
 
@@ -466,7 +467,7 @@ mut String* p = &amp;mut value;</code></pre>
 mut String text = "hello";
 append_value(&amp;mut text);</code></pre>
 
-<p>The <code>mut</code> qualifier on a managed-pointer parameter specifies the access capability of that parameter. A separate binding-level <code>mut</code> on the parameter is not required.</p>
+<p>The <code>mut</code> qualifier on a managed-pointer type specifies the parameter's access capability. A separate binding-level <code>mut</code> on the parameter is not required.</p>
 
 <p>When an argument of type <code>mut T*</code> is supplied to a parameter of type <code>T*</code>, the argument undergoes a shared reborrow. This conversion does not move the original mutable managed pointer; the original mutable capability is temporarily restricted while the shared reborrow remains live.</p>
 
@@ -609,7 +610,7 @@ else
 }</code></pre>
 <p>The condition MUST have type <code>bool</code>. An <code>else if</code> chain is equivalent to nested conditionals.</p>
 </section><section id="section-32"><h2>32. Loops</h2>
-<p>CobaltC provides <code>while</code>, <code>for</code>, and <code>loop</code> loops.</p>
+<p>CobaltC provides <code>while</code>, <code>for</code>, and <code>loop</code> loops. A <code>for</code> loop iterates over a range or other language-defined sequence of values; the exact iteration mechanism is implementation-defined where this specification does not otherwise constrain it.</p>
 <p><code>break</code> exits the innermost applicable loop. <code>continue</code> begins its next iteration.</p>
 <p>A loop body is a scope. Deferred blocks registered in an iteration are executed when control leaves that body, including when <code>break</code> or <code>continue</code> leaves the body.</p>
 </section><section id="section-33"><h2>33. Match</h2>
@@ -655,6 +656,7 @@ print(value);</code></pre>
 <p>Ownership is a fundamental part of CobaltC's type and runtime model. An owned value has exactly one responsible owner, and that owner is responsible for eventual destruction.</p>
 <p>Managed pointers are non-owning. Library abstractions MAY implement shared ownership, but such ownership MUST be explicit in the abstraction and is not inferred from an ordinary managed pointer. Shared ownership implemented by a library is an abstraction-level resource-management mechanism, not an additional ordinary ownership state of the language.</p>
 <p>Ownership transfer is explicit through moves and through operations whose signatures consume owned values. Passing a copyable value by value copies it; passing a non-copyable value by value moves it.</p>
+<p>A value is copyable only when its type's copy contract permits copying. The predefined value types and shared managed pointers are copyable unless otherwise stated. A user-defined aggregate is copyable when all of its owned components are copyable and the type does not define a destruction hook. Types provided by the standard library MAY define their own copy contracts. A mutable managed pointer is not copyable. A copy operation produces an independent value according to the type's copy contract.</p>
 </section><section id="section-38"><h2>38. Move Semantics</h2>
 <p>A move transfers ownership.</p>
 <pre><code>File a = open("data.txt")?;
@@ -668,7 +670,7 @@ File b = move a;</code></pre>
 <p>For aggregate values, an individual owned component MAY be moved independently when the compiler can track the resulting state.</p>
 <p>A moved component cannot subsequently be used through its original ownership path. Unaffected components remain usable.</p>
 <p>The moved component MUST NOT be destroyed again through the original aggregate ownership path. If the aggregate itself later reaches destruction, only the components that remain owned by that aggregate are destroyed.</p>
-</section><section id="section-41"><h2 id="section-42-borrowing">Borrowing</h2>
+</section><section id="section-41"><h2 id="section-41-borrowing">41. Borrowing</h2>
 <p>
   A borrow provides access to an owned value without transferring ownership.
   Borrowing does not create a new owner of the borrowed value.
@@ -723,7 +725,7 @@ print(*pointer); // ERROR: `value` was moved while borrowed</code></pre>
   after the storage required by that pointer has ceased to be valid.
 </p>
 </section><section id="section-42">
-<h2 id="section-43-shared-borrows">Shared Borrows</h2>
+<h2 id="section-42-shared-borrows">42. Shared Borrows</h2>
 <p>
   A shared borrow provides read-only access to its referent. Multiple
   compatible shared borrows MAY exist simultaneously.
@@ -756,15 +758,15 @@ append(*pointer, "!"); // ERROR: shared borrow does not permit mutation</code></
 </p>
 <pre><code>mut String value = "hello";
 String* shared = &amp;value;
-mut String* mutable = &amp;mut value; // ERROR: `value` is already borrowed
 print(*shared);
+mut String* mutable = &amp;mut value; // ERROR: `value` is still borrowed
 append(*mutable, "!");</code></pre>
 <p>
   The compiler MUST permit multiple compatible shared borrows and MUST reject
   conflicting mutable access.
 </p>
 </section><section id="section-43">
-<h2 id="section-44-mutable-borrows">Mutable Borrows</h2>
+<h2 id="section-43-mutable-borrows">43. Mutable Borrows</h2>
 <p>
   A mutable borrow provides exclusive mutable access to its referent.
 </p>
@@ -809,7 +811,7 @@ print(*shared);</code></pre>
   Mutable access MUST remain exclusive for the duration of the applicable
   mutable borrow.
 </p>
-</section><section id="section-44"><h2 id="section-45-borrow-lifetime">Borrow Lifetime</h2>
+</section><section id="section-44"><h2 id="section-44-borrow-lifetime">44. Borrow Lifetime</h2>
 <p>A borrow has a lifetime during which its managed pointer remains valid and its borrowing restrictions apply.</p>
 <p>A borrow MUST NOT outlive its referent. A borrow is ordinarily live from creation until the last subsequent use that requires the borrow, or until the enclosing scope ends if the implementation cannot establish an earlier end.</p>
 <p>A managed pointer passed as an ordinary by-value argument remains live for the duration of the call. A returned managed pointer may extend a borrow only when the function's result explicitly derives from the input borrow and the lifetime relationship remains valid.</p>
@@ -820,7 +822,7 @@ print(*shared);</code></pre>
 }
 print(*pointer); // ERROR: referent no longer exists</code></pre>
 <p>The implementation MAY use conservative lifetime analysis. It MUST NOT accept a use that would outlive the referent.</p>
-</section><section id="section-45"><h2 id="section-46-function-parameters-and-returned-borrows">Function Parameters and Returned Borrows</h2>
+</section><section id="section-45"><h2 id="section-45-function-parameters-and-returned-borrows">45. Function Parameters and Returned Borrows</h2>
 <p>A function may accept a managed pointer without taking ownership of the referent. A parameter of type <code>T*</code> provides shared access; <code>mut T*</code> provides exclusive mutable access.</p>
 <p>When an argument of type <code>mut T*</code> is supplied where <code>T*</code> is required, the language performs a shared reborrow. This conversion does not move the original mutable capability; the original capability is temporarily restricted while the reborrow remains live.</p>
 <pre><code>fn length(String* value) : usize
@@ -834,7 +836,7 @@ print(*pointer); // ERROR: referent no longer exists</code></pre>
 }</code></pre>
 <p>A compiler MUST reject a returned borrow when it cannot establish the required lifetime relationship. A managed pointer to an ordinary local variable MUST NOT be returned.</p>
 </section><section id="section-46">
-<h2 id="section-47-reborrowing">Reborrowing</h2>
+<h2 id="section-46-reborrowing">46. Reborrowing</h2>
 <p>
   A managed pointer MAY itself be borrowed. Such an operation is a reborrow.
 </p>
@@ -883,7 +885,7 @@ append(*reborrow, "?");</code></pre>
   Reborrowing does not transfer ownership of the underlying value.
 </p>
 </section><section id="section-47">
-<h2 id="section-48-field-and-partial-borrows">Field and Partial Borrows</h2>
+<h2 id="section-47-field-and-partial-borrows">47. Field and Partial Borrows</h2>
 <p>
   A field of a structure MAY be borrowed independently of another disjoint
   field.
@@ -932,7 +934,7 @@ use(*whole); // ERROR: conflicting borrow</code></pre>
   guarantees as borrowing an entire value.
 </p>
 </section><section id="section-48">
-<h2 id="section-49-aliasing">Aliasing</h2>
+<h2 id="section-48-aliasing">48. Aliasing</h2>
 <p>
   Aliasing occurs when more than one managed pointer provides access to the
   same underlying storage.
@@ -985,7 +987,7 @@ append(*second, "?");</code></pre>
   Safe CobaltC operations MUST NOT provide a means to bypass these aliasing
   requirements.
 </p>
-</section><section id="section-49"><h2 id="section-50-collection-borrowing">Collection Borrowing</h2>
+</section><section id="section-49"><h2 id="section-49-collection-borrowing">49. Collection Borrowing</h2>
 <p>Elements of a collection MAY be borrowed when the collection operation and element type permit the corresponding access.</p>
 <pre><code>Vector&lt;i32&gt; values = [10, 20, 30];
 i32* first = &amp;values[0];
@@ -997,7 +999,7 @@ mut i32* first = &amp;mut values[0];
 <p>A collection operation that requires mutable access or may relocate storage MUST NOT occur while a conflicting element or collection borrow remains live, unless the compiler can establish that the referenced storage is unaffected.</p>
 <p>For dynamic indexes, the implementation MAY conservatively treat potentially overlapping accesses as conflicting. It MUST NOT assume disjointness merely because different runtime indexes are expected.</p>
 </section><section id="section-50">
-<h2 id="section-51-borrow-invalidation">Borrow Invalidation</h2>
+<h2 id="section-50-borrow-invalidation">50. Borrow Invalidation</h2>
 <p>
   A managed pointer is valid only while its referent remains valid and the
   pointer satisfies the applicable borrowing rules.
@@ -1264,7 +1266,7 @@ unsafe fn some_function()
         Foreign functions are not assumed to obey CobaltC ownership, lifetime
         or safety rules.
       </p>
-<h3>Foreign ABI Baseline</h3><p>The baseline foreign ABI is the C ABI as described by the applicable ABI profile. An <code>extern</code> declaration and its foreign-call behavior MUST conform to that profile. ABI compatibility alone does not determine CobaltC ownership semantics.</p></section><section id="section-71">
+<h3>Foreign ABI Baseline</h3><p>The baseline foreign ABI is the platform's C ABI as described by the applicable ABI profile. An <code>extern</code> declaration and its foreign-call behavior MUST conform to that profile. ABI compatibility alone does not determine CobaltC ownership semantics.</p></section><section id="section-71">
 <h2>71. FFI Ownership</h2>
 <p>
         Ownership crossing an FFI boundary MUST be defined by the API
@@ -1303,11 +1305,9 @@ unsafe fn some_function()
         Binary compatibility is guaranteed only where compatible ABI profiles
         are used.
       </p>
-<h3>Representation and ABI Independence</h3><p>Aggregate layout is determined by the applicable ABI profile. An implementation MUST document implementation-defined layout properties where the selected profile requires them. The language does not mandate the representation used by a compiler, intermediate representation, or target architecture except where an ABI profile makes a property observable.</p><p>Managed-reference representation remains an implementation choice so long as all language-level pointer semantics are preserved.</p></section><section id="section-73">
+<h3>Representation and ABI Independence</h3><p>Where aggregate layout is externally observable, such as at an FFI boundary, it is determined by the applicable ABI profile. An implementation MUST document implementation-defined layout properties where the selected profile requires them. Internal aggregate representation remains an implementation choice unless this specification or an ABI profile makes a property observable.</p><p>Managed-reference representation remains an implementation choice so long as all language-level pointer semantics are preserved.</p></section><section id="section-73">
 <h2>73. Runtime</h2>
-<p>
-        A hosted CobaltC program begins through <code>main</code>.
-      </p>
+<p>A hosted CobaltC program begins through an entry point named <code>main</code>, according to the applicable runtime conventions. The language does not otherwise prescribe the startup or process-integration mechanism.</p>
 <p>
         The runtime provides the facilities required by the language and
         standard library, including:
@@ -1328,6 +1328,7 @@ unsafe fn some_function()
 <p>Allocation failure MUST NOT expose an invalid managed object. Expected allocation failure SHOULD be represented through the applicable <code>Result</code>-style API.</p>
 <p>An implementation MAY impose documented resource limits. Such limits do not permit creation of invalid managed objects.</p>
 </section><section id="section-75"><h2>75. Standard I/O</h2>
+<p>Examples in this specification MAY use representative standard-library operations to illustrate language semantics. Unless an operation is explicitly specified by a section of this document, its complete declaration and API contract are part of the applicable standard-library profile.</p>
 <p>The Standard-conforming library provides basic text and resource I/O operations, including <code>print</code>, <code>println</code>, <code>open</code>, <code>read</code>, <code>write</code>, and <code>close</code>.</p>
 <p>Expected I/O failures are represented using <code>Result</code>-style APIs.</p>
 <p>A resource-owning I/O object releases its resources deterministically according to the normal destruction rules. An explicit resource-release operation MUST leave the owning object in a valid state such that subsequent destruction does not release the same external resource again.</p>
@@ -1401,7 +1402,7 @@ invalid assignment</code></pre>
 <p>CobaltC 1.0.0 is a closed language edition. Corrections may clarify or repair the published specification, but a semantic change MUST NOT silently be presented as established CobaltC 1.0.0 behavior.</p>
 <p>New keywords, declaration forms, expression forms, type categories, ownership mechanisms, borrowing mechanisms, lifetime syntax, concurrency primitives, module syntax, visibility syntax, macro facilities, or dynamic-dispatch facilities belong in a subsequent language edition.</p>
 </section><section id="section-84"><h2>84. Final Safety Theorem</h2>
-<div class="final-box"><p><strong>A conforming implementation executing conforming safe CobaltC code MUST preserve the ownership, initialization, borrowing, lifetime, nullability, bounds, and synchronization requirements defined by this specification.</strong></p></div>
+<div class="final-box"><p><strong>A conforming implementation executing conforming safe CobaltC code MUST NOT permit execution that violates the ownership, initialization, borrowing, lifetime, nullability, bounds, or synchronization requirements defined by this specification.</strong></p></div>
 <p>In particular, safe CobaltC cannot be used to create:</p>
 <ul><li>use-before-initialization;</li><li>use-after-move;</li><li>double ownership;</li><li>invalid borrow lifetime;</li><li>conflicting mutable aliasing;</li><li>unchecked nullable dereference;</li><li>unchecked safe out-of-bounds access;</li><li>ordinary unsynchronized data races.</li></ul>
 <p>Unsafe and foreign code lie outside these automatic guarantees. A safe abstraction over unsafe code remains safe only while it maintains the invariants promised by its interface.</p>
@@ -1506,12 +1507,12 @@ fn describe(State state) : String
 
 fn main()
 {
-    Counter counter = Counter
+    mut Counter counter = Counter
     {
         value = 0
     };
 
-    State state = Ready;
+    mut State state = Ready;
 
     println(describe(state)); // ready
 
