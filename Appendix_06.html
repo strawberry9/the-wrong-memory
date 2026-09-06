@@ -2273,15 +2273,6 @@ finished</code></pre>
 </section>
 
 
-<!-- CobaltC 1.0 release audit refinements -->
-<section id="release-audit-notes">
-<h2>Release Audit Refinements</h2>
-<p>The following refinements preserve the CobaltC 1.0 design boundary and clarify publication-level requirements.</p>
-<p>The specification defines language semantics and required observable guarantees. It does not require a particular compiler architecture, runtime implementation, ABI strategy, memory layout, optimization strategy, or internal representation unless explicitly stated.</p>
-<p>Implementation-defined behaviour remains limited to areas where multiple implementations may provide different behaviour while preserving the guarantees of safe CobaltC. Such choices must be documented where this specification requires documentation.</p>
-<p>Features that would require additional semantic machinery, including user-defined generic constraints, object-oriented dispatch mechanisms, implicit visibility systems, or unrestricted unsafe escape mechanisms, remain outside the CobaltC 1.0 edition boundary.</p>
-<p>Normative requirements are interpreted compositionally: later sections do not override ownership, lifetime, safety, or module-boundary guarantees unless they explicitly define an exception.</p>
-</section>
 </article>
 </main>
 </body>
