@@ -825,10 +825,10 @@ loop
 
 <p>
   A deferred block is associated with the scope in which it is registered.
-  When control leaves that scope, its deferred blocks execute before the scope
-  is fully exited. Nested scopes maintain independent deferred blocks, and
-  exiting an inner scope executes only the deferred blocks registered within
-  that scope.
+  When control leaves that scope, its deferred blocks execute before the
+  scope's owned locals are destroyed. Deferred blocks registered in nested
+  scopes are associated with their respective scopes and execute when those
+  scopes are exited.
 </p>
 
 <pre><code>{
@@ -843,21 +843,71 @@ loop
 }</code></pre>
 
 <p>
-  Deferred blocks execute in reverse registration order. They execute before
-  owned locals in the exited scope are destroyed.
+  Deferred blocks execute in reverse registration order within each scope.
+  For nested scopes, deferred blocks in the inner scope execute before
+  deferred blocks in the enclosing scope.
+</p>
+
+<pre><code>{
+    defer
+    {
+        log("outer");
+    };
+
+    {
+        defer
+        {
+            log("inner");
+        };
+    }
+}
+
+// Output:
+// inner
+// outer</code></pre>
+
+<p>
+  A deferred block observes the current values of its referenced bindings at
+  the time it executes. Registering a deferred block therefore creates a
+  future use of each referenced binding. A referenced binding MUST remain
+  initialized and otherwise valid until the deferred block has executed.
+</p>
+
+<pre><code>String value = "hello";
+
+defer
+{
+    print(value);
+};
+
+value = "goodbye";
+
+// Prints: goodbye</code></pre>
+
+<p>
+  A binding referenced by a deferred block MUST NOT be moved, destroyed, or
+  otherwise rendered invalid before the deferred block executes.
+</p>
+
+<pre><code>String value = "hello";
+
+defer
+{
+    print(value);
+};
+
+String other = move value; // ERROR: value is required by the deferred block</code></pre>
+
+<p>
+  Deferred blocks execute before the destruction of owned locals in their
+  associated scope. Consequently, a deferred block MAY access an owned local
+  that would otherwise be destroyed when the scope is exited.
 </p>
 
 <p>
-  A deferred block executes in the same lexical environment as the surrounding
-  scope and observes the current values of referenced bindings at the time it
-  executes. Registering a deferred block therefore creates a future use of each
-  referenced binding. A binding MUST remain initialized and otherwise valid
-  until the deferred block has executed.
-</p>
-
-<p>
-  If a deferred block would require a moved or destroyed binding at scope exit,
-  the program is ill-formed.
+  A deferred block MUST NOT access a binding whose lifetime ends before the
+  deferred block executes. If such access would occur, the program is
+  ill-formed.
 </p>
 
 </section>
@@ -886,13 +936,82 @@ File b = move a;</code></pre>
 <p>A type may support copying. Copying is implicit when a copyable value is used in a by-value assignment, initialization, or function argument position and an explicit <code>move</code> is not present.</p>
 <p>Copying produces an independent value according to the type's copy contract. Copying is not ownership transfer.</p>
 <p>A shared managed pointer is copyable; copying it creates another shared borrow. A mutable managed pointer is not implicitly copyable.</p>
-</section><section id="section-40"><h2>40. Partial Moves</h2>
-<p>For aggregate values, an individual owned component MAY be moved independently when the resulting ownership state is well-defined according to the language rules.</p>
-<p>A moved component cannot subsequently be used through its original ownership path. Unaffected components remain usable.</p>
-<p>The moved component MUST NOT be destroyed again through the original aggregate ownership path. If the aggregate itself later reaches destruction, only the components that remain owned by that aggregate are destroyed.</p>
+</section>
 
+<section id="section-40">
+  <h2>40. Partial Moves</h2>
 
-</section><section id="section-41"><h2 id="section-41-borrowing">41. Borrowing</h2>
+  <p>
+    For aggregate values, an individual owned component MAY be moved
+    independently when the resulting ownership state is well-defined
+    according to the language rules.
+  </p>
+
+  <p>
+    After a component is moved, that component is considered moved from the
+    containing aggregate. The containing aggregate remains usable through
+    components that remain owned and initialized. A moved component MUST NOT
+    subsequently be accessed through its original ownership path until it is
+    reinitialized.
+  </p>
+
+  <pre><code>struct Person
+{
+    String name;
+    String address;
+}
+
+Person person = ...;
+
+String name = move person.name;
+
+print(person.address); // OK
+print(person.name);    // ERROR: name was moved</code></pre>
+
+  <p>
+    An aggregate MUST NOT be used in an operation that requires ownership or
+    initialization of a moved component. In particular, an aggregate with a
+    moved component MUST NOT be moved, copied, returned, or passed by value when
+    doing so would require that component to be available.
+  </p>
+
+  <pre><code>Person person = ...;
+
+String name = move person.name;
+
+Person other = move person; // ERROR: person.name has been moved</code></pre>
+
+  <p>
+    A moved component MUST NOT be destroyed again through the original
+    aggregate ownership path. If the aggregate later reaches destruction,
+    only the components that remain owned and initialized by that aggregate
+    are destroyed.
+  </p>
+
+  <pre><code>Person person = ...;
+
+String name = move person.name;
+
+// `person.name` is no longer owned by `person`.
+// When `person` is destroyed, only `person.address` is destroyed.</code></pre>
+
+  <p>
+    A moved component MAY be reinitialized through its original ownership path
+    when the language rules permit assignment to an uninitialized component.
+    Once reinitialized, the component is again owned and initialized by the
+    containing aggregate and participates in its subsequent destruction.
+  </p>
+
+  <pre><code>Person person = ...;
+
+String name = move person.name;
+
+person.name = "new name"; // OK: name is reinitialized
+
+// `person` now owns both name and address again.</code></pre>
+</section>
+
+<section id="section-41"><h2 id="section-41-borrowing">41. Borrowing</h2>
 <p>
   A value MUST NOT be destroyed, reassigned, replaced, or otherwise invalidated while a live borrow of that value or overlapping storage would be invalidated by the operation.
 
@@ -995,6 +1114,7 @@ append(*mutable, "!");</code></pre>
   The compiler MUST permit multiple compatible shared borrows and MUST reject
   conflicting mutable access.
 </p>
+
 </section><section id="section-43">
 <h2 id="section-43-mutable-borrows">43. Mutable Borrows</h2>
 <p>
@@ -1041,18 +1161,95 @@ print(*shared);</code></pre>
   Mutable access MUST remain exclusive for the duration of the applicable
   mutable borrow.
 </p>
-</section><section id="section-44"><h2 id="section-44-borrow-lifetime">44. Borrow Lifetime</h2>
-<p>A borrow has a lifetime during which its managed pointer remains valid and its borrowing restrictions apply.</p>
-<p>A borrow MUST NOT outlive its referent. A borrow remains live for at least the period required by all later uses of that borrow. An implementation MAY determine that a borrow is no longer required earlier, provided doing so cannot violate borrowing rules or change observable program behaviour.</p>
-<p>A managed pointer passed as an ordinary by-value argument remains live for the duration of the call. A returned managed pointer may extend a borrow only when the function's result explicitly derives from the input borrow and the lifetime relationship remains valid.</p>
-<pre><code>String* pointer;
+</section>
+
+<section id="section-44">
+  <h2 id="section-44-borrow-lifetime">44. Borrow Lifetime</h2>
+
+  <p>
+    A borrow has a lifetime during which its managed pointer remains valid and
+    its borrowing restrictions apply.
+  </p>
+
+  <p>
+    A borrow is live at a program point if an execution path from that point
+    may subsequently access the corresponding managed pointer or perform an
+    operation whose validity depends on that borrow.
+  </p>
+
+  <p>
+    A borrow MUST NOT outlive its referent. A borrow remains live for at least
+    the period required by all later uses of that borrow. An implementation
+    MAY determine that a borrow is no longer required earlier, provided doing
+    so cannot violate borrowing rules or change observable program behaviour.
+  </p>
+
+  <pre><code>String value = "hello";
+String* pointer = &amp;value;
+
+print(*pointer);
+
+// `pointer` is no longer used, so the borrow may end here.
+doSomethingWith(value); // OK</code></pre>
+
+  <p>
+    A managed pointer passed as an ordinary by-value argument remains live for
+    the duration of the call.
+  </p>
+
+  <pre><code>fn use_value(String* value)
+{
+    print(*value);
+}
+
+String value = "hello";
+use_value(&amp;value); // borrow remains valid for the duration of the call</code></pre>
+
+  <p>
+    A function may return a managed pointer derived from an input borrow only
+    when the result explicitly derives from that borrow and its lifetime does
+    not outlive the input borrow.
+  </p>
+
+  <pre><code>fn first(String* value) : String*
+{
+    return value;
+}
+
+String value = "hello";
+String* pointer = first(&amp;value);
+
+print(*pointer); // OK: pointer does not outlive value</code></pre>
+
+  <p>
+    A returned managed pointer MUST NOT outlive the borrow from which it was
+    derived.
+  </p>
+
+  <pre><code>fn get_value() : String*
+{
+    String value = "hello";
+    return &amp;value; // ERROR: returned borrow would outlive value
+}</code></pre>
+
+  <p>
+    A borrow MUST NOT outlive its referent.
+  </p>
+
+  <pre><code>String* pointer;
 {
     String value = "hello";
     pointer = &amp;value;
 }
 print(*pointer); // ERROR: referent no longer exists</code></pre>
-<p>The implementation MAY use conservative lifetime analysis. It MUST NOT accept a use that would outlive the referent.</p>
-</section><section id="section-45"><h2 id="section-45-function-parameters-and-returned-borrows">45. Function Parameters and Returned Borrows</h2>
+
+  <p>
+    The implementation MAY use conservative lifetime analysis. It MUST NOT
+    accept a use that would outlive the referent.
+  </p>
+</section>
+
+<section id="section-45"><h2 id="section-45-function-parameters-and-returned-borrows">45. Function Parameters and Returned Borrows</h2>
 <p>A function may accept a managed pointer without taking ownership of the referent. A parameter of type <code>T*</code> provides shared access; <code>mut T*</code> provides exclusive mutable access.</p>
 <p>When an argument of type <code>mut T*</code> is supplied where <code>T*</code> is required, the language performs a shared reborrow. This conversion does not move the original mutable capability; the original capability is temporarily restricted while the reborrow remains live.</p>
 <pre><code>fn length(String* value) : usize
@@ -1148,14 +1345,16 @@ mut String* reborrow = &amp;mut *pointer;
 append(*pointer, "!"); // ERROR: conflicts with live mutable reborrow
 append(*reborrow, "?");</code></pre>
 
+
 <p>
-  While a conflicting reborrow is live, the original managed pointer MUST NOT
-  be used in a conflicting manner.
+  A shared reborrow derived from a mutable borrow temporarily restricts the
+  originating mutable capability. While the shared reborrow is live, the
+  originating mutable capability MUST NOT be used for conflicting access.
 </p>
 
 <p>
-  Once the reborrow is no longer live, the original managed pointer MAY be
-  used again, subject to the ordinary borrowing rules.
+  Once the reborrow is no longer live, the originating mutable capability MAY
+  be used again, subject to the ordinary borrowing rules.
 </p>
 
 </section>
