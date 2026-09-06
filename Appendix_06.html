@@ -656,11 +656,70 @@ else
     ...
 }</code></pre>
 <p>The condition MUST have type <code>bool</code>. An <code>else if</code> chain is equivalent to nested conditionals.</p>
-</section><section id="section-32"><h2>32. Loops</h2>
-<p>CobaltC provides <code>while</code>, <code>for</code>, and <code>loop</code> loops. A <code>for</code> loop iterates over a range or other language-defined sequence of values; the exact iteration mechanism is implementation-defined where this specification does not otherwise constrain it.</p>
-<p><code>break</code> exits the innermost applicable loop. <code>continue</code> begins its next iteration.</p>
-<p>A loop body is a scope. Deferred blocks registered in an iteration are executed when control leaves that body, including when <code>break</code> or <code>continue</code> leaves the body.</p>
-</section><section id="section-33"><h2>33. Match</h2>
+</section>
+
+<section id="section-32"><h2>32. Loops</h2>
+<p>CobaltC provides <code>while</code>, <code>for</code>, and <code>loop</code> loops.</p>
+<p>Conditional loop forms use parenthesized conditions.</p>
+
+<pre><code>while (condition)
+{
+    ...
+}
+
+for (value in sequence)
+{
+    ...
+}
+
+loop
+{
+    ...
+}</code></pre>
+
+<p>
+  A <code>for</code> loop iterates over a range or other language-defined
+  sequence of values; the exact iteration mechanism is implementation-defined
+  where this specification does not otherwise constrain it.
+</p>
+
+<p>
+  A loop body is a scope. Deferred blocks registered in an iteration are
+  executed when control leaves that body, including when <code>break</code> or
+  <code>continue</code> leaves the body.
+</p>
+
+<pre><code>while (condition)
+{
+    Resource resource = acquire();
+
+    defer
+    {
+        release(resource);
+    };
+
+    if (done)
+    {
+        break;
+    }
+}</code></pre>
+
+<p>
+  In this example, the deferred block executes when the loop body is exited,
+  including when <code>break</code> leaves the loop.
+</p>
+
+<p>
+  <code>break</code> exits the innermost applicable loop.
+  <code>continue</code> begins its next iteration.
+</p>
+
+<p>A deferred block is associated with the innermost enclosing scope and executes when control leaves that scope, regardless of whether the exit occurs through normal completion, return, break, continue, or another control transfer.</p>
+
+
+</section>
+
+<section id="section-33"><h2>33. Match</h2>
 <p><code>match</code> may be used as a statement or expression.</p>
 <pre><code>match status {
     Ready =&gt; use_ready(),
@@ -678,18 +737,68 @@ else
 <p><code>return</code> transfers control from the current function.</p>
 <p>The return expression is evaluated before deferred blocks and local destruction associated with the exited scopes. The resulting value is then transferred to the caller according to the ownership and borrowing rules.</p>
 <p>Returning an owned value transfers ownership to the caller. Returning a managed pointer is permitted only when its lifetime remains valid after the function returns. A managed pointer to an ordinary local variable MUST NOT be returned.</p>
-</section><section id="section-35"><h2>35. Defer</h2>
-<p><code>defer</code> registers a block to be executed when the enclosing scope is exited.</p>
-<pre><code>fn update_shared_state(Mutex* mutex)
+</section>
+
+<section id="section-35">
+<h2 id="section-35-defer">35. Defer</h2>
+
+<p>
+  <code>defer</code> registers a block to be executed when the enclosing
+  lexical scope is exited.
+</p>
+
+<pre><code>fn process_file(Path path)
 {
-    Lock lock = Mutex::lock(mutex);
-    defer { print("update complete"); }
-    modify_shared_state();
+    File file = File::open(path);
+
+    defer
+    {
+        File::close(file);
+    };
+
+    process(file);
 }</code></pre>
-<p>Deferred blocks execute in reverse registration order. They execute before owned locals in the exited scope are destroyed.</p>
-<p>A deferred block executes in the same lexical environment as the surrounding scope and observes the current values of referenced bindings at the time it executes. Registering a deferred block therefore creates a future use of each referenced binding. A binding MUST remain initialized and otherwise valid until the deferred block has executed.</p>
-<p>If a deferred block would require a moved or destroyed binding at scope exit, the program is ill-formed.</p>
-</section><section id="section-36"><h2>36. Definite Initialization</h2>
+
+<p>
+  A deferred block is associated with the scope in which it is registered.
+  When control leaves that scope, its deferred blocks execute before the scope
+  is fully exited. Nested scopes maintain independent deferred blocks, and
+  exiting an inner scope executes only the deferred blocks registered within
+  that scope.
+</p>
+
+<pre><code>{
+    Resource resource = acquire();
+
+    defer
+    {
+        release(resource);
+    };
+
+    use(resource);
+}</code></pre>
+
+<p>
+  Deferred blocks execute in reverse registration order. They execute before
+  owned locals in the exited scope are destroyed.
+</p>
+
+<p>
+  A deferred block executes in the same lexical environment as the surrounding
+  scope and observes the current values of referenced bindings at the time it
+  executes. Registering a deferred block therefore creates a future use of each
+  referenced binding. A binding MUST remain initialized and otherwise valid
+  until the deferred block has executed.
+</p>
+
+<p>
+  If a deferred block would require a moved or destroyed binding at scope exit,
+  the program is ill-formed.
+</p>
+
+</section>
+
+<section id="section-36"><h2>36. Definite Initialization</h2>
 <p>A value MUST be initialized before it is read.</p>
 <p>The compiler MUST perform control-flow-sensitive definite-initialization analysis sufficient to establish whether every path reaching a read has initialized the value.</p>
 <pre><code>i32 value;
@@ -890,24 +999,37 @@ print(*pointer); // ERROR: referent no longer exists</code></pre>
     return value;
 }</code></pre>
 <p>A compiler MUST reject a returned borrow when it cannot establish the required lifetime relationship. A managed pointer to an ordinary local variable MUST NOT be returned.</p>
-</section><section id="section-46">
+</section>
+
+<section id="section-46">
 <h2 id="section-46-reborrowing">46. Reborrowing</h2>
+
 <p>
-  A managed pointer MAY itself be borrowed. Such an operation is a reborrow.
+  A managed pointer MAY be used to create another borrow of the storage it
+  refers to. Such an operation is a reborrow.
 </p>
+
 <p>
   A reborrow creates a new borrow whose access capability is derived from the
   existing managed pointer. Reborrowing MUST preserve the ownership, lifetime,
   and aliasing guarantees of the original borrow.
 </p>
+
 <p>
   A reborrow operates on the storage referred to by the managed pointer; it
   does not move or transfer ownership of the managed pointer itself.
 </p>
+
+<p>
+  A shared managed pointer MAY be reborrowed as another shared managed pointer.
+  Such a reborrow creates another shared borrow of the same storage.
+</p>
+
 <p>
   A mutable managed pointer MAY be reborrowed as a mutable managed pointer,
   provided no conflicting borrow of the same storage is live.
 </p>
+
 <pre><code>fn append_exclamation(mut String* value)
 {
     append(*value, "!");
@@ -919,6 +1041,8 @@ mut String* pointer = &amp;mut value;
 // Reborrow the referent mutably for the duration of the call.
 // &amp;mut *pointer does not move pointer. The original mutable capability
 // may be used again after the reborrow is no longer live.
+
+// The temporary mutable reborrow ends when the call returns.
 append_exclamation(&amp;mut *pointer);
 
 append(*pointer, "?");</code></pre>
@@ -926,39 +1050,51 @@ append(*pointer, "?");</code></pre>
 <p>
   A mutable managed pointer MAY also be reborrowed as a shared managed pointer
   when the resulting shared borrow satisfies the applicable lifetime and
-  aliasing rules. Such a conversion is a reborrow, not a move of the original
+  aliasing rules. Such a reborrow does not move or consume the original
   mutable capability.
 </p>
+
 <pre><code>mut String value = "hello";
 mut String* pointer = &amp;mut value;
 
-String* shared = &amp;*pointer;
+// *pointer means "dereference the pointer and access the referent".
+// The operation below borrows the referent, not the pointer variable.
+// Taking a borrow of the dereferenced value is a valid reborrow:
+String* shared = &amp; *pointer;
+
 print(*shared);
 
 // `pointer` MUST NOT be used for conflicting mutable access while
 // the shared reborrow remains live.</code></pre>
 
 <p>
-  While a conflicting reborrow is live, the original managed pointer MUST NOT
-  be used in a conflicting manner.
+  A reborrow creates a new managed pointer capability to the same referent.
+  It does not create ownership, transfer ownership of the underlying value, or
+  change destruction responsibility.
 </p>
+
 <pre><code>mut String value = "hello";
 mut String* pointer = &amp;mut value;
 
+// Taking a mutable borrow of the dereferenced value creates a mutable reborrow:
 mut String* reborrow = &amp;mut *pointer;
 
-append(*pointer, "!"); // ERROR: `pointer` conflicts with live reborrow
+append(*pointer, "!"); // ERROR: conflicts with live mutable reborrow
 append(*reborrow, "?");</code></pre>
+
+<p>
+  While a conflicting reborrow is live, the original managed pointer MUST NOT
+  be used in a conflicting manner.
+</p>
 
 <p>
   Once the reborrow is no longer live, the original managed pointer MAY be
   used again, subject to the ordinary borrowing rules.
 </p>
-<p>
-  Reborrowing does not transfer ownership of the underlying value.
-</p>
 
-</section><section id="section-47">
+</section>
+
+<section id="section-47">
 <h2 id="section-47-field-and-partial-borrows">47. Field and Partial Borrows</h2>
 <p>
   A field of a structure MAY be borrowed independently of another disjoint
@@ -1247,21 +1383,64 @@ print(*view);</code></pre>
         Operations that change storage in ways that could invalidate active
         references are governed by the borrowing rules.
       </p>
-<h3>Storage Invalidation</h3><p>Because a Vector may relocate its contiguous storage, any operation capable of changing storage in a way that would invalidate an active element reference is subject to the borrow-invalidation rules of Section 50. An implementation MAY avoid relocation in a particular case, but it MUST NOT allow an active managed pointer to become invalid while remaining usable.</p></section><section id="section-61"><h2>61. Slices</h2>
-<p>A slice provides borrowed access to a contiguous range of elements in another value. It does not own the elements or storage.</p>
-<p>Slice syntax uses inclusive endpoints:</p>
-<pre><code>values[1..4]
-values[1...]
+<h3>Storage Invalidation</h3><p>Because a Vector may relocate its contiguous storage, any operation capable of changing storage in a way that would invalidate an active element reference is subject to the borrow-invalidation rules of Section 50. An implementation MAY avoid relocation in a particular case, but it MUST NOT allow an active managed pointer to become invalid while remaining usable.</p></section>
+
+<section id="section-61">
+<h2>61. Slices</h2>
+
+<p>
+  A slice provides borrowed access to a contiguous range of elements in another
+  value. It does not own the elements or storage.
+</p>
+
+<p>
+  CobaltC slice ranges use inclusive endpoints. Unlike half-open range
+  conventions used by some languages, both the starting and ending indices
+  identify elements included in the resulting slice:
+</p>
+
+<pre><code>values[0..3]
+values[0...]
 values[...]
 </code></pre>
-<p><code>1..4</code> includes indices 1 through 4. <code>1...</code> continues from index 1 through the final valid element. <code>...</code> selects the entire sequence.</p>
-<p>For a non-empty sequence of length <code>n</code>, an explicit inclusive range MUST satisfy <code>0 &lt;= start &lt;= end &lt; n</code>. A range whose explicit endpoints do not identify valid elements is a bounds error.</p>
-<p>The complete-range form <code>...</code> is valid for an empty sequence and produces an empty slice.</p>
-<p>A slice type is written <code>Slice[T]</code>. For slices, binding mutability is explicitly part of the slice access model: a <code>Slice[T]</code> provides shared read-only access, while a <code>mut Slice[T]</code> provides mutable access to the borrowed elements. This is a language-defined exception to the general distinction between binding mutability and managed-pointer capability described in Section 16.</p>
-<pre><code>Slice[i32] view = values[1..4];
-mut Slice[i32] view = values[1..4];</code></pre>
-<p>Slice access is subject to the same borrowing, aliasing, lifetime, and invalidation requirements as other borrowed access to the underlying storage. A slice's lifetime cannot exceed the lifetime of the storage it refers to. Passing a slice to a function passes borrowed access, not ownership.</p>
-</section><section id="section-62"><h2>62. Threads</h2>
+
+<p><code>0..3</code> includes indices 0 through 3.</p>
+<p><code>0...</code> continues from index 0 through the final valid element.</p>
+<p><code>...</code> selects the entire sequence.</p>
+
+<p>
+  For a non-empty sequence of length <code>n</code>, an explicit inclusive range
+  MUST satisfy <code>0 &lt;= start &lt;= end &lt; n</code>. A range whose explicit
+  endpoints do not identify valid elements is a bounds error.
+</p>
+
+<p>
+  The complete-range form <code>...</code> is valid for an empty sequence and
+  produces an empty slice.
+</p>
+
+<p>
+  A slice type is written <code>Slice[T]</code>. For slices, binding mutability
+  is explicitly part of the slice access model: a <code>Slice[T]</code>
+  provides shared read-only access, while a <code>mut Slice[T]</code> provides
+  mutable access to the borrowed elements. This is a language-defined exception
+  to the general distinction between binding mutability and managed-pointer
+  capability described in Section 16.
+</p>
+
+<pre><code>Slice[i32] view = values[0..3];
+mut Slice[i32] view = values[0..3];</code></pre>
+
+<p>
+  Slice access is subject to the same borrowing, aliasing, lifetime, and
+  invalidation requirements as other borrowed access to the underlying storage.
+  A slice's lifetime cannot exceed the lifetime of the storage it refers to.
+  Passing a slice to a function passes borrowed access, not ownership.
+</p>
+
+</section>
+
+<section id="section-62"><h2>62. Threads</h2>
 <p>CobaltC supports concurrent execution through threads. A value transferred to another thread MUST satisfy all applicable ownership, borrowing, lifetime, and concurrency requirements.</p>
 <p>An ordinary borrow of a local value MUST NOT be transferred when the referent may cease to exist before all uses of the transferred reference have ended.</p>
 <p>Thread creation and joining are provided by the runtime or standard library. A thread entry operation receives an owned value or otherwise explicitly specified argument capabilities; the language does not implicitly extend the lifetime of ordinary local borrows merely because a thread exists.</p>
@@ -1586,24 +1765,18 @@ fn main()
         value = 0
     };
 
-    mut State state = Ready;
+    println(describe(Ready)); // ready
 
-    println(describe(state)); // ready
-
-    while counter.value &lt; limit
+    while (counter.value &lt; limit)
     {
+        // Temporary mutable borrow of counter for the duration of the call.
         Counter::increment(&amp;mut counter);
-
-        state = Running;
 
         print("count = ");
         println(counter.value);
     }
 
-    state = Finished;
-
-    String message = describe(state);
-    println(message); // finished
+    println(describe(Finished)); // finished
 }</code></pre>
 
 <p>Expected output:
