@@ -36,7 +36,7 @@
 <body id="top">
 <main>
 <header class="document-header">
-<div class="status">Draft</div>
+<div class="status">Review Draft</div>
 <h1>CobaltC Programming Language Specification</h1>
 <p class="subtitle">
       CobaltC 1.0 — Specification version 1.0.0
@@ -44,7 +44,7 @@
 <div class="metadata">
 <div class="metadata-item">
 <span class="metadata-label">Status</span>
-<span class="metadata-value">Draft</span>
+<span class="metadata-value">Review Draft</span>
 </div>
 <div class="metadata-item">
 <span class="metadata-label">Edition</span>
@@ -71,22 +71,22 @@
 
 <div class="note">
     <p><strong>Core Design:</strong></p>
-    <p>CobaltC is C-like data plus ordinary functions, generics, explicit memory and ownership safety, and modules. Managed pointers are the source-language representation of borrow capabilities; they do not represent ownership unless a language rule explicitly states otherwise.</p>
-    <p>CobaltC provides C-like systems programming, but ownership, lifetime, bounds, nullability, and data-race rules are language semantics rather than programmer discipline.</p>
-    <p>CobaltC provides deterministic resource management and compiler-enforced borrowing rather than relying on garbage collection or programmer convention.</p>
+    <p>CobaltC is C-like data plus ordinary functions, generics, explicit memory and ownership safety, and modules. Managed pointers are the source-language representation of borrow capabilities. A borrow is the semantic relationship between an access capability and a referent; a managed pointer is the value that carries that capability. Managed pointers do not represent ownership unless a language rule explicitly states otherwise.</p>
+    <p>CobaltC provides C-like systems programming, but ownership, lifetime, bounds, nullability, and data-race rules are language semantics rather than programmer convention.</p>
+    <p>CobaltC provides deterministic resource management through destruction at language-defined ownership and scope boundaries and compiler-enforced borrowing rather than relying on garbage collection or programmer convention.</p>
     <p>Visibility is defined at the module boundary through explicit <code>export</code> declarations; CobaltC does not use <code>public</code>, <code>private</code>, or <code>protected</code> declarations.</p>
     <p>Unsafe operations and foreign interfaces form explicit boundaries outside the automatic safety guarantees of safe CobaltC.</p>
     <p>CobaltC does <strong>not</strong> provide classes, object-oriented inheritance or dynamic dispatch.</p>
 </div>
 
 
-<p>The specification deliberately leaves implementation technique, representation, and compiler architecture to the implementor except where those choices affect a normative language guarantee. The examples in this specification are normative illustrations of source syntax unless stated otherwise.</p>
+<p>The specification deliberately leaves implementation technique, representation, and compiler architecture to the implementor except where those choices affect a normative language guarantee. Examples in this specification illustrate normative syntax and semantics unless explicitly stated otherwise. Examples do not introduce additional language features or requirements beyond those defined by the normative text.</p>
 </section><section id="section-2"><h2>2. Normative Terminology</h2>
 <p>The words <strong>MUST</strong>, <strong>MUST NOT</strong>, <strong>SHOULD</strong>, <strong>SHOULD NOT</strong>, and <strong>MAY</strong> are normative.</p>
 <p><strong>CobaltC 1.0</strong> refers to the language edition. <strong>Specification version 1.0.0</strong> refers to this document revision.</p>
 <p><strong>Implementation-defined</strong> means that an implementation chooses the behavior from the alternatives permitted by this specification and documents that choice.</p>
 <p><strong>Unspecified</strong> means that this specification permits more than one behavior and does not require an implementation to document which permitted behavior it chooses.</p>
-<p><strong>Undefined behavior</strong> is behavior for which this specification imposes no requirements. Safe CobaltC operations MUST NOT introduce undefined behavior merely through ordinary use.</p>
+<p><strong>Undefined behavior</strong> is behavior for which this specification imposes no requirements. Operations expressible in safe CobaltC without entering an unsafe context MUST NOT have undefined behavior.</p>
 </section>
 
 <section id="section-3"><h2>3. Source Files</h2>
@@ -109,7 +109,7 @@
 
 <div class="note">
     <p><strong>Module Visibility:</strong> CobaltC deliberately does not require <code>public</code>, <code>private</code>, <code>protected</code>, or equivalent visibility attributes on individual declarations.</p>
-    <p>Visibility is expressed at the module boundary. Declarations describe the implementation of a module, while the module's <code>export</code> block describes the declarations made available as part of its external interface.</p>
+    <p>Visibility is expressed at the module boundary. Declarations describe the implementation of a module, while the module's <code>export</code> block describes the declarations made available as part of its external interface. In this specification, <em>exported</em> describes declarations intentionally made available by a module, <em>accessible</em> describes whether code may legally reference a declaration, and <em>visible</em> is reserved for ordinary lexical or name-resolution concepts.</p>
 </div>
 
 <p>A declaration is externally accessible only when it is exported by its defining module. Nothing is exported implicitly.</p>
@@ -268,9 +268,9 @@ f64</code></pre>
 <p>The fixed-width integer types have exactly their specified widths. Signed integers use two's-complement mathematical ranges. <code>isize</code> and <code>usize</code> are pointer-sized signed and unsigned integer types respectively.</p>
 <p><code>char</code> represents one Unicode scalar value. <code>bool</code> has exactly two values, <code>true</code> and <code>false</code>. <code>void</code> is the return type of functions that produce no value.</p>
 <p>Integer overflow, division by zero, and invalid shift operations are not silently memory-unsafe. An implementation MUST diagnose statically provable invalid constant operations and MUST otherwise apply the failure semantics specified by Section 27.</p>
-<p>The implementation provides predefined integer-limit constants such as <code>usize_max</code>, whose values correspond to the greatest representable value of the named type.</p>
+<p>The implementation provides predefined integer-limit constants such as <code>usize_max</code>, whose values correspond to the greatest representable value of the named type. These constants are language-provided values and do not imply a particular representation or compiler implementation strategy.</p>
 </section><section id="section-13"><h2>13. Compound Types</h2>
-<p>CobaltC supports structs, enums, arrays, function types, managed pointers, raw pointers, and generic types.</p>
+<p>CobaltC supports structs, enums, arrays, function types, managed pointers, raw pointers, and generic types. Types such as <code>String</code>, <code>Vector</code>, and <code>Result</code> described later in this specification are specified language-provided abstractions rather than primitive types.</p>
 <p>Structs and enums are nominal types. Type aliases do not create new nominal types.</p>
 <p>Managed pointer forms are:</p><pre><code>T*
 mut T*
@@ -327,7 +327,7 @@ mut String* p = &amp;mut value; // taking a mutable borrow</code></pre>
     from the existence of a raw pointer.
   </p>
 </section><section id="section-16"> <h2>16. Mutability</h2>
-<p> Mutability is a semantic property that determines whether a value may be modified through a particular binding or managed pointer capability. When applied before a declaration, `mut` modifies the mutability of the binding. When applied before a type, `mut` modifies the access capability of that type. </p>
+<p> Mutability is a semantic property that determines whether a value may be modified through a particular binding or managed pointer capability. When applied before a declaration, `mut` modifies the mutability of the binding. When applied before a type, `mut` modifies the access capability of that type. Qualifiers immediately preceding a type modify the type; qualifiers immediately preceding a declaration modify the binding. </p>
 <p> A mutable binding permits mutation of the value associated with that binding where no ownership or borrowing rule prohibits the operation. </p>
 <p> A shared managed pointer of type <code>T*</code> provides read-only access to its referent. A mutable managed pointer of type <code>mut T*</code> provides exclusive mutable access to its referent for the duration of the live mutable borrow. </p>
 <p> Binding mutability and managed-pointer mutability are distinct semantic properties. A mutable binding does not by itself create a mutable managed pointer. </p>
@@ -349,13 +349,13 @@ mut String* p = &amp;mut value; // taking a mutable borrow</code></pre>
 <p>When no unique type can be established, the implementation MUST require an explicit type rather than choose an arbitrary type.</p>
 <p>The compiler MAY implement inference using regions, constraints, control-flow analysis, graphs, or another sound technique. Those techniques are not additional source syntax.</p>
 </section><section id="section-19"><h2>19. Generic Types and Functions</h2>
-<p>Generic types and functions are statically checked. A generic declaration defines one parameterized declaration; supplying type arguments specializes that declaration.</p>
+<p>Generic types and functions are statically checked. A generic declaration defines one parameterized declaration; supplying type arguments specializes that declaration. The implementation technique used for specialization is not constrained by this specification provided that observable language semantics are preserved.</p>
 <pre><code>fn identity&lt;T&gt;(T value) : T
 {
     return value;
 }</code></pre>
 <p>Generic type arguments MUST satisfy the ordinary type-compatibility and ownership rules applicable to the instantiated declaration. A generic declaration MUST NOT rely on properties of a type argument that are not established by the declaration's constraints or by the ordinary rules of the language.</p>
-<p>CobaltC 1.0 does not define a user-facing generic type-constraint syntax. Generic declarations may therefore rely only on properties guaranteed for all type arguments. CobaltC 1.0 intentionally provides unconstrained generics only; user-facing generic constraints are outside this edition. An operation that requires additional properties is valid only when those properties are established by the language's ordinary rules for the instantiated type.</p>
+<p>CobaltC 1.0 does not define a user-facing generic type-constraint syntax. Generic declarations may therefore rely only on properties guaranteed for all type arguments. CobaltC 1.0 intentionally provides unconstrained generics only; user-facing generic constraints are outside this edition. This limitation is a deliberate edition boundary rather than an omission of implementation capability. An operation that requires additional properties is valid only when those properties are established by the language's ordinary rules for the instantiated type.</p>
 </section>
 
 <section id="section-20"><h2>20. Exported Types</h2>
@@ -377,7 +377,7 @@ mut String* p = &amp;mut value; // taking a mutable borrow</code></pre>
     i32 x;
     i32 y;
 }</code></pre>
-<p>Struct fields have declared types. A struct value owns its owned fields according to their declared types and the language's ownership rules.</p>
+<p>Struct fields have declared types. A struct value owns its owned fields according to their declared types and the language's ownership rules. Destruction applies only to owned values; borrowed managed pointers do not participate in destruction of their referents.</p>
 <p>Struct construction uses the form <code>Type { field = expression, ... }</code>. Field names identify the destination fields, and each field MUST be initialized exactly once.</p>
 <pre><code>Point point = Point
 {
@@ -387,7 +387,8 @@ mut String* p = &amp;mut value; // taking a mutable borrow</code></pre>
 <p>Structs do not contain function declarations. Operations on a struct may instead be declared as associated functions using the type's qualified name.</p>
 <h3>Destruction</h3>
 
-<p>A type MAY define a compiler-recognized destruction hook using associated-function syntax of the form `fn T::destroy(mut T* value)`. The hook has privileged exclusive access to the owned value while destruction is performed and releases resources directly managed by `T` that are not represented by owned fields. The hook MUST NOT independently destroy owned fields that the compiler will subsequently destroy. The compiler recursively destroys owned fields after the destruction hook completes.</p>
+<p>A type MAY define a compiler-recognized destruction hook using associated-function syntax of the form <code>fn T::destroy(mut T* value)</code>. A destruction hook uses associated-function syntax but is a distinct language mechanism: it is invoked by compiler-defined destruction semantics and is not an ordinary associated function. It MUST NOT be invoked explicitly as part of normal source-language execution.</p>
+<p>The existence of a destruction hook does not otherwise define method syntax, receiver semantics, or object-oriented behavior.</p> The hook has privileged exclusive access to the owned value while destruction is performed and releases resources directly managed by `T` that are not represented by owned fields. The hook MUST NOT independently destroy owned fields that the compiler will subsequently destroy. The compiler recursively destroys owned fields after the destruction hook completes.</p>
 <p>The destruction hook MUST return `void` and MUST NOT be invoked explicitly by ordinary program code. It is a compiler-invoked destruction hook rather than an ordinary callable function. The compiler invokes it exactly once for each owned value whose type defines one.</p>
 <p>If a type has no destruction hook, its owned fields are recursively destroyed according to their own destruction semantics.</p>
 <pre><code>
@@ -814,7 +815,7 @@ print(value);</code></pre>
 <p>Ownership transfer is explicit through moves and through operations whose signatures consume owned values. Passing a copyable value by value copies it; passing a non-copyable value by value moves it.</p>
 <p>A value is copyable only when its type's copy contract permits copying. The predefined value types and shared managed pointers are copyable unless otherwise stated. A user-defined aggregate is copyable when all of its owned components are copyable and the type does not define a destruction hook. Types provided by the standard library MAY define their own copy contracts. A mutable managed pointer is not copyable. A copy operation produces an independent value according to the type's copy contract.</p>
 </section><section id="section-38"><h2>38. Move Semantics</h2>
-<p>A move transfers ownership.</p>
+<p>A move transfers ownership of an owned value. Moving a managed pointer value transfers its borrow capability rather than ownership of its referent.</p>
 <pre><code>File a = open("data.txt")?;
 File b = move a;</code></pre>
 <p>After the move, <code>a</code> remains a binding but no longer owns the transferred value. It MUST NOT be read, moved, or destroyed as though it still owned that value. The moved-from binding may be reassigned with a newly initialized value.</p>
@@ -823,14 +824,16 @@ File b = move a;</code></pre>
 <p>Copying produces an independent value according to the type's copy contract. Copying is not ownership transfer.</p>
 <p>A shared managed pointer is copyable; copying it creates another shared borrow. A mutable managed pointer is not implicitly copyable.</p>
 </section><section id="section-40"><h2>40. Partial Moves</h2>
-<p>For aggregate values, an individual owned component MAY be moved independently when the compiler can track the resulting state.</p>
+<p>For aggregate values, an individual owned component MAY be moved independently when the resulting ownership state is well-defined according to the language rules.</p>
 <p>A moved component cannot subsequently be used through its original ownership path. Unaffected components remain usable.</p>
 <p>The moved component MUST NOT be destroyed again through the original aggregate ownership path. If the aggregate itself later reaches destruction, only the components that remain owned by that aggregate are destroyed.</p>
 
 
 </section><section id="section-41"><h2 id="section-41-borrowing">41. Borrowing</h2>
 <p>
-  A borrow provides access to an owned value without transferring ownership.
+  A value MUST NOT be destroyed, reassigned, replaced, or otherwise invalidated while a live borrow of that value or overlapping storage would be invalidated by the operation.
+
+A borrow provides access to an owned value without transferring ownership.
   Borrowing does not create a new owner of the borrowed value.
 </p>
 <p>
@@ -977,7 +980,7 @@ print(*shared);</code></pre>
 </p>
 </section><section id="section-44"><h2 id="section-44-borrow-lifetime">44. Borrow Lifetime</h2>
 <p>A borrow has a lifetime during which its managed pointer remains valid and its borrowing restrictions apply.</p>
-<p>A borrow MUST NOT outlive its referent. A borrow is ordinarily live from creation until the last subsequent use that requires the borrow, or until the enclosing scope ends if the implementation cannot establish an earlier end.</p>
+<p>A borrow MUST NOT outlive its referent. A borrow remains live for at least the period required by all later uses of that borrow. An implementation MAY determine that a borrow is no longer required earlier, provided doing so cannot violate borrowing rules or change observable program behaviour.</p>
 <p>A managed pointer passed as an ordinary by-value argument remains live for the duration of the call. A returned managed pointer may extend a borrow only when the function's result explicitly derives from the input borrow and the lifetime relationship remains valid.</p>
 <pre><code>String* pointer;
 {
@@ -1711,7 +1714,7 @@ invalid assignment</code></pre>
 <strong>CobaltC Programming Language Specification 1.0.0</strong>
 </p>
 <p>
-<strong>Status: DRAFT</strong>
+<strong>Status: Review Draft</strong>
 </p>
 <p>The language design for CobaltC 1.0.0 is established by this document, which serves as the consolidated normative baseline for the edition. Editorial corrections may be made before final publication; new language features or changes to established language semantics require a subsequent language edition.</p>
 </div>
