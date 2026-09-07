@@ -1,0 +1,3518 @@
+<!DOCTYPE html> <html lang="en"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>Ownership & Borrowing - A C Programmer's Guide</title> <style> /* ========================================================= BASE ========================================================= */
+
+:root {
+--bg: #0d1117;
+--panel: #161b22;
+--panel2: #1c2330;
+--border: #30363d;
+
+--text: #e6edf3;
+--muted: #8b949e;
+
+--blue: #58a6ff;
+--green: #3fb950;
+--yellow: #d29922;
+--red: #f85149;
+--purple: #bc8cff;
+--cyan: #39d0d8;
+
+--max-width: 1050px;
+
+}
+
+    {
+    box-sizing: border-box;
+    }
+
+html {
+scroll-behavior: smooth;
+}
+
+body {
+margin: 0;
+background: var(--bg);
+color: var(--text);
+
+font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+
+line-height: 1.7;
+
+}
+
+.container {
+width: min(var(--max-width), calc(100% - 40px));
+margin: 0 auto;
+}
+
+section {
+padding: 60px 0;
+border-bottom: 1px solid var(--border);
+}
+
+h1,
+h2,
+h3 {
+line-height: 1.2;
+}
+
+h2 {
+color: var(--blue);
+font-size: 2rem;
+margin-top: 0;
+}
+
+h3 {
+color: var(--cyan);
+margin-top: 35px;
+}
+
+p {
+max-width: 850px;
+}
+
+.lead {
+font-size: 1.2rem;
+color: #c9d1d9;
+}
+
+/* =========================================================
+HEADER
+========================================================= */
+
+header {
+padding: 75px 20px 65px;
+text-align: center;
+
+background:
+    radial-gradient(
+        circle at 50% 0%,
+        #1d3557 0%,
+        transparent 55%
+    ),
+    var(--bg);
+
+border-bottom: 1px solid var(--border);
+
+}
+
+header h1 {
+font-size: clamp(2.3rem, 7vw, 4rem);
+margin: 0 0 15px;
+letter-spacing: -2px;
+}
+
+header p {
+margin: auto;
+max-width: 760px;
+color: var(--muted);
+font-size: 1.15rem;
+}
+
+/* =========================================================
+NAVIGATION
+========================================================= */
+
+.nav {
+position: sticky;
+top: 0;
+z-index: 100;
+
+background: rgba(13, 17, 23, 0.95);
+backdrop-filter: blur(10px);
+
+border-bottom: 1px solid var(--border);
+
+overflow-x: auto;
+
+}
+
+.nav-inner {
+width: min(var(--max-width), calc(100% - 40px));
+margin: auto;
+
+display: flex;
+gap: 4px;
+
+white-space: nowrap;
+
+}
+
+.nav a {
+color: var(--muted);
+text-decoration: none;
+
+padding: 13px 10px;
+
+font-size: 0.85rem;
+
+}
+
+.nav a:hover {
+color: var(--blue);
+}
+
+/* =========================================================
+CALLOUTS
+========================================================= */
+
+.callout {
+background: var(--panel);
+
+border: 1px solid var(--border);
+border-left: 4px solid var(--blue);
+
+border-radius: 8px;
+
+padding: 20px 24px;
+margin: 25px 0;
+
+}
+
+.callout.green {
+border-left-color: var(--green);
+}
+
+.callout.yellow {
+border-left-color: var(--yellow);
+}
+
+.callout.red {
+border-left-color: var(--red);
+}
+
+.callout.purple {
+border-left-color: var(--purple);
+}
+
+.big-idea {
+font-size: 1.3rem;
+font-weight: 650;
+color: white;
+}
+
+/* =========================================================
+CODE
+========================================================= */
+
+code {
+background: #21262d;
+color: #ff7b72;
+
+padding: 2px 6px;
+border-radius: 5px;
+
+}
+
+pre {
+background: #090c10;
+
+border: 1px solid var(--border);
+border-radius: 9px;
+
+padding: 20px;
+
+overflow-x: auto;
+
+line-height: 1.55;
+font-size: 0.92rem;
+
+}
+
+pre code {
+background: transparent;
+padding: 0;
+color: #c9d1d9;
+}
+
+/* =========================================================
+CARDS
+========================================================= */
+
+.columns {
+display: grid;
+
+grid-template-columns:
+    repeat(auto-fit, minmax(270px, 1fr));
+
+gap: 20px;
+
+margin: 25px 0;
+
+}
+
+.card {
+background: var(--panel);
+
+border: 1px solid var(--border);
+border-radius: 10px;
+
+padding: 22px;
+
+}
+
+.card h3 {
+margin-top: 0;
+}
+
+/* =========================================================
+TABLES
+========================================================= */
+
+.table-wrapper {
+overflow-x: auto;
+}
+
+table {
+width: 100%;
+
+border-collapse: collapse;
+
+margin: 25px 0;
+
+background: var(--panel);
+
+border: 1px solid var(--border);
+border-radius: 8px;
+
+overflow: hidden;
+
+}
+
+th,
+td {
+text-align: left;
+
+padding: 13px 15px;
+
+border-bottom: 1px solid var(--border);
+
+vertical-align: top;
+
+}
+
+th {
+background: var(--panel2);
+color: var(--blue);
+}
+
+tr:last-child td {
+border-bottom: none;
+}
+
+/* =========================================================
+TAGS
+========================================================= */
+
+.tag {
+display: inline-block;
+
+padding: 3px 9px;
+
+border-radius: 20px;
+
+font-size: 0.8rem;
+font-weight: 650;
+
+margin-right: 5px;
+
+}
+
+.tag-c {
+background: #30363d;
+color: #c9d1d9;
+}
+
+.tag-own {
+background: #173b22;
+color: #56d364;
+}
+
+.tag-borrow {
+background: #172b4d;
+color: #79c0ff;
+}
+
+.tag-danger {
+background: #491b1b;
+color: #ff7b72;
+}
+
+/* =========================================================
+VISUAL DIAGRAM SYSTEM
+========================================================= */
+
+/*
+Instead of using Unicode box-drawing characters,
+all diagrams below are made from normal HTML elements.
+*/
+
+.diagram {
+background: #090c10;
+
+border: 1px solid var(--border);
+border-radius: 10px;
+
+padding: 30px;
+
+margin: 30px 0;
+
+}
+
+/* A single object */
+
+.object-diagram {
+display: flex;
+
+align-items: center;
+justify-content: center;
+
+gap: 18px;
+
+flex-wrap: wrap;
+
+}
+
+.diagram-node {
+min-width: 150px;
+
+padding: 15px 20px;
+
+border-radius: 10px;
+
+text-align: center;
+
+background: var(--panel);
+
+border: 2px solid var(--border);
+
+}
+
+.diagram-node strong {
+display: block;
+font-size: 1.05rem;
+}
+
+.diagram-node span {
+display: block;
+color: var(--muted);
+font-size: 0.85rem;
+}
+
+.owner-node {
+border-color: var(--green);
+}
+
+.object-node {
+border-color: var(--purple);
+}
+
+.borrower-node {
+border-color: var(--blue);
+}
+
+.storage-node {
+border-color: var(--yellow);
+}
+
+/* Relationship between nodes */
+
+.relationship {
+display: flex;
+
+flex-direction: column;
+
+align-items: center;
+
+justify-content: center;
+
+min-width: 110px;
+
+}
+
+.relationship-label {
+color: var(--muted);
+
+font-size: 0.78rem;
+font-weight: 700;
+
+text-transform: uppercase;
+
+letter-spacing: 0.8px;
+
+}
+
+.relationship-line {
+position: relative;
+
+width: 90px;
+height: 2px;
+
+background: var(--muted);
+
+margin-top: 7px;
+
+}
+
+.relationship-line::after {
+content: "";
+
+position: absolute;
+
+right: -1px;
+top: -5px;
+
+width: 0;
+height: 0;
+
+border-top: 6px solid transparent;
+border-bottom: 6px solid transparent;
+
+border-left: 9px solid var(--muted);
+
+}
+
+/* Vertical relationship */
+
+.vertical-relationship {
+display: flex;
+
+flex-direction: column;
+
+align-items: center;
+
+gap: 7px;
+
+}
+
+.vertical-line {
+position: relative;
+
+width: 2px;
+height: 45px;
+
+background: var(--muted);
+
+}
+
+.vertical-line::after {
+content: "";
+
+position: absolute;
+
+bottom: -1px;
+left: -5px;
+
+width: 0;
+height: 0;
+
+border-left: 6px solid transparent;
+border-right: 6px solid transparent;
+
+border-top: 9px solid var(--muted);
+
+}
+
+/* =========================================================
+OWNER / BORROWER MAP
+========================================================= */
+
+.access-diagram {
+display: grid;
+
+grid-template-columns:
+    minmax(120px, 1fr)
+    minmax(180px, 1.5fr)
+    minmax(120px, 1fr);
+
+align-items: center;
+
+gap: 15px;
+
+}
+
+.access-side {
+display: flex;
+flex-direction: column;
+
+align-items: center;
+gap: 8px;
+
+}
+
+.access-label {
+font-size: 0.75rem;
+color: var(--muted);
+
+text-transform: uppercase;
+letter-spacing: 0.8px;
+
+}
+
+/* =========================================================
+MOVE DIAGRAM
+========================================================= */
+
+.move-diagram {
+display: grid;
+
+grid-template-columns:
+    1fr
+    auto
+    1fr;
+
+align-items: center;
+
+gap: 25px;
+
+}
+
+.move-stage {
+text-align: center;
+}
+
+.move-stage-title {
+color: var(--muted);
+
+font-size: 0.8rem;
+
+text-transform: uppercase;
+letter-spacing: 1px;
+
+margin-bottom: 12px;
+
+}
+
+.move-arrow {
+display: flex;
+
+flex-direction: column;
+
+align-items: center;
+
+gap: 6px;
+
+}
+
+.move-arrow span {
+color: var(--purple);
+
+font-size: 0.8rem;
+font-weight: 700;
+
+text-transform: uppercase;
+
+}
+
+.move-arrow-line {
+position: relative;
+
+width: 100px;
+height: 3px;
+
+background: var(--purple);
+
+}
+
+.move-arrow-line::after {
+content: "";
+
+position: absolute;
+
+right: -1px;
+top: -6px;
+
+width: 0;
+height: 0;
+
+border-top: 7px solid transparent;
+border-bottom: 7px solid transparent;
+
+border-left: 11px solid var(--purple);
+
+}
+
+/* =========================================================
+LIFETIME TIMELINE
+========================================================= */
+
+.timeline {
+margin: 30px 0;
+
+padding: 25px;
+
+background: #090c10;
+
+border: 1px solid var(--border);
+border-radius: 10px;
+
+}
+
+.timeline-row {
+display: grid;
+
+grid-template-columns: 150px 1fr;
+
+align-items: center;
+
+gap: 20px;
+
+margin: 18px 0;
+
+}
+
+.timeline-label {
+text-align: right;
+
+color: var(--muted);
+
+font-size: 0.85rem;
+
+}
+
+.timeline-track {
+height: 12px;
+
+background: #21262d;
+
+border-radius: 20px;
+
+overflow: hidden;
+
+}
+
+.timeline-bar {
+height: 100%;
+
+border-radius: 20px;
+
+}
+
+.owner-life {
+width: 100%;
+background: var(--green);
+}
+
+.borrow-life {
+width: 65%;
+background: var(--blue);
+}
+
+.object-life {
+width: 100%;
+background: var(--purple);
+}
+
+/* =========================================================
+MISTAKES
+========================================================= */
+
+.mistake {
+display: grid;
+
+grid-template-columns: 1fr 1fr;
+
+gap: 20px;
+
+margin: 25px 0;
+
+}
+
+.wrong,
+.right {
+padding: 20px;
+
+border-radius: 8px;
+
+}
+
+.wrong {
+background: #2d1617;
+border: 1px solid #6e3030;
+}
+
+.right {
+background: #132719;
+border: 1px solid #2e6b3a;
+}
+
+.wrong h4 {
+color: var(--red);
+}
+
+.right h4 {
+color: var(--green);
+}
+
+/* =========================================================
+QUIZ
+========================================================= */
+
+.quiz {
+background:
+linear-gradient(
+135deg,
+#171d2b,
+#151b24
+);
+
+border: 1px solid #394867;
+
+border-radius: 10px;
+
+padding: 25px;
+
+margin: 25px 0;
+
+}
+
+button {
+background: var(--blue);
+
+color: #07111f;
+
+border: none;
+
+border-radius: 6px;
+
+padding: 9px 15px;
+
+font-weight: 700;
+
+cursor: pointer;
+
+}
+
+button:hover {
+filter: brightness(1.1);
+}
+
+.answer {
+display: none;
+
+margin-top: 15px;
+
+color: #c9d1d9;
+
+}
+
+/* =========================================================
+FOOTER
+========================================================= */
+
+footer {
+padding: 50px 20px;
+
+text-align: center;
+
+color: var(--muted);
+
+}
+
+/* =========================================================
+MOBILE
+========================================================= */
+
+@media (max-width: 700px) {
+
+.container {
+    width: min(100% - 25px, var(--max-width));
+}
+
+.mistake {
+    grid-template-columns: 1fr;
+}
+
+.access-diagram {
+    grid-template-columns: 1fr;
+}
+
+.move-diagram {
+    grid-template-columns: 1fr;
+}
+
+.move-arrow {
+    transform: rotate(90deg);
+}
+
+.timeline-row {
+    grid-template-columns: 1fr;
+
+    gap: 7px;
+}
+
+.timeline-label {
+    text-align: left;
+}
+
+.relationship-line {
+    width: 60px;
+}
+
+}
+
+</style>
+
+<style>
+        .book-navigation {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #374151;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        .nav-btn {
+            background-color: #374151;
+            color: #f3f4f6;
+            padding: 8px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        .nav-btn:hover {
+            background-color: #4b5563;
+        }
+        .nav-info {
+            color: #9ca3af;
+            font-size: 14px;
+        }
+
+        .logo-container {
+            float: left;
+            margin: 0 30px 20px 0;
+            width: 30%;
+            height: 30%;          
+        }
+
+    </style>
+</head> <body> <!-- ========================================================= HEADER ========================================================= --> <header> <div class="container">
+
+    <h1>Ownership &amp; Borrowing</h1>
+
+    <p>
+        A visual guide to ownership, borrowing, moves,
+        lifetimes and memory safety for programmers coming
+        from C.
+    </p>
+
+</div>
+
+</header> <!-- ========================================================= NAVIGATION ========================================================= --> <nav class="nav">
+
+<div class="nav-inner">
+
+    <a href="#mental-model">Mental Model</a>
+    <a href="#c">C Comparison</a>
+    <a href="#ownership">Ownership</a>
+    <a href="#memory">Memory</a>
+    <a href="#move">Moves</a>
+    <a href="#borrow">Borrowing</a>
+    <a href="#shared">Shared</a>
+    <a href="#mutable">Mutable</a>
+    <a href="#lifetime">Lifetimes</a>
+    <a href="#destruction">Destruction</a>
+    <a href="#raw">Raw Pointers</a>
+    <a href="#mistakes">Mistakes</a>
+    <a href="#quiz">Quiz</a>
+
+</div>
+
+</nav> <main class="container"> <!-- ========================================================= 1. MENTAL MODEL ========================================================= --> <section id="mental-model">
+
+<h2>1. The Mental Model</h2>
+
+<p class="lead">
+    If you come from C, the most useful first step is to stop
+    thinking about ownership as "owning a memory address."
+</p>
+
+<div class="callout green">
+
+    <div class="big-idea">
+        Ownership is primarily about responsibility for an
+        object's lifetime.
+    </div>
+
+    <p>
+        A variable that owns an object is responsible for the
+        object's lifetime and eventual destruction. A borrow
+        gives another part of the program temporary access to
+        that object without transferring that responsibility.
+    </p>
+
+</div>
+
+<p>
+    There are three concepts that are easy to accidentally
+    mix together:
+</p>
+
+<div class="columns">
+
+    <div class="card">
+
+        <h3>Object</h3>
+
+        <p>
+            The thing your program considers to exist.
+            For example, a String, a Widget, a Vector,
+            or a user-defined structure.
+        </p>
+
+    </div>
+
+    <div class="card">
+
+        <h3>Storage</h3>
+
+        <p>
+            The physical representation of the object:
+            stack memory, heap memory, registers, or
+            whatever representation the compiler chooses.
+        </p>
+
+    </div>
+
+    <div class="card">
+
+        <h3>Ownership</h3>
+
+        <p>
+            A language-level relationship describing who
+            controls the object's lifetime and destruction.
+        </p>
+
+    </div>
+
+</div>
+
+<div class="diagram">
+
+    <div class="object-diagram">
+
+        <div class="diagram-node owner-node">
+
+            <strong>name</strong>
+
+            <span>owner</span>
+
+        </div>
+
+        <div class="relationship">
+
+            <div class="relationship-label">
+                owns
+            </div>
+
+            <div class="relationship-line"></div>
+
+        </div>
+
+        <div class="diagram-node object-node">
+
+            <strong>String object</strong>
+
+            <span>"Alice"</span>
+
+        </div>
+
+        <div class="relationship">
+
+            <div class="relationship-label">
+                represented by
+            </div>
+
+            <div class="relationship-line"></div>
+
+        </div>
+
+        <div class="diagram-node storage-node">
+
+            <strong>Storage</strong>
+
+            <span>physical representation</span>
+
+        </div>
+
+    </div>
+
+</div>
+
+<div class="callout yellow">
+
+    <strong>Important:</strong>
+
+    <p>
+        Ownership is not fundamentally a property of a
+        particular collection of RAM addresses.
+    </p>
+
+    <p>
+        It is a semantic relationship involving an object,
+        its lifetime, and the storage/value responsible for it.
+    </p>
+
+</div>
+
+</section> <!-- ========================================================= 2. C ========================================================= --> <section id="c">
+
+<h2>2. Start With What You Know: C</h2>
+
+<p>
+    Let's begin with a familiar C example.
+</p>
+
+<pre><code>Widget *w = malloc(sizeof(Widget));</code></pre>
+
+<p>
+    At a low level, you can imagine:
+</p>
+
+<div class="diagram">
+
+    <div class="object-diagram">
+
+        <div class="diagram-node owner-node">
+
+            <strong>w</strong>
+
+            <span>C pointer</span>
+
+        </div>
+
+        <div class="relationship">
+
+            <div class="relationship-label">
+                contains address
+            </div>
+
+            <div class="relationship-line"></div>
+
+        </div>
+
+        <div class="diagram-node object-node">
+
+            <strong>Widget</strong>
+
+            <span>heap object</span>
+
+        </div>
+
+    </div>
+
+</div>
+
+<p>
+    But C doesn't tell the compiler what the pointer
+    <em>means</em>.
+</p>
+
+<p>
+    Is <code>w</code> the owner?
+    Is it borrowing the object?
+    Can another pointer free it?
+    Is somebody else responsible?
+</p>
+
+<pre><code>Widget *a = malloc(sizeof(Widget)); Widget *b = a;</code></pre>
+
+<div class="diagram">
+
+    <div class="access-diagram">
+
+        <div class="access-side">
+
+            <div class="diagram-node owner-node">
+
+                <strong>a</strong>
+
+                <span>pointer</span>
+
+            </div>
+
+            <div class="access-label">
+                ?
+            </div>
+
+        </div>
+
+        <div class="diagram-node object-node">
+
+            <strong>Widget</strong>
+
+            <span>one object</span>
+
+        </div>
+
+        <div class="access-side">
+
+            <div class="diagram-node borrower-node">
+
+                <strong>b</strong>
+
+                <span>pointer</span>
+
+            </div>
+
+            <div class="access-label">
+                ?
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<p>
+    A human programmer might establish a convention such as:
+</p>
+
+<pre><code>a owns the Widget. b merely borrows it.</code></pre>
+
+<p>
+    But the ordinary C pointer type does not encode that
+    distinction.
+</p>
+
+<div class="callout red">
+
+    <strong>The C problem:</strong>
+
+    <p>
+        The compiler generally cannot tell whether a pointer
+        owns an object, merely borrows it, or is dangling.
+    </p>
+
+</div>
+
+<div class="columns">
+
+    <div class="card">
+
+        <h3>Double free</h3>
+
+<pre><code>free(a); free(b);</code></pre>
+
+    </div>
+
+    <div class="card">
+
+        <h3>Use after free</h3>
+
+<pre><code>free(a);
+
+printf(
+"%d",
+b->value
+);</code></pre>
+
+    </div>
+
+    <div class="card">
+
+        <h3>Memory leak</h3>
+
+<pre><code>Widget *a = malloc(...);
+
+/* forgot free */</code></pre>
+
+    </div>
+
+</div>
+
+</section> <!-- ========================================================= 3. OWNERSHIP ========================================================= --> <section id="ownership">
+
+<h2>3. What Does "Owned" Actually Mean?</h2>
+
+<p>
+    Suppose we have:
+</p>
+
+<pre><code>String name = make_string("Alice");</code></pre>
+
+<p>
+    The useful question is not:
+</p>
+
+<div class="callout red">
+
+    "Which memory addresses does <code>name</code> own?"
+
+</div>
+
+<p>
+    Instead ask:
+</p>
+
+<div class="callout green">
+
+    <div class="big-idea">
+        "Which object does name control the lifetime of?"
+    </div>
+
+</div>
+
+<div class="diagram">
+
+    <div class="object-diagram">
+
+        <div class="diagram-node owner-node">
+
+            <strong>name</strong>
+
+            <span>owner</span>
+
+        </div>
+
+        <div class="relationship">
+
+            <div class="relationship-label">
+                owns
+            </div>
+
+            <div class="relationship-line"></div>
+
+        </div>
+
+        <div class="diagram-node object-node">
+
+            <strong>String</strong>
+
+            <span>"Alice"</span>
+
+        </div>
+
+    </div>
+
+</div>
+
+<p>
+    The owner is the value/storage location whose responsibility
+    includes the object's lifetime and eventual destruction.
+</p>
+
+<div class="callout purple">
+
+    <div class="big-idea">
+        Think: Owner = responsible for lifetime.
+    </div>
+
+</div>
+
+</section> <!-- ========================================================= 4. MEMORY ========================================================= --> <section id="memory">
+
+<h2>4. Is It the Memory Slot?</h2>
+
+<p>
+    This is probably the most important question for someone
+    coming from C.
+</p>
+
+<div class="callout green">
+
+    <div class="big-idea">
+        No. Do not think of ownership as permanently attached
+        to a particular memory slot.
+    </div>
+
+</div>
+
+<p>
+    It is tempting to imagine:
+</p>
+
+<div class="diagram">
+
+    <div class="object-diagram">
+
+        <div class="diagram-node owner-node">
+
+            <strong>variable X</strong>
+
+            <span>memory slot</span>
+
+        </div>
+
+        <div class="relationship">
+
+            <div class="relationship-label">
+                owns
+            </div>
+
+            <div class="relationship-line"></div>
+
+        </div>
+
+        <div class="diagram-node object-node">
+
+            <strong>memory #1234</strong>
+
+            <span>bytes</span>
+
+        </div>
+
+    </div>
+
+</div>
+
+<p>
+    But that is too implementation-focused.
+</p>
+
+<p>
+    A better model is:
+</p>
+
+<div class="diagram">
+
+    <div class="object-diagram">
+
+        <div class="diagram-node owner-node">
+
+            <strong>variable X</strong>
+
+            <span>owner</span>
+
+        </div>
+
+        <div class="relationship">
+
+            <div class="relationship-label">
+                owns
+            </div>
+
+            <div class="relationship-line"></div>
+
+        </div>
+
+        <div class="diagram-node object-node">
+
+            <strong>String object</strong>
+
+            <span>the thing that exists</span>
+
+        </div>
+
+        <div class="relationship">
+
+            <div class="relationship-label">
+                represented by
+            </div>
+
+            <div class="relationship-line"></div>
+
+        </div>
+
+        <div class="diagram-node storage-node">
+
+            <strong>Storage</strong>
+
+            <span>implementation detail</span>
+
+        </div>
+
+    </div>
+
+</div>
+
+<div class="callout yellow">
+
+    <strong>Rule of thumb:</strong>
+
+    <p>
+        If thinking in terms of addresses makes ownership
+        confusing, temporarily forget addresses.
+    </p>
+
+    <p>
+        Think in terms of:
+        <strong>object + lifetime + access</strong>.
+    </p>
+
+</div>
+
+</section> <!-- ========================================================= 5. MOVE ========================================================= --> <section id="move">
+
+<h2>5. Moving Ownership</h2>
+
+<p>
+    One of the biggest differences from C is the idea of
+    explicitly transferring ownership.
+</p>
+
+<pre><code>String a = make_string("hello");
+
+String b = move(a);</code></pre>
+
+<p>
+    Before the move:
+</p>
+
+<div class="diagram">
+
+    <div class="object-diagram">
+
+        <div class="diagram-node owner-node">
+
+            <strong>a</strong>
+
+            <span>owner</span>
+
+        </div>
+
+        <div class="relationship">
+
+            <div class="relationship-label">
+                owns
+            </div>
+
+            <div class="relationship-line"></div>
+
+        </div>
+
+        <div class="diagram-node object-node">
+
+            <strong>String</strong>
+
+            <span>"hello"</span>
+
+        </div>
+
+    </div>
+
+</div>
+
+<p>
+    After the move:
+</p>
+
+<div class="diagram">
+
+    <div class="object-diagram">
+
+        <div class="diagram-node borrower-node">
+
+            <strong>a</strong>
+
+            <span>no longer owner</span>
+
+        </div>
+
+        <div class="relationship">
+
+            <div class="relationship-label">
+                ownership moved
+            </div>
+
+            <div class="relationship-line"></div>
+
+        </div>
+
+        <div class="diagram-node owner-node">
+
+            <strong>b</strong>
+
+            <span>new owner</span>
+
+        </div>
+
+        <div class="relationship">
+
+            <div class="relationship-label">
+                owns
+            </div>
+
+            <div class="relationship-line"></div>
+
+        </div>
+
+        <div class="diagram-node object-node">
+
+            <strong>String</strong>
+
+            <span>"hello"</span>
+
+        </div>
+
+    </div>
+
+</div>
+
+<div class="callout green">
+
+    <div class="big-idea">
+        Move = transfer of responsibility.
+    </div>
+
+    <p>
+        The important semantic event is not necessarily that
+        bytes moved somewhere else.
+    </p>
+
+    <p>
+        The important event is that ownership responsibility
+        transferred from <code>a</code> to <code>b</code>.
+    </p>
+
+</div>
+
+<h3>Why is this useful?</h3>
+
+<p>
+    Because destruction remains unambiguous.
+</p>
+
+<div class="move-diagram">
+
+    <div class="move-stage">
+
+        <div class="move-stage-title">
+            Before
+        </div>
+
+        <div class="diagram-node owner-node">
+
+            <strong>a</strong>
+
+            <span>owns object</span>
+
+        </div>
+
+    </div>
+
+    <div class="move-arrow">
+
+        <span>move</span>
+
+        <div class="move-arrow-line"></div>
+
+    </div>
+
+    <div class="move-stage">
+
+        <div class="move-stage-title">
+            After
+        </div>
+
+        <div class="diagram-node owner-node">
+
+            <strong>b</strong>
+
+            <span>owns object</span>
+
+        </div>
+
+    </div>
+
+</div>
+
+<div class="callout yellow">
+
+    <strong>Important:</strong>
+
+    <p>
+        Do not automatically equate "move" with "copy the bytes
+        somewhere else."
+    </p>
+
+    <p>
+        Think:
+        <strong>the ownership relationship moved.</strong>
+    </p>
+
+</div>
+
+</section> <!-- ========================================================= 6. BORROWING ========================================================= --> <section id="borrow">
+
+<h2>6. Borrowing</h2>
+
+<p>
+    What if we don't want to transfer ownership?
+    We simply want another function to use the object.
+</p>
+
+<pre><code>String name = make_string("Alice");
+
+String* p = &name;</code></pre>
+
+<p>
+    Conceptually:
+</p>
+
+<div class="diagram">
+
+    <div class="access-diagram">
+
+        <div class="access-side">
+
+            <div class="diagram-node owner-node">
+
+                <strong>name</strong>
+
+                <span>owner</span>
+
+            </div>
+
+            <div class="access-label">
+                controls lifetime
+            </div>
+
+        </div>
+
+        <div class="diagram-node object-node">
+
+            <strong>String</strong>
+
+            <span>"Alice"</span>
+
+        </div>
+
+        <div class="access-side">
+
+            <div class="diagram-node borrower-node">
+
+                <strong>p</strong>
+
+                <span>borrower</span>
+
+            </div>
+
+            <div class="access-label">
+                access only
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<div class="callout blue">
+
+    <div class="big-idea">
+        Borrowing means temporary access without ownership.
+    </div>
+
+    <p>
+        The borrower gets permission to access the object while
+        somebody else remains responsible for its lifetime.
+    </p>
+
+</div>
+
+<h3>Compare this with C</h3>
+
+<p>
+    In C, you might simply pass a pointer:
+</p>
+
+<pre><code>void print_widget(Widget *w) { printf("%d", w->value); }</code></pre>
+
+<p>
+    A programmer may intend:
+</p>
+
+<pre><code>"print_widget borrows w."</code></pre>
+
+<p>
+    But the C type <code>Widget *</code> doesn't encode that
+    ownership relationship.
+</p>
+
+<p>
+    In an ownership-oriented language, the managed pointer
+    represents an access capability whose lifetime and aliasing
+    are subject to the language's rules.
+</p>
+
+</section> <!-- ========================================================= 7. SHARED BORROW ========================================================= --> <section id="shared">
+
+<h2>7. Shared Borrows</h2>
+
+<p>
+    A shared borrow means:
+</p>
+
+<div class="callout blue">
+
+    <div class="big-idea">
+        "I want to read this object, but I don't need exclusive access."
+    </div>
+
+</div>
+
+<p>
+    Multiple shared borrows can exist simultaneously.
+</p>
+
+<div class="diagram">
+
+    <div class="access-diagram">
+
+        <div class="access-side">
+
+            <div class="diagram-node borrower-node">
+
+                <strong>p</strong>
+
+                <span>shared borrow</span>
+
+            </div>
+
+            <div class="access-label">
+                read
+            </div>
+
+        </div>
+
+        <div class="diagram-node object-node">
+
+            <strong>String</strong>
+
+            <span>one object</span>
+
+        </div>
+
+        <div class="access-side">
+
+            <div class="diagram-node borrower-node">
+
+                <strong>q</strong>
+
+                <span>shared borrow</span>
+
+            </div>
+
+            <div class="access-label">
+                read
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<p>
+    The owner still exists behind the scenes:
+</p>
+
+<div class="callout green">
+
+    <strong>Shared rule:</strong>
+
+    <p>
+        Multiple readers are okay.
+        They do not require exclusive mutation.
+    </p>
+
+</div>
+
+<pre><code>String name = make_string("Alice");
+
+String* p = &name;
+String* q = &name;
+
+/* p and q can both read name */</code></pre>
+
+<p>
+    This is conceptually very different from unrestricted
+    pointer aliasing in C.
+</p>
+
+</section> <!-- ========================================================= 8. MUTABLE BORROW ========================================================= --> <section id="mutable">
+
+<h2>8. Mutable Borrows</h2>
+
+<p>
+    Now suppose we want to modify the object.
+</p>
+
+<pre><code>mut String* p = &amp;mut name;</code></pre>
+
+<p>
+    The important idea is:
+</p>
+
+<div class="callout yellow">
+
+    <div class="big-idea">
+        A mutable borrow provides exclusive mutable access.
+    </div>
+
+</div>
+
+<div class="diagram">
+
+    <div class="object-diagram">
+
+        <div class="diagram-node borrower-node">
+
+            <strong>p</strong>
+
+            <span>mutable borrow</span>
+
+        </div>
+
+        <div class="relationship">
+
+            <div class="relationship-label">
+                exclusive access
+            </div>
+
+            <div class="relationship-line"></div>
+
+        </div>
+
+        <div class="diagram-node object-node">
+
+            <strong>String</strong>
+
+            <span>being modified</span>
+
+        </div>
+
+    </div>
+
+</div>
+
+<p>
+    Why exclusive?
+</p>
+
+<p>
+    Imagine two pointers:
+</p>
+
+<div class="diagram">
+
+    <div class="access-diagram">
+
+        <div class="access-side">
+
+            <div class="diagram-node borrower-node">
+
+                <strong>p</strong>
+
+                <span>writing</span>
+
+            </div>
+
+        </div>
+
+        <div class="diagram-node object-node">
+
+            <strong>Object</strong>
+
+            <span>being modified</span>
+
+        </div>
+
+        <div class="access-side">
+
+            <div class="diagram-node borrower-node">
+
+                <strong>q</strong>
+
+                <span>reading</span>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="callout red">
+
+        <strong>Potential conflict:</strong>
+
+        <p>
+            One accessor is changing the object while another
+            accessor is relying on its state.
+        </p>
+
+    </div>
+
+</div>
+
+<div class="callout green">
+
+    <strong>Simple rule:</strong>
+
+    <p>
+        Many shared readers are okay.
+    </p>
+
+    <p>
+        One mutable accessor gets exclusive access.
+    </p>
+
+</div>
+
+</section> <!-- ========================================================= 9. LIFETIMES ========================================================= --> <section id="lifetime">
+
+<h2>9. Lifetimes</h2>
+
+<p>
+    Borrowing immediately creates another question:
+</p>
+
+<div class="callout yellow">
+
+    <div class="big-idea">
+        "How long is this borrowed access valid?"
+    </div>
+
+</div>
+
+<p>
+    Suppose:
+</p>
+
+<pre><code>String name = make_string("Alice");
+
+String* p = &name;</code></pre>
+
+<p>
+    The borrow cannot remain valid after <code>name</code> is
+    destroyed.
+</p>
+
+<div class="timeline">
+
+    <div class="timeline-row">
+
+        <div class="timeline-label">
+            Object lifetime
+        </div>
+
+        <div class="timeline-track">
+
+            <div class="timeline-bar object-life"></div>
+
+        </div>
+
+    </div>
+
+    <div class="timeline-row">
+
+        <div class="timeline-label">
+            Owner lifetime
+        </div>
+
+        <div class="timeline-track">
+
+            <div class="timeline-bar owner-life"></div>
+
+        </div>
+
+    </div>
+
+    <div class="timeline-row">
+
+        <div class="timeline-label">
+            Borrow lifetime
+        </div>
+
+        <div class="timeline-track">
+
+            <div class="timeline-bar borrow-life"></div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<div class="callout red">
+
+    <strong>Core lifetime rule:</strong>
+
+    <p>
+        A borrow must not remain usable after the object it
+        refers to has ceased to exist.
+    </p>
+
+</div>
+
+<h3>Compare this with C</h3>
+
+<pre><code>Widget *get_widget(void)
+{
+    Widget w;
+    return &amp;w;
+}</code></pre>
+
+<p>
+    The pointer returned by this function refers to a local
+    object whose lifetime ends when the function returns.
+</p>
+
+<p>
+    C allows you to form the pointer.
+    Using it later is undefined behavior.
+</p>
+
+<p>
+    An ownership-aware language attempts to detect this kind
+    of invalid lifetime relationship.
+</p>
+
+</section> <!-- ========================================================= 10. DESTRUCTION ========================================================= --> <section id="destruction">
+
+<h2>10. Destruction</h2>
+
+<p>
+    Ownership becomes particularly useful when we talk about
+    destruction.
+</p>
+
+<pre><code>fn example()
+{
+    String name = make_string("Alice");
+
+    // use name
+
+} // ownership ends here</code></pre>
+
+<p>
+    The important question is:
+</p>
+
+<div class="callout green">
+
+    <div class="big-idea">
+        "Who is responsible for destroying the object?"
+    </div>
+
+</div>
+
+<p>
+    The owner.
+</p>
+
+<div class="diagram">
+
+    <div class="object-diagram">
+
+        <div class="diagram-node owner-node">
+
+            <strong>name</strong>
+
+            <span>owner</span>
+
+        </div>
+
+        <div class="relationship">
+
+            <div class="relationship-label">
+                controls lifetime
+            </div>
+
+            <div class="relationship-line"></div>
+
+        </div>
+
+        <div class="diagram-node object-node">
+
+            <strong>String</strong>
+
+            <span>resource</span>
+
+        </div>
+
+        <div class="relationship">
+
+            <div class="relationship-label">
+                eventually
+            </div>
+
+            <div class="relationship-line"></div>
+
+        </div>
+
+        <div class="diagram-node storage-node">
+
+            <strong>destroy</strong>
+
+            <span>release resources</span>
+
+        </div>
+
+    </div>
+
+</div>
+
+<div class="callout purple">
+
+    <strong>Ownership connects three questions:</strong>
+
+    <ol>
+
+        <li>
+            Who is responsible for the object's lifetime?
+        </li>
+
+        <li>
+            Who is allowed to access it?
+        </li>
+
+        <li>
+            Who eventually destroys/releases it?
+        </li>
+
+    </ol>
+
+</div>
+
+</section> <!-- ========================================================= 11. RAW POINTERS ========================================================= --> <section id="raw">
+
+<h2>11. Managed Pointers vs Raw Pointers</h2>
+
+<p>
+    This is especially important when coming from C.
+</p>
+
+<div class="table-wrapper">
+
+<table>
+
+    <tr>
+
+        <th>Concept</th>
+        <th>Ownership-oriented language</th>
+        <th>C</th>
+
+    </tr>
+
+    <tr>
+
+        <td>
+            <strong>Managed pointer</strong>
+        </td>
+
+        <td>
+            Represents a compiler-checked access capability.
+        </td>
+
+        <td>
+            No direct equivalent in ordinary C.
+        </td>
+
+    </tr>
+
+    <tr>
+
+        <td>
+            <strong>Raw pointer</strong>
+        </td>
+
+        <td>
+            An unmanaged address. Safety guarantees do not
+            automatically apply.
+        </td>
+
+        <td>
+            The normal pointer model.
+        </td>
+
+    </tr>
+
+    <tr>
+
+        <td>
+            <strong>Ownership</strong>
+        </td>
+
+        <td>
+            A language-level concept.
+        </td>
+
+        <td>
+            Mostly a programmer convention.
+        </td>
+
+    </tr>
+
+    <tr>
+
+        <td>
+            <strong>Lifetime checking</strong>
+        </td>
+
+        <td>
+            Enforced by the language's safety rules.
+        </td>
+
+        <td>
+            Mostly programmer responsibility.
+        </td>
+
+    </tr>
+
+</table>
+
+</div>
+
+<div class="callout yellow">
+
+    <strong>Think of raw pointers as an escape hatch.</strong>
+
+    <p>
+        They bring you closer to the traditional C world:
+        "Here is an address. You are responsible for knowing
+        what it means and whether it is valid."
+    </p>
+
+</div>
+
+</section> <!-- ========================================================= 12. C COMPARISON ========================================================= --> <section id="comparison">
+
+<h2>12. The Same Problem: C vs Ownership</h2>
+
+<h3>C version</h3>
+
+<pre><code>Widget *create_widget(void)
+{
+    Widget *w = malloc(sizeof(Widget));
+
+    if (!w)
+        return NULL;
+
+    w->value = 42;
+
+    return w;
+}
+
+void use_widget(Widget *w)
+{
+    printf("%d\n", w->value);
+}
+
+int main(void)
+{
+    Widget *w = create_widget();
+
+    use_widget(w);
+
+    free(w);
+
+}</code></pre>
+
+<p>
+    A human reader may infer:
+</p>
+
+<div class="columns">
+
+    <div class="card">
+
+        <h3>create_widget</h3>
+
+        <p>
+            Creates an object and transfers responsibility
+            to the caller.
+        </p>
+
+    </div>
+
+    <div class="card">
+
+        <h3>use_widget</h3>
+
+        <p>
+            Uses the object but does not destroy it.
+            Conceptually, it borrows it.
+        </p>
+
+    </div>
+
+    <div class="card">
+
+        <h3>main</h3>
+
+        <p>
+            Holds the responsibility and eventually calls
+            <code>free</code>.
+        </p>
+
+    </div>
+
+</div>
+
+<p>
+    But those relationships are mostly in the programmer's head.
+</p>
+
+<h3>Ownership-oriented version</h3>
+
+<pre><code>Widget w = create_widget();
+
+use_widget(&w);
+
+/* w remains owned here */
+
+/* scope ends - w is destroyed */</code></pre>
+
+<div class="callout green">
+
+    <div class="big-idea">
+        The major improvement is not simply "different pointers."
+    </div>
+
+    <p>
+        The language can distinguish between owning a value and
+        temporarily accessing somebody else's value.
+    </p>
+
+</div>
+
+</section> <!-- ========================================================= 13. THREE RELATIONSHIPS ========================================================= --> <section id="three">
+
+<h2>13. The Three Most Important Relationships</h2>
+
+<div class="columns">
+
+    <div class="card">
+
+        <h3 style="color: var(--green);">
+            OWN
+        </h3>
+
+        <div class="diagram">
+
+            <div class="vertical-relationship">
+
+                <div class="diagram-node owner-node">
+
+                    <strong>Owner</strong>
+
+                    <span>responsible</span>
+
+                </div>
+
+                <div class="relationship-label">
+                    owns
+                </div>
+
+                <div class="vertical-line"></div>
+
+                <div class="diagram-node object-node">
+
+                    <strong>Object</strong>
+
+                    <span>has lifetime</span>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <p>
+            The owner controls the object's lifetime.
+        </p>
+
+    </div>
+
+    <div class="card">
+
+        <h3 style="color: var(--blue);">
+            BORROW
+        </h3>
+
+        <div class="diagram">
+
+            <div class="vertical-relationship">
+
+                <div class="diagram-node borrower-node">
+
+                    <strong>Borrower</strong>
+
+                    <span>access</span>
+
+                </div>
+
+                <div class="relationship-label">
+                    accesses
+                </div>
+
+                <div class="vertical-line"></div>
+
+                <div class="diagram-node object-node">
+
+                    <strong>Object</strong>
+
+                    <span>owned elsewhere</span>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <p>
+            The borrower gets access without becoming responsible
+            for destruction.
+        </p>
+
+    </div>
+
+    <div class="card">
+
+        <h3 style="color: var(--purple);">
+            MOVE
+        </h3>
+
+        <div class="diagram">
+
+            <div class="move-arrow">
+
+                <div class="diagram-node owner-node">
+
+                    <strong>Old owner</strong>
+
+                    <span>before</span>
+
+                </div>
+
+                <div class="relationship-label">
+                    transfers ownership
+                </div>
+
+                <div class="vertical-line"></div>
+
+                <div class="diagram-node owner-node">
+
+                    <strong>New owner</strong>
+
+                    <span>after</span>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <p>
+            Responsibility for the object's lifetime transfers.
+        </p>
+
+    </div>
+
+</div>
+
+</section> <!-- ========================================================= 14. COMMON MISTAKES ========================================================= --> <section id="mistakes">
+
+<h2>14. Common Mental Mistakes</h2>
+
+<div class="mistake">
+
+    <div class="wrong">
+
+        <h4>
+            Wrong mental model
+        </h4>
+
+        <p>
+            "Ownership means owning a memory address."
+        </p>
+
+    </div>
+
+    <div class="right">
+
+        <h4>
+            Better mental model
+        </h4>
+
+        <p>
+            Ownership means responsibility for an object's
+            lifetime.
+        </p>
+
+    </div>
+
+</div>
+
+<div class="mistake">
+
+    <div class="wrong">
+
+        <h4>
+            Wrong mental model
+        </h4>
+
+        <p>
+            "A pointer means ownership."
+        </p>
+
+    </div>
+
+    <div class="right">
+
+        <h4>
+            Better mental model
+        </h4>
+
+        <p>
+            A managed pointer can represent non-owning access.
+        </p>
+
+    </div>
+
+</div>
+
+<div class="mistake">
+
+    <div class="wrong">
+
+        <h4>
+            Wrong mental model
+        </h4>
+
+        <p>
+            "Borrowing means copying the object."
+        </p>
+
+    </div>
+
+    <div class="right">
+
+        <h4>
+            Better mental model
+        </h4>
+
+        <p>
+            Borrowing means accessing the existing object without
+            taking ownership.
+        </p>
+
+    </div>
+
+</div>
+
+<div class="mistake">
+
+    <div class="wrong">
+
+        <h4>
+            Wrong mental model
+        </h4>
+
+        <p>
+            "Move means the bytes have to move."
+        </p>
+
+    </div>
+
+    <div class="right">
+
+        <h4>
+            Better mental model
+        </h4>
+
+        <p>
+            Move means ownership responsibility transfers.
+        </p>
+
+    </div>
+
+</div>
+
+<div class="mistake">
+
+    <div class="wrong">
+
+        <h4>
+            Wrong mental model
+        </h4>
+
+        <p>
+            "A borrow can live as long as the pointer exists."
+        </p>
+
+    </div>
+
+    <div class="right">
+
+        <h4>
+            Better mental model
+        </h4>
+
+        <p>
+            A borrow is valid only while the referenced object
+            remains alive and the borrow rules permit access.
+        </p>
+
+    </div>
+
+</div>
+
+</section> <!-- ========================================================= 15. SIMPLE RULES ========================================================= --> <section id="rules">
+
+<h2>15. A Simple Set of Rules</h2>
+
+<p>
+    You do not need to memorize the entire specification yet.
+    Start with these rules.
+</p>
+
+<div class="columns">
+
+    <div class="card">
+
+        <h3>Rule 1</h3>
+
+        <p>
+            Every owned object has an owner.
+        </p>
+
+    </div>
+
+    <div class="card">
+
+        <h3>Rule 2</h3>
+
+        <p>
+            Ownership determines responsibility for destruction.
+        </p>
+
+    </div>
+
+    <div class="card">
+
+        <h3>Rule 3</h3>
+
+        <p>
+            A borrow does not transfer ownership.
+        </p>
+
+    </div>
+
+    <div class="card">
+
+        <h3>Rule 4</h3>
+
+        <p>
+            A borrow cannot outlive the object it refers to.
+        </p>
+
+    </div>
+
+    <div class="card">
+
+        <h3>Rule 5</h3>
+
+        <p>
+            Shared borrows permit compatible read access.
+        </p>
+
+    </div>
+
+    <div class="card">
+
+        <h3>Rule 6</h3>
+
+        <p>
+            Mutable borrows provide exclusive mutable access.
+        </p>
+
+    </div>
+
+    <div class="card">
+
+        <h3>Rule 7</h3>
+
+        <p>
+            A move transfers ownership.
+        </p>
+
+    </div>
+
+    <div class="card">
+
+        <h3>Rule 8</h3>
+
+        <p>
+            Raw pointers operate outside normal managed safety
+            guarantees.
+        </p>
+
+    </div>
+
+</div>
+
+</section> <!-- ========================================================= 16. BIG PICTURE ========================================================= --> <section id="big-picture">
+
+<h2>16. The Big Picture</h2>
+
+<p>
+    Put everything together and ownership languages are really
+    answering four questions.
+</p>
+
+<div class="columns">
+
+    <div class="card">
+
+        <h3>1. Who owns it?</h3>
+
+        <p>
+            Who is responsible for the object's lifetime?
+        </p>
+
+    </div>
+
+    <div class="card">
+
+        <h3>2. Who can access it?</h3>
+
+        <p>
+            Which parts of the program currently have permission
+            to use it?
+        </p>
+
+    </div>
+
+    <div class="card">
+
+        <h3>3. How can they access it?</h3>
+
+        <p>
+            Is access shared/read-only or exclusive/mutable?
+        </p>
+
+    </div>
+
+    <div class="card">
+
+        <h3>4. For how long?</h3>
+
+        <p>
+            What are the lifetime boundaries of the object and
+            each borrow?
+        </p>
+
+    </div>
+
+</div>
+
+<div class="diagram">
+
+    <div class="object-diagram">
+
+        <div class="diagram-node owner-node">
+
+            <strong>OWNER</strong>
+
+            <span>responsibility</span>
+
+        </div>
+
+        <div class="relationship">
+
+            <div class="relationship-label">
+                owns
+            </div>
+
+            <div class="relationship-line"></div>
+
+        </div>
+
+        <div class="diagram-node object-node">
+
+            <strong>OBJECT</strong>
+
+            <span>has lifetime</span>
+
+        </div>
+
+        <div class="relationship">
+
+            <div class="relationship-label">
+                may be accessed by
+            </div>
+
+            <div class="relationship-line"></div>
+
+        </div>
+
+        <div class="diagram-node borrower-node">
+
+            <strong>BORROWER</strong>
+
+            <span>temporary access</span>
+
+        </div>
+
+    </div>
+
+</div>
+
+<div class="callout purple">
+
+    <div class="big-idea">
+        Ownership answers "Who is responsible?"
+    </div>
+
+    <p>
+        Borrowing answers "Who may access it?"
+    </p>
+
+    <p>
+        Mutability answers "Who may change it?"
+    </p>
+
+    <p>
+        Lifetimes answer "For how long?"
+    </p>
+
+    <p>
+        Move semantics answer "Who is responsible now?"
+    </p>
+
+</div>
+
+</section> <!-- ========================================================= 17. C TRANSLATION TABLE ========================================================= --> <section id="c-translation">
+
+<h2>17. Translate Ownership Concepts Into C Terms</h2>
+
+<p>
+    When reading an ownership-oriented specification,
+    this translation can help.
+</p>
+
+<div class="table-wrapper">
+
+<table>
+
+    <tr>
+
+        <th>
+            Ownership concept
+        </th>
+
+        <th>
+            Closest C intuition
+        </th>
+
+        <th>
+            Important difference
+        </th>
+
+    </tr>
+
+    <tr>
+
+        <td>
+            <strong>Owner</strong>
+        </td>
+
+        <td>
+            The pointer/value responsible for calling
+            <code>free()</code>.
+        </td>
+
+        <td>
+            In an ownership system, this relationship is part
+            of the language semantics rather than merely a
+            programmer convention.
+        </td>
+
+    </tr>
+
+    <tr>
+
+        <td>
+            <strong>Borrow</strong>
+        </td>
+
+        <td>
+            Passing a pointer to a function without transferring
+            responsibility.
+        </td>
+
+        <td>
+            The compiler can enforce lifetime and access rules.
+        </td>
+
+    </tr>
+
+    <tr>
+
+        <td>
+            <strong>Move</strong>
+        </td>
+
+        <td>
+            Transferring responsibility from one variable to
+            another.
+        </td>
+
+        <td>
+            The old value is no longer treated as the owner.
+        </td>
+
+    </tr>
+
+    <tr>
+
+        <td>
+            <strong>Shared borrow</strong>
+        </td>
+
+        <td>
+            Somewhat like a read-only pointer.
+        </td>
+
+        <td>
+            It also participates in lifetime and aliasing rules.
+        </td>
+
+    </tr>
+
+    <tr>
+
+        <td>
+            <strong>Mutable borrow</strong>
+        </td>
+
+        <td>
+            Somewhat like a writable pointer.
+        </td>
+
+        <td>
+            It requires exclusive access during the borrow.
+        </td>
+
+    </tr>
+
+    <tr>
+
+        <td>
+            <strong>Lifetime</strong>
+        </td>
+
+        <td>
+            The period during which a pointer is known to remain
+            valid.
+        </td>
+
+        <td>
+            The language tracks the relationship rather than
+            leaving it entirely to the programmer.
+        </td>
+
+    </tr>
+
+    <tr>
+
+        <td>
+            <strong>Raw pointer</strong>
+        </td>
+
+        <td>
+            Traditional C pointer.
+        </td>
+
+        <td>
+            It is outside the normal managed safety model.
+        </td>
+
+    </tr>
+
+</table>
+
+</div>
+
+</section> <!-- ========================================================= 18. QUIZ ========================================================= --> <section id="quiz">
+
+<h2>18. Test Your Mental Model</h2>
+
+<div class="quiz">
+
+    <p>
+
+        <strong>
+            Question 1:
+        </strong>
+
+        If <code>a</code> owns a String and <code>b</code>
+        borrows it, who is responsible for destroying the String?
+
+    </p>
+
+    <button onclick="showAnswer('answer1')">
+        Show answer
+    </button>
+
+    <div id="answer1" class="answer">
+
+        <strong>
+            <code>a</code>.
+        </strong>
+
+        <p>
+            The borrower does not become responsible for the
+            object's lifetime.
+        </p>
+
+    </div>
+
+</div>
+
+<div class="quiz">
+
+    <p>
+
+        <strong>
+            Question 2:
+        </strong>
+
+        If ownership moves from <code>a</code> to <code>b</code>,
+        must the object physically move in memory?
+
+    </p>
+
+    <button onclick="showAnswer('answer2')">
+        Show answer
+    </button>
+
+    <div id="answer2" class="answer">
+
+        <strong>
+            No.
+        </strong>
+
+        <p>
+            The important semantic change is the transfer of
+            ownership responsibility.
+        </p>
+
+    </div>
+
+</div>
+
+<div class="quiz">
+
+    <p>
+
+        <strong>
+            Question 3:
+        </strong>
+
+        Can several shared borrows exist simultaneously?
+
+    </p>
+
+    <button onclick="showAnswer('answer3')">
+        Show answer
+    </button>
+
+    <div id="answer3" class="answer">
+
+        <strong>
+            Yes.
+        </strong>
+
+        <p>
+            Shared borrows permit compatible read access.
+        </p>
+
+    </div>
+
+</div>
+
+<div class="quiz">
+
+    <p>
+
+        <strong>
+            Question 4:
+        </strong>
+
+        Why is mutable access normally exclusive?
+
+    </p>
+
+    <button onclick="showAnswer('answer4')">
+        Show answer
+    </button>
+
+    <div id="answer4" class="answer">
+
+        <strong>
+            Because mutation can conflict with other accesses.
+        </strong>
+
+        <p>
+            Exclusivity lets the compiler reason about changes
+            to the object without uncontrolled aliasing.
+        </p>
+
+    </div>
+
+</div>
+
+<div class="quiz">
+
+    <p>
+
+        <strong>
+            Question 5:
+        </strong>
+
+        What is the best replacement for:
+        "I own these memory addresses"?
+
+    </p>
+
+    <button onclick="showAnswer('answer5')">
+        Show answer
+    </button>
+
+    <div id="answer5" class="answer">
+
+        <strong>
+            "I am responsible for this object's lifetime."
+        </strong>
+
+        <p>
+            That is the mental model to carry forward.
+        </p>
+
+    </div>
+
+</div>
+
+</section> <!-- ========================================================= 19. CHEAT SHEET ========================================================= --> <section id="cheatsheet">
+
+<h2>19. One-Page Cheat Sheet</h2>
+
+<div class="table-wrapper">
+
+<table>
+
+    <tr>
+
+        <th>
+            Term
+        </th>
+
+        <th>
+            Think of it as...
+        </th>
+
+    </tr>
+
+    <tr>
+
+        <td>
+            <strong>Object</strong>
+        </td>
+
+        <td>
+            The thing that exists.
+        </td>
+
+    </tr>
+
+    <tr>
+
+        <td>
+            <strong>Storage</strong>
+        </td>
+
+        <td>
+            Where/how the object is physically represented.
+        </td>
+
+    </tr>
+
+    <tr>
+
+        <td>
+            <strong>Owner</strong>
+        </td>
+
+        <td>
+            Who is responsible for the object's lifetime.
+        </td>
+
+    </tr>
+
+    <tr>
+
+        <td>
+            <strong>Ownership</strong>
+        </td>
+
+        <td>
+            Responsibility and authority over lifetime.
+        </td>
+
+    </tr>
+
+    <tr>
+
+        <td>
+            <strong>Borrow</strong>
+        </td>
+
+        <td>
+            Temporary access without ownership.
+        </td>
+
+    </tr>
+
+    <tr>
+
+        <td>
+            <strong>Shared borrow</strong>
+        </td>
+
+        <td>
+            Compatible read access; multiple readers can coexist.
+        </td>
+
+    </tr>
+
+    <tr>
+
+        <td>
+            <strong>Mutable borrow</strong>
+        </td>
+
+        <td>
+            Exclusive mutable access.
+        </td>
+
+    </tr>
+
+    <tr>
+
+        <td>
+            <strong>Move</strong>
+        </td>
+
+        <td>
+            Transfer ownership to another value.
+        </td>
+
+    </tr>
+
+    <tr>
+
+        <td>
+            <strong>Lifetime</strong>
+        </td>
+
+        <td>
+            How long an object or borrow remains valid.
+        </td>
+
+    </tr>
+
+    <tr>
+
+        <td>
+            <strong>Destruction</strong>
+        </td>
+
+        <td>
+            The point where the owner's responsibility ends and
+            resources are released.
+        </td>
+
+    </tr>
+
+    <tr>
+
+        <td>
+            <strong>Raw pointer</strong>
+        </td>
+
+        <td>
+            An unmanaged address; safety becomes your responsibility.
+        </td>
+
+    </tr>
+
+</table>
+
+</div>
+
+<div class="callout green">
+
+    <div class="big-idea">
+        The four questions to ask when reading ownership code:
+    </div>
+
+    <ol>
+
+        <li>
+            <strong>
+                Who owns this object?
+            </strong>
+        </li>
+
+        <li>
+            <strong>
+                Who is allowed to access it?
+            </strong>
+        </li>
+
+        <li>
+            <strong>
+                Is that access shared or exclusive?
+            </strong>
+        </li>
+
+        <li>
+            <strong>
+                How long is that access valid?
+            </strong>
+        </li>
+
+    </ol>
+
+</div>
+
+</section> <!-- ========================================================= 20. NEXT STEPS ========================================================= --> <section id="next">
+
+<h2>20. Where to Go Next</h2>
+
+<p>
+    Once this mental model feels comfortable, the natural
+    progression is:
+</p>
+
+<div class="columns">
+
+    <div class="card">
+        <h3>1</h3>
+        <p>Ownership</p>
+    </div>
+
+    <div class="card">
+        <h3>2</h3>
+        <p>Move semantics</p>
+    </div>
+
+    <div class="card">
+        <h3>3</h3>
+        <p>Copy semantics</p>
+    </div>
+
+    <div class="card">
+        <h3>4</h3>
+        <p>Shared borrowing</p>
+    </div>
+
+    <div class="card">
+        <h3>5</h3>
+        <p>Mutable borrowing</p>
+    </div>
+
+    <div class="card">
+        <h3>6</h3>
+        <p>Borrow lifetimes</p>
+    </div>
+
+    <div class="card">
+        <h3>7</h3>
+        <p>Reborrowing</p>
+    </div>
+
+    <div class="card">
+        <h3>8</h3>
+        <p>Field/partial borrowing</p>
+    </div>
+
+    <div class="card">
+        <h3>9</h3>
+        <p>Aliasing</p>
+    </div>
+
+    <div class="card">
+        <h3>10</h3>
+        <p>Borrow invalidation</p>
+    </div>
+
+    <div class="card">
+        <h3>11</h3>
+        <p>Destruction</p>
+    </div>
+
+</div>
+
+<div class="callout purple">
+
+    <div class="big-idea">
+        Don't start by asking "where are the bytes?"
+    </div>
+
+    <p>
+        Start by asking:
+    </p>
+
+    <p style="font-size: 1.2rem;">
+
+        <strong>
+            "Who is responsible for this object's lifetime,
+            and who merely has permission to access it?"
+        </strong>
+
+    </p>
+
+</div>
+
+    <div class="book-navigation">
+        <a href="Appendix_06.html" class="nav-btn">&larr; Previous</a> <a href="Bibliography.html" class="nav-btn">Bibliography &rarr;</a>
+    </div>
+
+</section>
+
+<footer>
+  <p>
+    This work is licensed under a 
+    <a rel="license" href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" rel="noopener">
+      Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License
+    </a>.
+  </p>
+</footer>
+</main>
+
+<!-- ========================================================= JAVASCRIPT ========================================================= --> <script>
+
+function showAnswer(id) {
+
+const element = document.getElementById(id);
+
+if (element.style.display === "block") {
+
+    element.style.display = "none";
+
+} else {
+
+    element.style.display = "block";
+
+}
+
+}
+</script>
+
+
+</body>
+</html>
