@@ -95,7 +95,8 @@ obligations the programmer must maintain by convention.
 
 <nav aria-label="Table of contents" class="toc">
 <h2>Contents</h2>
-<ol><li><a href="#section-1">Introduction</a></li><li><a href="#section-2">Normative Terminology</a></li><li><a href="#section-3">Source Files</a></li><li><a href="#section-4">Comments</a></li><li><a href="#section-5">Keywords</a></li><li><a href="#section-6">Identifiers</a></li><li><a href="#section-7">Literals</a></li><li><a href="#section-8">Modules</a></li><li><a href="#section-9">Declarations</a></li><li><a href="#section-10">Variables</a></li><li><a href="#section-11">Constants</a></li><li><a href="#section-12">Primitive Types</a></li><li><a href="#section-13">Compound Types</a></li><li><a href="#section-14">Managed Pointer Types</a></li><li><a href="#section-15">Raw Pointers</a></li><li><a href="#section-16">Mutability</a></li><li><a href="#section-17">Type Compatibility</a></li><li><a href="#section-18">Type Inference</a></li><li><a href="#section-19">Generic Types and Functions</a></li><li><a href="#section-20">Exported Types</a></li><li><a href="#section-21">Structs</a></li><li><a href="#section-22">Enums</a></li><li><a href="#section-23">Arrays</a></li><li><a href="#section-24">Functions</a></li><li><a href="#section-25">Expressions</a></li><li><a href="#section-26">Operator Precedence</a></li><li><a href="#section-27">Arithmetic</a></li><li><a href="#section-28">Equality</a></li><li><a href="#section-29">Assignment</a></li><li><a href="#section-30">Function Calls</a></li><li><a href="#section-31">Conditional Execution</a></li><li><a href="#section-32">Loops</a></li><li><a href="#section-33">Match</a></li><li><a href="#section-34">Return</a></li><li><a href="#section-35">Defer</a></li><li><a href="#section-36">Definite Initialization</a></li><li><a href="#section-37">Ownership</a></li><li><a href="#section-38">Move Semantics</a></li><li><a href="#section-39">Copy Semantics</a></li><li><a href="#section-40">Partial Moves</a></li><li><a href="#section-41">Borrowing</a></li><li><a href="#section-42">Shared Borrows</a></li><li><a href="#section-43">Mutable Borrows</a></li><li><a href="#section-44">Borrow Lifetime</a></li><li><a href="#section-45">Function Parameters and Returned Borrows</a></li><li><a href="#section-46">Reborrowing</a></li><li><a href="#section-47">Field and Partial Borrows</a></li><li><a href="#section-48">Aliasing</a></li><li><a href="#section-49">Collection Borrowing</a></li><li><a href="#section-50">Borrow Invalidation</a></li><li><a href="#section-51">Destruction</a></li><li><a href="#section-52">Scope Destruction</a></li><li><a href="#section-53">Unwinding</a></li><li><a href="#section-54">Abort</a></li><li><a href="#section-55">Nullability</a></li><li><a href="#section-56">Bounds Safety</a></li><li><a href="#section-57">Result&lt;T,E&gt;</a></li><li><a href="#section-58">Error Propagation</a></li><li><a href="#section-59">Strings</a></li><li><a href="#section-60">Vector&lt;T&gt;</a></li><li><a href="#section-61">Slices</a></li><li><a href="#section-62">Threads</a></li><li><a href="#section-63">Synchronization</a></li><li><a href="#section-64">Mutex</a></li><li><a href="#section-65">Data Races</a></li><li><a href="#section-66">Memory Model</a></li><li><a href="#section-67">Unsafe Code and Functions</a></li><li><a href="#section-68">Raw Memory</a></li><li><a href="#section-69">Safe Abstractions over Unsafe Code</a></li><li><a href="#section-70">Foreign Functions</a></li><li><a href="#section-71">FFI Ownership</a></li><li><a href="#section-72">ABI Profiles</a></li><li><a href="#section-73">Runtime</a></li><li><a href="#section-74">Allocation</a></li><li><a href="#section-75">Standard I/O</a></li><li><a href="#section-76">Security and Safety Boundary</a></li><li><a href="#section-77">Diagnostics</a></li><li><a href="#section-78">Implementation-Defined Behavior</a></li><li><a href="#section-79">Extensions</a></li><li><a href="#section-80">Conformance Levels</a></li><li><a href="#section-81">Conformance Testing</a></li><li><a href="#section-82">Compatibility</a></li><li><a href="#section-83">Versioning</a></li><li><a href="#section-84">Final Safety Theorem</a></li><li><a href="#section-85">Final Reference Model</a></li><li><a href="#section-86">Final Status</a></li><li><a href="#section-87">Illustrative Program</a></li></ol>
+<ol><li><a href="#section-1">Introduction</a></li><li><a href="#section-2">Normative Terminology</a></li><li><a href="#section-3">Source Files</a></li><li><a href="#section-4">Comments</a></li><li><a href="#section-5">Keywords</a></li><li><a href="#section-6">Identifiers</a></li><li><a href="#section-7">Literals</a></li><li><a href="#section-8">Modules</a></li><li><a href="#section-9">Declarations</a></li><li><a href="#section-10">Variables</a></li><li><a href="#section-11">Constants</a></li><li><a href="#section-12">Primitive Types</a></li><li><a href="#section-13">Compound Types</a></li><li><a href="#section-14">Managed Pointer Types</a></li><li><a href="#section-15">Raw Pointers</a></li><li><a href="#section-16">Mutability</a></li><li><a href="#section-17">Type Compatibility</a></li><li><a href="#section-18">Type Inference</a></li><li><a href="#section-19">Generic Types and Functions</a></li><li><a href="#section-20">Exported Types</a></li><li><a href="#section-21">Structs</a></li><li><a href="#section-22">Enums</a></li><li><a href="#section-23">Arrays</a></li><li><a href="#section-24">Functions</a></li><li><a href="#section-25">Expressions</a></li><li><a href="#section-26">Operator Precedence</a></li><li><a href="#section-27">Arithmetic</a></li><li><a href="#section-28">Equality</a></li><li><a href="#section-29">Assignment</a></li><li><a href="#section-30">Function Calls</a></li><li><a href="#section-31">Conditional Execution</a></li><li><a href="#section-32">Loops</a></li><li><a href="#section-33">Match</a></li><li><a href="#section-34">Return</a></li><li><a href="#section-35">Defer</a></li><li><a href="#section-36">Definite Initialization</a></li><li><a href="#section-37">Ownership</a></li><li><a href="#section-38">Move Semantics</a></li><li><a href="#section-39">Copy Semantics</a></li><li><a href="#section-40">Partial Moves</a></li><li><a href="#section-41">Borrowing</a></li><li><a href="#section-42">Shared Borrows</a></li><li><a href="#section-43">Mutable Borrows</a></li><li><a href="#section-44">Borrow Lifetime</a></li><li><a href="#section-45">Function Parameters and Returned Borrows</a></li><li><a href="#section-46">Reborrowing</a></li><li><a href="#section-47">Field and Partial Borrows</a></li><li><a href="#section-48">Aliasing</a></li><li><a href="#section-49">Collection Borrowing</a></li><li><a href="#section-50">Borrow Invalidation</a></li><li><a href="#section-51">Destruction</a></li><li><a href="#section-52">Scope Destruction</a></li><li><a href="#section-53">Unwinding</a></li><li><a href="#section-54">Abort</a></li><li><a href="#section-55">Nullability</a></li><li><a href="#section-56">Bounds Safety</a></li><li><a href="#section-57">Result&lt;T,E&gt;</a></li><li><a href="#section-58">Error Propagation</a></li><li><a href="#section-59">Strings</a></li><li><a href="#section-60">Vector&lt;T&gt;</a></li><li><a href="#section-61">Slices</a></li><li><a href="#section-62">Threads</a></li><li><a href="#section-63">Synchronization</a></li><li><a href="#section-64">Mutex</a></li><li><a href="#section-65">Data Races</a></li><li><a href="#section-66">Memory Model</a></li><li><a href="#section-67">Unsafe Code and Functions</a></li><li><a href="#section-68">Raw Memory</a></li><li><a href="#section-69">Safe Abstractions over Unsafe Code</a></li><li><a href="#section-70">Foreign Functions</a></li><li><a href="#section-71">FFI Ownership</a></li><li><a href="#section-72">ABI Profiles</a></li><li><a href="#section-73">Runtime</a></li><li><a href="#section-74">Allocation</a></li><li><a href="#section-75">Standard I/O</a></li><li><a href="#section-76">Security and Safety Boundary</a></li><li><a href="#section-77">Diagnostics</a></li><li><a href="#section-78">Implementation-Defined Behavior</a></li><li><a href="#section-79">Extensions</a></li><li><a href="#section-80">Conformance Levels</a></li><li><a href="#section-81">Conformance Testing</a></li><li><a href="#section-82">Compatibility</a></li><li><a href="#section-83">Versioning</a></li><li><a href="#section-84">Final Safety Theorem</a></li><li><a href="#section-85">Final Reference Model</a></li><li><a href="#section-86">Final Status</a></li><li><a href="#section-87">Illustrative Program</a></li><li><a href="#section-88">Addendum A</a></li>
+</ol>
 </nav>
 <article><section id="section-1"><h2>1. Introduction</h2>
 <p>This specification defines what a conforming implementation MUST do; it does not prescribe a particular implementation technique unless this document explicitly makes an implementation property normative.</p>
@@ -454,7 +455,9 @@ mut String* p = &amp;mut value; // taking a mutable borrow</code></pre>
 <p>A shared borrow infers <code>T*</code>; a mutable borrow infers <code>mut T*</code>. Inference MUST NOT infer mutable access from shared access alone.</p>
 <p>When no unique type can be established, the implementation MUST require an explicit type rather than choose an arbitrary type.</p>
 <p>The compiler MAY implement inference using regions, constraints, control-flow analysis, graphs, or another sound technique. Those techniques are not additional source syntax.</p>
-</section><section id="section-19"><h2>19. Generic Types and Functions</h2>
+</section>
+
+<section id="section-19"><h2>19. Generic Types and Functions</h2>
 <p>Generic types and functions are statically checked. A generic declaration defines one parameterized declaration; supplying type arguments specializes that declaration. The implementation technique used for specialization is not constrained by this specification provided that observable language semantics are preserved.</p>
 <pre><code>fn identity&lt;T&gt;(T value) : T
 {
@@ -2271,6 +2274,201 @@ finished</code></pre>
 <p>The example also illustrates that owned values and borrowed access are distinct. <code>counter</code> remains the owner of its value while the mutable managed pointer is used to provide temporary exclusive access to it.</p>
 
 <p>The <code>match</code> expression demonstrates expression-oriented selection, while the <code>while</code> statement demonstrates ordinary iterative control flow. The program deliberately avoids introducing language features that are not otherwise necessary to demonstrate the basic syntax.</p>
+
+
+<section id="section-88">
+<h2>88. Addendum A.</h2><h4>Owned Raw Storage and Runtime-Managed Values</h4>
+
+<p>
+This addendum defines the interaction between raw memory facilities,
+ownership semantics, deterministic destruction, and generic container
+implementations.
+</p>
+
+<p>
+The core language defines raw pointers, unsafe memory operations, and
+compiler-controlled destruction semantics independently. This addendum
+defines the mechanism required for implementations that store dynamically
+managed values in manually allocated memory while preserving ordinary
+CobaltC ownership guarantees.
+</p>
+
+
+<h3>A.1 Motivation</h3>
+
+<p>
+Raw pointers represent unmanaged addresses and do not participate in
+ownership, borrowing, lifetime, or destruction semantics. However,
+high-performance generic data structures require storage containing a
+variable number of values whose initialization state changes at runtime.
+</p>
+
+<p>
+This addendum defines owned storage as the bridge between unmanaged
+allocation and compiler-managed destruction.
+</p>
+
+
+<h3>A.2 Owned Storage</h3>
+
+<p>
+Owned storage is a compiler-recognized abstraction representing allocated
+memory capable of containing zero or more owned values of type
+<code>T</code>.
+</p>
+
+<p>
+Owned storage maintains the distinction between:
+</p>
+
+<ul>
+<li>allocated but uninitialized memory;</li>
+<li>initialized owned CobaltC values.</li>
+</ul>
+
+<p>
+Only initialized positions represent owned values and participate in
+destruction semantics.
+</p>
+
+
+<h3>A.3 Initialization Invariant</h3>
+
+<p>
+An owned storage implementation MUST maintain:
+</p>
+
+<pre><code>0 &lt;= initialized_count &lt;= capacity</code></pre>
+
+<p>
+For every position satisfying:
+</p>
+
+<pre><code>0 &lt;= index &lt; initialized_count</code></pre>
+
+<p>
+the position contains exactly one initialized owned value of type
+<code>T</code>.
+</p>
+
+<p>
+For every position satisfying:
+</p>
+
+<pre><code>initialized_count &lt;= index &lt; capacity</code></pre>
+
+<p>
+the position contains allocated storage but no value.
+</p>
+
+<p>
+Uninitialized positions MUST NOT be read, borrowed, or destroyed.
+</p>
+
+
+<h3>A.4 Construction Into Owned Storage</h3>
+
+<p>
+An owned storage implementation MAY provide an unsafe operation that
+transfers ownership of a value into a previously uninitialized storage
+position.
+</p>
+
+<pre><code>unsafe fn Storage&lt;T&gt;::construct(mut Storage&lt;T&gt;* storage, usize index, T value)</code></pre>
+
+<p>
+Successful construction transfers ownership from the caller into the
+storage region.
+</p>
+
+<p>
+After construction, the destination position becomes an initialized owned
+value and is subject to ordinary destruction semantics.
+</p>
+
+
+<h3>A.5 Extraction From Owned Storage</h3>
+
+<p>
+An owned storage implementation MAY provide an unsafe operation that moves
+an initialized value out of storage.
+</p>
+
+<pre><code>unsafe fn Storage&lt;T&gt;::take(mut Storage&lt;T&gt;* storage, usize index) : T</code></pre>
+
+<p>
+Successful extraction transfers ownership to the caller and removes the
+ownership responsibility from the storage position.
+</p>
+
+<p>
+The storage position becomes uninitialized after extraction.
+</p>
+
+
+<h3>A.6 Destruction Semantics</h3>
+
+<p>
+When owned storage is destroyed:
+</p>
+
+<ol>
+<li>Every initialized contained value MUST be destroyed exactly once.</li>
+<li>Moved-from or extracted values MUST NOT be destroyed again.</li>
+<li>Uninitialized storage MUST NOT be destroyed as if it contained values.</li>
+<li>The backing allocation MUST be released.</li>
+</ol>
+
+<p>
+Owned storage destruction participates in the ordinary CobaltC destruction
+model. A destruction hook MUST NOT independently destroy values that the
+compiler will subsequently destroy.
+</p>
+
+
+<h3>A.7 Relationship With Raw Pointers</h3>
+
+<p>
+Owned storage may be implemented using raw pointers internally.
+</p>
+
+<p>
+However, a raw pointer alone does not establish owned storage semantics.
+The compiler MUST NOT infer ownership, initialization state, lifetime, or
+destruction responsibility from a raw pointer value.
+</p>
+
+
+<h3>A.8 Safe Container Implementations</h3>
+
+<p>
+Unsafe owned storage mechanisms MAY be encapsulated behind safe
+abstractions.
+</p>
+
+<p>
+A safe abstraction is valid only when it preserves:
+</p>
+
+<ul>
+<li>single ownership responsibility;</li>
+<li>exactly-once destruction;</li>
+<li>move semantics;</li>
+<li>borrowing guarantees;</li>
+<li>initialization invariants.</li>
+</ul>
+
+<p>
+This mechanism enables library-defined containers such as:
+</p>
+
+<pre><code>Vector&lt;T&gt;
+String
+HashMap&lt;K,V&gt;
+Deque&lt;T&gt;</code></pre>
+
+
+</section>
 
 
     <div class="book-navigation">
