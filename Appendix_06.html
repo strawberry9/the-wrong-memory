@@ -2276,206 +2276,141 @@ finished</code></pre>
 <p>The <code>match</code> expression demonstrates expression-oriented selection, while the <code>while</code> statement demonstrates ordinary iterative control flow. The program deliberately avoids introducing language features that are not otherwise necessary to demonstrate the basic syntax.</p>
 
 
-<section id="section-88">
-<h2>88. Addendum A.</h2><h4>Owned Raw Storage and Runtime-Managed Values</h4>
+<section id="section-88"> <h2>88. Addendum A.</h2> <h4>Owned Raw Storage and Runtime-Managed Values</h4> <p> This addendum defines the interaction between raw memory facilities, ownership semantics, borrowing and lifetime rules, deterministic destruction, and generic container implementations. </p> <p> The core language defines raw pointers, unsafe memory operations, ownership, borrowing, lifetime, and compiler-controlled destruction independently. This addendum defines how those existing language rules apply when an implementation stores dynamically managed values in manually allocated memory whose initialization state changes at runtime. </p> <p> In plain English: a container may allocate memory large enough to hold many values without all of those values existing yet. Values may subsequently be constructed into that memory, moved out of it, relocated to another allocation, or destroyed individually. The implementation MUST preserve the same ownership, borrowing, lifetime, initialization, and destruction guarantees that apply to ordinary CobaltC values. </p> <p> This addendum does not introduce a second ownership or destruction system. It defines how the existing CobaltC model extends to dynamically allocated storage. </p> <h3>A.1 Motivation</h3> <p> Raw pointers represent unmanaged addresses. A raw pointer does not, by itself, participate in CobaltC ownership, borrowing, lifetime, initialization, or destruction semantics. </p> <p> This is necessary for low-level programming, but generic containers require more information than an address alone can provide. </p> <p> For example, a vector may allocate capacity for one hundred values while currently containing only ten. The remaining ninety positions are allocated memory, but they do not contain CobaltC values. </p> <pre><code>Initialized positions [ T ][ T ][ T ][ T ][ T ][ T ][ T ][ T ][ T ][ T ]
 
-<p>
-This addendum defines the interaction between raw memory facilities,
-ownership semantics, deterministic destruction, and generic container
-implementations.
-</p>
+Uninitialized positions
+[ -- ][ -- ][ -- ][ -- ][ -- ][ -- ][ -- ][ -- ][ -- ][ -- ]
+</code></pre>
+<p> Likewise, a container may remove a value, move a value to another storage location during reallocation, or maintain independently occupied positions as a hash table does. </p> <p> The implementation therefore needs a semantic distinction between: </p> <ul> <li>allocated storage that contains no initialized value;</li> <li>allocated storage containing an initialized owned value;</li> <li>a value whose ownership has been transferred elsewhere; and</li> <li>a storage position that has become uninitialized after extraction or destruction.</li> </ul> <p> Owned storage provides that distinction. </p> <h3>A.2 Owned Storage</h3> <p> <em>Owned storage</em> is a semantic abstraction recognized by a conforming implementation for representing an allocated region capable of containing zero or more initialized owned values of type <code>T</code>. </p> <p> Owned storage is not required to be exposed as a source-language type named <code>Storage&lt;T&gt;</code>. An implementation MAY represent it using raw pointers, metadata, compiler-generated state, library types, or any combination of these techniques, provided that the observable semantics conform to this addendum. </p> <p> Owned storage maintains a distinction between: </p> <ul> <li><strong>allocated but uninitialized storage</strong>, which contains no owned value; and</li> <li><strong>initialized storage</strong>, which contains exactly one initialized owned value of type <code>T</code>.</li> </ul> <p> Only initialized positions represent owned values and participate in the ordinary CobaltC destruction model. </p> <p> The backing allocation and the initialized values contained within that allocation are distinct destruction responsibilities. Releasing the backing allocation does not substitute for destroying the initialized values contained within it. </p>
+<p> For example: </p>
+<pre><code>Position:  0      1      2      3
+Storage:  [ T ]  [ T ]  [ -- ] [ -- ]
 
-<p>
-The core language defines raw pointers, unsafe memory operations, and
-compiler-controlled destruction semantics independently. This addendum
-defines the mechanism required for implementations that store dynamically
-managed values in manually allocated memory while preserving ordinary
-CobaltC ownership guarantees.
-</p>
+Positions 0 and 1: initialized
+Positions 2 and 3: uninitialized</code></pre>
 
+<p> Positions <code>0</code> and <code>1</code> contain initialized owned values. Positions <code>2</code> and <code>3</code> contain allocated storage only. They MUST NOT be read, borrowed, moved, or destroyed as values of type <code>T</code>. </p> <h3>A.3 Initialization State</h3> <p> Owned storage MUST maintain, or otherwise preserve, sufficient semantic information to determine whether each storage position is initialized. </p> <p> For every position <code>index</code> satisfying: </p> <pre><code>0 &lt;= index &lt; capacity</code></pre> <p> exactly one of the following states MUST apply: </p> <ul> <li><strong>Initialized:</strong> the position contains exactly one initialized owned value of type <code>T</code>.</li> <li><strong>Uninitialized:</strong> the position contains allocated storage but no value of type <code>T</code>.</li> </ul> <p> An uninitialized position MUST NOT be: </p> <ul> <li>read as a value of type <code>T</code>;</li> <li>borrowed as a value of type <code>T</code>;</li> <li>moved from; or</li> <li>destroyed as a value of type <code>T</code>.</li> </ul> <p> An initialized position MUST NOT be treated as uninitialized while it still contains its owned value. </p> <p> The implementation MAY represent initialization state using any sound mechanism, including a count, bitmap, occupancy array, compiler-generated metadata, or an equivalent representation. </p> <h4>A.3.1 Contiguous Initialization</h4> <p> Storage used by containers such as <code>Vector&lt;T&gt;</code> commonly maintains a contiguous initialized prefix. </p> <p> For such storage, the following invariant MAY be used: </p> <pre><code>0 &lt;= initialized_count &lt;= capacity</code></pre> <p> Every position satisfying: </p> <pre><code>0 &lt;= index &lt; initialized_count</code></pre> <p> contains exactly one initialized owned value of type <code>T</code>. Every position satisfying: </p> <pre><code>initialized_count &lt;= index &lt; capacity</code></pre> <p> is uninitialized. </p> <p> For example: </p> <pre><code>capacity = 8 initialized_count = 3
 
-<h3>A.1 Motivation</h3>
+[ T ][ T ][ T ][ -- ][ -- ][ -- ][ -- ][ -- ]
+0 1 2 3 4 5 6 7
+</code></pre>
+<p> In this representation, <code>initialized_count</code> is sufficient to describe initialization state because initialized positions form one contiguous prefix. </p> <h4>A.3.2 Non-Contiguous Initialization</h4> <p> Storage that permits positions to become initialized and uninitialized independently MUST maintain initialization state capable of representing those positions. </p>
+<p> For example: </p>
+<pre><code>Position:         0       1       2       3       4
+Initialization:   T       --      T       --      T
+Storage:          [ T ]   [ -- ]  [ T ]   [ -- ]  [ T ]</code></pre>
 
-<p>
-Raw pointers represent unmanaged addresses and do not participate in
-ownership, borrowing, lifetime, or destruction semantics. However,
-high-performance generic data structures require storage containing a
-variable number of values whose initialization state changes at runtime.
-</p>
+<p> A single <code>initialized_count</code> cannot represent this state correctly. </p> <p> An implementation MAY instead use equivalent metadata such as: </p> <pre><code>initialized = [ 1, 0, 1, 0, 1 ] </code></pre> <p> This model is appropriate for hash tables, sparse storage, and other data structures whose occupied positions are not necessarily contiguous. </p> <h3>A.4 Construction Into Owned Storage</h3> <p> An implementation MAY provide an unsafe operation equivalent in semantics to: </p>
+<pre><code>unsafe fn storage::construct( mut Storage&lt;T&gt;* storage, usize index, T value )</code></pre><p> The declaration above is illustrative. A conforming implementation is not required to expose a source-level <code>Storage&lt;T&gt;</code> type or these exact function declarations. </p> <p> The <code>storage::construct</code> operation explicitly receives the storage pointer as an argument. It does not use implicit receiver or member-call semantics. </p> <p> A construction operation MUST satisfy all of the following: </p> <ol> <li>The destination position MUST be within the allocated storage.</li> <li>The destination position MUST currently be uninitialized.</li> <li>The value MUST be successfully established at that position before the position is considered initialized.</li> <li>Ownership MUST transfer from the caller to the destination storage.</li> <li>The destination position MUST thereafter be treated as initialized.</li> </ol> <p> A position containing an initialized value MUST NOT be passed to a construction operation unless that value has first been removed or destroyed according to the applicable ownership rules. </p> <p> For example: </p> <pre><code>T value = make_value();
 
-<p>
-This addendum defines owned storage as the bridge between unmanaged
-allocation and compiler-managed destruction.
-</p>
+unsafe
+{
+    storage::construct(mut Storage<T>* storage, 2, move(value));
+}
+</code></pre>
+<p> Before construction: </p> <pre><code>[ T ][ T ][ -- ][ -- ] ^ | uninitialized </code></pre> <p> After successful construction: </p> <pre><code>[ T ][ T ][ T ][ -- ] ^ | initialized T </code></pre> <p> The caller no longer owns the value placed at index <code>2</code>. The storage now carries the ownership responsibility for that value. </p> <p> Construction does not create an additional owner. Once construction has successfully established the value, exactly one ownership responsibility MUST exist for that value. </p> <h3>A.5 Construction Failure</h3> <p> If construction fails before the destination position becomes initialized, the destination position MUST remain uninitialized. </p> <p> Ownership MUST NOT be considered transferred to the destination until construction has successfully established the value there. </p> <p> If the operation reports an expected runtime failure, its failure result MUST use the ordinary CobaltC failure model applicable to that operation. An implementation MUST NOT introduce a separate exception or failure mechanism solely for owned storage. </p>
+<p> Conceptually: </p>
+<pre><code>Uninitialized storage
+        |
+        v
+Construction attempted
+        |
+        v
+     Successful?
+       /     \
+     No       Yes
+     |         |
+     v         v
+Remain       Become
+uninitialized initialized
+               |
+               v
+            Owned T</code></pre>
 
+<p> If construction does not successfully establish the value, the destination remains uninitialized and MUST NOT subsequently be destroyed as a <code>T</code>. </p> <h3>A.6 Extraction From Owned Storage</h3> <p> An implementation MAY provide an unsafe operation equivalent in semantics to: </p> <pre><code>unsafe fn storage::take( mut Storage&lt;T&gt;* storage, usize index ) : T</code></pre> <p> The declaration above is illustrative and does not require a particular source-level API. </p> <p> The <code>storage::take</code> operation explicitly receives the storage pointer as an argument. </p> <p> A successful extraction MUST satisfy all of the following: </p> <ol> <li>The position MUST be within the allocated storage.</li> <li>The position MUST currently contain an initialized value.</li> <li>The value MUST be moved to the caller.</li> <li>Ownership MUST transfer to the caller.</li> <li>The original position MUST become uninitialized.</li> <li>The storage MUST no longer have destruction responsibility for the extracted value.</li> </ol> <p> For example: </p> <pre><code>T value = unsafe { storage::take(mut Storage&lt;T&gt;* storage, 1) }; </code></pre> <p> Before extraction: </p> <pre><code>[ T ][ T ][ T ][ -- ] ^ | owned T </code></pre> <p> After extraction: </p> <pre><code>[ T ][ -- ][ T ][ -- ] ^ | uninitialized </code></pre> <p> The returned value is now owned by the caller. </p> <p> The extracted value is not a special kind of moved-from value that remains owned by the storage. The ownership responsibility has left the storage, and the original position is uninitialized. </p> <h3>A.7 Borrowing and Lifetime Requirements</h3> <p> Owned-storage operations remain subject to the ordinary CobaltC borrowing and lifetime rules. </p> <p> In particular, an operation that moves, destroys, replaces, relocates, or otherwise invalidates an initialized value MUST NOT be performed while a live managed pointer or slice depends on that value, unless the operation is proven not to invalidate that particular borrow. </p> <p> For example, the following conceptual sequence is invalid if the borrow remains live: </p> <pre><code>T* reference = borrow(storage[0]);
 
-<h3>A.2 Owned Storage</h3>
+T value = unsafe
+{
+    storage::take(mut Storage<T>* storage, 0)
+};
+</code></pre>
+<p> The extraction would transfer ownership of the value away from the storage while <code>reference</code> still depends on the original value. That would violate CobaltC's borrowing and lifetime guarantees. </p> <p> Similarly, a storage allocation MUST NOT be released while a live managed pointer or slice depends on a value within that allocation. </p> <p> Unsafe storage operations do not suspend unrelated ownership, borrowing, or lifetime rules. Entering an unsafe context merely permits the operation; it does not make an invalid ownership or lifetime relationship valid. </p> <h3>A.8 Relocation</h3> <p> An implementation MAY relocate initialized values from one allocation to another, for example when growing a dynamically allocated container. </p> <p> Relocation MUST preserve ownership semantics. </p> <p> Conceptually, relocation consists of establishing the value in the new storage and removing the ownership responsibility from the old storage: </p>
+<pre><code>Old storage
+        |
+        v
+Move initialized value
+        |
+        v
+New storage
+        |
+        v
+Transfer ownership
+        |
+        v
+Old position becomes uninitialized</code></pre>
 
-<p>
-Owned storage is a compiler-recognized abstraction representing allocated
-memory capable of containing zero or more owned values of type
-<code>T</code>.
-</p>
+<p> The implementation MUST ensure that: </p> <ul> <li>each value has exactly one owner after the completed transition;</li> <li>the old storage does not subsequently destroy a value whose ownership has been transferred to the new storage;</li> <li>the new storage assumes destruction responsibility only for values successfully established there; and</li> <li>any managed pointer or slice that would be invalidated by relocation remains subject to the ordinary borrow-invalidation rules.</li> </ul> <p> If relocation cannot preserve the applicable ownership and lifetime guarantees, the operation MUST NOT be exposed as a safe operation. </p> <p> For example, when a <code>Vector&lt;T&gt;</code> grows, its existing values may need to move to a new allocation. The physical change of storage does not create additional copies of those owned values. Ownership moves with the values. </p> <h3>A.9 Destruction Semantics</h3> <p> Owned-storage destruction is part of the ordinary CobaltC destruction model. It does not define a separate destruction mechanism. </p> <p> When owned storage is destroyed: </p> <ol> <li>Every remaining initialized value MUST be destroyed exactly once.</li> <li>Values whose ownership has previously been transferred out MUST NOT be destroyed again.</li> <li>Uninitialized positions MUST NOT be destroyed as values.</li> <li>After all applicable contained values have been destroyed, the backing allocation MUST be released.</li> </ol> <p> The implementation MUST apply the ordinary destruction semantics to initialized owned values. Where a contained type defines a compiler-recognized destruction hook, that hook participates according to the ordinary CobaltC destruction rules. </p> <p> A storage implementation MUST NOT independently destroy an owned value in a manner that causes the same value to be destroyed again by the ordinary CobaltC destruction mechanism. </p> <p> For example: </p> <pre><code>[ T ][ -- ][ T ][ -- ][ T ] </code></pre> <p> Destruction must process exactly three initialized values. The two uninitialized positions are ignored. </p> <p> After all initialized values have been destroyed, the storage contains no remaining owned values and the backing allocation may be released. </p> <h3>A.10 Relationship With Raw Pointers</h3> <p> Owned storage MAY be implemented internally using raw pointers. </p> <p> However, a raw pointer alone does not establish owned-storage semantics. The compiler MUST NOT infer ownership, initialization state, lifetime, borrowing, or destruction responsibility solely from a raw pointer value. </p> <p> For example, two raw pointers may have identical machine-level representations while having entirely different semantic meanings. </p> <pre><code>raw T* address; raw T* another_address; </code></pre> <p> The pointer value itself does not establish whether the referenced memory: </p> <ul> <li>contains an initialized <code>T</code>;</li> <li>is owned;</li> <li>is borrowed;</li> <li>is uninitialized storage;</li> <li>is still alive; or</li> <li>must eventually be destroyed.</li> </ul> <p> Those properties are established by the applicable language rules and the owned-storage abstraction, not by the raw address itself. </p> <h3>A.11 Unsafe Boundary</h3> <p> Operations that allocate raw memory, manipulate raw addresses, establish values within raw storage, extract values from raw storage, alter initialization state, or manually release raw allocations MAY require an unsafe context according to the ordinary unsafe rules of CobaltC. </p> <p> An unsafe operation places responsibility on its caller to satisfy the additional invariants required by that operation. </p> <p> In particular, an implementation exposing owned-storage operations MUST ensure that their safety contracts account for: </p> <ul> <li>allocation validity;</li> <li>alignment;</li> <li>bounds;</li> <li>initialization state;</li> <li>ownership transfer;</li> <li>move semantics;</li> <li>borrowing;</li> <li>lifetime;</li> <li>aliasing; and</li> <li>exactly-once destruction.</li> </ul> <p> Unsafe code therefore provides the mechanism for manipulating raw storage, but it does not weaken the underlying CobaltC ownership model. </p> <h3>A.12 Safe Abstractions Over Owned Storage</h3> <p> Unsafe owned-storage mechanisms MAY be encapsulated behind safe abstractions. </p> <p> A safe abstraction is valid only when its implementation maintains every invariant promised by its safe interface. </p> <p> A safe container built on owned storage MUST preserve: </p> <ul> <li>single ownership responsibility;</li> <li>exactly-once destruction;</li> <li>correct move semantics;</li> <li>borrowing guarantees;</li> <li>lifetime guarantees;</li> <li>initialization invariants;</li> <li>bounds guarantees; and</li> <li>any additional invariants required by the container's public API.</li> </ul> <p> Internal unsafe operations do not become part of the safe-language semantics merely because they are used to implement a safe abstraction. </p> <p> This mechanism enables library-defined containers such as: </p> <ul> <li><code>Vector&lt;T&gt;</code></li> <li><code>String</code></li> <li><code>HashMap&lt;K, V&gt;</code></li> <li><code>Deque&lt;T&gt;</code></li> </ul> <h3>A.13 Example: Vector&lt;T&gt;</h3> <p> A vector is a typical example of contiguous owned storage. </p> <p> Suppose: </p> <pre><code>capacity = 4 length = 2 </code></pre> <p> The underlying storage may be represented conceptually as: </p> <pre><code>[ T ][ T ][ -- ][ -- ] 0 1 2 3 </code></pre> <p> Only indices <code>0</code> and <code>1</code> contain initialized values. The remaining capacity contains allocated but uninitialized storage. </p> <p> Appending a value conceptually changes the initialization state: </p> <pre><code>[ T ][ T ][ T ][ -- ] 0 1 2 3 </code></pre> <p> The vector's logical length becomes <code>3</code>, and the newly initialized position becomes part of the vector's owned value set. </p> <p> Removing the final value transfers ownership out of that position: </p> <pre><code>[ T ][ T ][ -- ][ -- ] 0 1 2 3 </code></pre> <p> The removed value is now owned by the caller if returned by the applicable container operation. </p> <p> Because a vector maintains contiguous initialization, its logical length can also serve as the initialized-value count. A vector implementation does not require a general per-slot initialization bitmap merely to represent its normal element storage. </p> <p> Vector operations that may relocate the allocation remain subject to the ordinary borrow-invalidation rules. </p> <h3>A.14 Example: HashMap&lt;K, V&gt;</h3> <p> A hash map generally cannot rely on contiguous initialization. </p> <p> A table may instead contain: </p> <pre><code>[ entry ][ empty ][ entry ][ empty ][ empty ][ entry ] </code></pre> <p> The occupied positions are independent. </p> <p> Removing an entry therefore changes the initialization state of one position without implying that later positions are uninitialized: </p> <pre><code>Before:
 
-<p>
-Owned storage maintains the distinction between:
-</p>
+[ entry ][ empty ][ entry ][ empty ][ empty ][ entry ]
 
-<ul>
-<li>allocated but uninitialized memory;</li>
-<li>initialized owned CobaltC values.</li>
-</ul>
+After removing index 2:
 
-<p>
-Only initialized positions represent owned values and participate in
-destruction semantics.
-</p>
-
-
-<h3>A.3 Initialization Invariant</h3>
-
-<p>
-An owned storage implementation MUST maintain:
-</p>
-
-<pre><code>0 &lt;= initialized_count &lt;= capacity</code></pre>
-
-<p>
-For every position satisfying:
-</p>
-
-<pre><code>0 &lt;= index &lt; initialized_count</code></pre>
-
-<p>
-the position contains exactly one initialized owned value of type
-<code>T</code>.
-</p>
-
-<p>
-For every position satisfying:
-</p>
-
-<pre><code>initialized_count &lt;= index &lt; capacity</code></pre>
-
-<p>
-the position contains allocated storage but no value.
-</p>
-
-<p>
-Uninitialized positions MUST NOT be read, borrowed, or destroyed.
-</p>
-
-
-<h3>A.4 Construction Into Owned Storage</h3>
-
-<p>
-An owned storage implementation MAY provide an unsafe operation that
-transfers ownership of a value into a previously uninitialized storage
-position.
-</p>
-
-<pre><code>unsafe fn Storage&lt;T&gt;::construct(mut Storage&lt;T&gt;* storage, usize index, T value)</code></pre>
-
-<p>
-Successful construction transfers ownership from the caller into the
-storage region.
-</p>
-
-<p>
-After construction, the destination position becomes an initialized owned
-value and is subject to ordinary destruction semantics.
-</p>
+[ entry ][ empty ][ empty ][ empty ][ empty ][ entry ]
+</code></pre>
+<p> This is why the general owned-storage model defines initialization per position, while allowing specialized containers such as <code>Vector&lt;T&gt;</code> to use a simpler contiguous-prefix invariant. </p> <h3>A.15 Ownership Transfer Model</h3> <p> The fundamental storage operations can be understood as ownership transitions. </p>
+<pre><code>Caller-owned value
+        |
+        | storage::construct(...)
+        v
+Storage-owned value
+        |
+        | storage::take(...)
+        v
+Caller-owned value
+</code></pre>
 
 
-<h3>A.5 Extraction From Owned Storage</h3>
+<p> Destruction terminates the ownership chain: </p>
+<pre><code>Storage-owned value
+        |
+        | ordinary CobaltC destruction
+        v
+Destroyed value
+</code></pre>
 
-<p>
-An owned storage implementation MAY provide an unsafe operation that moves
-an initialized value out of storage.
-</p>
-
-<pre><code>unsafe fn Storage&lt;T&gt;::take(mut Storage&lt;T&gt;* storage, usize index) : T</code></pre>
-
-<p>
-Successful extraction transfers ownership to the caller and removes the
-ownership responsibility from the storage position.
-</p>
-
-<p>
-The storage position becomes uninitialized after extraction.
-</p>
-
-
-<h3>A.6 Destruction Semantics</h3>
-
-<p>
-When owned storage is destroyed:
-</p>
-
-<ol>
-<li>Every initialized contained value MUST be destroyed exactly once.</li>
-<li>Moved-from or extracted values MUST NOT be destroyed again.</li>
-<li>Uninitialized storage MUST NOT be destroyed as if it contained values.</li>
-<li>The backing allocation MUST be released.</li>
-</ol>
-
-<p>
-Owned storage destruction participates in the ordinary CobaltC destruction
-model. A destruction hook MUST NOT independently destroy values that the
-compiler will subsequently destroy.
-</p>
+<p> Relocation transfers ownership between storage regions: </p>
+<pre><code>Old storage
+        |
+        | move initialized value
+        v
+New storage
+        |
+        | ownership transferred
+        v
+Old position becomes uninitialized
+</code></pre>
 
 
-<h3>A.7 Relationship With Raw Pointers</h3>
+<p> At no point may two independent ownership responsibilities exist for the same value. </p> <p> Likewise, an operation that transfers or destroys ownership MUST NOT leave behind a live managed pointer whose lifetime depends on the invalidated value. </p>
 
-<p>
-Owned storage may be implemented using raw pointers internally.
-</p>
+<h3>A.16 Interaction With Compiler Destruction</h3> <p> Owned storage does not require a user-visible <code>drop</code> operation. <code>drop</code> remains a compiler-recognized destruction mechanism and is not an ordinary source-language operation. </p>
+<p>When the compiler determines that an owned storage abstraction must be destroyed, the implementation MUST use the initialization information associated with that storage to determine which contained values remain destruction responsibilities. </p>
+<p>Each remaining initialized value is then destroyed according to the ordinary CobaltC destruction model. Uninitialized positions require no value destruction. </p>
+<p>The process can be understood conceptually as: </p>
+<pre><code>Owned storage
+        |
+        v
+Identify initialized positions
+        |
+        v
+Destroy each initialized value
+        |
+        v
+Release backing allocation
+</code></pre>
 
-<p>
-However, a raw pointer alone does not establish owned storage semantics.
-The compiler MUST NOT infer ownership, initialization state, lifetime, or
-destruction responsibility from a raw pointer value.
-</p>
+<p> The exact implementation of this process is implementation-defined. However, the observable behavior MUST be equivalent to destroying every remaining initialized owned value exactly once and then releasing the backing allocation. </p> <p> A storage implementation MUST NOT independently destroy a value in a way that causes the same value to be destroyed again by the ordinary CobaltC destruction mechanism. Likewise, an uninitialized position MUST NOT be treated as containing a value merely because storage has been allocated for that position. </p> <p> Owned storage therefore extends the existing CobaltC destruction model rather than introducing a storage-specific alternative. </p> <h3>A.17 Conformance Requirements</h3> <p> A conforming implementation of owned storage MUST ensure that: </p> <ol> <li>Allocated memory is distinguishable from initialized values.</li> <li>Every initialized storage position contains exactly one initialized owned value of the declared element type.</li> <li>Uninitialized positions are never treated as initialized values.</li> <li>Ownership transfers during construction, extraction, and relocation are represented exactly once.</li> <li>An extracted or relocated value is not subsequently destroyed by its former storage owner.</li> <li>Every remaining initialized owned value is destroyed exactly once when its owning storage is destroyed.</li> <li>The backing allocation is released only after the destruction responsibilities associated with its initialized values have been handled.</li> <li>Raw pointer values alone do not establish ownership, initialization, borrowing, lifetime, or destruction responsibility.</li> <li>Owned-storage operations remain subject to the ordinary CobaltC ownership, borrowing, lifetime, aliasing, initialization, and bounds rules.</li> <li>A safe abstraction over owned storage preserves every invariant promised by its public interface.</li> <li>Expected operational failures use the applicable CobaltC failure model rather than introducing a separate storage-specific exception mechanism.</li> <li>Implementation technique and representation remain implementation choices unless this addendum or another normative section of the specification explicitly constrains the observable behavior.</li> </ol> <h3>A.18 Summary</h3> <p> The purpose of this addendum is not to introduce a second ownership system. It defines how CobaltC's existing ownership and deterministic destruction model extends into dynamically allocated storage whose initialization state is determined at runtime. </p> <p> The essential rule is: </p> <blockquote> <p> Allocated memory is not automatically a collection of values. Only positions that have been successfully initialized as owned values participate in CobaltC ownership, borrowing, lifetime, and destruction semantics. </p> </blockquote> <p> This permits high-performance containers to use manually allocated storage without weakening the guarantees of the language. </p> <p> A conforming implementation may therefore represent a container using raw memory internally while presenting an ordinary safe CobaltC interface, provided that the implementation preserves the language's existing guarantees against use-before-initialization, use-after-move, double ownership, invalid borrow lifetimes, and double destruction. </p> </section>
 
-
-<h3>A.8 Safe Container Implementations</h3>
-
-<p>
-Unsafe owned storage mechanisms MAY be encapsulated behind safe
-abstractions.
-</p>
-
-<p>
-A safe abstraction is valid only when it preserves:
-</p>
-
-<ul>
-<li>single ownership responsibility;</li>
-<li>exactly-once destruction;</li>
-<li>move semantics;</li>
-<li>borrowing guarantees;</li>
-<li>initialization invariants.</li>
-</ul>
-
-<p>
-This mechanism enables library-defined containers such as:
-</p>
-
-<pre><code>Vector&lt;T&gt;
-String
-HashMap&lt;K,V&gt;
-Deque&lt;T&gt;</code></pre>
-
-
-</section>
-
-
-    <div class="book-navigation">
-        <a href="Appendix_05.html" class="nav-btn">&larr; Previous</a> <a href="Bibliography.html" class="nav-btn">Bibliography &rarr;</a>
-    </div>
-
-</section>
 
   </article>
 
