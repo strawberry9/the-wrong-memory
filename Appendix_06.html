@@ -31,6 +31,14 @@
             color: #9ca3af;
             font-size: 14px;
         }
+
+        .logo-container {
+            float: left;
+            margin: 0 30px 20px 0;
+            width: 30%;
+            height: 30%;          
+        }
+
     </style>
 </head>
 <body id="top">
@@ -66,8 +74,25 @@
 </div>
 
 <h3>Preface</h3>
-<p> As argued throughout <em>The Wrong Memory</em> essays, attempting to tack a "safe subset" onto an inherently unsafe language usually fails because the core language semantics still allow invariant violations. By embedding ownership and borrowing into the core type system, CobaltC makes safety an intrinsic property of the language rather than an optional discipline imposed upon it. </p> <p> CobaltC unashamedly draws on the ownership and memory-safety techniques demonstrated by Rust. Although Rust isn't the origin of most of these ideas, its significant contribution was demonstrating how they could be combined into a practical, high-performance systems language. CobaltC adopts that safety architecture without attempting to reproduce Rust's syntax or overall language philosophy. Instead, it applies the broader body of ideas to the problem identified in Appendix II: making semantic invariants such as ownership, lifetime, aliasing, mutability, and bounds properties that the compiler can represent and enforce, rather than obligations the programmer must maintain by convention. </p>
-<br/>
+<p>
+As argued throughout <em>The Wrong Memory</em> essays, attempting to tack a "safe subset"
+onto an inherently unsafe language usually fails because the core language semantics still
+allow invariant violations. By embedding ownership and borrowing into the core type system,
+CobaltC makes safety an intrinsic property of the language rather than an optional discipline
+imposed upon it.
+</p>
+
+<p>
+CobaltC unashamedly draws on the ownership and memory-safety techniques demonstrated by Rust.
+Although Rust isn't the origin of most of these ideas, its significant contribution was
+demonstrating how they could be combined into a practical, high-performance systems language.
+CobaltC adopts that safety architecture without attempting to reproduce Rust's syntax or
+overall language philosophy. Instead, it applies the broader body of ideas to the problem
+identified in Appendix II: making semantic invariants such as ownership, lifetime, aliasing,
+mutability, and bounds properties that the compiler can represent and enforce, rather than
+obligations the programmer must maintain by convention.
+</p>
+
 <nav aria-label="Table of contents" class="toc">
 <h2>Contents</h2>
 <ol><li><a href="#section-1">Introduction</a></li><li><a href="#section-2">Normative Terminology</a></li><li><a href="#section-3">Source Files</a></li><li><a href="#section-4">Comments</a></li><li><a href="#section-5">Keywords</a></li><li><a href="#section-6">Identifiers</a></li><li><a href="#section-7">Literals</a></li><li><a href="#section-8">Modules</a></li><li><a href="#section-9">Declarations</a></li><li><a href="#section-10">Variables</a></li><li><a href="#section-11">Constants</a></li><li><a href="#section-12">Primitive Types</a></li><li><a href="#section-13">Compound Types</a></li><li><a href="#section-14">Managed Pointer Types</a></li><li><a href="#section-15">Raw Pointers</a></li><li><a href="#section-16">Mutability</a></li><li><a href="#section-17">Type Compatibility</a></li><li><a href="#section-18">Type Inference</a></li><li><a href="#section-19">Generic Types and Functions</a></li><li><a href="#section-20">Exported Types</a></li><li><a href="#section-21">Structs</a></li><li><a href="#section-22">Enums</a></li><li><a href="#section-23">Arrays</a></li><li><a href="#section-24">Functions</a></li><li><a href="#section-25">Expressions</a></li><li><a href="#section-26">Operator Precedence</a></li><li><a href="#section-27">Arithmetic</a></li><li><a href="#section-28">Equality</a></li><li><a href="#section-29">Assignment</a></li><li><a href="#section-30">Function Calls</a></li><li><a href="#section-31">Conditional Execution</a></li><li><a href="#section-32">Loops</a></li><li><a href="#section-33">Match</a></li><li><a href="#section-34">Return</a></li><li><a href="#section-35">Defer</a></li><li><a href="#section-36">Definite Initialization</a></li><li><a href="#section-37">Ownership</a></li><li><a href="#section-38">Move Semantics</a></li><li><a href="#section-39">Copy Semantics</a></li><li><a href="#section-40">Partial Moves</a></li><li><a href="#section-41">Borrowing</a></li><li><a href="#section-42">Shared Borrows</a></li><li><a href="#section-43">Mutable Borrows</a></li><li><a href="#section-44">Borrow Lifetime</a></li><li><a href="#section-45">Function Parameters and Returned Borrows</a></li><li><a href="#section-46">Reborrowing</a></li><li><a href="#section-47">Field and Partial Borrows</a></li><li><a href="#section-48">Aliasing</a></li><li><a href="#section-49">Collection Borrowing</a></li><li><a href="#section-50">Borrow Invalidation</a></li><li><a href="#section-51">Destruction</a></li><li><a href="#section-52">Scope Destruction</a></li><li><a href="#section-53">Unwinding</a></li><li><a href="#section-54">Abort</a></li><li><a href="#section-55">Nullability</a></li><li><a href="#section-56">Bounds Safety</a></li><li><a href="#section-57">Result&lt;T,E&gt;</a></li><li><a href="#section-58">Error Propagation</a></li><li><a href="#section-59">Strings</a></li><li><a href="#section-60">Vector&lt;T&gt;</a></li><li><a href="#section-61">Slices</a></li><li><a href="#section-62">Threads</a></li><li><a href="#section-63">Synchronization</a></li><li><a href="#section-64">Mutex</a></li><li><a href="#section-65">Data Races</a></li><li><a href="#section-66">Memory Model</a></li><li><a href="#section-67">Unsafe Code and Functions</a></li><li><a href="#section-68">Raw Memory</a></li><li><a href="#section-69">Safe Abstractions over Unsafe Code</a></li><li><a href="#section-70">Foreign Functions</a></li><li><a href="#section-71">FFI Ownership</a></li><li><a href="#section-72">ABI Profiles</a></li><li><a href="#section-73">Runtime</a></li><li><a href="#section-74">Allocation</a></li><li><a href="#section-75">Standard I/O</a></li><li><a href="#section-76">Security and Safety Boundary</a></li><li><a href="#section-77">Diagnostics</a></li><li><a href="#section-78">Implementation-Defined Behavior</a></li><li><a href="#section-79">Extensions</a></li><li><a href="#section-80">Conformance Levels</a></li><li><a href="#section-81">Conformance Testing</a></li><li><a href="#section-82">Compatibility</a></li><li><a href="#section-83">Versioning</a></li><li><a href="#section-84">Final Safety Theorem</a></li><li><a href="#section-85">Final Reference Model</a></li><li><a href="#section-86">Final Status</a></li><li><a href="#section-87">Illustrative Program</a></li></ol>
@@ -79,10 +104,15 @@
 
 <div class="note">
     <p><strong>Core Design:</strong></p>
+    
+<div class="logo-container">
+    <img src="CobaltC_Logo_transparent_small.png" alt="CobaltC emblem">
+</div>
+
     <p>CobaltC is C-like data plus ordinary functions, generics, explicit memory and ownership safety, and modules.</p>
-    <p>Managed pointers are the source-language representation of borrow capabilities. A borrow is the semantic relationship between an access capability and a referent; a managed pointer is the value that carries that capability. Managed pointers do not represent ownership unless a language rule explicitly states otherwise.</p>
     <p>CobaltC provides C-like systems programming, but ownership, lifetime, bounds, nullability, and data-race rules are language semantics rather than programmer convention.</p>
     <p>CobaltC provides deterministic resource management through destruction at language-defined ownership and scope boundaries and compiler-enforced borrowing rather than relying on garbage collection or programmer convention.</p>
+    <p>Managed pointers are the source-language representation of borrow capabilities. A borrow is the semantic relationship between an access capability and a referent; a managed pointer is the value that carries that capability. Managed pointers do not represent ownership unless a language rule explicitly states otherwise.</p>
     <p>Visibility is defined at the module boundary through explicit <code>export</code> declarations; CobaltC does not use <code>public</code>, <code>private</code>, or <code>protected</code> declarations.</p>
     <p>Unsafe operations and foreign interfaces form explicit boundaries outside the automatic safety guarantees of safe CobaltC.</p>
     <p>CobaltC does <strong>not</strong> provide classes, object-oriented inheritance or dynamic dispatch.</p>
