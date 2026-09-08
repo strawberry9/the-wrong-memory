@@ -305,6 +305,7 @@ VALUE</code></pre>
 import io { print, println };</code></pre>
 <p>Name resolution is lexical and module-aware. An unresolved name is a compile-time error. Imports do not implicitly re-export declarations.</p>
 <h3>Module Contracts</h3>
+<p>A module's <code>export { ... }</code> block specifies the declarations that are externally accessible from that module. An export MUST be specified within an <code>export { ... }</code> block. A standalone export declaration, such as <code>export someType;</code> MUST NOT occur. Any declaration not listed in the module's <code>export { ... }</code> block is module-local and MUST NOT be externally accessible.</p>
 <p>A module's <code>export { ... }</code> block lists declarations externally accessible from that module. Declarations not listed remain module-local. A submodule is a distinct module and is not exported by its parent merely because it exists beneath that parent.</p>
 <p>A module hierarchy does not implicitly grant access between parent, child, or sibling modules. External code imports the module whose exported declarations it intends to use.</p>
 <p>Two translation units MUST NOT define the same module for one program. Circular module dependencies MAY be supported, but name resolution MUST remain well-defined; an unresolved dependency is a compile-time error.</p>
