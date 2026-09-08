@@ -2,8 +2,8 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>CobaltC Programming Language Specification 1.0.1</title>
-<meta content="CobaltC Programming Language Specification - CobaltC 1.0 - Specification 1.0.1" name="description"/>
+<title>CobaltC Programming Language Specification 1.0.2</title>
+<meta content="CobaltC Programming Language Specification - CobaltC 1.0 - Specification 1.0.2" name="description"/>
 <style> :root { --bg: #0b0f14; --bg-deep: #080b0f; --surface: #111720; --surface-2: #171e28; --surface-3: #1d2632; --border: #2a3542; --border-soft: #202a35; --text: #e6edf3; --text-bright: #f5f7fa; --muted: #9aa7b5; --muted-2: #718092; --accent: #62a0ff; --accent-hover: #8ab8ff; --accent-soft: rgba(98, 160, 255, 0.12); --green: #62d995; --green-soft: rgba(98, 217, 149, 0.12); --code-bg: #080b10; --code-border: #26313e; --code-text: #dbe7f4; --warning: #e8b86a; --warning-soft: rgba(232, 184, 106, 0.1); --max-width: 1180px; --content-width: 850px; --font-sans: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Monaco, monospace; } * { box-sizing: border-box; } html { scroll-behavior: smooth; background: var(--bg); } body { margin: 0; background: radial-gradient( circle at 50% -10%, rgba(61, 103, 170, 0.13), transparent 38rem ), var(--bg); color: var(--text); font-family: var(--font-sans); font-size: 16px; line-height: 1.7; } ::selection { background: rgba(98, 160, 255, 0.3); color: #ffffff; } a { color: var(--accent); text-decoration: none; } a:hover { color: var(--accent-hover); text-decoration: underline; } code, pre { font-family: var(--font-mono); } code { color: #b9d6ff; background: rgba(255, 255, 255, 0.055); border: 1px solid rgba(255, 255, 255, 0.07); border-radius: 4px; padding: 0.12em 0.35em; font-size: 0.9em; } pre { margin: 1.25rem 0 1.75rem; padding: 1.25rem 1.4rem; color: var(--code-text); background: var(--code-bg); border: 1px solid var(--code-border); border-radius: 8px; font-size: 0.9rem; line-height: 1.6; /* * Keep ordinary normative examples within the page width. * Indentation is preserved while long source lines wrap naturally. */ white-space: pre-wrap; overflow-wrap: break-word; word-break: normal; overflow-x: auto; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025), 0 8px 30px rgba(0, 0, 0, 0.18); } pre code { padding: 0; border: 0; background: transparent; color: inherit; font-size: inherit; } main { width: min(calc(100% - 40px), var(--max-width)); margin: 0 auto; padding: 64px 0 100px; } .document-header { padding: 48px; margin-bottom: 32px; background: linear-gradient( 135deg, rgba(98, 160, 255, 0.08), transparent 55% ), var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22); } .status { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 20px; padding: 5px 11px; color: var(--green); background: var(--green-soft); border: 1px solid rgba(98, 217, 149, 0.25); border-radius: 999px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; } .status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 10px rgba(98, 217, 149, 0.6); } h1, h2, h3 { color: var(--text-bright); line-height: 1.25; letter-spacing: -0.025em; } h1 { margin: 0; font-size: clamp(1.8rem, 3.5vw, 2.75rem); font-weight: 750; } .subtitle { margin: 12px 0 0; color: var(--muted); font-size: 1.25rem; } .metadata { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 32px 0 0; } .metadata-item { padding: 16px 18px; background: rgba(255, 255, 255, 0.025); border: 1px solid var(--border-soft); border-radius: 7px; } .metadata-label { display: block; margin-bottom: 3px; color: var(--muted-2); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; } .metadata-value { color: var(--text); font-weight: 600; } .toc { margin-bottom: 60px; padding: 28px 32px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; } .toc h2 { margin: 0 0 18px; padding: 0; border: 0; font-size: 1.2rem; } .toc ol { columns: 2; column-gap: 50px; margin: 0; padding-left: 24px; } .toc li { break-inside: avoid; margin: 3px 0; color: var(--muted); font-size: 0.92rem; } .toc a { color: var(--muted); } .toc a:hover { color: var(--accent); } article { max-width: var(--content-width); margin: 0 auto; } section { scroll-margin-top: 30px; margin-top: 72px; } section:first-child { margin-top: 0; } h2 { margin: 0 0 24px; padding-bottom: 12px; border-bottom: 1px solid var(--border); font-size: 1.85rem; } h3 { margin-top: 36px; font-size: 1.25rem; } p { margin: 0 0 18px; } ul, ol { margin: 0 0 22px; padding-left: 28px; } li { margin: 5px 0; } .prose-list { margin-top: 10px; } .note { margin: 24px 0; padding: 18px 20px; background: var(--accent-soft); border: 1px solid rgba(98, 160, 255, 0.22); border-left: 3px solid var(--accent); border-radius: 0 7px 7px 0; } .note p:last-child { margin-bottom: 0; } .normative { color: var(--text-bright); font-weight: 650; } .spec-table { width: 100%; margin: 24px 0; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; } .spec-table th, .spec-table td { padding: 12px 15px; border-bottom: 1px solid var(--border-soft); text-align: left; vertical-align: top; } .spec-table th { color: var(--text-bright); background: var(--surface-2); font-weight: 700; } .spec-table tr:last-child td { border-bottom: 0; } .spec-table td:first-child { width: 70px; color: var(--muted); font-family: var(--font-mono); } .final-box { margin-top: 28px; padding: 28px; background: linear-gradient( 135deg, rgba(98, 217, 149, 0.08), transparent 70% ), var(--surface); border: 1px solid rgba(98, 217, 149, 0.25); border-radius: 10px; } .final-box strong { color: var(--green); } .diagram { margin: 24px 0; } footer { max-width: var(--content-width); margin: 80px auto 0; padding-top: 28px; border-top: 1px solid var(--border); color: var(--muted-2); font-size: 0.9rem; text-align: center; } .back-to-top { display: block; margin-top: 10px; font-size: 0.8rem; } @media (max-width: 800px) { main { width: min(calc(100% - 24px), var(--max-width)); padding-top: 24px; } .document-header { padding: 30px 24px; } .metadata { grid-template-columns: 1fr; } .toc ol { columns: 1; } article { width: 100%; } } @media (max-width: 500px) { body { font-size: 15px; } h1 { font-size: 2.3rem; } h2 { font-size: 1.55rem; } pre { padding: 1rem; font-size: 0.82rem; } } @media print { :root { --bg: #ffffff; --surface: #ffffff; --surface-2: #f4f4f4; --border: #cccccc; --border-soft: #dddddd; --text: #111111; --text-bright: #000000; --muted: #555555; --muted-2: #666666; --code-bg: #f5f5f5; --code-text: #111111; } body { background: white; color: black; } main { width: 100%; padding: 0; } .document-header, .toc { box-shadow: none; } .toc { display: none; } article { max-width: none; } section { break-inside: avoid; } pre { white-space: pre-wrap; overflow-wrap: break-word; overflow-x: visible; box-shadow: none; } footer { color: #555; } } </style>
 <style>
         .toc li.toc-appendix {
@@ -66,7 +66,7 @@
 </div>
 <div class="metadata-item">
 <span class="metadata-label">Specification Version</span>
-<span class="metadata-value">1.0.1</span>
+<span class="metadata-value">1.0.2</span>
 </div>
 </div>
 </header>
@@ -75,7 +75,7 @@
 <div class="note">
 <p><strong>Publication Status:</strong> This edition defines the CobaltC 1.0 language contract.</p>
 <p>Implementation technique, representation, and compiler architecture remain implementation choices except where explicitly constrained by normative language guarantees.</p>
-<!--<p>The formatted PDF edition of this specification is available <a href="CobaltC_Specification_1.0.1_Final_Publication_V3.pdf">here</a>.</p>-->
+<!--<p>The formatted PDF edition of this specification is available <a href="CobaltC_Specification_1.0.2_Final_Publication_V3.pdf">here</a>.</p>-->
 </div>
 
 <h3>Preface</h3>
@@ -129,7 +129,7 @@ obligations the programmer must maintain by convention.
 <p>The specification deliberately leaves implementation technique, representation, and compiler architecture to the implementor except where those choices affect a normative language guarantee. Examples in this specification illustrate normative syntax and semantics unless explicitly stated otherwise. Examples do not introduce additional language features or requirements beyond those defined by the normative text.</p>
 </section><section id="section-2"><h2>2. Normative Terminology</h2>
 <p>The words <strong>MUST</strong>, <strong>MUST NOT</strong>, <strong>SHOULD</strong>, <strong>SHOULD NOT</strong>, and <strong>MAY</strong> are normative.</p>
-<p><strong>CobaltC 1.0</strong> refers to the language edition. <strong>Specification version 1.0.1</strong> refers to this document revision.</p>
+<p><strong>CobaltC 1.0</strong> refers to the language edition. <strong>Specification version 1.0.2</strong> refers to this document revision.</p>
 <p><strong>Implementation-defined</strong> means that an implementation chooses the behavior from the alternatives permitted by this specification and documents that choice.</p>
 <p><strong>Unspecified</strong> means that this specification permits more than one behavior and does not require an implementation to document which permitted behavior it chooses.</p>
 <p><strong>Undefined behavior</strong> is behavior for which this specification imposes no requirements. Operations expressible in safe CobaltC without entering an unsafe context MUST NOT have undefined behavior.</p>
@@ -169,7 +169,7 @@ obligations the programmer must maintain by convention.
 
 <p>The same principle applies to submodules. A module hierarchy provides organization and namespaces but does not weaken encapsulation. Each module independently controls its external contract, and a parent module does not implicitly export, import, or expose declarations from a submodule.</p>
 
-<p>An implementation MAY provide additional visibility mechanisms as extensions, but such mechanisms MUST be distinguishable from standard CobaltC behavior and MUST NOT silently alter the semantics of a valid CobaltC 1.0.1 program.</p>
+<p>An implementation MAY provide additional visibility mechanisms as extensions, but such mechanisms MUST be distinguishable from standard CobaltC behavior and MUST NOT silently alter the semantics of a valid CobaltC 1.0.2 program.</p>
 
 <h3>Source-File Organization</h3>
 
@@ -270,7 +270,6 @@ true
 unsafe
 while
 </code></pre>
-<p><code>drop</code> is reserved for compiler-recognized destruction semantics but has no ordinary source-language production.</p>
 <p><code>alias</code> introduces a type-alias declaration.</p>
 <p>An alias declaration has the form <code>alias Name = ExistingType;</code>. An alias is transparent for type compatibility and does not create a new nominal type.</p>
 <p>The word <code>let</code> is not a CobaltC keyword and is not introduced by this edition.</p>
@@ -502,9 +501,33 @@ mut String* p = &amp;mut value; // taking a mutable borrow</code></pre>
 <p>Structs do not contain function declarations. Operations on a struct may instead be declared as associated functions using the type's qualified name.</p>
 <h3>Destruction</h3>
 
-<p>A type MAY define a compiler-recognized destruction hook using associated-function syntax of the form <code>fn T::destroy(mut T* value)</code>. A destruction hook uses associated-function syntax but is a distinct language mechanism: it is invoked by compiler-defined destruction semantics and is not an ordinary associated function. It MUST NOT be invoked explicitly as part of normal source-language execution.</p>
-<p>The existence of a destruction hook does not otherwise define method syntax, receiver semantics, or object-oriented behavior.</p><p>The hook has privileged exclusive access to the owned value while destruction is performed and releases resources directly managed by <code>T</code> that are not represented by owned fields. The hook MUST NOT independently destroy owned fields that the compiler will subsequently destroy. The compiler recursively destroys owned fields after the destruction hook completes.</p>
-<p>The destruction hook MUST return `void` and MUST NOT be invoked explicitly by ordinary program code. It is a compiler-invoked destruction hook rather than an ordinary callable function. The compiler invokes it exactly once for each owned value whose type defines one.</p><p>If destruction is interrupted by abnormal termination, the language does not require a particular recovery mechanism. Any remaining destruction obligations are handled according to the termination semantics defined by the applicable execution model.</p>
+<p>A type MAY define a  language-recognized destruction hook using associated-function syntax of the form:</p>
+<p><code>fn T::destroy(mut T* value) : void { ... }</code></p>
+
+<p>
+  A destruction hook uses associated-function syntax but is a distinct
+  language mechanism: it is invoked implicitly by the destruction semantics
+  of the language when the implementation destroys an owned value of type
+  <code>T</code>. It is not an ordinary associated function and MUST NOT be
+  invoked explicitly as part of normal source-language execution.
+</p>
+
+<p>
+  The hook receives exclusive mutable access to the owned value while destruction
+  is performed and MAY release resources managed directly by <code>T</code> that
+  are not represented by owned fields. The hook MUST NOT independently destroy
+  owned fields that the implementation will subsequently destroy. After the
+  destruction hook completes, the implementation recursively destroys the
+  remaining owned fields according to their destruction semantics.
+</p>
+
+<p>
+  The destruction hook MUST return <code>void</code> and MUST NOT be invoked
+  explicitly by ordinary program code. It is a destruction hook rather than an
+  ordinary callable function. The implementation invokes it exactly once for
+  each owned value whose type defines one.
+</p>
+
 <p>If a type has no destruction hook, its owned fields are recursively destroyed according to their own destruction semantics.</p>
 <pre><code>
 T.destroy()
@@ -1610,7 +1633,9 @@ print(*pointer);</code></pre>
   operation would violate the shared-borrow, mutable-borrow, lifetime, move,
   aliasing, or collection-borrowing rules.
 </p>
-<h3>Collection Invalidation and Conservative Analysis</h3><p>An operation that may reallocate, resize, relocate, or otherwise invalidate storage MUST NOT be performed while a live managed pointer or slice depends on that storage, unless the compiler can establish that the particular reference is unaffected.</p><p>An implementation MAY use static or runtime techniques to prove that a particular operation cannot invalidate a particular reference. Safe behavior MUST be preserved regardless of whether the implementation uses compile-time or runtime analysis.</p></section><section id="section-51">
+<h3>Collection Invalidation and Conservative Analysis</h3><p>An operation that may reallocate, resize, relocate, or otherwise invalidate storage MUST NOT be performed while a live managed pointer or slice depends on that storage, unless the compiler can establish that the particular reference is unaffected.</p><p>An implementation MAY use static or runtime techniques to prove that a particular operation cannot invalidate a particular reference. Safe behavior MUST be preserved regardless of whether the implementation uses compile-time or runtime analysis.</p></section>
+
+<section id="section-51">
 <h2>51. Destruction</h2>
 <p>
   Owned values are destroyed deterministically according to Section 21.
@@ -1618,24 +1643,22 @@ print(*pointer);</code></pre>
   does not cause a second destruction.
 </p>
 <p>
-  The compiler provides an internal <code>drop</code> operation for performing
-  destruction of an owned value. The <code>drop</code> operation is a
-  compiler-level operation and is not ordinary source-language syntax.
+  When an owned value is destroyed, the implementation MUST perform the
+  destruction semantics defined by this specification and MUST consume the
+  ownership responsibility for that value. The implementation MAY use an
+  internal operation, conventionally referred to as <code>drop</code>, to
+  perform this destruction. <code>drop</code> is not a source-language
+  operation and has no independent source-level semantics.
 </p>
+
 <p>
-  When the compiler performs <code>drop</code> on an owned value, the value is
-  destroyed according to its destruction semantics and the ownership
-  responsibility for that value is consumed.
+  If the value's type defines a <code>destroy</code> hook, the implementation
+  invokes that hook according to Section 21. After the destruction hook
+  completes, the implementation recursively destroys the value's remaining
+  owned fields according to their destruction semantics.
 </p>
-<p>
-  If the value's type defines a <code>destroy</code> hook, that hook is invoked
-  according to Section 21. Otherwise, the compiler recursively destroys the
-  value's owned fields according to their destruction semantics.
-</p>
-<p>
-  Ordinary program code MUST NOT invoke the compiler-level <code>drop</code>
-  operation explicitly.
-</p>
+
+
 </section><section id="section-52">
 <h2>52. Scope Destruction</h2>
 <p>
@@ -2108,8 +2131,8 @@ invalid assignment</code></pre>
 <p>Implementation techniques such as region inference, constraint solving, monomorphization, pointer-based representations, compiler-generated destruction, or generated synchronization are not language semantics merely because an implementation uses them.</p>
 </section><section id="section-79"><h2>79. Extensions</h2>
 <p>An implementation MAY provide extensions. Extensions MUST be distinguishable from standard CobaltC behavior by an explicit opt-in mechanism such as a compiler option, module, namespace, or extension-specific syntax.</p>
-<p>An extension MUST NOT silently change the semantics of a valid CobaltC 1.0.1 program.</p>
-<p>CobaltC 1.0.1 does not define a general-purpose macro-expansion system. Preprocessing, code generation, templates, and source transformation MAY be provided as extensions subject to the same rule.</p>
+<p>An extension MUST NOT silently change the semantics of a valid CobaltC 1.0.2 program.</p>
+<p>CobaltC 1.0.2 does not define a general-purpose macro-expansion system. Preprocessing, code generation, templates, and source transformation MAY be provided as extensions subject to the same rule.</p>
 </section><section id="section-80"><h2>80. Conformance Levels</h2>
 <h3>Core Conformance</h3><p>Requires the language syntax, type system, static semantics, ownership, borrowing, lifetimes, and core safety guarantees.</p>
 <h3>Standard Conformance</h3><p>Requires Core plus the mandatory standard-library baseline: <code>Result</code>, <code>String</code>, <code>Vector</code>, <code>Slice</code>, <code>Mutex</code>, and Standard I/O. Implementations MUST provide the source-visible facilities described by those sections.</p>
@@ -2120,11 +2143,11 @@ invalid assignment</code></pre>
 <p>A negative test passes when the implementation rejects a program that violates a normative rule. Compilation failure due solely to an implementation limit or resource exhaustion does not by itself establish successful conformance testing.</p>
 <p>A positive test passes when the implementation accepts a program conforming to the applicable edition and provides behavior consistent with the specification.</p>
 </section><section id="section-82"><h2>82. Compatibility</h2>
-<p>A CobaltC 1.0.1 program has stable meaning under conforming implementations, subject only to choices explicitly identified as implementation-defined or unspecified by this specification.</p>
+<p>A CobaltC 1.0.2 program has stable meaning under conforming implementations, subject only to choices explicitly identified as implementation-defined or unspecified by this specification.</p>
 <p>Optimization MUST NOT change specified observable semantics.</p>
 <p>Binary compatibility is separate from source compatibility and depends on the applicable ABI profile.</p>
 </section><section id="section-83"><h2>83. Versioning</h2>
-<p>CobaltC 1.0.1 is a closed language edition. Corrections may clarify or repair the published specification, but a semantic change MUST NOT silently be presented as established CobaltC 1.0.1 behavior.</p>
+<p>CobaltC 1.0.2 is a closed language edition. Corrections may clarify or repair the published specification, but a semantic change MUST NOT silently be presented as established CobaltC 1.0.2 behavior.</p>
 <p>New keywords, declaration forms, expression forms, type categories, ownership mechanisms, borrowing mechanisms, lifetime syntax, concurrency primitives, module syntax, visibility syntax, macro facilities, or dynamic-dispatch facilities belong in a subsequent language edition.</p>
 </section>
 <section id="cross-reference-integrity-notes">
@@ -2197,12 +2220,12 @@ invalid assignment</code></pre>
 <h2>86. Final Status</h2>
 <div class="final-box">
 <p>
-<strong>CobaltC Programming Language Specification 1.0.1</strong>
+<strong>CobaltC Programming Language Specification 1.0.2</strong>
 </p>
 <p>
 <strong>Status: Final Specification</strong>
 </p>
-<p>The language design for CobaltC 1.0.1 is established by this document, which serves as the consolidated normative baseline for the edition. Editorial corrections may be made before final publication; new language features or changes to established language semantics require a subsequent language edition.</p>
+<p>The language design for CobaltC 1.0.2 is established by this document, which serves as the consolidated normative baseline for the edition. Editorial corrections may be made before final publication; new language features or changes to established language semantics require a subsequent language edition.</p>
 </div>
 </section>
 
@@ -2807,8 +2830,14 @@ The implementation MUST apply the ordinary CobaltC destruction semantics to init
 </p>
 
 <p>
-The compiler-controlled <code>drop</code> mechanism remains the mechanism by which the compiler performs destruction. <code>drop</code> is not thereby introduced as an ordinary source-language operation, and the programmer-defined <code>destroy</code> hook is not itself the compiler's <code>drop</code> mechanism.
+  The implementation MAY use an internal mechanism, conventionally referred to
+  as <code>drop</code>, to perform destruction. <code>drop</code> is not a
+  source-language operation and has no independent source-level semantics.
+  The programmer-defined <code>destroy</code> hook is part of the destruction
+  semantics of the associated type and does not itself constitute an
+  implementation mechanism.
 </p>
+
 
 <p>
 A storage implementation MUST NOT independently destroy an owned value in a manner that causes the same value to be destroyed again by the ordinary CobaltC destruction mechanism.
@@ -3085,7 +3114,11 @@ Likewise, an operation that transfers or destroys ownership MUST NOT leave behin
 <h3>A.16 Interaction With Compiler Destruction</h3>
 
 <p>
-Owned storage does not require a user-visible <code>drop</code> operation. <code>drop</code> is a compiler-recognized destruction mechanism and is not an ordinary source-language operation.
+  Owned storage does not require a user-visible destruction operation.
+  The implementation MAY use an internal mechanism, conventionally referred
+  to as <code>drop</code>, to perform destruction of owned values.
+  <code>drop</code> is not a source-language operation and has no independent
+  source-level semantics.
 </p>
 
 <p>
@@ -3097,7 +3130,19 @@ The compiler then performs the ordinary destruction of each remaining initialize
 </p>
 
 <p>
-Thus, <code>destroy</code> and <code>drop</code> have distinct roles: <code>destroy</code> is the programmer-defined destruction hook recognized by the compiler, whereas <code>drop</code> is the compiler-controlled destruction mechanism. The <code>destroy</code> hook is therefore part of the destruction performed by <code>drop</code>; it is not an alternative ownership or destruction system.
+  Thus, <code>destroy</code> and the implementation's destruction mechanism
+  have distinct roles. <code>destroy</code> is the programmer-defined
+  destruction hook specified by this language, whereas the implementation
+  may use any internal mechanism to perform the destruction required by this
+  specification. The <code>destroy</code> hook therefore participates in the
+  destruction semantics of the associated type; it is not an alternative
+  ownership or destruction system.
+</p>
+
+<p>
+  An implementation MAY refer to its internal destruction mechanism as
+  <code>drop</code>, but such terminology has no source-language or
+  interoperability significance.
 </p>
 
 <p>
@@ -3114,7 +3159,7 @@ The process can be understood conceptually as:
 Identify initialized positions
     |
     v
-Compiler performs drop for each initialized value
+Perform destruction for each initialized value
     |
     +----&gt; applicable programmer-defined destroy hook
     |
