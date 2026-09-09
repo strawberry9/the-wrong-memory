@@ -297,13 +297,31 @@ VALUE</code></pre>
 <p>A string literal is enclosed in double quotes and produces a <code>String</code> value. Standard escapes include <code>\n</code>, <code>\r</code>, <code>\t</code>, <code>\0</code>, <code>\\</code>, and <code>\"</code>. A string literal MUST denote valid UTF-8.</p>
 <h3>Literal typing</h3>
 <p>Integer literals are typed from context where possible; without a contextual integer type, the implementation uses <code>i32</code> when the value is representable and MUST otherwise require an explicit type. A literal whose value cannot be represented by its required type is a compile-time error.</p>
-</section><section id="section-8"><h2>8. Modules</h2>
-<p>A module declaration has the form:</p><pre><code>module example;</code></pre>
-<p>A module establishes a namespace. A translation unit MUST contain exactly one module declaration.</p>
-<p>Modules MAY import declarations, or selective declarations, from other modules:</p>
-<pre><code>import io;
-import io { print, println };</code></pre>
-<p>Name resolution is lexical and module-aware. An unresolved name is a compile-time error. Imports do not implicitly re-export declarations.</p>
+</section>
+
+<section id="section-8"><h2>8. Modules</h2>
+<p>A module declaration has the form:</p> <pre><code>module example;</code></pre> <p>A module establishes a namespace. A translation unit MUST contain exactly one module declaration.</p>
+<p>Modules MAY import other modules or selected declarations from other modules:</p>
+<pre><code>import std.io;
+
+import
+{
+    std.io,
+    std.vector
+};
+
+import std.io { print, println };</code></pre>
+<p>A declaration of the form <code>import <i>module</i>;</code> imports the specified module. A declaration of the form <code>import { <i>module</i><sub>1</sub>, ..., <i>module</i><sub>n</sub> };</code> imports each specified module. A declaration of the form <code>import <i>module</i> { <i>declaration</i><sub>1</sub>, ..., <i>declaration</i><sub>n</sub> };</code> imports only the specified declarations from that module.</p> <p>The braced module-import form is semantically equivalent to a sequence of individual module imports. For example:</p>
+<pre><code>import
+{
+    std.io,
+    std.vector
+};</code></pre>
+<p>is equivalent to:</p>
+<pre><code>import std.io;
+import std.vector;</code></pre>
+<p>Each declaration imported selectively MUST be externally accessible from the source module. Imports do not implicitly re-export declarations.</p> <p>Name resolution is lexical and module-aware. An unresolved name is a compile-time error.</p>
+
 <h3>Module Contracts</h3>
 <p>A module's <code>export { ... }</code> block specifies the declarations that are externally accessible from that module. An export MUST be specified within an <code>export { ... }</code> block. A standalone export declaration, such as <code>export someType;</code> MUST NOT occur. Any declaration not listed in the module's <code>export { ... }</code> block is module-local and MUST NOT be externally accessible.</p>
 <p>A module's <code>export { ... }</code> block lists declarations externally accessible from that module. Declarations not listed remain module-local. A submodule is a distinct module and is not exported by its parent merely because it exists beneath that parent.</p>
