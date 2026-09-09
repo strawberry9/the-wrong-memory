@@ -308,7 +308,7 @@ import
 {
     std.io,
     std.vector
-};
+}
 
 import std.io { print, println };</code></pre>
 <p>A declaration of the form <code>import <i>module</i>;</code> imports the specified module. A declaration of the form <code>import { <i>module</i><sub>1</sub>, ..., <i>module</i><sub>n</sub> };</code> imports each specified module. A declaration of the form <code>import <i>module</i> { <i>declaration</i><sub>1</sub>, ..., <i>declaration</i><sub>n</sub> };</code> imports only the specified declarations from that module.</p> <p>The braced module-import form is semantically equivalent to a sequence of individual module imports. For example:</p>
@@ -316,18 +316,31 @@ import std.io { print, println };</code></pre>
 {
     std.io,
     std.vector
-};</code></pre>
+}</code></pre>
 <p>is equivalent to:</p>
 <pre><code>import std.io;
 import std.vector;</code></pre>
 <p>Each declaration imported selectively MUST be externally accessible from the source module. Imports do not implicitly re-export declarations.</p> <p>Name resolution is lexical and module-aware. An unresolved name is a compile-time error.</p>
 
 <h3>Module Contracts</h3>
-<p>A module's <code>export { ... }</code> block specifies the declarations that are externally accessible from that module. An export MUST be specified within an <code>export { ... }</code> block. A standalone export declaration, such as <code>export someType;</code> MUST NOT occur. Any declaration not listed in the module's <code>export { ... }</code> block is module-local and MUST NOT be externally accessible.</p>
+<p>A module's <code>export { ... }</code> block specifies the declarations that are externally accessible from that module.</p>
+<p>An export MUST always be specified within an <code>export { ... }</code> block. A standalone export declaration, such as <code>export someType;</code> MUST NOT occur. Any declaration not listed in the module's <code>export { ... }</code> block is module-local and MUST NOT be externally accessible.</p>
 <p>A module's <code>export { ... }</code> block lists declarations externally accessible from that module. Declarations not listed remain module-local. A submodule is a distinct module and is not exported by its parent merely because it exists beneath that parent.</p>
+<p>Example:</p>
+<pre><code>export
+{
+    Vector;
+    VectorError;
+
+    Vector<T>::new();
+    Vector<T>::length;
+}
+</code></pre>
 <p>A module hierarchy does not implicitly grant access between parent, child, or sibling modules. External code imports the module whose exported declarations it intends to use.</p>
 <p>Two translation units MUST NOT define the same module for one program. Circular module dependencies MAY be supported, but name resolution MUST remain well-defined; an unresolved dependency is a compile-time error.</p>
-</section><section id="section-9">
+</section>
+
+<section id="section-9">
 <h2>9. Declarations</h2>
 <p>CobaltC provides:</p>
 <pre><code>const
