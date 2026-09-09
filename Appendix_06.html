@@ -277,15 +277,28 @@ while
 <p>An alias declaration has the form <code>alias Name = ExistingType;</code>. An alias is transparent for type compatibility and does not create a new nominal type.</p>
 <p>The word <code>let</code> is not a CobaltC keyword and is not introduced by this edition.</p>
 <p>A keyword is recognized only when the complete lexical token is the keyword; a longer identifier such as <code>returnValue</code> remains an identifier.</p>
-</section><section id="section-6"><h2>6. Identifiers</h2>
-<p>An identifier begins with a Unicode identifier-start character and may contain subsequent identifier characters and digits. Identifiers are case-sensitive.</p>
+</section>
+
+<section id="section-6"><h2>6. Identifiers</h2>
+
+<p>An identifier begins with an <code>IdentifierStart</code> character and is followed by zero or more <code>IdentifierContinue</code> characters, as defined in Appendix B. Identifiers are case-sensitive.</p>
+
 <pre><code>value
 Value
 VALUE</code></pre>
+
 <h3>Identifier Security and Unicode Restrictions</h3>
-<p>User-defined identifiers MUST comply with Unicode Technical Standard #39 (TR39) under the Moderately Restrictive security profile. Format characters, zero-width spaces such as U+200B, and bidirectional text override characters such as U+202E MUST NOT appear in an identifier token.</p>
-<p>The implementation MUST diagnose an identifier when the applicable TR39 confusables data establishes a prohibited conflict with a protected keyword, predefined core type, or conflicting identifier in the applicable lookup scope.</p>
+
+<p>User-defined identifiers MUST comply with the Unicode identifier and security requirements defined in Appendix B.</p>
+
+<p>In particular, identifiers MUST satisfy the Unicode <code>XID_Start</code> and <code>XID_Continue</code> requirements, including the CobaltC underscore rules, and MUST satisfy the Unicode Technical Standard #39 (UTS #39) Moderately Restrictive security profile.</p>
+
+<p>Identifiers MUST NOT contain prohibited format or directional-control characters. An identifier that violates the requirements of Appendix B is a compile-time error.</p>
+
+<p>Confusable conflicts with protected keywords, predefined core type names, or other identifiers in the applicable lookup scope are diagnosed according to the confusable-identifier rules defined in Appendix B.</p>
+
 </section>
+
 
 <section id="section-7"><h2>7. Literals</h2>
 
