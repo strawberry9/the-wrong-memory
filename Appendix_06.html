@@ -100,7 +100,7 @@ obligations the programmer must maintain by convention.
 
 <nav aria-label="Table of contents" class="toc">
 <h2>Contents</h2>
-<ol><li><a href="#section-1">Introduction</a></li><li><a href="#section-2">Normative Terminology</a></li><li><a href="#section-3">Source Files</a></li><li><a href="#section-4">Comments</a></li><li><a href="#section-5">Keywords</a></li><li><a href="#section-6">Identifiers</a></li><li><a href="#section-7">Literals</a></li><li><a href="#section-8">Modules</a></li><li><a href="#section-9">Declarations</a></li><li><a href="#section-10">Variables</a></li><li><a href="#section-11">Constants</a></li><li><a href="#section-12">Primitive Types</a></li><li><a href="#section-13">Compound Types</a></li><li><a href="#section-14">Managed Pointer Types</a></li><li><a href="#section-15">Raw Pointers</a></li><li><a href="#section-16">Mutability</a></li><li><a href="#section-17">Type Compatibility</a></li><li><a href="#section-18">Type Inference</a></li><li><a href="#section-19">Generic Types and Functions</a></li><li><a href="#section-20">Exported Types</a></li><li><a href="#section-21">Structs</a></li><li><a href="#section-22">Enums</a></li><li><a href="#section-23">Arrays</a></li><li><a href="#section-24">Functions</a></li><li><a href="#section-25">Expressions</a></li><li><a href="#section-26">Operator Precedence</a></li><li><a href="#section-27">Arithmetic</a></li><li><a href="#section-28">Equality</a></li><li><a href="#section-29">Assignment</a></li><li><a href="#section-30">Function Calls</a></li><li><a href="#section-31">Conditional Execution</a></li><li><a href="#section-32">Loops</a></li><li><a href="#section-33">Match</a></li><li><a href="#section-34">Return</a></li><li><a href="#section-35">Defer</a></li><li><a href="#section-36">Definite Initialization</a></li><li><a href="#section-37">Ownership</a></li><li><a href="#section-38">Move Semantics</a></li><li><a href="#section-39">Copy Semantics</a></li><li><a href="#section-40">Partial Moves</a></li><li><a href="#section-41">Borrowing</a></li><li><a href="#section-42">Shared Borrows</a></li><li><a href="#section-43">Mutable Borrows</a></li><li><a href="#section-44">Borrow Lifetime</a></li><li><a href="#section-45">Function Parameters and Returned Borrows</a></li><li><a href="#section-46">Reborrowing</a></li><li><a href="#section-47">Field and Partial Borrows</a></li><li><a href="#section-48">Aliasing</a></li><li><a href="#section-49">Collection Borrowing</a></li><li><a href="#section-50">Borrow Invalidation</a></li><li><a href="#section-51">Destruction</a></li><li><a href="#section-52">Scope Destruction</a></li><li><a href="#section-53">Unwinding</a></li><li><a href="#section-54">Abort</a></li><li><a href="#section-55">Nullability</a></li><li><a href="#section-56">Bounds Safety</a></li><li><a href="#section-57">Result&lt;T,E&gt;</a></li><li><a href="#section-58">Error Propagation</a></li><li><a href="#section-59">Strings</a></li><li><a href="#section-60">Vector&lt;T&gt;</a></li><li><a href="#section-61">Slices</a></li><li><a href="#section-62">Threads</a></li><li><a href="#section-63">Synchronization</a></li><li><a href="#section-64">Mutex</a></li><li><a href="#section-65">Data Races</a></li><li><a href="#section-66">Memory Model</a></li><li><a href="#section-67">Unsafe Code and Functions</a></li><li><a href="#section-68">Raw Memory</a></li><li><a href="#section-69">Safe Abstractions over Unsafe Code</a></li><li><a href="#section-70">Foreign Functions</a></li><li><a href="#section-71">FFI Ownership</a></li><li><a href="#section-72">ABI Profiles</a></li><li><a href="#section-73">Runtime</a></li><li><a href="#section-74">Allocation</a></li><li><a href="#section-75">Standard I/O</a></li><li><a href="#section-76">Security and Safety Boundary</a></li><li><a href="#section-77">Diagnostics</a></li><li><a href="#section-78">Implementation-Defined Behavior</a></li><li><a href="#section-79">Extensions</a></li><li><a href="#section-80">Conformance Levels</a></li><li><a href="#section-81">Conformance Testing</a></li><li><a href="#section-82">Compatibility</a></li><li><a href="#section-83">Versioning</a></li><li><a href="#section-84">Safety Theorem</a></li><li><a href="#section-85">Reference Model</a></li><li><a href="#section-86">Status</a></li><li><a href="#section-87">Illustrative Program</a><li class="toc-appendix"><a href="#section-appendix-a">Appendix A</a></li></li>
+<ol><li><a href="#section-1">Introduction</a></li><li><a href="#section-2">Normative Terminology</a></li><li><a href="#section-3">Source Files</a></li><li><a href="#section-4">Comments</a></li><li><a href="#section-5">Keywords</a></li><li><a href="#section-6">Identifiers</a></li><li><a href="#section-7">Literals</a></li><li><a href="#section-8">Modules</a></li><li><a href="#section-9">Declarations</a></li><li><a href="#section-10">Variables</a></li><li><a href="#section-11">Constants</a></li><li><a href="#section-12">Primitive Types</a></li><li><a href="#section-13">Compound Types</a></li><li><a href="#section-14">Managed Pointer Types</a></li><li><a href="#section-15">Raw Pointers</a></li><li><a href="#section-16">Mutability</a></li><li><a href="#section-17">Type Compatibility</a></li><li><a href="#section-18">Type Inference</a></li><li><a href="#section-19">Generic Types and Functions</a></li><li><a href="#section-20">Exported Types</a></li><li><a href="#section-21">Structs</a></li><li><a href="#section-22">Enums</a></li><li><a href="#section-23">Arrays</a></li><li><a href="#section-24">Functions</a></li><li><a href="#section-25">Expressions</a></li><li><a href="#section-26">Operator Precedence</a></li><li><a href="#section-27">Arithmetic</a></li><li><a href="#section-28">Equality</a></li><li><a href="#section-29">Assignment</a></li><li><a href="#section-30">Function Calls</a></li><li><a href="#section-31">Conditional Execution</a></li><li><a href="#section-32">Loops</a></li><li><a href="#section-33">Match</a></li><li><a href="#section-34">Return</a></li><li><a href="#section-35">Defer</a></li><li><a href="#section-36">Definite Initialization</a></li><li><a href="#section-37">Ownership</a></li><li><a href="#section-38">Move Semantics</a></li><li><a href="#section-39">Copy Semantics</a></li><li><a href="#section-40">Partial Moves</a></li><li><a href="#section-41">Borrowing</a></li><li><a href="#section-42">Shared Borrows</a></li><li><a href="#section-43">Mutable Borrows</a></li><li><a href="#section-44">Borrow Lifetime</a></li><li><a href="#section-45">Function Parameters and Returned Borrows</a></li><li><a href="#section-46">Reborrowing</a></li><li><a href="#section-47">Field and Partial Borrows</a></li><li><a href="#section-48">Aliasing</a></li><li><a href="#section-49">Collection Borrowing</a></li><li><a href="#section-50">Borrow Invalidation</a></li><li><a href="#section-51">Destruction</a></li><li><a href="#section-52">Scope Destruction</a></li><li><a href="#section-53">Unwinding</a></li><li><a href="#section-54">Abort</a></li><li><a href="#section-55">Nullability</a></li><li><a href="#section-56">Bounds Safety</a></li><li><a href="#section-57">Result&lt;T,E&gt;</a></li><li><a href="#section-58">Error Propagation</a></li><li><a href="#section-59">Strings</a></li><li><a href="#section-60">Vector&lt;T&gt;</a></li><li><a href="#section-61">Slices</a></li><li><a href="#section-62">Threads</a></li><li><a href="#section-63">Synchronization</a></li><li><a href="#section-64">Mutex</a></li><li><a href="#section-65">Data Races</a></li><li><a href="#section-66">Memory Model</a></li><li><a href="#section-67">Unsafe Code and Functions</a></li><li><a href="#section-68">Raw Memory</a></li><li><a href="#section-69">Safe Abstractions over Unsafe Code</a></li><li><a href="#section-70">Foreign Functions</a></li><li><a href="#section-71">FFI Ownership</a></li><li><a href="#section-72">ABI Profiles</a></li><li><a href="#section-73">Runtime</a></li><li><a href="#section-74">Allocation</a></li><li><a href="#section-75">Standard I/O</a></li><li><a href="#section-76">Security and Safety Boundary</a></li><li><a href="#section-77">Diagnostics</a></li><li><a href="#section-78">Implementation-Defined Behavior</a></li><li><a href="#section-79">Extensions</a></li><li><a href="#section-80">Conformance Levels</a></li><li><a href="#section-81">Conformance Testing</a></li><li><a href="#section-82">Compatibility</a></li><li><a href="#section-83">Versioning</a></li><li><a href="#section-84">Safety Theorem</a></li><li><a href="#section-85">Reference Model</a></li><li><a href="#section-86">Status</a></li><li><a href="#section-87">Illustrative Program</a><li class="toc-appendix"><a href="#section-appendix-a">Appendix A</a></li><li class="toc-appendix"><a href="#section-appendix-b">Appendix B</a></li></li>
 </ol>
 </nav>
 
@@ -3321,6 +3321,232 @@ This permits high-performance containers to use manually allocated storage witho
 <p>
 A conforming implementation may therefore represent a container using raw memory internally while presenting an ordinary safe CobaltC interface, provided that the implementation preserves the language's existing guarantees against use-before-initialization, use-after-move, double ownership, invalid borrow lifetimes, and double destruction.
 </p>
+
+</section>
+
+<section id="section-appendix-b">
+<h2>Appendix B</h2>
+<h4>Unicode Identifiers and Lexical Character Classification</h4>
+
+<p><strong>Normative</strong></p>
+
+<p>This appendix defines the Unicode character classification rules used by CobaltC identifiers. It resolves the Unicode version, identifier character classes, normalization, Unicode security restrictions, and implementation requirements for identifier classification.</p>
+
+<h3>B.1 Applicable Unicode Version</h3>
+
+<p>CobaltC 1.0.3 uses <strong>Unicode Standard Version 17.0.0</strong> for all Unicode character-property data used by lexical analysis and identifier validation.</p>
+
+<p>A conforming CobaltC 1.0.3 implementation MUST use the Unicode 17.0.0 Unicode Character Database, or data that produces results identical to the Unicode 17.0.0 Unicode Character Database, when determining whether a Unicode scalar value belongs to an identifier character class or when performing the Unicode security checks required by this appendix.</p>
+
+<p>An implementation MUST NOT substitute the Unicode version provided by the host operating system, standard library, compiler runtime, or other implementation environment when doing so would change the classification or validation of a valid CobaltC 1.0.3 source program.</p>
+
+<p>A future CobaltC language edition MAY adopt a later Unicode version. Adoption of a later Unicode version is a language-version change and MUST NOT silently alter the identifier rules of CobaltC 1.0.3.</p>
+
+<h3>B.2 Normative Unicode References</h3>
+
+<p>CobaltC identifier syntax is based on Unicode Standard Annex #31, <em>Unicode Identifiers and Syntax</em> (UAX #31), using the default identifier classes <code>XID_Start</code> and <code>XID_Continue</code>.</p>
+
+<p>CobaltC Unicode security restrictions are based on Unicode Technical Standard #39, <em>Unicode Security Mechanisms</em> (UTS #39), using its <strong>Moderately Restrictive</strong> identifier restriction level.</p>
+
+<p>For CobaltC 1.0.3, these requirements are interpreted using Unicode 17.0.0 data. References in this appendix to <code>XID_Start</code>, <code>XID_Continue</code>, Unicode script properties, confusables data, or other Unicode character properties therefore refer to their Unicode 17.0.0 definitions.</p>
+
+<h3>B.3 Identifier Character Classes</h3>
+
+<p>A CobaltC identifier consists of one identifier-start character followed by zero or more identifier-continue characters.</p>
+
+<p>The identifier-start character class is:</p>
+
+<pre><code>IdentifierStart := XID_Start | "_"</code></pre>
+
+<p>The identifier-continue character class is:</p>
+
+<pre><code>IdentifierContinue := XID_Continue | "_"</code></pre>
+
+<p>The complete identifier grammar is therefore:</p>
+
+<pre><code>Identifier := IdentifierStart IdentifierContinue*</code></pre>
+
+<p>The ASCII underscore character U+005F is explicitly included in both classes.</p>
+
+<p>The Unicode <code>XID_Start</code> and <code>XID_Continue</code> properties are otherwise used without modification. CobaltC does not independently construct these classes from Unicode general categories.</p>
+
+<p>Digits are therefore permitted in an identifier only where the corresponding Unicode character belongs to <code>XID_Continue</code>. A digit MUST NOT begin an identifier.</p>
+
+<p>Examples:</p>
+
+<pre><code>value       valid
+Value       valid
+VALUE       valid
+value2      valid
+value_name  valid
+_           valid
+_2          valid
+2value      invalid
+</code></pre>
+
+<h3>B.4 Unicode Scalar Values</h3>
+
+<p>Source text is interpreted as a sequence of Unicode scalar values. Unicode scalar values are Unicode code points excluding surrogate code points.</p>
+
+<p>An implementation MUST reject malformed UTF-8 and MUST NOT perform lexical analysis on an invalid UTF-8 byte sequence as though it represented CobaltC source text.</p>
+
+<p>A Unicode scalar value that is not permitted by the applicable lexical grammar MUST NOT be silently ignored, removed, replaced, or normalized during lexical analysis.</p>
+
+<h3>B.5 Normalization</h3>
+
+<p>CobaltC does not normalize identifiers.</p>
+
+<p>In particular, an implementation MUST NOT apply NFC, NFD, NFKC, NFKD, NFKC_Casefold, or any other Unicode normalization operation before comparing identifiers for lexical or semantic identity.</p>
+
+<p>Identifier comparison is performed on the original sequence of Unicode scalar values occurring in the source after lexical classification.</p>
+
+<p>Consequently, two identifiers that are canonically equivalent under Unicode normalization are nevertheless distinct CobaltC identifiers when their source scalar-value sequences differ.</p>
+
+<p>For example, if two source identifiers contain canonically equivalent but differently encoded Unicode sequences, they MUST NOT be treated as the same identifier merely because Unicode normalization would produce the same normalized sequence.</p>
+
+<p>The use of <code>XID_Start</code> and <code>XID_Continue</code> does not imply that CobaltC performs normalization. These properties are used solely for identifier character classification.</p>
+
+<h3>B.6 Case Sensitivity</h3>
+
+<p>CobaltC identifiers are case-sensitive.</p>
+
+<p>Unicode case folding MUST NOT be applied when comparing identifiers.</p>
+
+<p>For example, identifiers differing only by Unicode case mappings remain distinct identifiers unless another CobaltC rule prohibits their simultaneous use.</p>
+
+<h3>B.7 Unicode Security Profile</h3>
+
+<p>Every user-defined identifier MUST satisfy the Unicode Technical Standard #39 (UTS #39) <strong>Moderately Restrictive</strong> identifier restriction level.</p>
+
+<p>The restriction level is evaluated over the complete identifier after the identifier has passed the CobaltC identifier grammar in Section B.3.</p>
+
+<p>An identifier that fails the Moderately Restrictive restriction level is a compile-time error.</p>
+
+<p>The Moderately Restrictive requirement applies to the identifier as a whole. It is not sufficient for each individual character to be considered safe in isolation.</p>
+
+<p>The implementation MUST use the Unicode 17.0.0 script and identifier-profile data when determining the applicable restriction level.</p>
+
+<p>ASCII-only identifiers necessarily satisfy the script restriction component of this requirement.</p>
+
+<h3>B.8 Restricted Format and Control Characters</h3>
+
+<p>Unicode format and control characters that are not permitted by <code>XID_Start</code> or <code>XID_Continue</code> are not identifier characters.</p>
+
+<p>In particular, the following characters MUST NOT occur within a CobaltC identifier:</p>
+
+<ul>
+<li>U+200B ZERO WIDTH SPACE;</li>
+<li>U+202A LEFT-TO-RIGHT EMBEDDING;</li>
+<li>U+202B RIGHT-TO-LEFT EMBEDDING;</li>
+<li>U+202C POP DIRECTIONAL FORMATTING;</li>
+<li>U+202D LEFT-TO-RIGHT OVERRIDE;</li>
+<li>U+202E RIGHT-TO-LEFT OVERRIDE;</li>
+<li>U+2066 LEFT-TO-RIGHT ISOLATE;</li>
+<li>U+2067 RIGHT-TO-LEFT ISOLATE;</li>
+<li>U+2068 FIRST STRONG ISOLATE;</li>
+<li>U+2069 POP DIRECTIONAL ISOLATE;</li>
+<li>U+FEFF ZERO WIDTH NO-BREAK SPACE;</li>
+</ul>
+
+<p>This list is illustrative of prohibited formatting and directional-control characters and does not replace the normative <code>XID_Start</code>, <code>XID_Continue</code>, and UTS #39 requirements. A character that is not listed here is not thereby permitted.</p>
+
+<h3>B.9 Confusable Identifiers</h3>
+
+<p>In addition to the script restriction described in Section B.7, CobaltC applies Unicode confusable detection to protect language-defined names and to prevent ambiguous declarations within a lookup scope.</p>
+
+<p>An implementation MUST use the Unicode 17.0.0 confusables data when performing this check.</p>
+
+<p>The following identifier conflicts are prohibited:</p>
+
+<ol>
+<li>A user-defined identifier MUST NOT be confusable with a reserved CobaltC keyword.</li>
+<li>A user-defined identifier MUST NOT be confusable with a predefined CobaltC type name.</li>
+<li>Two distinct user-defined identifiers in the same applicable lookup scope MUST NOT be confusable with one another.</li>
+</ol>
+
+<p>A confusable conflict exists when the identifiers have distinct source scalar-value sequences but their Unicode confusable skeletons, as defined by UTS #39, are identical.</p>
+
+<p>Confusable detection MUST NOT alter identifier identity. It is a validation rule only. Two identifiers that have different source scalar-value sequences remain different identifiers; the program is rejected only when another rule prohibits their coexistence.</p>
+
+<p>Confusable checking is applied after lexical classification and before the program is accepted as semantically valid.</p>
+
+<h3>B.10 Keywords and Predefined Names</h3>
+
+<p>Keywords are recognized by exact source-token comparison. Unicode normalization and case folding MUST NOT be applied when determining whether an identifier token is a keyword.</p>
+
+<p>A longer identifier that merely begins with the characters of a keyword remains an identifier. For example:</p>
+
+<pre><code>return       keyword
+returnValue  identifier
+fn           keyword
+function     identifier
+</code></pre>
+
+<p>The predefined CobaltC type names are likewise compared using their exact source scalar-value sequences.</p>
+
+<h3>B.11 Lexical Classification Procedure</h3>
+
+<p>A conforming implementation MUST classify an identifier token according to the following conceptual procedure:</p>
+
+<ol>
+<li>Decode the source as UTF-8 and obtain Unicode scalar values.</li>
+<li>Determine whether the first scalar value belongs to <code>IdentifierStart</code>.</li>
+<li>Consume subsequent scalar values while they belong to <code>IdentifierContinue</code>.</li>
+<li>Compare the resulting complete token against the reserved keyword set using exact scalar-value comparison.</li>
+<li>If it is not a keyword, treat it as a user-defined identifier.</li>
+<li>Validate the identifier against the CobaltC Unicode security requirements in this appendix.</li>
+<li>Perform confusable-conflict validation at the applicable semantic lookup scope.</li>
+</ol>
+
+<p>The conceptual procedure does not prescribe a particular implementation technique. A compiler MAY use generated tables, Unicode libraries, finite-state machines, trie structures, or any other implementation technique provided that the resulting classification is equivalent to this appendix.</p>
+
+<h3>B.12 Lexical Errors</h3>
+
+<p>The following conditions are lexical errors:</p>
+
+<ul>
+<li>invalid UTF-8 in the source representation;</li>
+<li>a non-scalar Unicode code point represented as source text;</li>
+<li>an attempted identifier beginning with a character outside <code>IdentifierStart</code>;</li>
+<li>an identifier containing a character outside <code>IdentifierContinue</code>;</li>
+<li>an identifier that violates the required Unicode security restriction;</li>
+<li>an identifier containing a prohibited format or directional-control character;</li>
+</ul>
+
+<p>Confusable conflicts involving declarations are diagnosed as compile-time semantic errors rather than lexical errors, because determining whether a conflict exists may require knowledge of keywords, predefined names, and the applicable lookup scope.</p>
+
+<h3>B.13 Conformance and Unicode Data</h3>
+
+<p>A compiler claiming CobaltC 1.0.3 conformance MUST document the Unicode data version used internally and MUST state that its identifier classification and security behavior conform to Unicode 17.0.0 as specified by this appendix.</p>
+
+<p>If the implementation uses a host Unicode library whose version differs from Unicode 17.0.0, the implementation MUST compensate for any differences that would otherwise change CobaltC-conforming behavior.</p>
+
+<p>An implementation MAY expose Unicode-version information as a diagnostic or compiler option, but such information MUST NOT change the required behavior of standard CobaltC 1.0.3 source code.</p>
+
+<h3>B.14 Relationship to Section 6</h3>
+
+<p>This appendix provides the normative definition of the terms <em>Unicode identifier-start character</em>, <em>subsequent identifier character</em>, and the Unicode security requirements referenced by Section 6.</p>
+
+<p>Section 6 therefore has the following concise language-level rule:</p>
+
+<pre><code>An identifier begins with an IdentifierStart character and is followed
+by zero or more IdentifierContinue characters. Identifiers are
+case-sensitive and are subject to the Unicode security requirements
+defined in Appendix B.
+</code></pre>
+
+<p>Where Section 6 and this appendix differ in the description of Unicode identifier classification, this appendix controls.</p>
+
+<h3>B.15 Stability Rule</h3>
+
+<p>The identifier rules of CobaltC 1.0.3 are immutable with respect to Unicode version.</p>
+
+<p>The addition of characters to a later Unicode version MUST NOT cause those characters to become valid CobaltC 1.0.3 identifier characters.</p>
+
+<p>Similarly, changes to Unicode security data, script assignments, confusables data, or identifier properties in a later Unicode version MUST NOT retroactively alter the conformance requirements of CobaltC 1.0.3.</p>
+
+<p>This rule ensures that the same CobaltC 1.0.3 source program has the same lexical identifier classification regardless of when or on which host platform it is compiled.</p>
+
 
 </section>
 
