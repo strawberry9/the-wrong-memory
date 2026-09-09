@@ -3576,6 +3576,8 @@ defined in Appendix B.
 
 <h3>Rationale</h3>
 
+<p>CobaltC's rejection of ordinary shared ownership does not imply a rejection of persistent object relationships; persistent identity can be represented independently, while ownership continues to provide deterministic lifetime and borrowing continues to provide compiler-enforced access safety.</p>
+
 <p>
   CobaltC's ownership model gives each object a single ownership
   responsibility. Managed pointers provide non-owning access to objects and
