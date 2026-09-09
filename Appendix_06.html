@@ -285,19 +285,75 @@ VALUE</code></pre>
 <h3>Identifier Security and Unicode Restrictions</h3>
 <p>User-defined identifiers MUST comply with Unicode Technical Standard #39 (TR39) under the Moderately Restrictive security profile. Format characters, zero-width spaces such as U+200B, and bidirectional text override characters such as U+202E MUST NOT appear in an identifier token.</p>
 <p>The implementation MUST diagnose an identifier when the applicable TR39 confusables data establishes a prohibited conflict with a protected keyword, predefined core type, or conflicting identifier in the applicable lookup scope.</p>
-</section><section id="section-7"><h2>7. Literals</h2>
-<p>CobaltC provides integer, floating-point, character, string, Boolean, and <code>null</code> literals.</p>
-<h3>Integer literals</h3>
-<p>Integer literals may be written in decimal, hexadecimal (<code>0x</code>), binary (<code>0b</code>), or octal (<code>0o</code>) form. An underscore may separate digits within a literal but MUST NOT appear at the beginning, end, or twice consecutively.</p>
-<h3>Floating-point literals</h3>
-<p>A floating-point literal contains a decimal point and/or an exponent. The default floating-point type is <code>f64</code> when no contextual type is available.</p>
-<h3>Character literals</h3>
-<p>A character literal is enclosed in single quotes and denotes exactly one Unicode scalar value. Standard escapes include <code>\n</code>, <code>\r</code>, <code>\t</code>, <code>\0</code>, <code>\\</code>, and <code>\'</code>.</p>
-<h3>String literals</h3>
-<p>A string literal is enclosed in double quotes and produces a <code>String</code> value. Standard escapes include <code>\n</code>, <code>\r</code>, <code>\t</code>, <code>\0</code>, <code>\\</code>, and <code>\"</code>. A string literal MUST denote valid UTF-8.</p>
-<h3>Literal typing</h3>
-<p>Integer literals are typed from context where possible; without a contextual integer type, the implementation uses <code>i32</code> when the value is representable and MUST otherwise require an explicit type. A literal whose value cannot be represented by its required type is a compile-time error.</p>
 </section>
+
+<section id="section-7"><h2>7. Literals</h2>
+
+<p>CobaltC provides integer, floating-point, character, string, Boolean, and <code>null</code> literals.</p>
+
+<h3>Integer literals</h3>
+
+<p>Integer literals may be written in decimal, hexadecimal (<code>0x</code>), binary (<code>0b</code>), or octal (<code>0o</code>) form.</p>
+
+<p>Decimal integer literals consist of one or more decimal digits. Hexadecimal integer literals consist of <code>0x</code> followed by one or more hexadecimal digits. Binary integer literals consist of <code>0b</code> followed by one or more binary digits. Octal integer literals consist of <code>0o</code> followed by one or more octal digits.</p>
+
+<p>An underscore may separate digits within an integer literal but MUST NOT appear at the beginning, end, or twice consecutively.</p>
+
+<h3>Floating-point literals</h3>
+
+<p>A floating-point literal is a decimal number containing a decimal point and/or an exponent.</p>
+
+<p>A decimal point consists of <code>.</code> followed by zero or more decimal digits. The decimal point MUST be preceded by at least one decimal digit.</p>
+
+<p>An exponent consists of <code>e</code> or <code>E</code>, optionally followed by <code>+</code> or <code>-</code>, followed by one or more decimal digits.</p>
+
+<p>A floating-point literal MUST contain either a decimal point or an exponent.</p>
+
+<p>A floating-point literal MUST contain at least one decimal digit before an exponent, and an exponent MUST contain at least one decimal digit.</p>
+
+<p>The following are valid floating-point literals:</p>
+
+<ul>
+<li><code>123.456</code></li>
+<li><code>123.</code></li>
+<li><code>0.456</code></li>
+<li><code>123e10</code></li>
+<li><code>123E10</code></li>
+<li><code>123e+10</code></li>
+<li><code>123e-10</code></li>
+<li><code>123.456e10</code></li>
+<li><code>123.456E+10</code></li>
+<li><code>123.e-10</code></li>
+<li><code>0.456e-10</code></li>
+</ul>
+
+<p>The following are not floating-point literals:</p>
+
+<ul>
+<li><code>.456</code></li>
+<li><code>123e</code></li>
+<li><code>123e+</code></li>
+<li><code>123e-</code></li>
+</ul>
+
+<p>Underscores are not permitted in floating-point literals.</p>
+
+<p>The default floating-point type is <code>f64</code> when no contextual type is available.</p>
+
+<h3>Character literals</h3>
+
+<p>A character literal is enclosed in single quotes and denotes exactly one Unicode scalar value. Standard escapes include <code>\n</code>, <code>\r</code>, <code>\t</code>, <code>\0</code>, <code>\\</code>, and <code>\'</code>.</p>
+
+<h3>String literals</h3>
+
+<p>A string literal is enclosed in double quotes and produces a <code>String</code> value. Standard escapes include <code>\n</code>, <code>\r</code>, <code>\t</code>, <code>\0</code>, <code>\\</code>, and <code>\"</code>. A string literal MUST denote valid UTF-8.</p>
+
+<h3>Literal typing</h3>
+
+<p>Integer literals are typed from context where possible; without a contextual integer type, the implementation uses <code>i32</code> when the value is representable and MUST otherwise require an explicit type. A literal whose value cannot be represented by its required type is a compile-time error.</p>
+
+</section>
+
 
 <section id="section-8"><h2>8. Modules</h2>
 <p>A module declaration has the form:</p> <pre><code>module example;</code></pre> <p>A module establishes a namespace. A translation unit MUST contain exactly one module declaration.</p>
