@@ -104,7 +104,7 @@ obligations the programmer must maintain by convention.
 
 <nav aria-label="Table of contents" class="toc">
 <h2>Contents</h2>
-<ol><li><a href="#section-1">Introduction</a></li><li><a href="#section-2">Normative Terminology</a></li><li><a href="#section-3">Source Files</a></li><li><a href="#section-4">Comments</a></li><li><a href="#section-5">Keywords</a></li><li><a href="#section-6">Identifiers</a></li><li><a href="#section-7">Literals</a></li><li><a href="#section-8">Modules</a></li><li><a href="#section-9">Declarations</a></li><li><a href="#section-10">Variables</a></li><li><a href="#section-11">Constants</a></li><li><a href="#section-12">Primitive Types</a></li><li><a href="#section-13">Compound Types</a></li><li><a href="#section-14">Managed Pointer Types</a></li><li><a href="#section-15">Raw Pointers</a></li><li><a href="#section-16">Mutability</a></li><li><a href="#section-17">Type Compatibility</a></li><li><a href="#section-18">Type Inference</a></li><li><a href="#section-19">Generic Types and Functions</a></li><li><a href="#section-20">Exported Types</a></li><li><a href="#section-21">Structs</a></li><li><a href="#section-22">Enums</a></li><li><a href="#section-23">Arrays</a></li><li><a href="#section-24">Functions</a></li><li><a href="#section-25">Expressions</a></li><li><a href="#section-26">Operator Precedence</a></li><li><a href="#section-27">Arithmetic</a></li><li><a href="#section-28">Equality</a></li><li><a href="#section-29">Assignment</a></li><li><a href="#section-30">Function Calls</a></li><li><a href="#section-31">Conditional Execution</a></li><li><a href="#section-32">Loops</a></li><li><a href="#section-33">Match</a></li><li><a href="#section-34">Return</a></li><li><a href="#section-35">Defer</a></li><li><a href="#section-36">Definite Initialization</a></li><li><a href="#section-37">Ownership</a></li><li><a href="#section-38">Move Semantics</a></li><li><a href="#section-39">Copy Semantics</a></li><li><a href="#section-40">Partial Moves</a></li><li><a href="#section-41">Borrowing</a></li><li><a href="#section-42">Shared Borrows</a></li><li><a href="#section-43">Mutable Borrows</a></li><li><a href="#section-44">Borrow Lifetime</a></li><li><a href="#section-45">Function Parameters and Returned Borrows</a></li><li><a href="#section-46">Reborrowing</a></li><li><a href="#section-47">Field and Partial Borrows</a></li><li><a href="#section-48">Aliasing</a></li><li><a href="#section-49">Collection Borrowing</a></li><li><a href="#section-50">Borrow Invalidation</a></li><li><a href="#section-51">Destruction</a></li><li><a href="#section-52">Scope Destruction</a></li><li><a href="#section-53">Unwinding</a></li><li><a href="#section-54">Abort</a></li><li><a href="#section-55">Nullability</a></li><li><a href="#section-56">Bounds Safety</a></li><li><a href="#section-57">Result&lt;T,E&gt;</a></li><li><a href="#section-58">Error Propagation</a></li><li><a href="#section-59">Strings</a></li><li><a href="#section-60">Vector&lt;T&gt;</a></li><li><a href="#section-61">Slices</a></li><li><a href="#section-62">Threads</a></li><li><a href="#section-63">Synchronization</a></li><li><a href="#section-64">Mutex</a></li><li><a href="#section-65">Data Races</a></li><li><a href="#section-66">Memory Model</a></li><li><a href="#section-67">Unsafe Code and Functions</a></li><li><a href="#section-68">Raw Memory</a></li><li><a href="#section-69">Safe Abstractions over Unsafe Code</a></li><li><a href="#section-70">Foreign Functions</a></li><li><a href="#section-71">FFI Ownership</a></li><li><a href="#section-72">ABI Profiles</a></li><li><a href="#section-73">Runtime</a></li><li><a href="#section-74">Allocation</a></li><li><a href="#section-75">Standard I/O</a></li><li><a href="#section-76">Security and Safety Boundary</a></li><li><a href="#section-77">Diagnostics</a></li><li><a href="#section-78">Implementation-Defined Behavior</a></li><li><a href="#section-79">Extensions</a></li><li><a href="#section-80">Conformance Levels</a></li><li><a href="#section-81">Conformance Testing</a></li><li><a href="#section-82">Compatibility</a></li><li><a href="#section-83">Versioning</a></li><li><a href="#section-84">Safety Theorem</a></li><li><a href="#section-85">Reference Model</a></li><li><a href="#section-86">Status</a></li><li><a href="#section-87">Illustrative Program</a><li class="toc-appendix"><a href="#section-appendix-a">Appendix A - Owned Raw Storage and Runtime-Managed Values</a></li><li class="toc-appendix"><a href="#section-appendix-b">Appendix B - Unicode Identifiers and Lexical Character Classification</a></li></li>
+<ol><li><a href="#section-1">Introduction</a></li><li><a href="#section-2">Normative Terminology</a></li><li><a href="#section-3">Source Files</a></li><li><a href="#section-4">Comments</a></li><li><a href="#section-5">Keywords</a></li><li><a href="#section-6">Identifiers</a></li><li><a href="#section-7">Literals</a></li><li><a href="#section-8">Modules</a></li><li><a href="#section-9">Declarations</a></li><li><a href="#section-10">Variables</a></li><li><a href="#section-11">Constants</a></li><li><a href="#section-12">Primitive Types</a></li><li><a href="#section-13">Compound Types</a></li><li><a href="#section-14">Managed Pointer Types</a></li><li><a href="#section-15">Raw Pointers</a></li><li><a href="#section-16">Mutability</a></li><li><a href="#section-17">Type Compatibility</a></li><li><a href="#section-18">Type Inference</a></li><li><a href="#section-19">Generic Types and Functions</a></li><li><a href="#section-20">Exported Types</a></li><li><a href="#section-21">Structs</a></li><li><a href="#section-22">Enums</a></li><li><a href="#section-23">Arrays</a></li><li><a href="#section-24">Functions</a></li><li><a href="#section-25">Expressions</a></li><li><a href="#section-26">Operator Precedence</a></li><li><a href="#section-27">Arithmetic</a></li><li><a href="#section-28">Equality</a></li><li><a href="#section-29">Assignment</a></li><li><a href="#section-30">Function Calls</a></li><li><a href="#section-31">Conditional Execution</a></li><li><a href="#section-32">Loops</a></li><li><a href="#section-33">Match</a></li><li><a href="#section-34">Return</a></li><li><a href="#section-35">Defer</a></li><li><a href="#section-36">Definite Initialization</a></li><li><a href="#section-37">Ownership</a></li><li><a href="#section-38">Move Semantics</a></li><li><a href="#section-39">Copy Semantics</a></li><li><a href="#section-40">Partial Moves</a></li><li><a href="#section-41">Borrowing</a></li><li><a href="#section-42">Shared Borrows</a></li><li><a href="#section-43">Mutable Borrows</a></li><li><a href="#section-44">Borrow Lifetime</a></li><li><a href="#section-45">Function Parameters and Returned Borrows</a></li><li><a href="#section-46">Reborrowing</a></li><li><a href="#section-47">Field and Partial Borrows</a></li><li><a href="#section-48">Aliasing</a></li><li><a href="#section-49">Collection Borrowing</a></li><li><a href="#section-50">Borrow Invalidation</a></li><li><a href="#section-51">Destruction</a></li><li><a href="#section-52">Scope Destruction</a></li><li><a href="#section-53">Unwinding</a></li><li><a href="#section-54">Abort</a></li><li><a href="#section-55">Nullability</a></li><li><a href="#section-56">Bounds Safety</a></li><li><a href="#section-57">Result&lt;T,E&gt;</a></li><li><a href="#section-58">Error Propagation</a></li><li><a href="#section-59">Strings</a></li><li><a href="#section-60">Vector&lt;T&gt;</a></li><li><a href="#section-61">Slices</a></li><li><a href="#section-62">Threads</a></li><li><a href="#section-63">Synchronization</a></li><li><a href="#section-64">Mutex</a></li><li><a href="#section-65">Data Races</a></li><li><a href="#section-66">Memory Model</a></li><li><a href="#section-67">Unsafe Code and Functions</a></li><li><a href="#section-68">Raw Memory</a></li><li><a href="#section-69">Safe Abstractions over Unsafe Code</a></li><li><a href="#section-70">Foreign Functions</a></li><li><a href="#section-71">FFI Ownership</a></li><li><a href="#section-72">ABI Profiles</a></li><li><a href="#section-73">Runtime</a></li><li><a href="#section-74">Allocation</a></li><li><a href="#section-75">Standard I/O</a></li><li><a href="#section-76">Security and Safety Boundary</a></li><li><a href="#section-77">Diagnostics</a></li><li><a href="#section-78">Implementation-Defined Behavior</a></li><li><a href="#section-79">Extensions</a></li><li><a href="#section-80">Conformance Levels</a></li><li><a href="#section-81">Conformance Testing</a></li><li><a href="#section-82">Compatibility</a></li><li><a href="#section-83">Versioning</a></li><li><a href="#section-84">Safety Theorem</a></li><li><a href="#section-85">Reference Model</a></li><li><a href="#section-86">Status</a></li><li><a href="#section-87">Illustrative Program</a><li class="toc-appendix"><a href="#section-appendix-a">Appendix A - Owned Raw Storage and Runtime-Managed Values</a></li><li class="toc-appendix"><a href="#section-appendix-b">Appendix B - Unicode Identifiers and Lexical Character Classification</a></li><li class="toc-appendix"><a href="#section-appendix-c">Appendix C - Persistent Object Identity and Handles</a></li></li>
 </ol>
 </nav>
 
@@ -3566,6 +3566,161 @@ defined in Appendix B.
 <p>Changes to Unicode security data, script assignments, confusables data, or identifier properties in a later Unicode version MUST NOT retroactively alter the conformance requirements of CobaltC 1.0.3.</p>
 
 <p>This rule ensures that the same CobaltC 1.0.3 source program has the same identifier classification regardless of when or on which host platform it is compiled.</p>
+
+</section>
+
+
+<section id="section-appendix-c">
+<h2>Appendix C</h2>
+<h4>Persistent Object Identity and Handles</h4>
+
+<h3>Rationale</h3>
+
+<p>
+  CobaltC's ownership model gives each object a single ownership
+  responsibility. Managed pointers provide non-owning access to objects and
+  are subject to the language's borrowing and lifetime rules. This model
+  intentionally does not make shared ownership an ordinary ownership
+  mechanism.
+</p>
+
+<p>
+  Some programs nevertheless require relationships between objects to
+  persist beyond the lifetime of an individual borrow. Examples include
+  graphs, object registries, arenas, caches, event systems, and other
+  data structures in which one object needs to retain a reference to another
+  object without becoming responsible for that object's lifetime.
+</p>
+
+<p>
+  Such relationships do not require shared ownership. A library can
+  represent the identity of an object separately from ownership of that
+  object. The owning object or container remains responsible for the
+  object's lifetime, while other parts of the program retain an ordinary
+  value that identifies the object. Access to the object is obtained
+  separately and remains subject to the normal borrowing and lifetime rules.
+</p>
+
+<p>
+  This appendix describes this pattern and its relationship to CobaltC's
+  ownership and borrowing model. It does not introduce a new ownership
+  category or require a particular handle, identifier, container, or storage
+  implementation.
+</p>
+
+<h3>Persistent Object Identity</h3>
+
+<p>
+  CobaltC does not require shared ownership to represent persistent
+  relationships between objects. A library abstraction MAY represent stable
+  object identity using an ordinary value, such as an identifier, index, or
+  index/generation pair, while a separate owning value or container controls
+  the lifetime of the identified object.
+</p>
+
+<p>
+  An identity value does not constitute ownership of the identified object
+  and does not extend, transfer, or otherwise control its lifetime. Copying,
+  storing, or destroying an identity value MUST NOT create, transfer, or
+  release ownership of the identified object.
+</p>
+
+<p>
+  Identity and ownership are therefore independent concepts. Identity
+  determines which object is being referenced; ownership determines which
+  value is responsible for that object's lifetime.
+</p>
+
+<pre><code>ObjectStore
+    |
+    | owns
+    v
+  Object
+    ^
+    |
+ ObjectId</code></pre>
+
+<p>
+  In this example, <code>ObjectStore</code> is responsible for the lifetime
+  of the object. <code>ObjectId</code> identifies the object but does not
+  own it.
+</p>
+
+<h3>Resolving an Identity</h3>
+
+<p>
+  A library MAY provide an operation that resolves an identity to an object.
+  If such an operation produces a managed pointer, the resulting pointer is
+  an ordinary borrow and is subject to the normal borrowing, aliasing,
+  invalidation, and lifetime rules.
+</p>
+
+<p>
+  Resolving an identity therefore does not transfer ownership or extend the
+  lifetime of the identified object. A managed pointer obtained by resolving
+  an identity MUST NOT outlive the object to which it refers.
+</p>
+
+<p>
+  A library implementing persistent object identity is responsible for
+  ensuring that an identity cannot be resolved to an object that no longer
+  exists or no longer corresponds to that identity.
+</p>
+
+<h3>Generational Identity</h3>
+
+<p>
+  A library MAY use a generation or version together with an index to detect
+  stale identities. For example, an identity may conceptually consist of an
+  index and a generation value:
+</p>
+
+<pre><code>index       generation
+  5              7</code></pre>
+
+<p>
+  If the object occupying index 5 is removed, the library may advance the
+  generation associated with that storage location before allowing the
+  location to be reused:
+</p>
+
+<pre><code>index       generation
+  5              8</code></pre>
+
+<p>
+  An identity containing generation 7 can therefore be recognized as stale
+  after the location has been reused with generation 8.
+</p>
+
+<p>
+  The use of generations is a library design choice. This specification
+  does not require a particular representation or stale-identity detection
+  mechanism.
+</p>
+
+<h3>Relationship to Borrowing</h3>
+
+<p>
+  An identity value may be retained across operations and scopes without
+  extending the lifetime of its referent. Access to the identified object is
+  obtained separately, typically by resolving the identity to a managed
+  pointer. Such access remains subject to all applicable borrowing and
+  lifetime rules.
+</p>
+
+<p>
+  Consequently, the following concepts are distinct:
+</p>
+
+<pre><code>Ownership  → determines lifetime
+Identity   → identifies an object
+Borrow     → provides access to an object</code></pre>
+
+<p>
+  This separation allows libraries to represent persistent relationships
+  without requiring the objects participating in those relationships to
+  have shared ownership.
+</p>
 
 </section>
 
