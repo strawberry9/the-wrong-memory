@@ -301,7 +301,7 @@ VALUE</code></pre>
 
 <section id="section-8"><h2>8. Modules</h2>
 <p>A module declaration has the form:</p> <pre><code>module example;</code></pre> <p>A module establishes a namespace. A translation unit MUST contain exactly one module declaration.</p>
-<p>Modules MAY import other modules or selected declarations from other modules:</p>
+<p>Modules MAY import other modules or selected declarations from other modules. Items are separated by commas:</p>
 <pre><code>import std.io;
 
 import std.io { print, println };
@@ -328,7 +328,10 @@ import std.vector;</code></pre>
 
 <h3>Module Contracts</h3>
 <p>A module's <code>export { ... }</code> block specifies the declarations that are externally accessible from that module.</p>
-<p>An export MUST always be specified within an <code>export { ... }</code> block. A standalone export declaration, such as <code>export someType;</code> MUST NOT occur. Any declaration not listed in the module's <code>export { ... }</code> block is module-local and MUST NOT be externally accessible.</p>
+<p>An export MUST always be specified within an <code>export { ... }</code> block.</p>
+<p>Unlike import items, export items are separated by semicolons (not commas).</p>
+<p>Unlike import declarations, a standalone export declaration, such as <code>export someType;</code> MUST NOT occur.</p>
+<p>Any declaration not listed in the module's <code>export { ... }</code> block is module-local and MUST NOT be externally accessible.</p>
 <p>A module's <code>export { ... }</code> block lists declarations externally accessible from that module. Declarations not listed remain module-local. A submodule is a distinct module and is not exported by its parent merely because it exists beneath that parent.</p>
 <p>Example:</p>
 <pre><code>export
