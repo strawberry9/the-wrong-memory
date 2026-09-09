@@ -304,22 +304,26 @@ VALUE</code></pre>
 <p>Modules MAY import other modules or selected declarations from other modules:</p>
 <pre><code>import std.io;
 
+import std.io { print, println };
+
 import
 {
-    std.io,
-    std.vector
+    std.io { print, println },
+    std.vector,
+    std.anotherModule
 }
-
-import std.io { print, println };</code></pre>
-<p>A declaration of the form <code>import <i>module</i>;</code> imports the specified module. A declaration of the form <code>import { <i>module</i><sub>1</sub>, ..., <i>module</i><sub>n</sub> };</code> imports each specified module. A declaration of the form <code>import <i>module</i> { <i>declaration</i><sub>1</sub>, ..., <i>declaration</i><sub>n</sub> };</code> imports only the specified declarations from that module.</p> <p>The braced module-import form is semantically equivalent to a sequence of individual module imports. For example:</p>
+</code></pre>
+<p>A declaration of the form <code>import <i>module</i>;</code> imports the specified module. A declaration of the form <code>import <i>module</i> { <i>declaration</i><sub>1</sub>, ..., <i>declaration</i><sub>n</sub> };</code> imports only the specified declarations from that module. A declaration of the form <code>import { <i>module</i><sub>1</sub>, ..., <i>module</i><sub>n</sub> }</code> imports each specified module. </p>
+<p>The braced module-import form is semantically equivalent to a sequence of individual module imports. For example:</p>
 <pre><code>import
 {
-    std.io,
+    std.io { print, println },
     std.vector
 }</code></pre>
 <p>is equivalent to:</p>
-<pre><code>import std.io;
+<pre><code>import std.io { print, println };
 import std.vector;</code></pre>
+
 <p>Each declaration imported selectively MUST be externally accessible from the source module. Imports do not implicitly re-export declarations.</p> <p>Name resolution is lexical and module-aware. An unresolved name is a compile-time error.</p>
 
 <h3>Module Contracts</h3>
@@ -336,6 +340,9 @@ import std.vector;</code></pre>
     Vector<T>::length;
 }
 </code></pre>
+
+<p>For both imports and exports, { ... } is the block form, whose closing } terminates the construct.</p>
+
 <p>A module hierarchy does not implicitly grant access between parent, child, or sibling modules. External code imports the module whose exported declarations it intends to use.</p>
 <p>Two translation units MUST NOT define the same module for one program. Circular module dependencies MAY be supported, but name resolution MUST remain well-defined; an unresolved dependency is a compile-time error.</p>
 </section>
