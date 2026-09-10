@@ -1262,8 +1262,18 @@ for (;;); { ... } // invalid</code></pre>
   A deferred block observes the current value of each referenced binding or
   subobject at the time the deferred block executes. Registering a deferred
   block therefore creates a future use of each referenced binding or
-  subobject. Each referenced path MUST remain initialized and otherwise
-  valid until the deferred block has executed.
+  subobject path. The referenced binding or subobject path MUST remain valid
+  until the deferred block has executed and MUST be initialized when the
+  deferred block executes.
+</p>
+
+<p>
+  The value held by a referenced binding or subobject MAY be replaced,
+  reassigned, or otherwise changed before deferred execution when permitted
+  by the ordinary ownership, initialization, borrowing, lifetime, and
+  destruction rules. Such an operation changes the value observed by the
+  deferred block; it does not remove the deferred reference to the binding
+  or subobject path.
 </p>
 
 <pre><code>String value = "hello";
@@ -1278,11 +1288,12 @@ value = "goodbye";
 // Prints: goodbye</code></pre>
 
 <p>
-  A binding, field, or other subobject referenced by a deferred block MUST NOT
-  be moved, destroyed, or otherwise rendered invalid before the deferred
-  block executes. This requirement applies to the specific referenced path
-  and does not by itself prohibit independent operations on disjoint fields
-  or subobjects that remain valid.
+  A value instance held by a binding or subobject referenced by a deferred
+  block MUST NOT be moved out of, destroyed, or otherwise invalidated in a
+  manner that leaves the referenced binding or subobject path uninitialized
+  or invalid when the deferred block executes. A move that leaves the
+  referenced path moved-from is therefore prohibited unless that path is
+  reinitialized before deferred execution.
 </p>
 
 <pre><code>String value = "hello";
@@ -1299,8 +1310,9 @@ String other = move value; // ERROR: value is required by the deferred block</co
   subobject of that binding to remain initialized. If a deferred block
   references only a particular field or subobject, disjoint fields or
   subobjects MAY be moved or otherwise modified when permitted by the
-  partial-move, borrowing, and lifetime rules and when the referenced path
-  remains valid until deferred execution.
+  partial-move, borrowing, and lifetime rules. The specifically referenced
+  path MUST remain valid and MUST be initialized when the deferred block
+  executes.
 </p>
 
 <p>
@@ -1319,11 +1331,12 @@ String other = move value; // ERROR: value is required by the deferred block</co
   If execution of a deferred block itself transfers ownership, destroys a
   value, moves a field, or otherwise changes the initialization or ownership
   state of a referenced path, the resulting state MUST be respected by
-  subsequent deferred blocks and by automatic scope destruction. A value or
-  subobject MUST NOT be destroyed more than once.
+  subsequent deferred blocks and by automatic scope destruction. A value
+  or subobject MUST NOT be destroyed more than once.
 </p>
 
 </section>
+
 
 
 <section id="section-36"><h2>36. Definite Initialization</h2>
@@ -2522,13 +2535,8 @@ view[1] = 20;</code></pre>
   guarantees of this specification.
 </p>
 
-<p>
-  The core language does not define a general thread-sharing or atomic-memory
-  model. Implementations that provide shared mutable state, synchronization
-  primitives, or atomic operations MUST document their applicable concurrency
-  semantics and MUST NOT weaken the memory-safety guarantees of safe CobaltC
-  code.
-</p>
+<p>The core language does not define a particular thread, synchronization, or atomic-operation API. The memory-ordering and concurrency semantics applicable when such facilities are provided are defined by Section 66 and Appendix E.</p>
+
 
 </section>
 
@@ -11341,47 +11349,66 @@ Destroyed(l, T, &lambda;)</code></pre>
     The hook itself is invoked exactly once for each owned value whose type defines one.
   </p>
 
-  <h3>D.26 Deferred Destruction</h3>
+ <h3>D.26 Deferred Destruction</h3>
 
-  <p>
-    A <code>defer</code> operation adds a deferred destruction or cleanup obligation to
-    <code>&Delta;</code> for the enclosing scope.
-  </p>
+<p>
+  A <code>defer</code> operation adds a deferred destruction or cleanup obligation to
+  <code>&Delta;</code> for the enclosing scope.
+</p>
 
-  <p>
-    Conceptually:
-  </p>
+<p>
+  Conceptually:
+</p>
 
-  <pre><code>&Delta;
+<pre><code>&Delta;
     &rarr;
 &Delta; + Defer(scope, obligation)</code></pre>
 
-  <p>
-    A deferred block is associated with the scope in which it is registered. When control
-    leaves that scope, the deferred obligations associated with that scope execute according
-    to the ordering rules of the main specification.
-  </p>
+<p>
+  A deferred block is associated with the scope in which it is registered. When control
+  leaves that scope, the deferred obligations associated with that scope execute according
+  to the ordering rules of the main specification.
+</p>
 
-  <p>
-    A deferred block MUST execute with the ownership and borrowing state applicable at the
-    point at which the deferred block is executed, not merely the state that existed when
-    the block was registered.
-  </p>
+<p>
+  A deferred block MUST execute with the ownership and borrowing state applicable at the
+  point at which the deferred block is executed, not merely the state that existed when
+  the block was registered.
+</p>
 
-  <p>
-    A deferred block MUST NOT use a value that has subsequently been moved, destroyed, or
-    otherwise become invalid.
-  </p>
+<p>
+  A deferred reference to a binding or subobject refers to that binding or subobject path,
+  not to a particular value instance that was held by that path when the deferred block
+  was registered. The deferred block observes the current value of the referenced path
+  when the deferred block executes.
+</p>
 
-  <p>
-    A deferred block that captures or otherwise depends upon an owned value MUST therefore
-    be consistent with the ordinary ownership, partial-move, and lifetime rules.
-  </p>
+<p>
+  The referenced binding or subobject path MUST remain valid until the deferred block has
+  executed and MUST be initialized when the deferred block executes. A value instance
+  previously held by the referenced path MAY be replaced, reassigned, moved out of, or
+  destroyed before deferred execution when permitted by the ordinary ownership,
+  initialization, borrowing, partial-move, lifetime, and destruction rules, provided that
+  the referenced path remains valid and is initialized when the deferred block executes.
+</p>
 
-  <p>
-    Registration of a deferred block does not itself transfer ownership unless the applicable
-    source-language semantics explicitly require such a transfer.
-  </p>
+<p>
+  A deferred block MUST NOT use a value instance after that value instance has been moved,
+  destroyed, or otherwise invalidated. This restriction does not prohibit replacement of
+  that value instance by another valid value in the same referenced binding or subobject
+  path.
+</p>
+
+<p>
+  A deferred block that captures or otherwise depends upon an owned value MUST therefore
+  be consistent with the ordinary ownership, partial-move, initialization, and lifetime
+  rules.
+</p>
+
+<p>
+  Registration of a deferred block does not itself transfer ownership unless the applicable
+  source-language semantics explicitly require such a transfer.
+</p>
 
   <h3>D.27 Scope Exit</h3>
 
@@ -13664,10 +13691,7 @@ Foreign Implementation</code></pre>
     specification.
   </p>
 
-  <p>
-    A conforming implementation MUST accept every positive test whose required language
-    and library facilities it claims to support.
-  </p>
+  <p>A conforming implementation MUST accept every positive test whose required language and library facilities it claims to support, except where rejection is expressly permitted by an applicable normative rule, implementation-defined restriction, implementation limit, target restriction, or permitted conservative analysis.</p>
 
   <p>
     Positive tests SHOULD be minimal. A test intended to verify one semantic rule SHOULD
