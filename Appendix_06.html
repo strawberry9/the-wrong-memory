@@ -263,6 +263,7 @@ extern
 false
 fn
 for
+foreach
 if
 import
 in
@@ -690,7 +691,11 @@ File destroyed
 <p>path is an owned CobaltC field, so File::destroy does not destroy it. The compiler does that afterward.</p>
 <p>Meanwhile, the handle is a resource managed directly by File; it is represented as a raw Handle and therefore isn't something the ordinary CobaltC field-destruction machinery would recursively release.</p>
 
-</section><section id="section-22"><h2>22. Enums</h2>
+<p>A destruction hook is subject to the ordinary ownership and partial-move rules. An owned field moved out by the destruction hook is no longer destroyed by the subsequent automatic field-destruction phase.</p>
+
+</section>
+
+<section id="section-22"><h2>22. Enums</h2>
 <p>An enum defines a finite set of named variants:</p>
 <pre><code>enum Status
 {
@@ -1884,20 +1889,51 @@ print(*view);</code></pre>
 
 <p>
   A slice provides borrowed access to a contiguous range of elements in another
-  value. It does not own the elements or storage.
+  value. A slice does not own the elements, the storage containing those
+  elements, or the source value from which the slice was created.
 </p>
 
 <p>
-  A slice remains valid only while the source storage remains valid and while
-  no operation invalidates the referenced range according to the borrowing
-  rules. A slice does not extend the lifetime of the value from which it was
-  created.
+  A slice is therefore a borrowed view of existing storage. Creating, copying,
+  assigning, passing, or returning a slice does not transfer ownership of the
+  referenced elements or storage.
+</p>
+
+<h3>61.1 Slice Types</h3>
+
+<p>
+  A slice type is written <code>Slice[T]</code>, where <code>T</code> is the
+  element type.
 </p>
 
 <p>
-  CobaltC slice ranges use inclusive endpoints. Unlike half-open range
-  conventions used by some languages, both the starting and ending indices
-  identify elements included in the resulting slice:
+  A <code>Slice[T]</code> provides shared read-only access to its elements.
+  A <code>mut Slice[T]</code> provides mutable access to its elements.
+  Binding mutability is therefore part of the slice access model and determines
+  whether the elements referenced through that slice may be modified.
+</p>
+
+<p>
+  This is a language-defined exception to the general distinction between
+  binding mutability and managed-pointer capability described in Section 16.
+  The mutability of a slice does not transfer ownership of its elements and
+  does not create an independent capability to the underlying storage.
+</p>
+
+<pre><code>Slice[i32] view = values[0..3];
+mut Slice[i32] view = values[0..3];</code></pre>
+
+<p>
+  A mutable slice may be created only when the corresponding source access is
+  permitted to provide exclusive mutable access under the borrowing and
+  aliasing rules.
+</p>
+
+<h3>61.2 Slice Ranges</h3>
+
+<p>
+  CobaltC slice ranges use inclusive endpoints. Both the starting and ending
+  indices identify elements included in the resulting slice.
 </p>
 
 <pre><code>values[0..3]
@@ -1905,41 +1941,354 @@ values[0...]
 values[...]
 </code></pre>
 
-<p><code>0..3</code> includes indices 0 through 3.</p>
-<p><code>0...</code> continues from index 0 through the final valid element.</p>
-<p><code>...</code> selects the entire sequence.</p>
-
 <p>
-  For a non-empty sequence of length <code>n</code>, an explicit inclusive range
-  MUST satisfy <code>0 &lt;= start &lt;= end &lt; n</code>. A range whose explicit
-  endpoints do not identify valid elements is a bounds error.
+  The range <code>0..3</code> includes indices <code>0</code>, <code>1</code>,
+  <code>2</code>, and <code>3</code>.
 </p>
 
 <p>
-  The complete-range form <code>...</code> is valid for an empty sequence and
-  produces an empty slice.
+  The range <code>0...</code> begins at index <code>0</code> and continues
+  through the final valid element of the source sequence.
 </p>
 
 <p>
-  A slice type is written <code>Slice[T]</code>. For slices, binding mutability
-  is explicitly part of the slice access model: a <code>Slice[T]</code>
-  provides shared read-only access, while a <code>mut Slice[T]</code> provides
-  mutable access to the borrowed elements. This is a language-defined exception
-  to the general distinction between binding mutability and managed-pointer
-  capability described in Section 16.
+  The complete-range form <code>...</code> selects the entire source sequence.
 </p>
 
-<pre><code>Slice[i32] view = values[0..3];
-mut Slice[i32] view = values[0..3];</code></pre>
+<p>
+  For a source sequence containing <code>n</code> elements, an explicit
+  inclusive range <code>start..end</code> is valid only when:
+</p>
+
+<pre><code>0 &lt;= start &lt;= end &lt; n</code></pre>
 
 <p>
-  Slice access is subject to the same borrowing, aliasing, lifetime, and
-  invalidation requirements as other borrowed access to the underlying storage.
-  A slice's lifetime cannot exceed the lifetime of the storage it refers to.
-  Passing a slice to a function passes borrowed access, not ownership.
+  If either explicit endpoint does not identify a valid element, the operation
+  is a bounds error.
+</p>
+
+<p>
+  If <code>start &gt; end</code>, the range is invalid. It does not implicitly
+  produce an empty slice.
+</p>
+
+<p>
+  The complete-range form <code>...</code> is valid for a source sequence of
+  any length, including an empty sequence, and produces an empty slice when
+  the source contains no elements.
+</p>
+
+<p>
+  The form <code>start...</code> is valid only when <code>start</code>
+  identifies a valid element of the source sequence. If the source is empty,
+  no value of <code>start</code> is valid and therefore <code>start...</code>
+  is a bounds error.
+</p>
+
+<p>
+  The slice range syntax does not itself create or initialize elements. It
+  identifies an existing region of the source storage and produces a borrowed
+  view of that region.
+</p>
+
+<h3>61.3 Slice Length</h3>
+
+<p>
+  For a non-empty inclusive range <code>start..end</code>, the resulting slice
+  contains exactly:
+</p>
+
+<pre><code>end - start + 1</code></pre>
+
+<p>
+  elements.
+</p>
+
+<p>
+  Consequently, the following expressions produce slices of the indicated
+  lengths:
+</p>
+
+<pre><code>values[0..0]    // length 1
+values[0..3]    // length 4
+values[2..5]    // length 4
+values[...]     // length equal to the source length</code></pre>
+
+<p>
+  An empty source produces a slice of length zero when selected with
+  <code>...</code>.
+</p>
+
+<h3>61.4 Slice Element Access</h3>
+
+<p>
+  Elements of a slice are accessed relative to the beginning of the slice.
+  The first element of a non-empty slice therefore has slice index
+  <code>0</code>, regardless of the index at which the corresponding element
+  occurs in the source sequence.
+</p>
+
+<pre><code>Slice[i32] view = values[4..7];
+
+view[0]   // refers to values[4]
+view[3]   // refers to values[7]</code></pre>
+
+<p>
+  Slice indexing is subject to the bounds rules of Section 14. An index is
+  valid only when it identifies an element within the slice.
+</p>
+
+<p>
+  Indexing an empty slice is a bounds error.
+</p>
+
+<p>
+  A slice does not preserve or expose the original source indices as part of
+  its indexing operation.
+</p>
+
+<h3>61.5 Borrowing and Lifetime</h3>
+
+<p>
+  A slice is a borrowed value. Its lifetime begins when the slice is created
+  and cannot extend beyond the lifetime of the storage to which it refers.
+</p>
+
+<p>
+  Creating a slice therefore creates a borrow of the corresponding source
+  region. The borrow remains subject to the ownership, borrowing, lifetime,
+  aliasing, and mutability rules defined elsewhere in this specification.
+</p>
+
+<p>
+  A slice does not extend the lifetime of its source value, its source storage,
+  or any element contained within that storage.
+</p>
+
+<p>
+  If the source value is destroyed, moved in a manner that invalidates the
+  referenced storage, or otherwise ceases to provide valid storage for the
+  referenced region, the slice may no longer be used.
+</p>
+
+<p>
+  The compiler MUST reject any statically detectable use of a slice after the
+  lifetime required for that slice has ended.
+</p>
+
+<h3>61.6 Aliasing and Mutable Slices</h3>
+
+<p>
+  A shared slice and a mutable slice are subject to the same aliasing rules as
+  the corresponding shared and exclusive borrows of the underlying storage.
+</p>
+
+<p>
+  Multiple shared slices may refer to overlapping or identical ranges when
+  permitted by the borrowing rules.
+</p>
+
+<p>
+  A mutable slice provides exclusive mutable access to its referenced range.
+  While that mutable access is active, another access that conflicts with the
+  mutable borrow MUST NOT be permitted.
+</p>
+
+<p>
+  In particular, the existence of a mutable slice does not permit the creation
+  of a shared slice or another mutable slice referring to an overlapping
+  region unless the borrowing rules explicitly permit that operation.
+</p>
+
+<p>
+  Disjoint slices may coexist when their underlying ranges do not overlap and
+  all other ownership, borrowing, and lifetime requirements are satisfied.
+</p>
+
+<pre><code>mut Slice[i32] left  = values[0..2];
+mut Slice[i32] right = values[3..5];</code></pre>
+
+<p>
+  The preceding slices refer to disjoint regions and may therefore coexist
+  when the source and surrounding program satisfy the applicable borrowing
+  rules.
+</p>
+
+<h3>61.7 Slice Assignment and Copying</h3>
+
+<p>
+  Assigning or copying a slice copies the slice view, not the elements or
+  storage to which the slice refers.
+</p>
+
+<p>
+  The resulting slice remains subject to the lifetime and borrowing
+  restrictions of the original borrowed access.
+</p>
+
+<p>
+  A slice assignment MUST NOT be interpreted as an ownership transfer of the
+  referenced elements.
+</p>
+
+<p>
+  Copying a shared slice may therefore produce multiple shared views of the
+  same storage when permitted by the borrowing rules. Copying a mutable slice
+  does not create independent mutable access to the same storage; the
+  resulting access remains subject to the exclusive-borrowing rules.
+</p>
+
+<h3>61.8 Passing and Returning Slices</h3>
+
+<p>
+  Passing a slice to a function passes borrowed access, not ownership of the
+  referenced elements or storage.
+</p>
+
+<p>
+  A function parameter of type <code>Slice[T]</code> therefore receives shared
+  access, while a parameter of type <code>mut Slice[T]</code> receives mutable
+  access subject to the borrowing rules.
+</p>
+
+<p>
+  A function MAY return a slice only when the lifetime of the returned slice is
+  valid for the lifetime of the referenced storage. A returned slice MUST NOT
+  outlive the storage to which it refers.
+</p>
+
+<p>
+  In particular, a function MUST NOT return a slice referring to storage owned
+  exclusively by a local value when that local value is destroyed upon return.
+</p>
+
+<h3>61.9 Slice Invalidation</h3>
+
+<p>
+  A slice remains valid only while the referenced storage remains valid and
+  while no operation invalidates the referenced range according to the
+  borrowing and storage rules.
+</p>
+
+<p>
+  An operation that relocates, replaces, destroys, or otherwise invalidates the
+  underlying storage MUST also invalidate any slice whose referenced range
+  depends on that storage, unless the language rule for that operation
+  explicitly guarantees that the slice remains valid.
+</p>
+
+<p>
+  Implementations MUST NOT preserve slice validity merely because the element
+  values remain logically unchanged. Slice validity is determined by the
+  validity of the referenced storage and the applicable borrowing rules.
+</p>
+
+<p>
+  A collection operation that may relocate its elements therefore cannot be
+  performed while an active slice would be invalidated, unless the operation
+  is otherwise specified to preserve the referenced storage.
+</p>
+
+<h3>61.10 Nested Slices</h3>
+
+<p>
+  A slice may be created from another slice when the resulting borrow satisfies
+  the lifetime and borrowing rules.
+</p>
+
+<p>
+  A slice created from another slice refers to the same underlying storage and
+  does not create a second independent storage allocation.
+</p>
+
+<pre><code>Slice[i32] outer = values[0..7];
+Slice[i32] inner = outer[2..4];</code></pre>
+
+<p>
+  The lifetime of <code>inner</code> MUST NOT exceed the lifetime of the
+  storage accessible through <code>outer</code>, and all applicable borrowing
+  restrictions remain in force.
+</p>
+
+<h3>61.11 Mutation Through Slices</h3>
+
+<p>
+  Mutation through a <code>mut Slice[T]</code> modifies the corresponding
+  elements in the underlying source storage.
+</p>
+
+<p>
+  The mutation does not replace the ownership of those elements or transfer
+  ownership of the source storage to the slice.
+</p>
+
+<pre><code>mut Slice[i32] view = values[1..3];
+
+view[0] = 10;
+view[1] = 20;</code></pre>
+
+<p>
+  After these assignments, the corresponding elements of <code>values</code>
+  have been modified.
+</p>
+
+<p>
+  A <code>Slice[T]</code> does not permit mutation of its elements through the
+  slice.
+</p>
+
+<h3>61.12 Relationship to Ownership</h3>
+
+<p>
+  A slice does not own the elements it references. Destroying a slice therefore
+  does not destroy, release, or otherwise dispose of the referenced elements
+  or source storage.
+</p>
+
+<p>
+  When the lifetime of a slice ends, only the borrowed view ceases to exist.
+  Ownership of the source value remains with its owner and continues to be
+  governed by the ordinary ownership and destruction rules.
+</p>
+
+<p>
+  A slice MUST NOT be used as a mechanism for extending ownership, bypassing
+  destruction, escaping a borrow, or creating an additional owner of the
+  underlying storage.
+</p>
+
+<h3>61.13 Safety Requirements</h3>
+
+<p>
+  Slice operations MUST preserve the same safety invariants that apply to
+  other borrowed access to storage.
+</p>
+
+<p>
+  In particular, a conforming implementation MUST ensure that a valid slice
+  cannot be used to:
+</p>
+
+<ul>
+  <li>access an element outside the slice's referenced range;</li>
+  <li>access storage after the storage lifetime has ended;</li>
+  <li>create an ownership alias to the referenced elements;</li>
+  <li>create an unauthorized mutable alias;</li>
+  <li>circumvent the borrowing rules;</li>
+  <li>observe storage after an operation has invalidated the slice;</li>
+  <li>extend the lifetime of the source storage; or</li>
+  <li>cause an out-of-bounds element access through valid slice indexing.</li>
+</ul>
+
+<p>
+  Slice safety is therefore a consequence of the ordinary ownership,
+  borrowing, lifetime, initialization, bounds, aliasing, and storage-validity
+  rules of this specification. The slice abstraction does not weaken or
+  replace those rules.
 </p>
 
 </section>
+
 
 <section id="section-62">
 <h2>62. Threads</h2>
@@ -8012,166 +8361,6 @@ invalid assignment</code></pre>
   </blockquote>
 </section>
 
-<section id="section-84">
-  <h2>84. Cross-Subsystem Semantics</h2>
-
-  <p>
-    CobaltC language subsystems compose according to their individual normative
-    guarantees. The rules in this section clarify those interactions without introducing
-    additional language features.
-  </p>
-
-  <h3>84.1 General Composition Rule</h3>
-
-  <p>
-    Ownership, borrowing, lifetime, type, initialization, nullability, bounds, and
-    concurrency rules apply to ordinary language constructs unless a specific normative
-    rule establishes an exception or an explicit unsafe or foreign boundary applies.
-  </p>
-
-  <p>
-    A language construct MUST NOT be interpreted as implicitly disabling another
-    applicable language guarantee merely because the construct belongs to a different
-    subsystem.
-  </p>
-
-  <h3>84.2 Functions and Generic Instantiations</h3>
-
-  <p>
-    Ownership, borrowing, and lifetime rules apply across ordinary functions, associated
-    functions, and generic instantiations.
-  </p>
-
-  <p>
-    Generic instantiation MUST NOT implicitly weaken ownership, borrowing, lifetime,
-    initialization, or type guarantees.
-  </p>
-
-  <h3>84.3 Result Values</h3>
-
-  <p>
-    <code>Result&lt;T,E&gt;</code> represents an ordinary program value.
-  </p>
-
-  <p>
-    A <code>Result</code> value does not by itself transfer ownership, bypass borrowing
-    rules, extend a lifetime, alter destruction semantics, or create additional
-    capabilities.
-  </p>
-
-  <p>
-    Any ownership or lifetime behavior associated with a <code>Result</code> is determined
-    by the contained types and the operations performed upon the value.
-  </p>
-
-  <h3>84.4 Cleanup and Destruction</h3>
-
-  <p>
-    <code>defer</code>, destruction hooks, and scope cleanup MUST preserve the ownership,
-    lifetime, and validity rules applicable to the values they operate on.
-  </p>
-
-  <p>
-    Cleanup mechanisms MUST NOT create additional access capabilities or extend a value's
-    lifetime beyond the rules otherwise applicable to that value.
-  </p>
-
-  <p>
-    Destruction MUST remain valid even when cleanup is initiated by normal scope exit or
-    another language-defined destruction mechanism.
-  </p>
-
-  <h3>84.5 Unsafe Contexts</h3>
-
-  <p>
-    An unsafe context permits operations that require programmer-supplied invariants.
-  </p>
-
-  <p>
-    Entering an unsafe context does not disable safe-language rules for values and
-    operations that remain within the safe model.
-  </p>
-
-  <p>
-    Unsafe operations MUST NOT be interpreted as implicitly converting arbitrary values
-    into valid values or as automatically satisfying ownership, lifetime, nullability,
-    bounds, or initialization requirements.
-  </p>
-
-  <h3>84.6 Foreign Functions</h3>
-
-  <p>
-    Foreign calls constitute explicit safety boundaries.
-  </p>
-
-  <p>
-    Any ownership transfer, lifetime relationship, aliasing guarantee, representation
-    requirement, or validity guarantee crossing a foreign-function boundary MUST be
-    established by the applicable foreign interface declaration or contract.
-  </p>
-
-  <p>
-    A foreign call does not implicitly transfer ownership, extend a lifetime, create a
-    managed borrow, or establish a CobaltC capability unless the applicable contract
-    explicitly provides that behavior.
-  </p>
-
-  <h3>84.7 Concurrency</h3>
-
-  <p>
-    Concurrency facilities provide synchronization guarantees only where their own
-    semantics specify those guarantees.
-  </p>
-
-  <p>
-    Ownership and borrowing rules prevent the classes of invalid access addressed by
-    those rules, but they do not by themselves define application-level coordination,
-    scheduling, fairness, deadlock freedom, or algorithmic correctness.
-  </p>
-
-  <p>
-    A synchronization primitive MUST preserve the ordering and visibility guarantees
-    explicitly associated with that primitive by the memory model.
-  </p>
-
-  <h3>84.8 Composition Does Not Add Capabilities</h3>
-
-  <p>
-    Combining language constructs does not create capabilities that none of the
-    constituent constructs provides.
-  </p>
-
-  <p>
-    In particular, wrapping a value in another type, passing it through a function,
-    storing it in a collection, returning it through a <code>Result</code>, or executing
-    cleanup code does not by itself bypass ownership, borrowing, lifetime, nullability,
-    bounds, or safety rules.
-  </p>
-
-  <h3>84.9 Conformance Requirement</h3>
-
-  <p>
-    A conforming implementation MUST apply the normative rules of interacting
-    subsystems consistently.
-  </p>
-
-  <p>
-    Where two subsystem rules apply to the same operation, the implementation MUST
-    satisfy both rules unless a more specific normative rule explicitly defines their
-    interaction.
-  </p>
-
-  <h3>84.10 Summary</h3>
-
-  <p>
-    CobaltC subsystems compose without silently weakening one another. Ownership remains
-    ownership across functions, results, collections, cleanup, concurrency, and FFI;
-    unsafe and foreign boundaries explicitly define where additional programmer or
-    interface contracts are required.
-  </p>
-</section>
-
-
 
 <section id="section-84">
   <h2>84. Safety Theorem</h2>
@@ -8278,7 +8467,7 @@ invalid assignment</code></pre>
   <div class="reference-diagram" role="img" aria-label="CobaltC value, ownership, borrowing, and destruction model">
     <div class="diagram-node diagram-root">Cobalt Value</div>
 
-```
+
 <div class="diagram-branches">
   <div class="diagram-column">
     <div class="diagram-node owned">
@@ -8326,7 +8515,7 @@ invalid assignment</code></pre>
     </div>
   </div>
 </div>
-```
+
 
   </div>
 
@@ -8340,7 +8529,7 @@ invalid assignment</code></pre>
   <div class="reference-diagram safety-model" role="img" aria-label="CobaltC safety model">
     <div class="diagram-node diagram-root">Safe CobaltC Execution</div>
 
-```
+
 <div class="diagram-arrow" aria-hidden="true">&#8595;</div>
 
 <div class="safety-grid">
@@ -8382,7 +8571,7 @@ invalid assignment</code></pre>
 <div class="diagram-node terminal">
   Required Safety Guarantees
 </div>
-```
+
 
   </div>
 
@@ -8393,7 +8582,6 @@ invalid assignment</code></pre>
       CobaltC Program
     </div>
 
-```
 <div class="diagram-arrow" aria-hidden="true">&#8595;</div>
 
 <div class="diagram-branches">
@@ -8411,7 +8599,6 @@ invalid assignment</code></pre>
     </div>
   </div>
 </div>
-```
 
   </div>
 
@@ -8677,7 +8864,7 @@ finished</code></pre>
 <p>The example also illustrates that owned values and borrowed access are distinct. <code>counter</code> remains the owner of its value while the mutable managed pointer is used to provide temporary exclusive access to it.</p>
 
 <p>The <code>match</code> expression demonstrates expression-oriented selection, while the <code>while</code> statement demonstrates ordinary iterative control flow. The program deliberately avoids introducing language features that are not otherwise necessary to demonstrate the basic syntax.</p>
-
+</section>
 
 <section id="section-appendix-a">
 <h2>Appendix A</h2>
@@ -11317,10 +11504,9 @@ destroy(mutex); // ERROR: guard still depends on mutex</code></pre>
 
 spawn(worker, move resource);</code></pre>
 
-  <p>
-    then successful thread creation establishes that the worker begins with the ownership
-    state established by the transfer.
-  </p>
+  <p>then successful thread creation establishes that the worker begins with the ownership state established by the transfer.</p>
+
+ <p>The thread-transfer operation establishes ownership transfer, while the successful thread-start operation establishes the relevant happens-before edge.</p>
 
   <p>
     A failed thread-start operation MUST NOT leave the program with two owners of a value.
@@ -11449,6 +11635,8 @@ lifetime extension</code></pre>
   </p>
 
   <h3>E.16 Atomic Operations</h3>
+
+   <p>Section 66 defines the abstract memory model; each atomic operation/library profile instantiates that model by specifying the ordering edges it creates.</p>
 
   <p>
     An implementation that provides atomic types or atomic operations MUST define their
