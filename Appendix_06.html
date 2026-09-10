@@ -362,129 +362,14 @@ obligations the programmer must maintain by convention.
   </p>
 </section>
 
-<section id="section-5"><h2>5. Keywords</h2>
-<p>The following words are reserved:</p>
-<pre><code>alias
-as
-break
-const
-continue
-defer
-else
-enum
-export
-extern
-false
-fn
-for
-foreach
-if
-import
-in
-loop
-match
-move
-mut
-null
-return
-struct
-true
-unsafe
-while
-</code></pre>
-<p><code>alias</code> introduces a type-alias declaration.</p>
-<p>An alias declaration has the form <code>alias Name = ExistingType;</code>. An alias is transparent for type compatibility and does not create a new nominal type.</p>
-<p>The word <code>let</code> is not a CobaltC keyword and is not introduced by this edition.</p>
-<p>A keyword is recognized only when the complete lexical token is the keyword; a longer identifier such as <code>returnValue</code> remains an identifier.</p>
-</section>
+<section id="section-5"><h2>5. Keywords and Reserved Names</h2>
+<p>The following words are reserved keywords:</p> <pre><code>alias as break const continue defer else enum export extern fn for foreach if import in loop match module move mut return struct unsafe while </code></pre> <p>The following words are reserved literals:</p> <pre><code>false null true </code></pre> <p>Reserved literals have fixed language-defined meanings and MUST NOT be declared as user-defined identifiers or shadowed by an inner declaration.</p> <p>The following identifiers are reserved predefined type names:</p> <pre><code>bool char void i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 isize usize f32 f64 </code></pre> <p>Reserved keywords, reserved literals, and reserved predefined type names are collectively referred to as <em>protected names</em>. Protected names MUST NOT be declared as user-defined identifiers or shadowed by an inner declaration.</p> <p>The predefined type names identify the primitive types defined by this specification. The name <code>void</code> identifies the type used for functions that do not return a value.</p> <p><code>alias</code> introduces a type-alias declaration.</p> <p>An alias declaration has the form <code>alias Name = ExistingType;</code>. An alias is transparent for type compatibility and does not create a new nominal type.</p> <p>The word <code>let</code> is not a CobaltC keyword and is not introduced by this edition.</p> <p>A keyword, reserved literal, or reserved predefined type name is recognized only when the complete lexical token matches the name. A longer identifier remains an identifier; for example, <code>returnValue</code>, <code>trueValue</code>, and <code>i32Value</code> are identifiers.</p> </section>
 
 <section id="section-6"><h2>6. Identifiers</h2>
-
-<p>An identifier begins with an <code>IdentifierStart</code> character and is followed by zero or more <code>IdentifierContinue</code> characters, as defined in Appendix B. Identifiers are case-sensitive.</p>
-
-<pre><code>value
-Value
-VALUE</code></pre>
-
-<h3>Identifier Security and Unicode Restrictions</h3>
-
-<p>User-defined identifiers MUST comply with the Unicode identifier and security requirements defined in Appendix B.</p>
-
-<p>In particular, identifiers MUST satisfy the Unicode <code>XID_Start</code> and <code>XID_Continue</code> requirements, including the CobaltC underscore rules, and MUST satisfy the Unicode Technical Standard #39 (UTS #39) Moderately Restrictive security profile.</p>
-
-<p>Identifiers MUST NOT contain prohibited format or directional-control characters. An identifier that violates the requirements of Appendix B is a compile-time error.</p>
-
-<p>Confusable conflicts with protected keywords, predefined core type names, or other identifiers in the applicable lookup scope are diagnosed according to the confusable-identifier rules defined in Appendix B.</p>
-
-</section>
+<p>An identifier begins with an <code>IdentifierStart</code> character and is followed by zero or more <code>IdentifierContinue</code> characters, as defined in Appendix B. Identifiers are case-sensitive.</p> <pre><code>value Value VALUE</code></pre> <h3>Identifier Security and Unicode Restrictions</h3> <p>User-defined identifiers MUST comply with the Unicode identifier and security requirements defined in Appendix B.</p> <p>In particular, identifiers MUST satisfy the Unicode <code>XID_Start</code> and <code>XID_Continue</code> requirements, including the CobaltC underscore rules, and MUST satisfy the Unicode Technical Standard #39 (UTS #39) Moderately Restrictive security profile.</p> <p>Identifiers MUST NOT contain prohibited format or directional-control characters. An identifier that violates the requirements of Appendix B is a compile-time error.</p> <p>Confusable conflicts involving protected names or other identifiers in the applicable lookup scope are diagnosed according to the confusable-identifier rules defined in Appendix B.</p> </section>
 
 
-<section id="section-7"><h2>7. Literals</h2>
-
-<p>CobaltC provides integer, floating-point, character, string, Boolean, and <code>null</code> literals.</p>
-
-<h3>Integer literals</h3>
-
-<p>Integer literals may be written in decimal, hexadecimal (<code>0x</code>), binary (<code>0b</code>), or octal (<code>0o</code>) form.</p>
-
-<p>Decimal integer literals consist of one or more decimal digits. Hexadecimal integer literals consist of <code>0x</code> followed by one or more hexadecimal digits. Binary integer literals consist of <code>0b</code> followed by one or more binary digits. Octal integer literals consist of <code>0o</code> followed by one or more octal digits.</p>
-
-<p>An underscore may separate digits within an integer literal but MUST NOT appear at the beginning, end, or twice consecutively.</p>
-
-<h3>Floating-point literals</h3>
-
-<p>A floating-point literal is a decimal number containing a decimal point and/or an exponent.</p>
-
-<p>A decimal point consists of <code>.</code> followed by zero or more decimal digits. The decimal point MUST be preceded by at least one decimal digit.</p>
-
-<p>An exponent consists of <code>e</code> or <code>E</code>, optionally followed by <code>+</code> or <code>-</code>, followed by one or more decimal digits.</p>
-
-<p>A floating-point literal MUST contain either a decimal point or an exponent.</p>
-
-<p>A floating-point literal MUST contain at least one decimal digit before an exponent, and an exponent MUST contain at least one decimal digit.</p>
-
-<p>The following are valid floating-point literals:</p>
-
-<ul>
-<li><code>123.456</code></li>
-<li><code>123.</code></li>
-<li><code>0.456</code></li>
-<li><code>123e10</code></li>
-<li><code>123E10</code></li>
-<li><code>123e+10</code></li>
-<li><code>123e-10</code></li>
-<li><code>123.456e10</code></li>
-<li><code>123.456E+10</code></li>
-<li><code>123.e-10</code></li>
-<li><code>0.456e-10</code></li>
-</ul>
-
-<p>The following are not floating-point literals:</p>
-
-<ul>
-<li><code>.456</code></li>
-<li><code>123e</code></li>
-<li><code>123e+</code></li>
-<li><code>123e-</code></li>
-</ul>
-
-<p>Underscores are not permitted in floating-point literals.</p>
-
-<p>The default floating-point type is <code>f64</code> when no contextual type is available.</p>
-
-<h3>Character literals</h3>
-
-<p>A character literal is enclosed in single quotes and denotes exactly one Unicode scalar value. Standard escapes include <code>\n</code>, <code>\r</code>, <code>\t</code>, <code>\0</code>, <code>\\</code>, and <code>\'</code>.</p>
-
-<h3>String literals</h3>
-
-<p>A string literal is enclosed in double quotes and produces a <code>String</code> value. Standard escapes include <code>\n</code>, <code>\r</code>, <code>\t</code>, <code>\0</code>, <code>\\</code>, and <code>\"</code>. A string literal MUST denote valid UTF-8.</p>
-
-<h3>Literal typing</h3>
-
-<p>Integer literals are typed from context where possible; without a contextual integer type, the implementation uses <code>i32</code> when the value is representable and MUST otherwise require an explicit type. A literal whose value cannot be represented by its required type is a compile-time error.</p>
-
-</section>
+<section id="section-7"><h2>7. Literals</h2> <p>CobaltC provides integer, floating-point, character, string, Boolean, and null literals.</p> <h3>Integer literals</h3> <p>Integer literals may be written in decimal, hexadecimal (<code>0x</code>), binary (<code>0b</code>), or octal (<code>0o</code>) form.</p> <p>Decimal integer literals consist of one or more decimal digits. Hexadecimal integer literals consist of <code>0x</code> followed by one or more hexadecimal digits. Binary integer literals consist of <code>0b</code> followed by one or more binary digits. Octal integer literals consist of <code>0o</code> followed by one or more octal digits.</p> <p>An underscore may separate digits within an integer literal but MUST NOT appear at the beginning, end, or twice consecutively.</p> <h3>Floating-point literals</h3> <p>A floating-point literal is a decimal number containing a decimal point and/or an exponent.</p> <p>A decimal point consists of <code>.</code> followed by zero or more decimal digits. The decimal point MUST be preceded by at least one decimal digit.</p> <p>An exponent consists of <code>e</code> or <code>E</code>, optionally followed by <code>+</code> or <code>-</code>, followed by one or more decimal digits.</p> <p>A floating-point literal MUST contain either a decimal point or an exponent.</p> <p>A floating-point literal MUST contain at least one decimal digit before an exponent, and an exponent MUST contain at least one decimal digit.</p> <p>The following are valid floating-point literals:</p> <ul> <li><code>123.456</code></li> <li><code>123.</code></li> <li><code>0.456</code></li> <li><code>123e10</code></li> <li><code>123E10</code></li> <li><code>123e+10</code></li> <li><code>123e-10</code></li> <li><code>123.456e10</code></li> <li><code>123.456E+10</code></li> <li><code>123.e-10</code></li> <li><code>0.456e-10</code></li> </ul> <p>The following are not floating-point literals:</p> <ul> <li><code>.456</code></li> <li><code>123e</code></li> <li><code>123e+</code></li> <li><code>123e-</code></li> </ul> <p>Underscores are not permitted in floating-point literals.</p> <p>The default floating-point type is <code>f64</code> when no contextual type is available.</p> <h3>Character literals</h3> <p>A character literal is enclosed in single quotes and denotes exactly one Unicode scalar value. Standard escapes include <code>\n</code>, <code>\r</code>, <code>\t</code>, <code>\0</code>, <code>\\</code>, and <code>\'</code>.</p> <h3>String literals</h3> <p>A string literal is enclosed in double quotes and produces a <code>String</code> value. Standard escapes include <code>\n</code>, <code>\r</code>, <code>\t</code>, <code>\0</code>, <code>\\</code>, and <code>\"</code>. The value of a string literal is a sequence of bytes containing valid UTF-8 encoding.</p> <h3>Boolean literals</h3> <p>The Boolean literals are <code>true</code> and <code>false</code>. They denote the two values of the predefined <code>bool</code> type.</p> <h3>Null literal</h3> <p>The null literal is <code>null</code>. Its type and permitted uses are defined by the type system.</p> <h3>Literal typing</h3> <p>Integer literals MAY be typed from context where possible; without a contextual integer type, the implementation uses <code>i32</code> when the value is representable and MUST otherwise require an explicit type. A literal whose value cannot be represented by its required type is a compile-time error.</p> </section>
 
 
 <section id="section-8"><h2>8. Modules</h2>
