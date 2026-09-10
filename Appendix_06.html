@@ -104,8 +104,121 @@ obligations the programmer must maintain by convention.
 
 <nav aria-label="Table of contents" class="toc">
 <h2>Contents</h2>
-<ol><li><a href="#section-1">Introduction</a></li><li><a href="#section-2">Normative Terminology</a></li><li><a href="#section-3">Source Files</a></li><li><a href="#section-4">Comments</a></li><li><a href="#section-5">Keywords</a></li><li><a href="#section-6">Identifiers</a></li><li><a href="#section-7">Literals</a></li><li><a href="#section-8">Modules</a></li><li><a href="#section-9">Declarations</a></li><li><a href="#section-10">Variables</a></li><li><a href="#section-11">Constants</a></li><li><a href="#section-12">Primitive Types</a></li><li><a href="#section-13">Compound Types</a></li><li><a href="#section-14">Managed Pointer Types</a></li><li><a href="#section-15">Raw Pointers</a></li><li><a href="#section-16">Mutability</a></li><li><a href="#section-17">Type Compatibility</a></li><li><a href="#section-18">Type Inference</a></li><li><a href="#section-19">Generic Types and Functions</a></li><li><a href="#section-20">Exported Types</a></li><li><a href="#section-21">Structs</a></li><li><a href="#section-22">Enums</a></li><li><a href="#section-23">Arrays</a></li><li><a href="#section-24">Functions</a></li><li><a href="#section-25">Expressions</a></li><li><a href="#section-26">Operator Precedence</a></li><li><a href="#section-27">Arithmetic</a></li><li><a href="#section-28">Equality</a></li><li><a href="#section-29">Assignment</a></li><li><a href="#section-30">Function Calls</a></li><li><a href="#section-31">Conditional Execution</a></li><li><a href="#section-32">Loops</a></li><li><a href="#section-33">Match</a></li><li><a href="#section-34">Return</a></li><li><a href="#section-35">Defer</a></li><li><a href="#section-36">Definite Initialization</a></li><li><a href="#section-37">Ownership</a></li><li><a href="#section-38">Move Semantics</a></li><li><a href="#section-39">Copy Semantics</a></li><li><a href="#section-40">Partial Moves</a></li><li><a href="#section-41">Borrowing</a></li><li><a href="#section-42">Shared Borrows</a></li><li><a href="#section-43">Mutable Borrows</a></li><li><a href="#section-44">Borrow Lifetime</a></li><li><a href="#section-45">Function Parameters and Returned Borrows</a></li><li><a href="#section-46">Reborrowing</a></li><li><a href="#section-47">Field and Partial Borrows</a></li><li><a href="#section-48">Aliasing</a></li><li><a href="#section-49">Collection Borrowing</a></li><li><a href="#section-50">Borrow Invalidation</a></li><li><a href="#section-51">Destruction</a></li><li><a href="#section-52">Scope Destruction</a></li><li><a href="#section-53">Unwinding</a></li><li><a href="#section-54">Abort</a></li><li><a href="#section-55">Nullability</a></li><li><a href="#section-56">Bounds Safety</a></li><li><a href="#section-57">Result&lt;T,E&gt;</a></li><li><a href="#section-58">Error Propagation</a></li><li><a href="#section-59">Strings</a></li><li><a href="#section-60">Vector&lt;T&gt;</a></li><li><a href="#section-61">Slices</a></li><li><a href="#section-62">Threads</a></li><li><a href="#section-63">Synchronization</a></li><li><a href="#section-64">Mutex</a></li><li><a href="#section-65">Data Races</a></li><li><a href="#section-66">Memory Model</a></li><li><a href="#section-67">Unsafe Code and Functions</a></li><li><a href="#section-68">Raw Memory</a></li><li><a href="#section-69">Safe Abstractions over Unsafe Code</a></li><li><a href="#section-70">Foreign Functions</a></li><li><a href="#section-71">FFI Ownership</a></li><li><a href="#section-72">ABI Profiles</a></li><li><a href="#section-73">Runtime</a></li><li><a href="#section-74">Allocation</a></li><li><a href="#section-75">Standard I/O</a></li><li><a href="#section-76">Security and Safety Boundary</a></li><li><a href="#section-77">Diagnostics</a></li><li><a href="#section-78">Implementation-Defined Behavior</a></li><li><a href="#section-79">Extensions</a></li><li><a href="#section-80">Conformance Levels</a></li><li><a href="#section-81">Conformance Testing</a></li><li><a href="#section-82">Compatibility</a></li><li><a href="#section-83">Versioning</a></li><li><a href="#section-84">Safety Theorem</a></li><li><a href="#section-85">Reference Model</a></li><li><a href="#section-86">Status</a></li><li><a href="#section-87">Illustrative Program</a><li class="toc-appendix"><a href="#section-appendix-a">Appendix A - Owned Raw Storage and Runtime-Managed Values</a></li><li class="toc-appendix"><a href="#section-appendix-b">Appendix B - Unicode Identifiers and Lexical Character Classification</a></li><li class="toc-appendix"><a href="#section-appendix-c">Appendix C - Persistent Object Identity and Handles</a></li><li class="toc-appendix"><a href="#section-appendix-d">Appendix D - Formal Operational Semantics, Ownership/Capability Calculus, and Lifetime Inference</a><li class="toc-appendix"><a href="#section-appendix-e">Appendix E - Concurrent Memory and Synchronization Semantics</a></li><li class="toc-appendix"><a href="#section-appendix-f">Appendix F - FFI and ABI Semantic Contracts</a></li><li class="toc-appendix"><a href="#section-appendix-g">Appendix G - Conformance Test Requirements</a></li><li class="toc-appendix"><a href="#section-appendix-h">Appendix H - Cross-Subsystem Semantic Integration</a></li></li>
+<ol>
+  <li><a href="#section-1">Introduction</a></li>
+  <li><a href="#section-2">Normative Terminology</a></li>
+  <li><a href="#section-3">Source Files</a></li>
+  <li><a href="#section-4">Comments</a></li>
+  <li><a href="#section-5">Keywords</a></li>
+  <li><a href="#section-6">Identifiers</a></li>
+  <li><a href="#section-7">Literals</a></li>
+  <li><a href="#section-8">Modules</a></li>
+  <li><a href="#section-9">Declarations</a></li>
+  <li><a href="#section-10">Variables</a></li>
+  <li><a href="#section-11">Constants</a></li>
+  <li><a href="#section-12">Primitive Types</a></li>
+  <li><a href="#section-13">Compound Types</a></li>
+  <li><a href="#section-14">Managed Pointer Types</a></li>
+  <li><a href="#section-15">Raw Pointers</a></li>
+  <li><a href="#section-16">Mutability</a></li>
+  <li><a href="#section-17">Type Compatibility</a></li>
+  <li><a href="#section-18">Type Inference</a></li>
+  <li><a href="#section-19">Generic Types and Functions</a></li>
+  <li><a href="#section-20">Exported Types</a></li>
+  <li><a href="#section-21">Structs</a></li>
+  <li><a href="#section-22">Enums</a></li>
+  <li><a href="#section-23">Arrays</a></li>
+  <li><a href="#section-24">Functions</a></li>
+  <li><a href="#section-25">Expressions</a></li>
+  <li><a href="#section-26">Operator Precedence</a></li>
+  <li><a href="#section-27">Arithmetic</a></li>
+  <li><a href="#section-28">Equality</a></li>
+  <li><a href="#section-29">Assignment</a></li>
+  <li><a href="#section-30">Function Calls</a></li>
+  <li><a href="#section-31">Conditional Execution</a></li>
+  <li><a href="#section-32">Loops</a></li>
+  <li><a href="#section-33">Match</a></li>
+  <li><a href="#section-34">Return</a></li>
+  <li><a href="#section-35">Defer</a></li>
+  <li><a href="#section-36">Definite Initialization</a></li>
+  <li><a href="#section-37">Ownership</a></li>
+  <li><a href="#section-38">Move Semantics</a></li>
+  <li><a href="#section-39">Copy Semantics</a></li>
+  <li><a href="#section-40">Partial Moves</a></li>
+  <li><a href="#section-41">Borrowing</a></li>
+  <li><a href="#section-42">Shared Borrows</a></li>
+  <li><a href="#section-43">Mutable Borrows</a></li>
+  <li><a href="#section-44">Borrow Lifetime</a></li>
+  <li><a href="#section-45">Function Parameters and Returned Borrows</a></li>
+  <li><a href="#section-46">Reborrowing</a></li>
+  <li><a href="#section-47">Field and Partial Borrows</a></li>
+  <li><a href="#section-48">Aliasing</a></li>
+  <li><a href="#section-49">Collection Borrowing</a></li>
+  <li><a href="#section-50">Borrow Invalidation</a></li>
+  <li><a href="#section-51">Destruction</a></li>
+  <li><a href="#section-52">Scope Destruction</a></li>
+  <li><a href="#section-53">Unwinding</a></li>
+  <li><a href="#section-54">Abort</a></li>
+  <li><a href="#section-55">Nullability</a></li>
+  <li><a href="#section-56">Bounds Safety</a></li>
+  <li><a href="#section-57">Result&lt;T,E&gt;</a></li>
+  <li><a href="#section-58">Error Propagation</a></li>
+  <li><a href="#section-59">Strings</a></li>
+  <li><a href="#section-60">Vector&lt;T&gt;</a></li>
+  <li><a href="#section-61">Slices</a></li>
+  <li><a href="#section-62">Threads</a></li>
+  <li><a href="#section-63">Synchronization</a></li>
+  <li><a href="#section-64">Mutex</a></li>
+  <li><a href="#section-65">Data Races</a></li>
+  <li><a href="#section-66">Memory Model</a></li>
+  <li><a href="#section-67">Unsafe Code and Functions</a></li>
+  <li><a href="#section-68">Raw Memory</a></li>
+  <li><a href="#section-69">Safe Abstractions over Unsafe Code</a></li>
+  <li><a href="#section-70">Foreign Functions</a></li>
+  <li><a href="#section-71">FFI Ownership</a></li>
+  <li><a href="#section-72">ABI Profiles</a></li>
+  <li><a href="#section-73">Runtime</a></li>
+  <li><a href="#section-74">Allocation</a></li>
+  <li><a href="#section-75">Standard I/O</a></li>
+  <li><a href="#section-76">Security and Safety Boundary</a></li>
+  <li><a href="#section-77">Diagnostics</a></li>
+  <li><a href="#section-78">Implementation-Defined Behavior</a></li>
+  <li><a href="#section-79">Extensions</a></li>
+  <li><a href="#section-80">Conformance Levels</a></li>
+  <li><a href="#section-81">Conformance Testing</a></li>
+  <li><a href="#section-82">Compatibility</a></li>
+  <li><a href="#section-83">Versioning</a></li>
+  <li><a href="#section-84">Safety Theorem</a></li>
+  <li><a href="#section-85">Reference Model</a></li>
+  <li><a href="#section-86">Status</a></li>
+  <li><a href="#section-87">Illustrative Program</a></li>
+
+  <li class="toc-appendix">
+    <a href="#section-appendix-a">Appendix A - Owned Raw Storage and Runtime-Managed Values</a>
+  </li>
+  <li class="toc-appendix">
+    <a href="#section-appendix-b">Appendix B - Unicode Identifiers and Lexical Character Classification</a>
+  </li>
+  <li class="toc-appendix">
+    <a href="#section-appendix-c">Appendix C - Persistent Object Identity and Handles</a>
+  </li>
+  <li class="toc-appendix">
+    <a href="#section-appendix-d">Appendix D - Formal Operational Semantics, Ownership/Capability Calculus, and Lifetime Inference</a>
+  </li>
+  <li class="toc-appendix">
+    <a href="#section-appendix-e">Appendix E - Concurrent Memory and Synchronization Semantics</a>
+  </li>
+  <li class="toc-appendix">
+    <a href="#section-appendix-f">Appendix F - FFI and ABI Semantic Contracts</a>
+  </li>
+  <li class="toc-appendix">
+    <a href="#section-appendix-g">Appendix G - Conformance Test Requirements</a>
+  </li>
+  <li class="toc-appendix">
+    <a href="#section-appendix-h">Appendix H - Cross-Subsystem Semantic Integration</a>
+  </li>
 </ol>
+
 </nav>
 
 <article><section id="section-1"><h2>1. Introduction</h2>
@@ -10194,17 +10307,25 @@ Borrow     → provides access to an object</code></pre>
 
   <p>
     The main specification defines CobaltC's ownership, borrowing, lifetime, destruction,
-    and managed-pointer rules normatively. Those rules are intentionally described in
-    language-level terms so that they remain accessible to programmers and implementers.
-    However, a sufficiently complete language specification must also define how those
-    rules compose when several of them apply to the same program state.
+    initialization, managed-pointer, and safety rules normatively. Those rules are described
+    primarily in language-level terms so that they remain accessible to programmers and
+    implementers. A complete language specification must also define how those rules compose
+    when several of them apply to the same program state.
   </p>
 
   <p>
     This appendix provides that formal semantic layer. It does not introduce new source
-    syntax or additional language features. Its purpose is to give a compact, implementation-
-    independent model against which the existing ownership, borrowing, lifetime, move,
-    reborrowing, and destruction rules can be interpreted consistently.
+    syntax or additional language features. Its purpose is to provide an
+    implementation-independent model against which the existing ownership, initialization,
+    borrowing, lifetime, move, assignment, reborrowing, destruction, and evaluation rules
+    can be interpreted consistently.
+  </p>
+
+  <p>
+    Appendix D defines the <strong>sequential</strong> semantic model of CobaltC. Appendix E
+    extends that model to concurrent execution and synchronization. Appendix F applies the
+    applicable semantic requirements at foreign-function and ABI boundaries. Appendix H
+    defines how these models compose across subsystems.
   </p>
 
   <p>
@@ -10212,18 +10333,22 @@ Borrow     → provides access to an object</code></pre>
   </p>
 
   <ul>
-    <li>the abstract state of a running CobaltC program;</li>
-    <li>the capabilities associated with owned values and managed pointers;</li>
-    <li>the rules governing creation, use, suspension, and expiration of borrow capabilities;</li>
+    <li>the abstract state of a sequential CobaltC execution;</li>
+    <li>the distinction between storage, initialization state, ownership, and access capabilities;</li>
+    <li>the rules governing creation, transfer, suspension, and expiration of capabilities;</li>
+    <li>the rules governing complete and partial ownership states;</li>
     <li>the constraints imposed on inferred lifetimes;</li>
-    <li>the relationship between evaluation, ownership state, and destruction; and</li>
-    <li>the invariants that a conforming implementation must preserve.</li>
+    <li>the relationship between evaluation and state transitions;</li>
+    <li>the relationship between failure, ownership state, and destruction;</li>
+    <li>the treatment of deferred destruction obligations;</li>
+    <li>the requirements governing relocation and borrow invalidation; and</li>
+    <li>the sequential invariants that a conforming implementation MUST preserve.</li>
   </ul>
 
   <p>
-    The formal model is normative where it states a language requirement. The notation
-    used to express the model is not itself source-language syntax and does not constrain
-    compiler architecture, internal data structures, or implementation strategy.
+    The formal model is normative where it states a language requirement. The notation used
+    to express the model is not itself CobaltC source syntax and does not constrain compiler
+    architecture, internal data structures, or implementation strategy.
   </p>
 
   <h3>D.1 Normative Status and Notation</h3>
@@ -10253,19 +10378,31 @@ Borrow     → provides access to an object</code></pre>
     <tbody>
       <tr>
         <td><code>&Gamma;</code></td>
-        <td>Lexical and typing environment.</td>
+        <td>Static lexical, typing, ownership, and capability environment.</td>
       </tr>
       <tr>
         <td><code>&Sigma;</code></td>
-        <td>Abstract program state.</td>
+        <td>Abstract sequential program state.</td>
       </tr>
       <tr>
         <td><code>&rho;</code></td>
-        <td>Binding environment mapping names to locations and capabilities.</td>
+        <td>Binding environment mapping bindings to places and their current semantic status.</td>
       </tr>
       <tr>
         <td><code>&mu;</code></td>
-        <td>Store containing objects and their current ownership state.</td>
+        <td>Store mapping locations to storage and object state.</td>
+      </tr>
+      <tr>
+        <td><code>&Lambda;</code></td>
+        <td>Set of lifetime identities and their validity intervals.</td>
+      </tr>
+      <tr>
+        <td><code>&Delta;</code></td>
+        <td>Set of active deferred destruction obligations.</td>
+      </tr>
+      <tr>
+        <td><code>l</code></td>
+        <td>A semantic storage location.</td>
       </tr>
       <tr>
         <td><code>&lambda;</code></td>
@@ -10287,13 +10424,37 @@ Borrow     → provides access to an object</code></pre>
         <td><code>&rArr;</code></td>
         <td>Zero or more semantic transitions.</td>
       </tr>
+      <tr>
+        <td><code>live(x)</code></td>
+        <td><code>x</code> is semantically valid at the current program point.</td>
+      </tr>
     </tbody>
   </table>
 
-  <h3>D.2 Abstract Program State</h3>
+  <h3>D.2 Scope of the Formal Model</h3>
 
   <p>
-    For the purposes of this appendix, the abstract state of a CobaltC execution is:
+    Appendix D defines the sequential ownership, capability, lifetime, evaluation, and
+    destruction model. It does not independently define concurrent memory ordering,
+    synchronization, atomic operations, or foreign-code behavior.
+  </p>
+
+  <p>
+    Appendix E extends the semantic state and transition relation defined here to concurrent
+    execution and synchronization. Appendix F defines the additional semantic obligations
+    applicable at foreign boundaries. Appendix H defines the composition of these models.
+  </p>
+
+  <p>
+    Nothing in this appendix permits an implementation to disregard a normative rule in the
+    main specification. Where the main specification imposes a requirement not represented
+    by a particular notation here, that requirement remains normative.
+  </p>
+
+  <h3>D.3 Abstract Sequential Program State</h3>
+
+  <p>
+    The abstract state of a sequential CobaltC execution is:
   </p>
 
   <pre><code>&Sigma; = (&rho;, &mu;, &Lambda;, &Delta;)</code></pre>
@@ -10302,91 +10463,184 @@ Borrow     → provides access to an object</code></pre>
 
   <ul>
     <li><code>&rho;</code> is the current binding environment;</li>
-    <li><code>&mu;</code> is the current store of live objects and storage;</li>
-    <li><code>&Lambda;</code> is the set of currently live lifetime identities; and</li>
-    <li><code>&Delta;</code> is the set of active deferred destruction obligations.</li>
+    <li><code>&mu;</code> is the current store of storage and object state;</li>
+    <li><code>&Lambda;</code> records lifetime identities and their validity intervals; and</li>
+    <li><code>&Delta;</code> records active deferred destruction obligations.</li>
   </ul>
 
   <p>
-    An implementation need not represent these components explicitly. They describe the
-    semantic information that must be preserved by any conforming implementation.
+    The store MUST distinguish at least the following semantic states where applicable:
+  </p>
+
+  <ul>
+    <li>allocated storage that is not initialized;</li>
+    <li>initialized storage containing a valid value;</li>
+    <li>storage containing a partially moved aggregate;</li>
+    <li>storage whose ownership has been transferred; and</li>
+    <li>storage whose ownership has been consumed by destruction.</li>
+  </ul>
+
+  <p>
+    An implementation need not represent these states explicitly. They describe the
+    semantic information that a conforming implementation MUST preserve.
+  </p>
+
+  <h3>D.4 Places, Values, and Object State</h3>
+
+  <p>
+    A <em>place</em> is a semantic location at which a value or subvalue may exist. A place
+    may denote a complete object, a field, an array element, a collection element, or
+    another subobject recognized by the applicable language rules.
   </p>
 
   <p>
-    A location in <code>&rho;</code> identifies storage containing a value or part of a
-    value. Ownership is associated with the storage responsible for the lifetime and
-    destruction of that value. A managed pointer does not become an owner merely because
-    it identifies the same storage.
-  </p>
-
-  <h3>D.3 Values, Objects, and Ownership</h3>
-
-  <p>
-    A CobaltC object is a semantic entity with storage, a type, a lifetime, and, where
-    applicable, an ownership responsibility.
+    A value is <em>initialized</em> when the semantic rules of its type establish that it
+    contains a valid value of that type. An uninitialized place does not contain a value and
+    MUST NOT be read, borrowed, moved, or destroyed as though it were initialized.
   </p>
 
   <p>
-    An owned value is represented abstractly as:
+    An object is a semantic entity consisting of storage, type information, initialization
+    state, lifetime, and, where applicable, ownership responsibility.
+  </p>
+
+  <p>
+    The formal model therefore distinguishes:
+  </p>
+
+  <pre><code>storage
+    !=
+initialization
+    !=
+ownership
+    !=
+access capability
+    !=
+lifetime</code></pre>
+
+  <p>
+    These properties are related but are not interchangeable.
+  </p>
+
+  <h3>D.5 Ownership State</h3>
+
+  <p>
+    An initialized owned value is represented abstractly as:
   </p>
 
   <pre><code>Owned(l, T, &lambda;)</code></pre>
 
   <p>
-    where <code>l</code> is its storage location, <code>T</code> is its type, and
-    <code>&lambda;</code> identifies the lifetime of the owned storage.
+    where <code>l</code> is its place, <code>T</code> is its type, and <code>&lambda;</code>
+    identifies the lifetime of the owned value.
   </p>
 
   <p>
-    Ownership has exactly one active destruction responsibility. Consequently, for any
-    live owned object, the abstract state MUST NOT contain two independent ownership
-    responsibilities capable of destroying the same object.
+    Ownership means responsibility for the value's lifetime and eventual destruction. An
+    ordinary managed pointer is not an ownership responsibility merely because it identifies
+    the same storage.
   </p>
 
   <p>
-    A move transfers the ownership responsibility from one binding or location to another.
-    It does not create a second ownership responsibility.
+    For every live owned object, the abstract state MUST contain at most one active
+    ownership responsibility capable of destroying that object.
   </p>
 
   <p>
-    The abstract move transition is:
-  </p>
-
-  <pre><code>Owned(l, T, &lambda;) + source
-    &rarr;
-Owned(l, T, &lambda;) + destination
-    +
-Moved(source)</code></pre>
-
-  <p>
-    After the transition, the source binding MUST NOT be used as an owner of the moved
-    value. A conforming implementation MUST reject an operation that attempts to use the
-    moved source in a manner requiring its former ownership.
+    Copying does not create a second ownership responsibility for the same object. Where the
+    type's copy contract permits copying, the copy operation produces a distinct value with
+    its own applicable ownership state.
   </p>
 
   <p>
-    For example:
+    A move transfers an existing ownership responsibility rather than duplicating it.
   </p>
 
-  <pre><code>String first = "hello";
-String second = move first;
-
-print(second);
-print(first); // ERROR: first was moved</code></pre>
+  <h3>D.6 Initialization State</h3>
 
   <p>
-    The move does not itself end the lifetime of the underlying object. The lifetime
-    continues under the destination ownership responsibility.
+    Initialization is represented independently from ownership.
   </p>
 
-  <h3>D.4 Access Capabilities</h3>
+  <p>
+    For an initialized place:
+  </p>
+
+  <pre><code>Initialized(l, T)</code></pre>
+
+  <p>
+    indicates that place <code>l</code> contains a valid value of type <code>T</code>.
+  </p>
+
+  <p>
+    For an uninitialized place:
+  </p>
+
+  <pre><code>Uninitialized(l, T)</code></pre>
+
+  <p>
+    indicates that storage exists but no valid value of type <code>T</code> currently exists
+    there.
+  </p>
+
+  <p>
+    Initialization establishes a value; ownership determines responsibility for that value.
+    Consequently, allocation without successful initialization MUST NOT by itself create an
+    initialized owned value.
+  </p>
+
+  <p>
+    A conforming implementation MUST reject any safe operation that would read, borrow,
+    move, or otherwise use a place as initialized when the applicable definite-initialization
+    rules do not establish that state.
+  </p>
+
+  <h3>D.7 Partial Ownership and Partial Moves</h3>
+
+  <p>
+    An aggregate may contain independently movable owned components. The semantic state of
+    an aggregate MUST therefore permit individual components to become moved while other
+    components remain initialized and owned.
+  </p>
+
+  <p>
+    If a component <code>p</code> is moved from an aggregate at place <code>l</code>, the
+    resulting state may be represented as:
+  </p>
+
+  <pre><code>Partial(l, moved = {p}, initialized = remaining-fields)</code></pre>
+
+  <p>
+    A moved component no longer carries ownership responsibility in its original place.
+    Remaining initialized owned components retain their own destruction responsibilities.
+  </p>
+
+  <p>
+    A conforming implementation MUST NOT destroy a moved component again as though it were
+    still owned by the original aggregate.
+  </p>
+
+  <p>
+    An aggregate containing a moved component MUST NOT be used in an operation that requires
+    the moved component to be initialized unless the language rules establish a valid
+    reconstruction or reassignment first.
+  </p>
+
+  <p>
+    A partially moved aggregate MAY be reassigned or otherwise restored where permitted by
+    the main specification. Such restoration establishes the relevant component's
+    initialization and ownership state anew; it does not retroactively undo the original
+    move.
+  </p>
+
+  <h3>D.8 Access Capabilities</h3>
 
   <p>
     CobaltC managed pointers represent access capabilities rather than ownership
     responsibilities.
   </p>
 
-  <p>The capability forms relevant to this appendix are:</p>
+  <p>The capability forms relevant to the sequential model are:</p>
 
   <table>
     <thead>
@@ -10397,36 +10651,35 @@ print(first); // ERROR: first was moved</code></pre>
     </thead>
     <tbody>
       <tr>
-        <td><code>Shared(l, T, &lambda;)</code></td>
-        <td>Read-only access to <code>T</code> at location <code>l</code> for lifetime <code>&lambda;</code>.</td>
+        <td><code>Shared(p, T, &lambda;)</code></td>
+        <td>Read-only access to place <code>p</code> of type <code>T</code> for lifetime <code>&lambda;</code>.</td>
       </tr>
       <tr>
-        <td><code>Exclusive(l, T, &lambda;)</code></td>
-        <td>Exclusive mutable access to <code>T</code> at location <code>l</code> for lifetime <code>&lambda;</code>.</td>
+        <td><code>Exclusive(p, T, &lambda;)</code></td>
+        <td>Exclusive mutable access to place <code>p</code> of type <code>T</code> for lifetime <code>&lambda;</code>.</td>
       </tr>
       <tr>
         <td><code>Suspended(&kappa;)</code></td>
-        <td>A capability temporarily restricted because a derived reborrow is live.</td>
+        <td>A capability whose conflicting use is temporarily prohibited because a derived capability is live.</td>
       </tr>
       <tr>
         <td><code>Moved</code></td>
-        <td>A binding or ownership capability that has been consumed by a move.</td>
+        <td>A binding or ownership state consumed by a move.</td>
       </tr>
       <tr>
         <td><code>Destroyed</code></td>
-        <td>Storage whose ownership responsibility has been consumed by destruction.</td>
+        <td>A place whose ownership responsibility has been consumed by destruction.</td>
       </tr>
     </tbody>
   </table>
 
   <p>
-    A shared capability MAY coexist with other compatible shared capabilities. An exclusive
-    capability MUST NOT coexist with a conflicting shared or exclusive capability referring
-    to overlapping storage.
+    A capability is not itself an owner. It grants access subject to the capability's
+    permissions, referent lifetime, and applicable aliasing rules.
   </p>
 
   <p>
-    The fundamental capability invariant is therefore:
+    The fundamental capability invariant is:
   </p>
 
   <pre><code>zero or more compatible Shared capabilities
@@ -10434,158 +10687,99 @@ OR
 one Exclusive capability</code></pre>
 
   <p>
-    This formalizes the borrowing rule already established by the main specification.
+    This invariant applies to overlapping access paths. Capabilities to disjoint places MAY
+    coexist where the main specification establishes that the places are independently
+    borrowable.
   </p>
 
-  <h3>D.5 Capability Creation</h3>
+  <h3>D.9 Capability Creation</h3>
 
   <p>
-    Given an initialized owned mutable value at location <code>l</code>, a shared borrow
-    creates a shared capability:
+    Given an initialized place <code>p</code> whose ownership and mutability rules permit
+    shared access, a shared borrow establishes:
   </p>
 
-  <pre><code>&amp;e
-&dArr;
-Shared(l, T, &lambda;)</code></pre>
+  <pre><code>&Gamma; &vdash; &amp;e : Shared(p, T, &lambda;)</code></pre>
 
   <p>
-    A mutable borrow creates an exclusive capability:
+    Given an initialized mutable place <code>p</code> whose ownership and mutability rules
+    permit exclusive access, a mutable borrow establishes:
   </p>
 
-  <pre><code>&amp;mut e
-&dArr;
-Exclusive(l, T, &lambda;)</code></pre>
+  <pre><code>&Gamma; &vdash; &amp;mut e : Exclusive(p, T, &lambda;)</code></pre>
 
   <p>
-    These transitions are permitted only when the resulting capability satisfies all
-    applicable ownership, mutability, aliasing, and lifetime constraints.
-  </p>
-
-  <p>
-    The source expression is not moved by taking a borrow. The resulting managed pointer
-    carries access to the existing referent.
-  </p>
-
-  <p>For example:</p>
-
-  <pre><code>mut String value = "hello";
-String* shared = &amp;value;
-
-print(*shared);</code></pre>
-
-  <p>
-    The ownership state remains:
-  </p>
-
-  <pre><code>Owned(value, String, &lambda;value)</code></pre>
-
-  <p>
-    while the additional access capability is:
-  </p>
-
-  <pre><code>Shared(value, String, &lambda;shared)</code></pre>
-
-  <p>
-    The shared capability does not acquire or alter destruction responsibility.
-  </p>
-
-  <h3>D.6 Capability Compatibility</h3>
-
-  <p>
-    Two capabilities are <em>compatible</em> when their access permissions do not conflict
-    and their referent regions may safely overlap.
+    Borrow creation does not transfer ownership of the referent. The resulting capability
+    instead derives its validity from the existing referent and its applicable lifetime.
   </p>
 
   <p>
-    For the purposes of the core ownership model:
+    A borrow MUST NOT be created from an uninitialized, moved, destroyed, invalid, or
+    otherwise inaccessible place.
+  </p>
+
+  <h3>D.10 Capability Compatibility and Conflict</h3>
+
+  <p>
+    Two capabilities are <em>compatible</em> when their permissions do not conflict and
+    their referent regions may safely overlap.
   </p>
 
   <ul>
     <li>shared access is compatible with shared access;</li>
     <li>exclusive access is incompatible with shared access to overlapping storage;</li>
-    <li>exclusive access is incompatible with another exclusive access to overlapping storage;</li>
-    <li>access to disjoint storage MAY be concurrent where the language's field and partial-borrow rules establish that disjointness.</li>
+    <li>exclusive access is incompatible with another exclusive access to overlapping storage; and</li>
+    <li>access to disjoint storage MAY coexist where disjointness is established by the applicable rules.</li>
   </ul>
 
   <p>
-    Therefore the following program is invalid:
+    A conforming implementation MUST reject a safe program when the required capability
+    relationship cannot be established.
   </p>
 
-  <pre><code>mut String value = "hello";
-
-String* shared = &amp;value;
-mut String* mutable = &amp;mut value; // ERROR: conflicting borrow</code></pre>
-
   <p>
-    The compiler MUST reject the second borrow because its capability conflicts with the
-    live shared capability.
+    The implementation MAY use a conservative approximation when determining whether access
+    paths overlap, provided that the approximation does not weaken any safety guarantee.
   </p>
 
-  <h3>D.7 Reborrowing</h3>
+  <h3>D.11 Reborrowing</h3>
 
   <p>
-    A reborrow creates a capability derived from an existing managed-pointer capability.
-    It does not transfer ownership of the referent and does not inherently consume the
-    originating managed pointer.
+    A reborrow creates a capability derived from an existing managed-pointer capability. It
+    does not transfer ownership of the referent.
   </p>
 
   <p>
     For a mutable capability:
   </p>
 
-  <pre><code>Exclusive(l, T, &lambda;outer)
+  <pre><code>Exclusive(p, T, &lambda;outer)
     &rArr;
-Exclusive(l, T, &lambda;inner)</code></pre>
+Exclusive(p, T, &lambda;inner)</code></pre>
 
   <p>
-    while the originating capability is restricted for the duration of the conflicting
-    inner capability.
-  </p>
-
-  <p>For example:</p>
-
-  <pre><code>mut String value = "hello";
-mut String* pointer = &amp;mut value;
-
-append(*pointer, "!");
-
-append_exclamation(&amp;mut *pointer);
-
-append(*pointer, "?");</code></pre>
-
-  <p>
-    During the call to <code>append_exclamation</code>, the temporary mutable reborrow
-    provides exclusive access. The original capability remains the owner of the access
-    responsibility represented by <code>pointer</code>, but it MUST NOT be used for
-    conflicting access while the reborrow is live.
+    the originating capability becomes <code>Suspended(&kappa;outer)</code> with respect to
+    conflicting access for the duration of the inner capability.
   </p>
 
   <p>
-    A shared reborrow from a mutable capability similarly suspends conflicting mutable
-    use for the duration of the shared reborrow:
-  </p>
-
-  <pre><code>mut String value = "hello";
-mut String* pointer = &amp;mut value;
-
-String* shared = &amp;*pointer;
-
-print(*shared);</code></pre>
-
-  <p>
-    While <code>shared</code> remains live, the originating mutable capability MUST NOT
-    be used for conflicting access.
-  </p>
-
-  <h3>D.8 Capability Paths and Partial Borrows</h3>
-
-  <p>
-    Capabilities may refer to a complete object or to a subobject such as a field or
-    independently borrowable range.
+    When the inner capability expires, the originating capability becomes usable again,
+    subject to all other applicable rules.
   </p>
 
   <p>
-    A capability is therefore associated with an abstract access path:
+    A shared reborrow derived from an exclusive capability similarly suspends conflicting
+    mutable use for the duration of the shared reborrow.
+  </p>
+
+  <p>
+    A reborrow MUST NOT create an additional ownership responsibility for the referent.
+  </p>
+
+  <h3>D.12 Access Paths and Partial Borrows</h3>
+
+  <p>
+    Capabilities may refer to complete objects or subobjects. An abstract access path is:
   </p>
 
   <pre><code>p ::= l
@@ -10595,26 +10789,27 @@ print(*shared);</code></pre>
     | p.range</code></pre>
 
   <p>
-    Two capabilities conflict when their access paths overlap in a manner that permits
-    one capability to invalidate or observe a conflicting mutation through the other.
+    Two capabilities conflict when their access paths overlap in a manner prohibited by the
+    ownership, aliasing, mutation, or invalidation rules.
   </p>
 
   <p>
-    Where the implementation can establish that two paths are disjoint, independent
+    Where the implementation establishes that two access paths are disjoint, independent
     capabilities MAY coexist.
   </p>
 
   <p>
-    The implementation MAY conservatively treat potentially overlapping paths as
-    conflicting. It MUST NOT accept a program whose execution could violate the
-    ownership or aliasing guarantees.
+    Collection elements and borrowed ranges remain subject to the invalidation rules of the
+    corresponding collection or storage abstraction. Semantic disjointness MUST NOT be used
+    to bypass a rule that invalidates all outstanding borrows when the underlying storage is
+    relocated or replaced.
   </p>
 
-  <h3>D.9 Lifetime Model</h3>
+  <h3>D.13 Lifetime Model</h3>
 
   <p>
-    Every managed borrow has a lifetime. A lifetime identifies the interval during which
-    the corresponding access capability is valid.
+    Every managed borrow has a lifetime. A lifetime identifies the interval during which its
+    corresponding access capability remains valid.
   </p>
 
   <p>
@@ -10627,37 +10822,40 @@ print(*shared);</code></pre>
   </p>
 
   <ol>
-    <li>its referent remains alive;</li>
-    <li>its capability has not been invalidated;</li>
-    <li>all required ownership and aliasing constraints remain satisfied; and</li>
-    <li>the managed pointer itself remains usable.</li>
+    <li>its referent remains alive and initialized;</li>
+    <li>its capability remains valid;</li>
+    <li>all required ownership and aliasing constraints remain satisfied;</li>
+    <li>the managed pointer remains usable; and</li>
+    <li>no applicable invalidation rule has ended the borrow.</li>
   </ol>
 
   <p>
-    A lifetime MUST NOT extend beyond the lifetime of its referent.
-  </p>
-
-  <p>
-    If <code>&lambda;<sub>borrow</sub></code> is the lifetime of a borrow and
-    <code>&lambda;<sub>referent</sub></code> is the lifetime of its referent, then:
+    A borrow lifetime MUST be contained within the validity interval of its referent:
   </p>
 
   <pre><code>&lambda;borrow &sube; &lambda;referent</code></pre>
 
   <p>
-    This relation is semantic rather than a requirement that an implementation represent
+    A derived borrow MUST also remain within the validity interval of the capability from
+    which its validity is derived:
+  </p>
+
+  <pre><code>&lambda;derived &sube; &lambda;source</code></pre>
+
+  <p>
+    These relations are semantic. They do not require an implementation to represent
     lifetimes as runtime objects.
   </p>
 
-  <h3>D.10 Lifetime Constraints</h3>
+  <h3>D.14 Lifetime Constraints and Inference</h3>
 
   <p>
-    Lifetime inference is the process of determining whether the required lifetime
-    constraints of a program can simultaneously be satisfied.
+    Lifetime inference determines whether the lifetime requirements imposed by a program can
+    be simultaneously satisfied.
   </p>
 
   <p>
-    The following constraint forms are sufficient for the core model:
+    The core constraint forms are:
   </p>
 
   <table>
@@ -10670,131 +10868,103 @@ print(*shared);</code></pre>
     <tbody>
       <tr>
         <td><code>&lambda;<sub>a</sub> &sube; &lambda;<sub>b</sub></code></td>
-        <td>The validity of <code>&lambda;<sub>a</sub></code> cannot extend beyond <code>&lambda;<sub>b</sub>.</td>
+        <td>The validity interval of <code>&lambda;<sub>a</sub></code> cannot extend beyond <code>&lambda;<sub>b</sub>.</td>
       </tr>
       <tr>
         <td><code>live(&lambda;)</code></td>
-        <td>The lifetime must remain live at the required program point.</td>
+        <td>The lifetime remains valid at the required program point.</td>
       </tr>
       <tr>
         <td><code>derived(&lambda;<sub>a</sub>, &lambda;<sub>b</sub>)</code></td>
-        <td><code>&lambda;<sub>a</sub></code> is derived from the access represented by <code>&lambda;<sub>b</sub></code>.</td>
+        <td><code>&lambda;<sub>a</sub></code> derives its validity from <code>&lambda;<sub>b</sub>.</td>
       </tr>
       <tr>
         <td><code>outlives(&lambda;<sub>a</sub>, &lambda;<sub>b</sub>)</code></td>
-        <td><code>&lambda;<sub>a</sub></code> remains valid for at least the required duration of <code>&lambda;<sub>b</sub></code>.</td>
+        <td><code>&lambda;<sub>a</sub></code> remains valid for at least the duration required by <code>&lambda;<sub>b</sub></code>.</td>
       </tr>
     </tbody>
   </table>
 
   <p>
-    A conforming implementation MUST reject a program when its lifetime constraints
-    cannot be satisfied.
+    A conforming implementation MUST reject a program when its required lifetime
+    constraints cannot be satisfied.
   </p>
 
   <p>
-    The implementation MAY choose any sound inference algorithm. It MAY infer shorter
-    lifetimes than a source-level programmer might expect when doing so preserves valid
-    program behavior. It MUST NOT infer a lifetime that permits a borrow to outlive its
-    referent.
-  </p>
-
-  <h3>D.11 Lifetime Inference for Local Borrows</h3>
-
-  <p>
-    A borrow introduced for a local managed-pointer binding has a lifetime extending
-    through all program points at which that capability is required.
-  </p>
-
-  <pre><code>String value = "hello";
-String* pointer = &amp;value;
-
-print(*pointer);
-
-doSomethingWith(value);</code></pre>
-
-  <p>
-    The lifetime of the borrow may end before the end of the lexical scope when the
-    compiler can establish that <code>pointer</code> is no longer used and no outstanding
-    operation depends on the borrow.
+    The implementation MAY use any sound lifetime-inference algorithm and MAY infer a
+    shorter lifetime than the lexical scope of a binding when the shorter lifetime is
+    sufficient for all required uses.
   </p>
 
   <p>
-    This permits:
+    The implementation MUST NOT infer a lifetime that permits a borrow to outlive its
+    referent, its source capability, or any other semantic obligation on which the borrow's
+    validity depends.
   </p>
 
-  <pre><code>String value = "hello";
-String* pointer = &amp;value;
-
-print(*pointer);
-
-// The borrow may end here.
-
-doSomethingWith(value);</code></pre>
+  <h3>D.15 Last Use and Lifetime Termination</h3>
 
   <p>
-    The exact implementation technique used to determine the last required use is not
-    normative. The resulting behavior is normative: the implementation MUST preserve
-    all applicable borrowing and lifetime guarantees.
-  </p>
-
-  <h3>D.12 Function Parameters and Returned Borrows</h3>
-
-  <p>
-    A managed pointer passed to a function provides access for the duration required by
-    the call and by any valid derived result.
+    A borrow remains live for every program point at which its capability is required.
+    Where the implementation can establish that no subsequent operation requires the
+    capability, the borrow lifetime MAY end before the lexical end of its binding.
   </p>
 
   <p>
-    For a function whose result is derived from an input borrow, the result lifetime MUST
-    be constrained by the input lifetime.
-  </p>
-
-  <pre><code>fn first(String* value) : String*
-{
-    return value;
-}</code></pre>
-
-  <p>
-    Semantically, the returned capability satisfies:
-  </p>
-
-  <pre><code>&lambda;result &sube; &lambda;value</code></pre>
-
-  <p>
-    Consequently:
-  </p>
-
-  <pre><code>String value = "hello";
-String* pointer = first(&amp;value);
-
-print(*pointer);</code></pre>
-
-  <p>
-    is valid while <code>value</code> remains alive and the resulting borrow remains
-    otherwise valid.
+    Ending a borrow lifetime does not destroy the referent and does not transfer ownership.
+    It only ends the validity of the corresponding access capability.
   </p>
 
   <p>
-    A borrow derived from a local object MUST NOT escape that object's lifetime:
+    The exact analysis used to determine the last required use is not normative. The
+    resulting semantic validity is normative.
   </p>
 
-  <pre><code>fn get_value() : String*
-{
-    String value = "hello";
-    return &amp;value; // ERROR: returned borrow would outlive value
-}</code></pre>
+  <h3>D.16 Function Calls and Parameter Ownership</h3>
 
   <p>
-    The compiler MUST reject this program because no valid lifetime assignment can satisfy
-    both the return requirement and the lifetime of the local variable.
+    A function call evaluates its arguments according to the evaluation and ownership rules
+    applicable to each parameter.
   </p>
 
-  <h3>D.13 Conditional Lifetime Inference</h3>
+  <p>
+    Passing a copyable value by value produces the independent value required by its copy
+    contract. Passing a non-copyable owned value by value transfers ownership according to
+    the move rules.
+  </p>
 
   <p>
-    When a result may be derived from more than one borrow, the result lifetime MUST be
-    valid for every path that can produce the result.
+    Passing a managed pointer provides access according to its capability and lifetime.
+    Passing a mutable managed pointer transfers or temporarily reborrows the applicable
+    exclusive access according to the function's parameter requirements.
+  </p>
+
+  <p>
+    A call MUST NOT be considered successful if its argument evaluation would violate an
+    ownership, initialization, borrowing, or lifetime constraint.
+  </p>
+
+  <p>
+    For a function whose result is derived from an input borrow, the result lifetime MUST be
+    constrained by the input lifetime:
+  </p>
+
+  <pre><code>&lambda;result &sube; &lambda;input</code></pre>
+
+  <p>
+    A returned managed pointer MUST NOT refer to a local object whose lifetime ends before
+    the returned capability would be used.
+  </p>
+
+  <h3>D.17 Conditional Lifetime Inference</h3>
+
+  <p>
+    When a result may be derived from more than one borrow, every execution path capable of
+    producing the result MUST satisfy the result's lifetime constraints.
+  </p>
+
+  <p>
+    For example:
   </p>
 
   <pre><code>fn choose(String* first, String* second, bool condition) : String*
@@ -10808,121 +10978,223 @@ print(*pointer);</code></pre>
 }</code></pre>
 
   <p>
-    The result lifetime is therefore constrained by both input lifetimes:
+    the result is constrained by both inputs:
   </p>
 
   <pre><code>&lambda;result &sube; &lambda;first
 &lambda;result &sube; &lambda;second</code></pre>
 
   <p>
-    The implementation MUST NOT select a lifetime based solely on the branch that happens
-    to execute at runtime if doing so would permit the returned capability to outlive a
-    referent on another valid execution path.
+    An implementation MUST NOT select a lifetime based solely on the branch that happens to
+    execute at runtime when another valid execution path would violate the resulting
+    lifetime constraint.
   </p>
 
-  <h3>D.14 Lifetime Inference Failure</h3>
-
-  <p>
-    Lifetime inference fails when no assignment of lifetimes can satisfy all required
-    constraints.
-  </p>
-
-  <p>
-    Failure to establish a required lifetime relationship is a compile-time error.
-  </p>
-
-  <p>
-    An implementation MAY report additional inferred constraints or explanatory diagnostic
-    information, but diagnostic wording is not normative.
-  </p>
-
-  <h3>D.15 Expression Evaluation</h3>
+  <h3>D.18 Expression Evaluation</h3>
 
   <p>
     Expression evaluation is modeled as a transition from one abstract state to another.
   </p>
 
   <p>
-    A successful expression evaluation has the form:
+    A successful evaluation has the form:
   </p>
 
   <pre><code>&Gamma; &vdash; &lt;e, &Sigma;&gt; &rarr; &lt;v, &Sigma;'&gt;</code></pre>
 
   <p>
-    This means that under environment <code>&Gamma;</code>, expression <code>e</code>
-    evaluates to value <code>v</code> and produces state <code>&Sigma;'</code>.
+    where <code>e</code> is an expression, <code>v</code> is its resulting value, and
+    <code>&Sigma;'</code> is the resulting abstract state.
   </p>
 
   <p>
-    An evaluation that cannot produce a successful value has the form:
+    An operation that produces a recoverable or otherwise defined failure has the form:
   </p>
 
   <pre><code>&Gamma; &vdash; &lt;e, &Sigma;&gt; &rarr; &lt;failure, &Sigma;'&gt;</code></pre>
 
   <p>
-    The precise failure mechanism depends on the operation involved. A recoverable
-    <code>Result</code> value, a bounds failure, an abort, and implementation-defined
-    runtime failures are not interchangeable semantic categories.
+    The resulting state <code>&Sigma;'</code> MUST reflect every ownership, initialization,
+    capability, lifetime, and deferred-destruction effect that occurred before the failure
+    became observable.
   </p>
 
   <p>
-    Evaluation MUST preserve all ownership, capability, lifetime, and destruction
-    invariants before and after each valid transition.
-  </p>
-
-  <h3>D.16 Dereference</h3>
-
-  <p>
-    Dereferencing a shared managed pointer requires a live shared capability:
-  </p>
-
-  <pre><code>&Gamma; &vdash; p : T*
-live(&kappa;)
-----------------
-&amp;Gamma; &vdash; *p : T</code></pre>
-
-  <p>
-    Dereferencing a mutable managed pointer requires a live exclusive capability:
-  </p>
-
-  <pre><code>&Gamma; &vdash; p : mut T*
-live(&kappa;)
-exclusive(&kappa;)
--------------------
-&amp;Gamma; &vdash; *p : T</code></pre>
-
-  <p>
-    The dereference operation MUST NOT be permitted when the managed pointer is null,
-    invalid, expired, or otherwise lacks the capability required by its type.
-  </p>
-
-  <h3>D.17 Move Evaluation</h3>
-
-  <p>
-    Evaluation of <code>move e</code> transfers ownership from the source location to
-    the destination determined by the surrounding expression.
+    A failure MUST NOT implicitly restore ownership, initialization, or lifetime state that
+    was already consumed by a completed semantic operation.
   </p>
 
   <p>
-    A move is valid only when the expression denotes an owned value whose ownership may
-    legally be transferred.
+    Conversely, an operation MUST NOT consume an ownership responsibility merely because a
+    failure was possible if the applicable operation contract specifies that the transfer
+    occurs only after successful completion.
+  </p>
+
+  <h3>D.19 Assignment and Replacement</h3>
+
+  <p>
+    Assignment is a state-changing operation. Its semantic effect depends upon whether the
+    destination is initialized and whether the operation replaces an existing owned value.
   </p>
 
   <p>
-    A move MUST NOT invalidate a live borrow:
+    Before an initialized owned destination is replaced, the existing destination value MUST
+    be handled according to the destruction, move, and assignment rules of the main
+    specification.
   </p>
-
-  <pre><code>String value = "hello";
-String* pointer = &amp;value;
-
-String moved = move value; // ERROR: active borrow would be invalidated</code></pre>
 
   <p>
-    When a move is valid, the source ownership capability becomes <code>Moved</code> and
-    the destination receives the sole ownership responsibility.
+    An assignment MUST NOT cause two ownership responsibilities to exist for the same
+    object.
   </p>
 
-  <h3>D.18 Destruction Semantics</h3>
+  <p>
+    Assignment to a moved-from or otherwise uninitialized binding establishes a new
+    initialized value and its corresponding ownership state where the operation is
+    permitted.
+  </p>
+
+  <p>
+    A replacement operation MUST NOT invalidate a live borrow and then continue as though
+    that borrow remained valid. If the applicable type or storage operation necessarily
+    invalidates the borrow, the program MUST be rejected unless the borrow has ended or the
+    operation otherwise establishes the preservation required by the main specification.
+  </p>
+
+  <h3>D.20 Move Evaluation</h3>
+
+  <p>
+    Evaluation of <code>move e</code> transfers ownership from the source place to the
+    destination determined by the surrounding operation.
+  </p>
+
+  <p>
+    A move is valid only when:
+  </p>
+
+  <ol>
+    <li>the source is initialized;</li>
+    <li>the source contains an owned value whose ownership may be transferred;</li>
+    <li>no active borrow would be invalidated by the move; and</li>
+    <li>the destination can receive the transferred ownership.</li>
+  </ol>
+
+  <p>
+    Abstractly:
+  </p>
+
+  <pre><code>Owned(l, T, &lambda;) + source
+    &rarr;
+Owned(l, T, &lambda;) + destination
+    +
+Moved(source)</code></pre>
+
+  <p>
+    The source binding remains a binding but no longer carries ownership of the moved value.
+    The moved-from binding MUST NOT subsequently be read, moved, or destroyed as though it
+    still contained the original value.
+  </p>
+
+  <p>
+    The lifetime of the moved object continues under the destination ownership
+    responsibility.
+  </p>
+
+  <h3>D.21 Returned Values and Returned Borrows</h3>
+
+  <p>
+    Return evaluation occurs before destruction associated with the scopes being exited.
+    The resulting value or capability is then transferred to the caller according to its
+    ownership and lifetime semantics.
+  </p>
+
+  <p>
+    Returning an owned value transfers its ownership responsibility to the caller.
+  </p>
+
+  <p>
+    Returning a managed pointer transfers the applicable access capability only. It does not
+    transfer ownership of the referent.
+  </p>
+
+  <p>
+    A returned managed pointer MUST remain valid after the function returns for the entire
+    period during which the caller is permitted to use it.
+  </p>
+
+  <p>
+    Consequently, a borrow of an ordinary local object MUST NOT be returned when the local
+    object's lifetime ends as part of returning from the function.
+  </p>
+
+  <h3>D.22 Result Values and Recoverable Failure</h3>
+
+  <p>
+    A <code>Result&lt;T,E&gt;</code> value is an ordinary value whose active variant
+    determines the value and ownership state contained by that variant.
+  </p>
+
+  <p>
+    Construction of a success result transfers or copies the ownership required for its
+    <code>T</code> component according to the ordinary value and move rules.
+  </p>
+
+  <p>
+    Construction of an error result transfers or copies the ownership required for its
+    <code>E</code> component according to the ordinary value and move rules.
+  </p>
+
+  <p>
+    A branch that is not active does not constitute an initialized value that may be read or
+    destroyed independently of the <code>Result</code> object's variant semantics.
+  </p>
+
+  <p>
+    Propagating a <code>Result</code> failure MUST preserve the ownership and destruction
+    state of all values that remain owned by the propagating scope and MUST transfer or
+    destroy values according to the applicable return and scope-exit rules.
+  </p>
+
+  <p>
+    A recoverable <code>Result</code> failure is therefore a semantic value/state transition,
+    not an implicit rollback of preceding ownership operations.
+  </p>
+
+  <h3>D.23 Collection Mutation, Slices, and Relocation</h3>
+
+  <p>
+    A collection operation that changes the storage location of elements may invalidate
+    outstanding capabilities to those elements.
+  </p>
+
+  <p>
+    A safe operation MUST NOT silently relocate storage in a manner that leaves a live
+    managed borrow referring to invalid storage.
+  </p>
+
+  <p>
+    Therefore, before a collection mutation that may relocate or replace borrowed storage,
+    the implementation MUST establish that no live borrow would be invalidated, or the
+    program MUST be rejected according to the applicable invalidation rules.
+  </p>
+
+  <p>
+    A slice is a borrowed access capability over a range. Creating a slice does not transfer
+    ownership of the underlying elements or storage.
+  </p>
+
+  <p>
+    Copying a shared slice creates another compatible shared view where permitted. A mutable
+    slice does not become independently copyable merely because its representation is
+    copyable.
+  </p>
+
+  <p>
+    Slice validity is therefore subject to the same lifetime and invalidation constraints as
+    any other managed borrow.
+  </p>
+
+  <h3>D.24 Destruction</h3>
 
   <p>
     Destruction consumes an ownership responsibility.
@@ -10937,95 +11209,232 @@ String moved = move value; // ERROR: active borrow would be invalidated</code></
 Destroyed(l, T, &lambda;)</code></pre>
 
   <p>
-    Once this transition has occurred, the ownership responsibility represented by that
-    instance MUST NOT cause the object to be destroyed again.
+    Once this transition has occurred, that ownership responsibility MUST NOT cause the same
+    value or resource to be destroyed again.
   </p>
 
   <p>
-    If a type defines a destruction hook, the hook is executed before recursively
-    destroying the value's remaining owned fields, according to the destruction rules of
-    the main specification.
+    Destruction is distinct from the expiration of a borrow. Ending a borrow consumes an
+    access capability; destruction consumes ownership responsibility.
   </p>
 
   <p>
-    Managed pointers referring to the object do not themselves destroy the referent.
-    Destruction of the owner therefore invalidates any remaining borrow whose referent
-    lifetime depends on that owner.
+    Managed pointers referring to an object do not themselves destroy the referent.
+    Destruction of the owner therefore ends the validity of any remaining borrow whose
+    referent lifetime depends upon that owner.
   </p>
 
-  <h3>D.19 Scope Exit</h3>
+  <h3>D.25 Destruction Hooks and Partial Moves</h3>
 
   <p>
-    On ordinary scope exit, destruction follows the ordering established by the main
-    specification:
+    If a type defines a language-recognized destruction hook, the hook executes as part of
+    destruction according to the destruction rules of the main specification.
+  </p>
+
+  <p>
+    The destruction hook receives the access permitted by the destruction-hook contract and
+    MAY release resources managed directly by the type that are not represented by owned
+    fields.
+  </p>
+
+  <p>
+    The destruction hook MUST NOT independently destroy an owned field that the automatic
+    destruction phase will subsequently destroy.
+  </p>
+
+  <p>
+    If the destruction hook moves an owned field out of the value, that field's ownership
+    responsibility is transferred by the ordinary move rules. The subsequent automatic
+    destruction phase MUST NOT destroy that moved-out field again.
+  </p>
+
+  <p>
+    After the hook completes, the implementation recursively destroys the remaining owned
+    fields that are still owned by the value.
+  </p>
+
+  <p>
+    The hook itself is invoked exactly once for each owned value whose type defines one.
+  </p>
+
+  <h3>D.26 Deferred Destruction</h3>
+
+  <p>
+    A <code>defer</code> operation adds a deferred destruction or cleanup obligation to
+    <code>&Delta;</code> for the enclosing scope.
+  </p>
+
+  <p>
+    Conceptually:
+  </p>
+
+  <pre><code>&Delta;
+    &rarr;
+&Delta; + Defer(scope, obligation)</code></pre>
+
+  <p>
+    A deferred block is associated with the scope in which it is registered. When control
+    leaves that scope, the deferred obligations associated with that scope execute according
+    to the ordering rules of the main specification.
+  </p>
+
+  <p>
+    A deferred block MUST execute with the ownership and borrowing state applicable at the
+    point at which the deferred block is executed, not merely the state that existed when
+    the block was registered.
+  </p>
+
+  <p>
+    A deferred block MUST NOT use a value that has subsequently been moved, destroyed, or
+    otherwise become invalid.
+  </p>
+
+  <p>
+    A deferred block that captures or otherwise depends upon an owned value MUST therefore
+    be consistent with the ordinary ownership, partial-move, and lifetime rules.
+  </p>
+
+  <p>
+    Registration of a deferred block does not itself transfer ownership unless the applicable
+    source-language semantics explicitly require such a transfer.
+  </p>
+
+  <h3>D.27 Scope Exit</h3>
+
+  <p>
+    Scope exit is a semantic transition that performs the cleanup required by the scopes
+    being exited.
+  </p>
+
+  <p>
+    For ordinary scope exit, the implementation MUST preserve the ordering established by
+    the main specification between deferred blocks and destruction of owned locals.
+  </p>
+
+  <p>
+    The abstract transition is:
+  </p>
+
+  <pre><code>&lt;exit scope, (&rho;, &mu;, &Lambda;, &Delta;)&gt;
+    &rArr;
+&lt;enclosing scope, (&rho;', &mu;', &Lambda;', &Delta;')&gt;</code></pre>
+
+  <p>
+    During this transition:
   </p>
 
   <ol>
-    <li>deferred blocks execute;</li>
-    <li>owned locals are destroyed in reverse declaration order; and</li>
-    <li>control proceeds to the enclosing scope.</li>
+    <li>the applicable deferred obligations execute;</li>
+    <li>owned values whose scope has ended are destroyed according to the specified destruction order;</li>
+    <li>ownership responsibilities already transferred or consumed are not destroyed again;</li>
+    <li>moved components are excluded from automatic destruction; and</li>
+    <li>lifetimes associated exclusively with the exited scope cease to be live.</li>
   </ol>
 
   <p>
-    The semantic transition for scope exit MUST preserve this observable ordering.
+    Early return, <code>break</code>, <code>continue</code>, and other control transfers
+    that leave a scope MUST perform the cleanup required for every exited scope according to
+    the applicable language rules.
   </p>
 
   <p>
-    A compiler MAY transform or optimize destruction internally, but the transformation
-    MUST be observationally equivalent to the specified destruction order.
+    A compiler MAY transform or optimize cleanup internally, but the observable result MUST
+    be equivalent to the normative destruction and deferred-execution ordering.
   </p>
 
-  <h3>D.20 Semantic Preservation</h3>
+  <h3>D.28 Borrow Invalidation</h3>
 
   <p>
-    A conforming implementation MUST preserve the following invariants for safe CobaltC
-    execution:
+    A live managed borrow becomes invalid when any semantic event required by its lifetime
+    or capability contract ceases to hold.
+  </p>
+
+  <p>
+    Such events include, where applicable:
+  </p>
+
+  <ul>
+    <li>destruction of the referent;</li>
+    <li>relocation or replacement of the borrowed storage;</li>
+    <li>expiration of the borrow lifetime;</li>
+    <li>destruction or invalidation of a containing object whose storage establishes the referent;</li>
+    <li>a conflicting ownership or mutation operation prohibited by the borrowing rules; and</li>
+    <li>any other invalidation explicitly defined by the applicable type or language rule.</li>
+  </ul>
+
+  <p>
+    A safe program MUST NOT continue to use a managed pointer after its capability has become
+    invalid.
+  </p>
+
+  <p>
+    A compiler MUST reject a program when it can establish that a required safe borrow would
+    be invalidated before its permitted use.
+  </p>
+
+  <h3>D.29 Semantic Preservation Invariants</h3>
+
+  <p>
+    A conforming implementation MUST preserve the following invariants for safe sequential
+    CobaltC execution:
   </p>
 
   <ol>
     <li>An object has at most one active ownership responsibility.</li>
-    <li>A moved ownership capability cannot subsequently be used as the source owner.</li>
-    <li>An ownership responsibility is consumed exactly once by destruction.</li>
+    <li>An uninitialized place cannot be used as an initialized value.</li>
+    <li>A moved ownership state cannot subsequently be used as though the original value remained there.</li>
+    <li>A moved component is not automatically destroyed by its former owner.</li>
+    <li>An ownership responsibility is consumed at most once by destruction.</li>
+    <li>A copy operation does not create duplicate ownership of the same object.</li>
     <li>An exclusive capability cannot coexist with a conflicting capability.</li>
     <li>A shared capability cannot be used for mutable access.</li>
+    <li>A derived capability cannot outlive the capability or referent on which its validity depends.</li>
     <li>A borrow cannot outlive its referent.</li>
-    <li>A derived borrow cannot outlive the capability from which its validity depends.</li>
-    <li>A safe managed-pointer dereference cannot access invalid or null storage.</li>
+    <li>A safe managed-pointer dereference cannot access null, invalid, expired, uninitialized, or destroyed storage.</li>
     <li>Safe collection access cannot access an element outside the applicable bounds.</li>
-    <li>Storage relocation cannot silently invalidate a live safe borrow.</li>
+    <li>Storage relocation or replacement cannot silently leave a live safe borrow pointing to invalid storage.</li>
+    <li>Deferred obligations cannot silently use values whose ownership or lifetime has subsequently ended.</li>
+    <li>Scope exit cannot cause an ownership responsibility to be destroyed more than once.</li>
   </ol>
 
   <p>
-    These invariants are semantic properties, not requirements that an implementation
-    expose a particular internal representation.
+    These are semantic properties. They do not require an implementation to expose a
+    particular internal representation or analysis algorithm.
   </p>
 
-  <h3>D.21 Unsafe Boundaries</h3>
+  <h3>D.30 Unsafe Boundaries</h3>
 
   <p>
-    The formal model applies fully to safe CobaltC. An unsafe operation MAY explicitly
-    cross a boundary for which the ordinary static proof obligations are not available.
+    The formal model applies fully to safe CobaltC. An unsafe operation MAY cross a boundary
+    for which the ordinary static proof obligations are not available.
   </p>
 
   <p>
     Entering an <code>unsafe</code> context does not otherwise suspend CobaltC semantics.
     In particular, an unsafe context MUST NOT be interpreted as implicitly transferring
-    ownership, extending a lifetime, or creating a valid managed capability.
+    ownership, extending a lifetime, initializing storage, or creating a valid managed
+    capability.
   </p>
 
   <p>
     Raw pointers remain outside the ordinary managed ownership and lifetime guarantees.
-    When unsafe code converts raw storage into a managed capability, the resulting
-    abstraction is responsible for establishing the invariants required by the managed
-    type.
+    When unsafe code converts raw storage into a managed capability, the abstraction
+    responsible for that conversion MUST establish the invariants required by the managed
+    type before safe use is permitted.
   </p>
 
-  <h3>D.22 Conformance</h3>
+  <p>
+    Unsafe code does not by itself establish facts that the safe semantic model requires.
+    Such facts MUST instead be established by a normative rule, an applicable safe
+    abstraction contract, or the explicit obligations of the unsafe operation.
+  </p>
+
+  <h3>D.31 Conformance</h3>
 
   <p>
-    A conforming implementation MUST behave as though each accepted safe program were
-    evaluated according to the semantic model defined by this appendix and the remainder
-    of the specification.
+    A conforming implementation MUST behave as though each accepted safe sequential program
+    were evaluated according to the semantic model defined by this appendix together with
+    the applicable normative requirements of the remainder of the specification.
   </p>
 
   <p>
@@ -11035,41 +11444,113 @@ Destroyed(l, T, &lambda;)</code></pre>
   </p>
 
   <p>
-    Different implementations MAY therefore produce different internal representations
-    and generated machine code while remaining conforming, provided that their observable
-    behavior and compile-time acceptance or rejection are consistent with the normative
+    Different implementations MAY therefore produce different internal representations and
+    machine code while remaining conforming, provided that their observable behavior and
+    required compile-time acceptance or rejection remain consistent with the normative
     rules.
   </p>
 
   <p>
-    An implementation MUST reject a program when the required ownership, capability, or
-    lifetime constraints cannot be established according to this specification. It MAY
-    reject additional programs only where another normative rule independently requires
-    rejection; conservative implementation strategy MUST NOT be used as a justification
-    for silently weakening the safety guarantees of accepted safe programs.
-  </p>
-
-  <h3>D.23 Relationship to the Main Specification</h3>
-
-  <p>
-    This appendix formalizes, but does not replace, the ownership, move, borrowing,
-    lifetime, reborrowing, destruction, managed-pointer, and safety rules defined by the
-    main specification.
+    An implementation MUST reject a program when a mandatory ownership, initialization,
+    capability, borrowing, or lifetime constraint cannot be satisfied.
   </p>
 
   <p>
-    Where an example in this appendix is illustrative, the normative rule is the semantic
-    rule expressed in this appendix and the corresponding rule in the main specification.
-    This appendix does not introduce a new source-language construct merely by using a
-    construct in a semantic example.
+    An implementation MAY reject additional programs only where another normative rule
+    independently permits or requires that rejection. Conservative implementation strategy
+    MUST NOT be used to justify accepting a program whose defined execution would violate a
+    normative safety requirement.
   </p>
 
   <p>
-    If a future edition changes the ownership or lifetime model, the corresponding formal
-    rules in this appendix MUST be revised as part of that language change. The formal
-    model and the programmer-facing rules MUST remain semantically consistent.
+    Where this specification explicitly permits conservative analysis, an implementation
+    MAY reject a program because it cannot establish a required property even when another
+    sound analysis could establish that property.
+  </p>
+
+  <h3>D.32 Relationship to the Main Specification</h3>
+
+  <p>
+    This appendix formalizes, but does not replace, the ownership, initialization, move,
+    copying, borrowing, lifetime, reborrowing, assignment, destruction, managed-pointer,
+    collection, and safety rules defined by the main specification.
+  </p>
+
+  <p>
+    The main specification remains authoritative for source-language syntax and
+    programmer-facing requirements. This appendix supplies the abstract semantic model
+    used to reason about the interaction of those requirements.
+  </p>
+
+  <p>
+    Where an example in this appendix is illustrative, the example does not introduce a
+    source-language construct merely by appearing in the formal model. The normative
+    requirement is the corresponding semantic rule together with the applicable rule in
+    the main specification.
+  </p>
+
+  <h3>D.33 Relationship to Appendices E, F, and H</h3>
+
+  <p>
+    Appendix D defines the sequential foundation:
+  </p>
+
+  <pre><code>Appendix D
+Ownership + Initialization + Borrowing
++ Lifetime + Evaluation + Destruction</code></pre>
+
+  <p>
+    Appendix E extends that foundation to concurrent execution:
+  </p>
+
+  <pre><code>Appendix D
+        |
+        v
+Appendix E
+Concurrent Execution + Synchronization
++ Memory Ordering</code></pre>
+
+  <p>
+    Appendix F applies the applicable semantic obligations at foreign boundaries:
+  </p>
+
+  <pre><code>Appendix D + Appendix E
+        |
+        v
+Appendix F
+Foreign Boundary + ABI + Semantic Contracts</code></pre>
+
+  <p>
+    Appendix H specifies how these models compose across the complete language.
+  </p>
+
+  <p>
+    The Safety Theorem in Section 84 is consequently supported by the combined normative
+    requirements of the main specification and the applicable formal and integration rules
+    in Appendices D, E, F, and H. Appendix D alone does not purport to formalize concurrent
+    memory ordering or the complete semantics of foreign code.
+  </p>
+
+  <h3>D.34 Consistency Requirement</h3>
+
+  <p>
+    The formal model and the programmer-facing rules MUST remain semantically consistent.
+    An implementation MUST NOT use a difference between the notation in this appendix and
+    the wording of the main specification as a basis for weakening a normative requirement.
+  </p>
+
+  <p>
+    If a future edition changes the ownership, initialization, borrowing, lifetime,
+    destruction, concurrency, or FFI model, the corresponding formal rules and their
+    cross-appendix relationships MUST be revised as part of that language change.
+  </p>
+
+  <p>
+    The formal model is therefore a normative semantic interpretation of the language, not
+    an independent alternative specification of CobaltC behavior.
   </p>
 </section>
+
 
 
 
