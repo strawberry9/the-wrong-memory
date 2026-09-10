@@ -7386,36 +7386,7 @@ invalid assignment</code></pre>
     requirements.
   </p>
 
-  <h3>80.2 Standard Conformance</h3>
-
-  <p>
-    Standard Conformance requires Core Conformance plus the mandatory standard-library
-    baseline defined by this specification.
-  </p>
-
-  <p>
-    The Standard-conforming library includes, at minimum:
-  </p>
-
-  <ul>
-    <li><code>Result</code>;</li>
-    <li><code>String</code>;</li>
-    <li><code>Vector</code>;</li>
-    <li><code>Slice</code>;</li>
-    <li><code>Mutex</code>; and</li>
-    <li>Standard I/O.</li>
-  </ul>
-
-  <p>
-    Implementations claiming Standard Conformance MUST provide the source-visible
-    facilities described by the applicable standard-library sections and MUST implement
-    their normative contracts.
-  </p>
-
-  <p>
-    Additional standard-library facilities MAY be provided without affecting the claimed
-    conformance level.
-  </p>
+<h3>80.2 Standard Conformance</h3> <p> Standard Conformance requires Core Conformance plus conformance to the mandatory standard-library baseline defined by this specification. </p> <p> The mandatory standard-library baseline includes, at minimum: </p> <ul> <li><code>Result</code>;</li> <li><code>String</code>;</li> <li><code>Vector</code>;</li> <li><code>Slice</code>;</li> <li><code>Mutex</code>, where the implementation is concurrency-capable; and</li> <li>Standard I/O.</li> </ul> <p> An implementation claiming Standard Conformance MUST provide the source-visible facilities specified by the applicable standard-library sections and MUST satisfy their normative requirements. </p> <p> An implementation MAY provide additional standard-library facilities without affecting its claimed conformance level. </p>
 
   <h3>80.3 Platform Conformance</h3>
 
