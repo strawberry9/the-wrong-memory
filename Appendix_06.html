@@ -48,6 +48,7 @@
 </head>
 <body id="top">
 <main>
+<article>
 <header class="document-header">
 <div class="status">Normative</div>
 <div style="text-align: center;">
@@ -221,7 +222,7 @@ obligations the programmer must maintain by convention.
 
 </nav>
 
-<article><section id="section-1"><h2>1. Introduction</h2>
+<section id="section-1"><h2>1. Introduction</h2>
 <p>This specification defines what a conforming implementation MUST do; it does not prescribe a particular implementation technique unless this document explicitly makes an implementation property normative.</p>
 <p>CobaltC is a statically typed systems programming language providing explicit ownership, deterministic destruction, compiler-checked borrowing, inferred lifetimes, explicit nullability, bounds-safe operations, structured error handling, safe concurrency, explicit unsafe operations, and explicit foreign-function interfaces.</p>
 <p>The language is intended for software requiring predictable resource management, strong memory safety, native execution, and controlled interaction with low-level facilities.</p>
@@ -1070,20 +1071,70 @@ i32 y = x + 1; // May fail at runtime if x is 2147483647</code></pre>
 <p>Equality requires compatible operands. Value equality compares values according to the type's equality semantics.</p>
 <p>For floating-point values, equality follows the implementation's documented floating-point model. If NaN values are supported, implementations MUST document whether NaN compares equal to itself; the default CobaltC rule is that NaN is not equal to any value, including itself.</p>
 <p>Managed-pointer equality compares pointer identity rather than recursively comparing referents. Pointer identity is the identity of the abstract referent allocation or storage location, not merely a machine address; destruction followed by reuse of an address does not make two different referents identical.</p>
-</section><section id="section-29"><h2>29. Assignment</h2>
-<p>Assignment requires a valid mutable destination.</p>
-<p>For an owned destination, assignment replaces the previous owned value. The previous value is destroyed before the new value becomes the destination's owned value, unless the compiler can preserve the same observable destruction behavior through an equivalent implementation technique.</p>
-<p>An assignment of a non-copyable value requires an explicit <code>move</code>. An assignment of a copyable value copies the value unless <code>move</code> is explicitly used.</p>
+</section>
+
+<section id="section-29"><h2>29. Assignment</h2>
+
+<p>
+  Assignment requires a valid mutable destination.
+</p>
+
+<p>
+  The right-hand side of an assignment is evaluated before the previous value
+  of an owned destination is destroyed. If evaluation of the right-hand side
+  fails, the assignment does not replace the destination's existing value.
+</p>
+
+<p>
+  For an owned destination, a successful assignment replaces the previous
+  owned value. The previous value is destroyed before the new value becomes
+  the destination's owned value, unless the compiler can preserve the same
+  observable destruction behavior through an equivalent implementation
+  technique.
+</p>
+
+<p>
+  An assignment of a non-copyable value requires an explicit
+  <code>move</code>. An assignment of a copyable value copies the value unless
+  <code>move</code> is explicitly used.
+</p>
+
 <pre><code>String a = "one";
 String b = "two";
 a = move b;</code></pre>
-<p>After a move assignment, the moved-from binding no longer owns the transferred value and cannot be used as an owner except where the partial-move rules permit.</p>
-</section><section id="section-30"><h2>30. Function Calls</h2>
+
+<p>
+  When the right-hand side contains an explicit <code>move</code>, ownership
+  transfer occurs as part of evaluating the right-hand side. If the
+  assignment subsequently completes successfully, the destination receives
+  the transferred value and the moved-from binding no longer owns that
+  value.
+</p>
+
+<p>
+  After a move assignment, the moved-from binding cannot be used as an owner
+  except where the partial-move and reinitialization rules permit.
+</p>
+
+<p>
+  Assignment MUST preserve the ownership, initialization, lifetime, borrowing,
+  and destruction invariants applicable to both the destination and the
+  resulting value. An assignment MUST NOT create an additional owner,
+  invalidate a live borrow without an applicable invalidation rule, or cause
+  a value to be destroyed more than once.
+</p>
+
+</section>
+
+
+<section id="section-30"><h2>30. Function Calls</h2>
 <p>A call is valid only if the function is resolvable, the argument count and types match, and ownership, borrowing, and lifetime requirements are satisfied.</p>
 <p>Arguments are evaluated left to right. Borrowing and ownership checks apply to the complete argument list before the callee begins execution.</p>
 <p>A by-value parameter receives an owned value. If the argument is used directly as a by-value value, a copyable argument is copied and a non-copyable argument is moved. A permitted managed-pointer capability conversion, such as <code>mut T*</code> to <code>T*</code>, is performed instead as a reborrow and is not subject to this copy/move rule.</p>
 <p>Once a non-copyable argument is moved into a parameter, the caller no longer owns it. Borrowed parameters do not transfer ownership. A function that wants to return ownership to its caller MUST return the value explicitly as part of its result.</p>
-</section><section id="section-31"><h2>31. Conditional Execution</h2>
+</section>
+
+<section id="section-31"><h2>31. Conditional Execution</h2>
 <p>CobaltC provides conditional execution using:</p>
 <pre><code>if condition
 {
@@ -1208,10 +1259,11 @@ for (;;); { ... } // invalid</code></pre>
 // outer</code></pre>
 
 <p>
-  A deferred block observes the current values of its referenced bindings at
-  the time it executes. Registering a deferred block therefore creates a
-  future use of each referenced binding. A referenced binding MUST remain
-  initialized and otherwise valid until the deferred block has executed.
+  A deferred block observes the current value of each referenced binding or
+  subobject at the time the deferred block executes. Registering a deferred
+  block therefore creates a future use of each referenced binding or
+  subobject. Each referenced path MUST remain initialized and otherwise
+  valid until the deferred block has executed.
 </p>
 
 <pre><code>String value = "hello";
@@ -1226,8 +1278,11 @@ value = "goodbye";
 // Prints: goodbye</code></pre>
 
 <p>
-  A binding referenced by a deferred block MUST NOT be moved, destroyed, or
-  otherwise rendered invalid before the deferred block executes.
+  A binding, field, or other subobject referenced by a deferred block MUST NOT
+  be moved, destroyed, or otherwise rendered invalid before the deferred
+  block executes. This requirement applies to the specific referenced path
+  and does not by itself prohibit independent operations on disjoint fields
+  or subobjects that remain valid.
 </p>
 
 <pre><code>String value = "hello";
@@ -1240,18 +1295,36 @@ defer
 String other = move value; // ERROR: value is required by the deferred block</code></pre>
 
 <p>
+  A deferred reference to a binding does not by itself require every
+  subobject of that binding to remain initialized. If a deferred block
+  references only a particular field or subobject, disjoint fields or
+  subobjects MAY be moved or otherwise modified when permitted by the
+  partial-move, borrowing, and lifetime rules and when the referenced path
+  remains valid until deferred execution.
+</p>
+
+<p>
   Deferred blocks execute before the destruction of owned locals in their
   associated scope. Consequently, a deferred block MAY access an owned local
   that would otherwise be destroyed when the scope is exited.
 </p>
 
 <p>
-  A deferred block MUST NOT access a binding whose lifetime ends before the
-  deferred block executes. If such access would occur, the program is
-  ill-formed.
+  A deferred block MUST NOT access a binding or subobject whose lifetime ends
+  before the deferred block executes. If such access would occur, the
+  program is ill-formed.
+</p>
+
+<p>
+  If execution of a deferred block itself transfers ownership, destroys a
+  value, moves a field, or otherwise changes the initialization or ownership
+  state of a referenced path, the resulting state MUST be respected by
+  subsequent deferred blocks and by automatic scope destruction. A value or
+  subobject MUST NOT be destroyed more than once.
 </p>
 
 </section>
+
 
 <section id="section-36"><h2>36. Definite Initialization</h2>
 <p>A value MUST be initialized before it is read.</p>
@@ -2238,23 +2311,34 @@ mut Slice[i32] right = values[3..5];</code></pre>
 </p>
 
 <p>
-  The resulting slice remains subject to the lifetime and borrowing
-  restrictions of the original borrowed access.
+  A shared slice <code>Slice[T]</code> MAY be copied when permitted by the
+  borrowing rules. Each resulting slice is a shared view of the same
+  referenced storage and remains subject to the lifetime and borrowing
+  restrictions of the underlying borrowed access.
 </p>
 
 <p>
-  A slice assignment MUST NOT be interpreted as an ownership transfer of the
-  referenced elements.
+  A mutable slice <code>mut Slice[T]</code> is an exclusive slice capability
+  and is not implicitly copyable. Assignment of a mutable slice transfers
+  that exclusive slice capability by move. After such an assignment, the
+  source mutable slice is moved-from and MUST NOT be used except as permitted
+  by the general move and reinitialization rules.
 </p>
 
 <p>
-  Copying a shared slice may therefore produce multiple shared views of the
-  same storage when permitted by the borrowing rules. Copying a mutable slice
-  does not create independent mutable access to the same storage; the
-  resulting access remains subject to the exclusive-borrowing rules.
+  A mutable slice MUST NOT be copied to create independent mutable access to
+  the same storage. An explicit reborrow MAY create a derived mutable or
+  shared slice capability when permitted by the borrowing and lifetime rules;
+  such a reborrow does not create an independent ownership of the referenced
+  elements or storage.
 </p>
 
-<p>mut Slice[T] should behave like mut T*: it is not implicitly copyable. Assignment transfers the exclusive slice capability by move, unless an explicit reborrow operation is being performed.</p>
+<p>
+  Slice assignment MUST NOT be interpreted as an ownership transfer of the
+  referenced elements or storage. Assignment of <code>Slice[T]</code> copies
+  the shared slice view, while assignment of <code>mut Slice[T]</code>
+  transfers the exclusive slice capability by move.
+</p>
 
 <h3>61.8 Passing and Returning Slices</h3>
 
