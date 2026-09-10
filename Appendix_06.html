@@ -1929,6 +1929,12 @@ mut Slice[i32] view = values[0..3];</code></pre>
   aliasing rules.
 </p>
 
+<p>
+  The element type <code>T</code> of <code>Slice[T]</code> does not itself encode
+  slice mutability. Mutability is determined by the slice access type
+  <code>Slice[T]</code> or <code>mut Slice[T]</code>.
+</p>
+
 <h3>61.2 Slice Ranges</h3>
 
 <p>
@@ -2033,10 +2039,7 @@ values[...]     // length equal to the source length</code></pre>
 view[0]   // refers to values[4]
 view[3]   // refers to values[7]</code></pre>
 
-<p>
-  Slice indexing is subject to the bounds rules of Section 14. An index is
-  valid only when it identifies an element within the slice.
-</p>
+<p>Slice indexing is subject to the bounds rules of Section 56. An index is valid only when it identifies an element within the slice.</p>
 
 <p>
   Indexing an empty slice is a bounds error.
@@ -2137,6 +2140,8 @@ mut Slice[i32] right = values[3..5];</code></pre>
   does not create independent mutable access to the same storage; the
   resulting access remains subject to the exclusive-borrowing rules.
 </p>
+
+<p>mut Slice[T] should behave like mut T*: it is not implicitly copyable. Assignment transfers the exclusive slice capability by move, unless an explicit reborrow operation is being performed.</p>
 
 <h3>61.8 Passing and Returning Slices</h3>
 
