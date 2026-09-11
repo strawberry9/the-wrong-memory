@@ -14397,9 +14397,73 @@ Comparable results</code></pre>
       normative rule explicitly defines otherwise.
     </p>
   </blockquote>
+
+
+<style>
+.compiler-callout {
+    margin: 2rem 0;
+    padding: 1.4rem 1.6rem;
+    border: 1px solid #3f6f8f;
+    border-left: 6px solid #3f6f8f;
+    border-radius: 10px;
+    background: linear-gradient(
+        135deg,
+        rgba(63, 111, 143, 0.10),
+        rgba(63, 111, 143, 0.03)
+    );
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+
+.compiler-callout h4 {
+    margin: 0 0 0.7rem 0;
+    font-size: 1.2rem;
+}
+
+.compiler-callout p {
+    margin: 0.6rem 0;
+}
+
+.compiler-callout a {
+    display: inline-block;
+    margin-top: 0.5rem;
+    padding: 0.55rem 0.9rem;
+    border: 1px solid #3f6f8f;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.compiler-callout a:hover {
+    text-decoration: underline;
+}
+</style>
+
+<div class="compiler-callout">
+    <h4>CobaltC Semantic Compiler</h4>
+
+<p>
+    The CobaltC Semantic Compiler is the reference implementation of the
+    language's semantic analysis pipeline. It processes CobaltC source
+    through lexical analysis, parsing, name resolution, type checking,
+    initialization, ownership and borrowing analysis, and related semantic
+    validation.
+</p>
+
+<p>
+    Its canonical output is the
+    <em>Explainable Semantic Intermediate Representation (ESIR)</em>,
+    a machine-readable representation that records both the program's
+    resolved semantics and the rules used to establish them.
+</p>
+
+<a href="https://github.com/strawberry9/CobaltC-Semantic-Compiler"
+   target="_blank"
+   rel="noopener noreferrer">
+    View the CobaltC Semantic Compiler on GitHub
+</a>
+
+</div>
 </section>
-
-
 
 
 <div class="book-navigation">
