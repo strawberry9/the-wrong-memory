@@ -158,18 +158,37 @@ mut i32* b = &amp;mut grid[1][1];
 .compiler-callout a:hover {
     text-decoration: underline;
 }
+
+.coby-section {
+    overflow: auto;
+}
+
+.coby-mascot {
+    float: right;
+    width: 180px;
+    height: auto;
+    margin: 0 0 15px 25px;
+}
+
 </style>
 
 <div class="compiler-callout">
     <h4>CobaltC Semantic Compiler</h4>
 
-<p>
-    The CobaltC Semantic Compiler is the reference implementation of the
-    language's semantic analysis pipeline. It processes CobaltC source
-    through lexical analysis, parsing, name resolution, type checking,
-    initialization, ownership and borrowing analysis, and related semantic
-    validation.
-</p>
+<div class="coby-section">
+    <img
+        src="Coby_small.png"
+        alt="Coby, the CobaltC mascot"
+        class="coby-mascot">
+
+    <p>
+        The CobaltC Semantic Compiler is the reference implementation of the
+        language's semantic analysis pipeline. It processes CobaltC source
+        through lexical analysis, parsing, name resolution, type checking,
+        initialization, ownership and borrowing analysis, and related semantic
+        validation.
+    </p>
+</div>
 
 <p>
     Its canonical output is the
