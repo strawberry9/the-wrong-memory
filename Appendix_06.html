@@ -659,6 +659,13 @@ mut i32* b = &amp;mut grid[1][1];
 <p> CobaltC aims to retain the same fine-grained control, but the compiler can establish the relevant properties: <code>a</code> and <code>b</code> refer to distinct storage, their mutable accesses are disjoint, and the underlying values remain owned by <code>grid</code>. </p> <blockquote> <p><strong>CobaltC → "You have the power. Let’s prove you’re exercising it correctly."</strong></p> </blockquote>
 <p> This is the central idea behind CobaltC. The goal is not to take away the expressive power that makes C useful for systems programming. It is to move the burden of maintaining the most important semantic invariants from programmer discipline into the language itself. Where the compiler can prove that two mutable accesses are disjoint, it should permit both. Where it can prove that a value has been moved, it should prevent its subsequent use. Where it can prove that an index is within bounds, it should record that fact as part of the program's semantics. </p> <p> In short, C provides the power and asks the programmer to maintain the invariants. CobaltC seeks to provide the same class of control while making those invariants <em>provable</em>. </p>
 
+<p>
+    A downloadable markdown version of this specification is available
+    <a href="CobaltC_Programming_Language_Specification_1_2_0_LLM.md" download>
+        here
+    </a>
+</p>
+
 
 <h2 id="CC-S001" class="spec-heading"><a class="heading-anchor" href="#CC-S001" aria-label="Link to CC-S001">#</a><span class="section-id">[CC-S001]</span> <span class="heading-title">1. Introduction</span></h2>
 <p>This specification defines what a conforming implementation MUST do; it does not prescribe a particular implementation technique unless this document explicitly makes an implementation property normative.</p>
