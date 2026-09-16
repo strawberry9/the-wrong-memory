@@ -496,12 +496,58 @@ mut i32* b = &amp;mut grid[1][1];
 <p>An unterminated block comment is a lexical error. Comments have no semantic effect.</p>
 <h2 id="cc-s005">5. Keywords and Reserved Names</h2>
 <p>The following words are reserved keywords:</p>
-<pre><code>alias as break const continue defer else enum export extern fn for foreach if import in loop match module move mut return struct unsafe while</code></pre>
+<pre><code>alias
+as
+break
+const
+continue
+defer
+else
+enum
+export
+extern
+fn
+for
+foreach
+if
+import
+in
+loop
+match
+module
+move
+mut
+return
+struct
+unsafe
+while</code></pre>
 <p>The following words are reserved literals:</p>
-<pre><code>false null true</code></pre>
+<pre><code>false
+null
+true</code></pre>
 <p>Reserved literals have fixed language-defined meanings and MUST NOT be declared as user-defined identifiers or shadowed by an inner declaration.</p>
 <p>The following identifiers are reserved predefined type names and type constructors:</p>
-<pre><code>bool char void string slice result vector i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 isize usize f32 f64</code></pre>
+<pre><code>bool
+char
+void
+string
+slice
+result
+vector
+i8
+i16
+i32
+i64
+i128
+u8
+u16
+u32
+u64
+u128
+isize
+usize
+f32
+f64</code></pre>
 <p>Reserved keywords, reserved literals, and reserved predefined type names and type constructors are collectively referred to as <em>protected names</em>. Protected names MUST NOT be declared as user-defined identifiers or shadowed by an inner declaration.</p>
 <p>The predefined scalar type names identify the primitive types defined by Section 12. The name <code>void</code> identifies the type used for functions that do not return a value. The names <code>string</code>, <code>slice</code>, <code>result</code>, and <code>vector</code> identify Core language-defined, non-primitive types or type constructors: <code>string</code> is the owned UTF-8 text type defined by Section 59, <code>slice[T]</code> is the borrowed contiguous-range type constructor defined by Section 61, <code>result[T,E]</code> is the recoverable-result type constructor defined by Section 57, and <code>vector[T]</code> is the owned dynamically sized contiguous-sequence type constructor defined by Section 60.</p>
 <p><code>alias</code> introduces a type-alias declaration.</p>
