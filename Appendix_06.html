@@ -3831,15 +3831,309 @@ invalid assignment</code></pre>
 <h3 id="cc-s084-002">84.2 Safety Boundary</h3>
 <p>The theorem guarantees the safety properties explicitly defined by CobaltC; it does not guarantee that every safe program is correct, terminates, makes progress, avoids resource exhaustion, or produces the result intended by its author.</p>
 <p>A program MAY therefore be safe while still containing logical errors, infinite computation, deadlock, livelock, excessive resource consumption, or incorrect interaction with external systems.</p>
+
 <h2 id="cc-s085">85. Reference Model</h2>
 <p>The following diagrams provide a conceptual summary of the CobaltC value and safety model. They are informative and do not replace the normative requirements defined elsewhere in this specification.</p>
+
 <h3 id="cc-s085-001">85.1 Value and Ownership Model</h3>
-<p>Cobalt Value<strong>Owned</strong> Exclusive ownership<strong>Move</strong> Ownership transfer<strong>Copy</strong> Only where permitted↓Deterministic Destruction<strong>Borrowed</strong> Non-owning access↓<strong>Borrowing</strong> Access capability↓<strong>Lifetime</strong> Access validity</p>
+
+<style>
+  .cc-value-model {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5em 0;
+    text-align: center;
+  }
+
+  .cc-value-model th,
+  .cc-value-model td {
+    text-align: center;
+    vertical-align: middle;
+  }
+
+  .cc-value-model > thead > tr > th {
+    padding: 0.75em;
+  }
+
+  .cc-value-model > tbody > tr > td {
+    padding: 0.6em;
+  }
+
+  /* Diagram nodes */
+  .cc-value-model .cc-node {
+    padding: 0.75em;
+    text-align: center;
+    vertical-align: middle;
+  }
+
+  .cc-value-model .cc-node strong {
+    display: block;
+    text-align: center;
+  }
+
+  .cc-value-model .cc-node span {
+    display: block;
+    margin-top: 0.25em;
+    text-align: center;
+  }
+
+  /* Arrows */
+  .cc-value-model .cc-arrow {
+    padding: 0.35em 0;
+    font-size: 1.3em;
+    line-height: 1;
+    text-align: center;
+    vertical-align: middle;
+  }
+
+  /* Three branches */
+  .cc-value-model .cc-branch {
+    width: 33.333%;
+    text-align: center;
+    vertical-align: top;
+  }
+
+  /* Keep the middle Copy branch visually aligned */
+  .cc-value-model .cc-empty {
+    visibility: hidden;
+  }
+</style>
+
+<table class="cc-value-model">
+  <thead>
+    <tr>
+      <th colspan="3">Cobalt Value</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td class="cc-branch cc-node">
+        <strong>Owned</strong>
+        <span>Exclusive ownership</span>
+      </td>
+
+      <td class="cc-branch cc-node">
+        <strong>Copy</strong>
+        <span>Only where permitted</span>
+      </td>
+
+      <td class="cc-branch cc-node">
+        <strong>Borrowed</strong>
+        <span>Non-owning access</span>
+      </td>
+    </tr>
+
+    <tr>
+      <td class="cc-arrow" aria-hidden="true">↓</td>
+      <td class="cc-empty" aria-hidden="true">↓</td>
+      <td class="cc-arrow" aria-hidden="true">↓</td>
+    </tr>
+
+    <tr>
+      <td class="cc-branch cc-node">
+        <strong>Move</strong>
+        <span>Ownership transfer</span>
+      </td>
+
+      <td class="cc-empty" aria-hidden="true"></td>
+
+      <td class="cc-branch cc-node">
+        <strong>Borrowing</strong>
+        <span>Access capability</span>
+      </td>
+    </tr>
+
+    <tr>
+      <td class="cc-arrow" aria-hidden="true">↓</td>
+      <td class="cc-empty" aria-hidden="true">↓</td>
+      <td class="cc-arrow" aria-hidden="true">↓</td>
+    </tr>
+
+    <tr>
+      <td class="cc-branch cc-node">
+        <strong>Deterministic Destruction</strong>
+      </td>
+
+      <td class="cc-empty" aria-hidden="true"></td>
+
+      <td class="cc-branch cc-node">
+        <strong>Lifetime</strong>
+        <span>Access validity</span>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+
 <h3 id="cc-s085-002">85.2 Safety Model</h3>
-<p>CobaltC safety is established by interacting language requirements rather than by a prescribed sequence of compiler checks. The concurrency component of this model applies only when the implementation provides concurrent execution or synchronization facilities; Core Conformance itself does not require such facilities.</p>
-<p>Safe CobaltC Execution↓<strong>Type ValidityInitializationOwnershipBorrowingLifetimeNullabilityBoundsConcurrency (when supported)</strong>↓Required Safety Guarantees</p>
+<p>
+  CobaltC safety is established by interacting language requirements rather
+  than by a prescribed sequence of compiler checks. The concurrency component
+  of this model applies only when the implementation provides concurrent
+  execution or synchronization facilities; Core Conformance itself does not
+  require such facilities.
+</p>
+
+<style>
+  .cc-safety-model {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5em 0;
+  }
+
+  .cc-safety-model th,
+  .cc-safety-model td {
+    text-align: center;
+    vertical-align: middle;
+  }
+
+  .cc-safety-model > thead > tr > th {
+    padding: 0.75em;
+  }
+
+  .cc-safety-model > tbody > tr > td {
+    padding: 0.75em;
+  }
+
+  /* The arrow rows */
+  .cc-safety-model .cc-arrow {
+    padding: 0.4em;
+    font-size: 1.3em;
+    line-height: 1;
+    text-align: center;
+    vertical-align: middle;
+  }
+
+  /* Safety requirements table */
+  .cc-safety-requirements {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.75em 0 0;
+  }
+
+  .cc-safety-requirements td {
+    width: 25%;
+    padding: 0.75em 0.5em;
+    text-align: center;
+    vertical-align: middle;
+  }
+
+  .cc-safety-requirements strong {
+    display: inline-block;
+    text-align: center;
+  }
+
+  .cc-safety-requirements small {
+    display: block;
+    margin-top: 0.2em;
+  }
+</style>
+
+<table class="cc-safety-model">
+  <thead>
+    <tr>
+      <th>Safety Model</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td>
+        <strong>Safe CobaltC Execution</strong>
+      </td>
+    </tr>
+
+    <tr>
+      <td class="cc-arrow" aria-hidden="true">↓</td>
+    </tr>
+
+    <tr>
+      <td>
+        <strong>Safety Requirements</strong>
+
+        <table class="cc-safety-requirements">
+          <tbody>
+            <tr>
+              <td>
+                <strong>Type Validity</strong>
+              </td>
+              <td>
+                <strong>Initialization</strong>
+              </td>
+              <td>
+                <strong>Ownership</strong>
+              </td>
+              <td>
+                <strong>Borrowing</strong>
+              </td>
+            </tr>
+
+            <tr>
+              <td>
+                <strong>Lifetime</strong>
+              </td>
+              <td>
+                <strong>Nullability</strong>
+              </td>
+              <td>
+                <strong>Bounds</strong>
+              </td>
+              <td>
+                <strong>Concurrency</strong>
+                <small>(when supported)</small>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </td>
+    </tr>
+
+    <tr>
+      <td class="cc-arrow" aria-hidden="true">↓</td>
+    </tr>
+
+    <tr>
+      <td>
+        <strong>Required Safety Guarantees</strong>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+
+
+
 <h3 id="cc-s085-003">85.3 Safety Boundaries</h3>
-<p>CobaltC Program↓<strong>Safe Code</strong> CobaltC safety guarantees apply<strong>Unsafe / Foreign Boundary</strong> Additional explicit contracts apply</p>
+
+<table>
+  <thead>
+    <tr>
+      <th colspan="2">CobaltC Program</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <strong>Safe Code</strong>
+      </td>
+      <td>
+        <strong>Unsafe / Foreign Boundary</strong>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        CobaltC safety guarantees apply
+      </td>
+      <td>
+        Additional explicit contracts apply
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+
+
 <h3 id="cc-s085-004">85.4 Interpretation</h3>
 <p>The reference model is conceptual. It does not prescribe compiler architecture, analysis order, runtime representation, or implementation technique.</p>
 <p>An implementation MAY establish the required properties using any combination of static analysis, constraint solving, lifetime inference, borrow checking, generated cleanup, runtime checks, or other techniques, provided that the resulting behavior conforms to this specification.</p>
