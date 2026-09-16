@@ -118,8 +118,35 @@ code, pre, kbd, samp {
 }
 */
 
+/*
 code, pre, kbd, samp {
   font-family: monospace;
+}
+*/
+
+/*
+code, pre, kbd, samp {
+    font-family: Consolas, "Liberation Mono", Menlo, monospace;
+}
+*/
+
+/*
+code, pre, kbd, samp {
+    font-family: "JetBrains Mono", Consolas, monospace;
+}
+*/
+
+@font-face {
+    font-family: "JetBrains Mono";
+    src: url("JetBrainsMono-Regular.woff2") format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+code, pre, kbd, samp {
+    font-family: "JetBrains Mono", monospace;
+    font-variant-ligatures: none;
 }
 
 code {
