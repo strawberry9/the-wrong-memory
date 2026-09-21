@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CobaltC Language Guide</title>
-<meta name="description" content="CobaltC Programming Language Specification.">
+<meta name="description" content="Appendix VI - CobaltC Programming Language Guide.">
 <style>
 :root {
   --bg: #23272e;
@@ -82,6 +82,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 .code-output pre { padding: 8px 16px; color: #c9d2de; }
 .out-label { display: block; padding: 4px 16px 0; font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
 .k { color: var(--kw); } .t { color: var(--ty); } .p { color: var(--pre); } .n { color: var(--num); }
+.s { color: #a5d6a7; }
 .c { color: var(--cmt); font-style: italic; }
 .c .ok { color: var(--ok); font-style: normal; } .c .bad { color: var(--bad); font-style: normal; }
 .c .dg { color: #e2b7ff; font-style: normal; }
@@ -276,12 +277,18 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 <p>-----------------------------------------------------------------------------------</p>
 
 
+
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
+<figure class="code"><div class="code-head"><span class="code-title">hello.cb</span><span class="badge ok">runs</span></div><pre><code><span class="k">fn</span> main()
+{
+    <span class="p">print</span>(<span class="s">&quot;Hello, CobaltC!\n&quot;</span>);
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>Hello, CobaltC!
+</pre></div></figure>
 <h3>What CobaltC is</h3>
 <p>CobaltC is a small systems programming language with a C-family surface
-syntax. It is designed around one idea: <strong>the facts - that correct low-level code depends on -
+syntax. It is designed around one idea: <strong>the facts that correct low-level code depends on
 should live in the language, not in the programmer's memory.</strong> When you write C, you have
 to remember that a pointer is still valid, that an integer cannot overflow here, that a buffer has
 been initialised, that nobody else is writing to that struct right now, and that this handle is
@@ -322,6 +329,7 @@ turn.</p>
 <tr><td>Failure is never silent</td><td>Two channels only: a <em>checked fault</em> is fatal and unwinds destructors; recoverable errors are <code>Result</code> values with the <code>?</code> operator. There is no catch.</td><td>§18</td></tr>
 <tr><td>Threads do not race</td><td><code>spawn</code>/<code>join</code> with owning handles; a <code>mutex</code> whose interior is reachable only through a <code>lock</code> guard. The same aliasing rules apply across threads.</td><td>§19</td></tr>
 <tr><td>External data is a claim, not a fact</td><td><code>unsafe</code> blocks record what you assert. <code>rawptr&lt;T&gt;</code>, <code>reclaim</code>, <code>allocate</code> and <code>extern fn</code> are the only doors to the outside, and FFI signatures are restricted to plain types.</td><td>§20</td></tr>
+<tr><td>Text is a value, not a resource</td><td>A string literal <code>&quot;…&quot;</code> is a <code>str</code>: a copyable value like an integer, valid UTF-8 by construction, never owned or freed. <code>print</code> writes one. Owned, growable text is <code>String</code>, built from a <code>str</code> or validated from bytes.</td><td>§21</td></tr>
 <tr><td>The library proves the language is sufficient</td><td><code>Vec&lt;T&gt;</code>, <code>String</code> and <code>Rc&lt;T&gt;</code> are written in CobaltC itself, using nothing the language does not give you.</td><td>§21</td></tr>
 </tbody>
 </table>
@@ -333,7 +341,7 @@ mechanism or would have hidden a semantic fact the language wants to keep visibl
 <li><strong>A trait or bound system.</strong> A generic body can store, pass and return a <code>T</code>, but not add, compare or call it.</li>
 <li><strong>Exceptions.</strong> A fault terminates the program after running destructors; expected failure is a <code>Result</code>.</li>
 <li><strong>Garbage collection.</strong> Ownership and scope-end destruction are deterministic; <code>Rc&lt;T&gt;</code> is a library type.</li>
-<li><strong>String and character literals.</strong> Bytes are built into a <code>Vec&lt;u8&gt;</code> and validated into a <code>String</code>; text is data that arrives from outside, so it goes through the same claim-then-validate path as everything else.</li>
+<li><strong>Character literals, string indexing and slicing.</strong> A <code>str</code> is a whole value; its bytes are reached with <code>str_byte</code>, and a single byte is written <code>b&quot;a&quot;[0]</code>. Text that arrives from outside is still bytes until <code>String::from_utf8</code> validates it.</li>
 <li><strong>A <code>mut</code> qualifier on bindings, <code>for</code> loops, <code>import … as</code> renaming, nested patterns, partial initialisation, lifetime annotations, atomics.</strong></li>
 </ul>
 <h3>How to read this guide</h3>
@@ -366,9 +374,10 @@ output shown below the code.</p>
 <span class="c">// Vec, references, Result and `?`, generics, a closure, and a thread.</span>
 <span class="c">// ------------------------------------------------------------------</span>
 
-<span class="c">// A module of output helpers. CobaltC has no string literals and no</span>
-<span class="c">// built-in print; bytes go out through the one extern function the</span>
-<span class="c">// prelude declares, `write`, and calling an extern needs `unsafe`.</span>
+<span class="c">// A module of output helpers. Fixed text is a `str` literal handed to</span>
+<span class="c">// the prelude&#x27;s `print`; the prelude has no number formatting, so</span>
+<span class="c">// digits go out as bytes through the one extern function it declares,</span>
+<span class="c">// `write`, and calling an extern needs `unsafe`.</span>
 <span class="k">module</span> out
 {
     <span class="k">export</span> <span class="k">fn</span> put(<span class="t">u8</span> b)
@@ -381,17 +390,12 @@ output shown below the code.</p>
         }
     }
 
-    <span class="k">export</span> <span class="k">fn</span> newline()
-    {
-        put(<span class="n">10</span>);
-    }
-
-    <span class="c">// Print an i32 in decimal. Private helper functions need no `export`.</span>
+    <span class="c">// Print an i32 in decimal.</span>
     <span class="k">export</span> <span class="k">fn</span> int(<span class="t">i32</span> n)
     {
         <span class="k">if</span> (n &lt; <span class="n">0</span>)
         {
-            put(<span class="n">45</span>);                                      <span class="c">// &#x27;-&#x27;</span>
+            <span class="p">print</span>(<span class="s">&quot;-&quot;</span>);
             int(-n);
             <span class="k">return</span>;                                       <span class="c">// `return` with no value in a void function</span>
         }
@@ -447,9 +451,9 @@ output shown below the code.</p>
 <span class="c">// The destructor. It is never called directly; the language runs it.</span>
 <span class="k">fn</span> Log::<span class="p">drop</span>(<span class="t">ref</span>&lt;Log, <span class="t">exclusive</span>&gt; self)
 {
-    out::put(<span class="n">76</span>);                                         <span class="c">// &#x27;L&#x27;</span>
+    <span class="p">print</span>(<span class="s">&quot;L&quot;</span>);
     out::int(<span class="p">narrow</span>&lt;<span class="t">i32</span>&gt;(<span class="p">Vec</span>::len(&amp;self.entries)));
-    out::newline();
+    <span class="p">print</span>(<span class="s">&quot;\n&quot;</span>);
     <span class="c">// self.entries (a Vec, itself a resource) is destroyed after this body.</span>
 }
 
@@ -497,38 +501,40 @@ output shown below the code.</p>
         <span class="k">auto</span> r = <span class="p">Vec</span>::index_shared(&amp;log.entries, i);      <span class="c">// ref&lt;Reading, shared&gt;; dies at the `;` unless held</span>
         <span class="k">match</span> (judge(r))
         {
-            Cold(by) :            <span class="c">// &#x27;C&#x27; then the shortfall</span>
+            Cold(by) :            <span class="c">// &quot;C&quot; then the shortfall</span>
             {
-                out::put(<span class="n">67</span>);
+                <span class="p">print</span>(<span class="s">&quot;C&quot;</span>);
                 out::int(by);
             },
-            Fine :                <span class="c">// &#x27;F&#x27;</span>
+            Fine :
             {
-                out::put(<span class="n">70</span>);
+                <span class="p">print</span>(<span class="s">&quot;F&quot;</span>);
             },
-            Hot(by) :             <span class="c">// &#x27;H&#x27; then the excess</span>
+            Hot(by) :             <span class="c">// &quot;H&quot; then the excess</span>
             {
-                out::put(<span class="n">72</span>);
+                <span class="p">print</span>(<span class="s">&quot;H&quot;</span>);
                 out::int(by);
             },
         }
-        out::newline();
+        <span class="p">print</span>(<span class="s">&quot;\n&quot;</span>);
         i = i + <span class="n">1</span>;
     }
 
-    <span class="c">// Result handling with match.</span>
-    <span class="k">match</span> (parse_two(<span class="n">52</span>, <span class="n">50</span>))                             <span class="c">// the bytes &#x27;4&#x27; and &#x27;2&#x27;</span>
+    <span class="c">// Result handling with match. `b&quot;42&quot;` is a byte-array literal:</span>
+    <span class="c">// the two u8 values 52 and 50.</span>
+    <span class="k">auto</span> digits = <span class="s">b&quot;42&quot;</span>;
+    <span class="k">match</span> (parse_two(digits[<span class="n">0</span>], digits[<span class="n">1</span>]))
     {
         <span class="p">Ok</span>(v) :
         {
             out::int(v);
         },
-        <span class="p">Err</span>(_) :                  <span class="c">// &#x27;?&#x27;</span>
+        <span class="p">Err</span>(_) :
         {
-            out::put(<span class="n">63</span>);
+            <span class="p">print</span>(<span class="s">&quot;?&quot;</span>);
         },
     }
-    out::newline();
+    <span class="p">print</span>(<span class="s">&quot;\n&quot;</span>);
 
     <span class="c">// A closure. The capture list names every outer variable the body</span>
     <span class="c">// uses; `scale` is only read, so it is captured by shared reference.</span>
@@ -538,16 +544,16 @@ output shown below the code.</p>
         x * scale
     };
     out::int(scaled(<span class="n">4</span>));
-    out::newline();
+    <span class="p">print</span>(<span class="s">&quot;\n&quot;</span>);
 
     out::int(first_of(<span class="n">9</span>, <span class="n">8</span>));                             <span class="c">// T := i32</span>
-    out::newline();
+    <span class="p">print</span>(<span class="s">&quot;\n&quot;</span>);
 
     <span class="c">// A thread: spawn takes a function and its arguments; join waits</span>
     <span class="c">// and returns the result. The handle is a resource too.</span>
     <span class="k">auto</span> h = <span class="p">spawn</span>(work, <span class="n">21</span>);
     out::int(<span class="p">join</span>(h));
-    out::newline();
+    <span class="p">print</span>(<span class="s">&quot;\n&quot;</span>);
 }   <span class="c">// `log` is destroyed here: its destructor prints &quot;L3&quot;, then the Vec frees its buffer.</span></code></pre><div class="code-output"><span class="out-label">output</span><pre>C30
 F
 H40
@@ -566,7 +572,7 @@ L3
 <li><strong><code>Log</code> is a <code>resource</code></strong>: it owns a <code>Vec</code>. It has a destructor <code>fn Log::drop</code>, which the language runs at the end of <code>main</code>. Passing or assigning a resource moves it.</li>
 <li><strong>No implicit conversions.</strong> <code>narrow&lt;u8&gt;(n % 10)</code> and <code>widen&lt;i32&gt;(b - 48)</code> say exactly what happens to the representation, and <code>narrow</code> is checked at run time.</li>
 <li><strong>Library calls are qualified</strong>: <code>Vec::push(&amp;mut v, x)</code>, <code>Vec::len(&amp;v)</code>, <code>Vec::index_shared(&amp;v, i)</code>. There is no method-call syntax.</li>
-<li><strong>Output is bytes.</strong> There are no string literals; the <code>out</code> module writes bytes through the <code>write</code> extern inside an <code>unsafe</code> block.</li>
+<li><strong>Text is a <code>str</code> value; <code>print</code> writes it.</strong> <code>&quot;C&quot;</code> and <code>&quot;\n&quot;</code> are <code>str</code> literals, copyable values with no owner. There is no number formatting in the prelude, so the <code>out</code> module turns digits into bytes and writes them through the <code>write</code> extern inside an <code>unsafe</code> block; <code>b&quot;42&quot;</code> is a byte-array literal, <code>array&lt;u8, 2&gt;</code>.</li>
 </ul>
 
 <nav class="pager"><a class="prev" href="#intro">&larr; Introduction</a><a class="top" href="#top">Top</a><a class="next" href="#s06">§06 Arithmetic and numeric types &rarr;</a></nav></section>
@@ -597,7 +603,8 @@ type comes from, in order: an explicit suffix <code>123: u8</code>; the <em>expe
 (a declared variable type, a parameter type, a field type, or the other operand of the same
 operator); otherwise the default, <code>i32</code> for integers and <code>f64</code> for floats. A literal that does not
 fit its type is a static error. Float literals are <code>digits . digits</code>, optionally suffixed
-<code>: f32</code>.</p>
+<code>: f32</code>. A string literal <code>&quot;…&quot;</code> is always a <code>str</code> and a byte literal <code>b&quot;…&quot;</code> always an
+<code>array&lt;u8, N&gt;</code> (§21, §22); neither takes an expected type.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Literal typing</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
 <span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
 <span class="k">fn</span> check(<span class="t">bool</span> ok)
@@ -1354,21 +1361,29 @@ declared in an enclosing block, it is rejected statically as <code>diag.referenc
 <span class="k">fn</span> main()
 {
     <span class="k">auto</span> r = <span class="p">dangling</span>();
-    *r;                               <span class="c">// (the reference interpreter reports this line as <span class="dg">diag.stale-binding</span>)</span>
+    *r;
 }</code></pre></figure>
 <p>The corrected form returns the value itself: <code>fn ok() : i32 { i32 x = 1; x }</code>.</p>
-<p>When the escape is not lexically visible (the reference flows through an assignment to an
-existing variable, out of an aggregate, or through a call the checker cannot see into), the static
+<p>When the escape is not lexically visible (the reference is stored through another
+reference, into an aggregate the checker cannot see the owner of, or through a call), the static
 rule does not fire and the run-time check takes over. The program is still rejected, just later.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Caught at use time</span><span class="badge bad">rejected: diag.stale-binding</span></div><pre><code><span class="k">fn</span> main()
+<figure class="code"><div class="code-head"><span class="code-title">Caught at use time</span><span class="badge bad">rejected: diag.stale-binding</span></div><pre><code><span class="k">struct</span> Holder
+{
+    <span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt; r;
+}
+
+<span class="k">fn</span> stash(<span class="t">ref</span>&lt;Holder, <span class="t">exclusive</span>&gt; h)
+{
+    <span class="t">i32</span> local = <span class="n">5</span>;
+    h.r = &amp;local;                     <span class="c">// a store through a reference: not lexically visible as an escape</span>
+}                                     <span class="c">// local ends here; whatever h points at now holds a dead reference</span>
+
+<span class="k">fn</span> main()
 {
     <span class="t">i32</span> outer = <span class="n">0</span>;
-    <span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt; r = &amp;outer;
-    {
-        <span class="t">i32</span> local = <span class="n">5</span>;
-        r = &amp;local;                   <span class="c">// rebinding to a block-local</span>
-    }                                 <span class="c">// local ends here; r now points at nothing</span>
-    *r;                               <span class="c">// <span class="bad">✗</span> <span class="dg">diag.stale-binding</span> (dynamic): first use of the dead reference</span>
+    <span class="k">auto</span> held = Holder { .r = &amp;outer };
+    stash(&amp;<span class="k">mut</span> held);
+    *held.r;                          <span class="c">// <span class="bad">✗</span> <span class="dg">diag.stale-binding</span> (dynamic): first use of the dead reference</span>
 }</code></pre></figure>
 <h3>Returning references from functions</h3>
 <p>A function may return a reference when it has <em>exactly one</em> reference-typed
@@ -1583,6 +1598,7 @@ arguments.</p>
 <thead><tr><th>Type</th><th>Values</th><th>Resource?</th></tr></thead>
 <tbody>
 <tr><td>integers, <code>f32</code>, <code>f64</code>, <code>bool</code></td><td>numbers and truth values (§06)</td><td>no</td></tr>
+<tr><td><code>str</code></td><td>text: a valid UTF-8 byte sequence, written <code>&quot;…&quot;</code>; a whole value like an integer, not a reference and not owned (§21)</td><td>no</td></tr>
 <tr><td><code>void</code> (type) / <code>()</code> (value)</td><td>the unit type; the type of assignments, of <code>if</code> without <code>else</code>, of loops and of functions with no return type. Written <code>void</code> in type position and <code>()</code> as a value.</td><td>no</td></tr>
 <tr><td><code>ref&lt;T, shared&gt;</code>, <code>ref&lt;T, exclusive&gt;</code></td><td>references (§09)</td><td>no</td></tr>
 <tr><td><code>rawptr&lt;T&gt;</code></td><td>raw addresses (§20)</td><td>no</td></tr>
@@ -1611,7 +1627,7 @@ implicit conversion anywhere: not between integer widths, not from <code>T</code
 <p>A bare integer literal is the one flexible thing: <code>takes_i64(5)</code> is fine, because the
 literal takes its type from the parameter (§06).</p>
 <h3>Equality</h3>
-<p><code>==</code> and <code>!=</code> are defined for numbers, <code>bool</code>, <code>()</code>, references (identity), raw pointers
+<p><code>==</code> and <code>!=</code> are defined for numbers, <code>bool</code>, <code>()</code>, <code>str</code> (bytewise), references (identity), raw pointers
 (address), and for structs, arrays and enums whose parts are all comparable (element by element;
 enums must have the same variant and equal payloads). They are not defined for function values or
 for anything that is a resource.</p>
@@ -2925,9 +2941,10 @@ result may only be integers, floats, <code>bool</code>, <code>void</code> and <c
 is a <em>claim</em>: a genuine value of its declared type, but one whose relationship to anything
 else (that a returned length is right, that a pointer is valid) is not established until your code
 checks it.</p>
-<p>The prelude declares one extern, <code>write(rawptr&lt;u8&gt; buf, usize len) : isize</code>, which is
-how every example in this guide prints. Linking, calling conventions and the rest of the foreign
-side are outside the language and documented by each implementation.</p>
+<p>The prelude declares one extern, <code>write(rawptr&lt;u8&gt; buf, usize len) : isize</code>. The
+prelude's <code>print</code> (§21) is a thin safe wrapper over it, and it is how every number in this guide is
+written out. Linking, calling conventions and the rest of the foreign side are outside the language
+and documented by each implementation.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Calling the write extern</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Write one byte to standard output through the `write` extern.</span>
 <span class="k">fn</span> put(<span class="t">u8</span> b)
 {
@@ -2941,7 +2958,7 @@ side are outside the language and documented by each implementation.</p>
 
 <span class="k">fn</span> main()
 {
-    <span class="k">auto</span> msg = [<span class="n">72</span>: <span class="t">u8</span>, <span class="n">105</span>: <span class="t">u8</span>, <span class="n">10</span>: <span class="t">u8</span>];         <span class="c">// &quot;Hi\n&quot; as bytes</span>
+    <span class="k">auto</span> msg = <span class="s">b&quot;Hi\n&quot;</span>;                          <span class="c">// a byte-array literal: array&lt;u8, 3&gt;</span>
     <span class="t">rawptr</span>&lt;<span class="t">u8</span>&gt; p = <span class="p">reinterpret_ptr</span>&lt;<span class="t">u8</span>&gt;(<span class="p">rawptr_of</span>(&amp;msg));
     <span class="t">isize</span> written = <span class="k">unsafe</span>
     {
@@ -2972,11 +2989,11 @@ its life, because there is no operation that could break it.</p>
 <nav class="pager"><a class="prev" href="#s19">&larr; §19 Concurrency</a><a class="top" href="#top">Top</a><a class="next" href="#s21">§21 The prelude and standard library &rarr;</a></nav></section>
 <section id="s21">
 <h2><span class="secnum">§21</span>The prelude and standard library</h2>
-<div class="spec-ref">Governing specification file: <code>spec/21-standard-library-semantics.md</code></div><p class="blurb">Option, Result, the intrinsics, and Vec, String and Rc written in CobaltC.</p>
+<div class="spec-ref">Governing specification file: <code>spec/21-standard-library-semantics.md</code></div><p class="blurb">Option, Result, the intrinsics, str and print, and Vec, String and Rc written in CobaltC.</p>
 <p>The prelude is what every program gets without importing anything: the intrinsics, the
-<code>Option</code> and <code>Result</code> enums, and three library types written in CobaltC itself, <code>Vec&lt;T&gt;</code>, <code>String</code>
-and <code>Rc&lt;T&gt;</code>. Their source is part of the specification, which is the language's proof that the
-mechanisms in this guide are enough to build real containers.</p>
+<code>Option</code> and <code>Result</code> enums, the text value type <code>str</code> with <code>print</code>, and three library types written
+in CobaltC itself, <code>Vec&lt;T&gt;</code>, <code>String</code> and <code>Rc&lt;T&gt;</code>. Their source is part of the specification, which
+is the language's proof that the mechanisms in this guide are enough to build real containers.</p>
 <h3>Prelude types</h3>
 <figure class="code"><div class="code-head"><span class="code-title">Declared by the prelude</span></div><pre><code><span class="k">export</span> <span class="k">enum</span> <span class="p">Option</span>&lt;T&gt;
 {
@@ -3015,9 +3032,79 @@ body. Type arguments are written <code>name&lt;T&gt;(…)</code> where the signa
 <tr><td><code>allocate(n, align)</code>, <code>deallocate(p, n, align)</code></td><td>raw allocation (<code>deallocate</code> is unsafe)</td><td>§20</td></tr>
 <tr><td><code>dangling&lt;T&gt;()</code></td><td>a well-aligned non-null address that must never be dereferenced; used for empty containers</td><td>§21</td></tr>
 <tr><td><code>write(buf, len)</code></td><td>the one extern: write bytes to standard output (unsafe)</td><td>§20</td></tr>
+<tr><td><code>str_len(s)</code>, <code>str_byte(s, i)</code>, <code>str_ptr(s)</code></td><td>a <code>str</code>'s byte count, one byte (bounds-checked), and the address of its bytes (safe)</td><td>§21</td></tr>
+<tr><td><code>print(s)</code></td><td>write a <code>str</code> to standard output; an ordinary prelude function holding the one <code>unsafe</code></td><td>§21</td></tr>
 <tr><td><code>map_err(r, f)</code></td><td>convert a <code>Result</code>'s error type with <code>f</code></td><td>§18</td></tr>
 </tbody>
 </table>
+<h3><code>str</code> and <code>print</code></h3>
+<p>A string literal <code>&quot;…&quot;</code> is a value of type <code>str</code>: a sequence of bytes that is valid UTF-8
+by construction, because the literal syntax has no way to write an arbitrary byte. A <code>str</code> is not a
+reference and not a resource. It behaves exactly like an integer: copying it is free, nothing owns
+it, nothing frees it, and you can pass it, store it in a struct or a <code>Vec&lt;str&gt;</code>, compare it with
+<code>==</code>, and hand it to another thread without any annotation. Its bytes are reached with <code>str_len</code>
+and <code>str_byte</code>; there is no indexing or slicing syntax. Escapes are <code>\n \r \t \0 \\ \&quot;</code> and
+<code>\u{…}</code> for a Unicode scalar value; a literal must close on its own line.</p>
+<p><code>print(s)</code> writes a <code>str</code> to standard output. It is an ordinary function in the prelude
+whose body is the <code>write</code> extern inside an <code>unsafe</code> block, so a program that only prints text never
+writes <code>unsafe</code> itself.</p>
+<figure class="code"><div class="code-head"><span class="code-title">str values</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
+<span class="k">fn</span> check(<span class="t">bool</span> ok)
+{
+    <span class="t">i32</span> z = <span class="k">if</span> (ok)
+    {
+        <span class="n">1</span>
+    }
+    <span class="k">else</span>
+    {
+        <span class="n">0</span>
+    };
+    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
+}
+
+<span class="k">struct</span> Named
+{
+    <span class="t">str</span> name;
+    <span class="t">i32</span> n;
+}
+
+<span class="k">fn</span> shout(<span class="t">str</span> s)
+{
+    <span class="p">print</span>(s);
+    <span class="p">print</span>(<span class="s">&quot;!\n&quot;</span>);
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="t">str</span> greeting = <span class="s">&quot;hello&quot;</span>;
+    <span class="t">str</span> again = greeting;             <span class="c">// copied, not moved: greeting stays valid</span>
+    check(<span class="p">str_len</span>(greeting) == <span class="n">5</span>);
+    check(<span class="p">str_byte</span>(greeting, <span class="n">0</span>) == <span class="n">104</span>);
+    check(greeting == again);
+    check(<span class="s">&quot;caf\u{e9}&quot;</span> != <span class="s">&quot;cafe&quot;</span>);     <span class="c">// \u{e9} is é, two bytes</span>
+    check(<span class="p">str_len</span>(<span class="s">&quot;caf\u{e9}&quot;</span>) == <span class="n">5</span>);
+    <span class="k">auto</span> named = Named { .name = greeting, .n = <span class="n">1</span> };
+    <span class="k">auto</span> copy = named;                <span class="c">// a struct of plain values is plain</span>
+    check(copy.name == <span class="s">&quot;hello&quot;</span>);
+    <span class="p">Vec</span>&lt;<span class="t">str</span>&gt; words = <span class="p">Vec</span>::new();
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> words, greeting);
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> words, <span class="s">&quot;world&quot;</span>);
+    shout(*<span class="p">Vec</span>::index_shared(&amp;words, <span class="n">1</span>));
+    <span class="p">print</span>(greeting);
+    <span class="p">print</span>(<span class="s">&quot;\n&quot;</span>);
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>world!
+hello
+</pre></div></figure>
+<figure class="code"><div class="code-head"><span class="code-title">str_byte is bounds-checked</span><span class="badge bad">rejected: diag.index-out-of-bounds</span></div><pre><code><span class="k">fn</span> main()
+{
+    <span class="t">str</span> s = <span class="s">&quot;hi&quot;</span>;
+    <span class="t">u8</span> b = <span class="p">str_byte</span>(s, <span class="n">2</span>);            <span class="c">// <span class="bad">✗</span> <span class="dg">diag.index-out-of-bounds</span> (static): a literal index, refuted ahead of time</span>
+}</code></pre></figure>
+<p>A byte literal <code>b&quot;…&quot;</code> is different: it is an <code>array&lt;u8, N&gt;</code>, exactly the array you
+would have written by hand, and admits <code>\xNN</code> for any byte value (and only ASCII characters
+otherwise). Use it where bytes are the honest type, such as data handed to <code>write</code> or to a
+validator.</p>
 <h3><code>Vec&lt;T&gt;</code></h3>
 <p>A growable array with a raw buffer, a length and a capacity. It is a <code>resource</code> whose
 destructor destroys each element and frees the buffer. Elements are reached by reference, never
@@ -3090,12 +3177,15 @@ copied out (so <code>Vec&lt;Vec&lt;i32&gt;&gt;</code> works without any special 
 <code>copy_raw</code> and <code>deallocate</code>. Reading it in the specification is the best way to see how the
 pieces of §07 and §20 fit together.</div>
 <h3><code>String</code></h3>
-<p>A <code>String</code> is a <code>Vec&lt;u8&gt;</code> that is known to be valid UTF-8. The only way to make one is
-<code>String::from_utf8</code>, which validates; there is no way to mutate its bytes, so the guarantee holds for
-its whole life. This is the trust-transition pattern of §20 in miniature.</p>
+<p>A <code>String</code> is a <code>Vec&lt;u8&gt;</code> that is known to be valid UTF-8: owned, heap-allocated text,
+a resource. There are two ways to make one: <code>String::from_str</code> copies a <code>str</code>'s bytes (already
+valid, so nothing is checked), and <code>String::from_utf8</code> validates bytes that came from anywhere
+else. There is no way to mutate its bytes, so the guarantee holds for its whole life. <code>from_utf8</code>
+is the trust-transition pattern of §20 in miniature.</p>
 <table>
 <thead><tr><th>Function</th><th>Signature</th></tr></thead>
 <tbody>
+<tr><td><code>String::from_str</code></td><td><code>(str) : String</code> (copies; cannot fail)</td></tr>
 <tr><td><code>String::from_utf8</code></td><td><code>(Vec&lt;u8&gt;) : Result&lt;String, Utf8Error&gt;</code></td></tr>
 <tr><td><code>String::len</code></td><td><code>(ref&lt;String, shared&gt;) : usize</code> (bytes)</td></tr>
 <tr><td><code>String::into_bytes</code></td><td><code>(String) : Vec&lt;u8&gt;</code> (gives the bytes back, consuming the string)</td></tr>
@@ -3118,6 +3208,9 @@ its whole life. This is the trust-transition pattern of §20 in miniature.</p>
 
 <span class="k">fn</span> main()
 {
+    <span class="p">String</span> owned = <span class="p">String</span>::from_str(<span class="s">&quot;caf\u{e9}&quot;</span>);   <span class="c">// a str&#x27;s bytes, copied; no validation needed</span>
+    check(<span class="p">String</span>::len(&amp;owned) == <span class="n">5</span>);
+
     <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; good = <span class="p">Vec</span>::new();
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> good, <span class="n">226</span>);        <span class="c">// the three bytes of U+20AC, the euro sign</span>
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> good, <span class="n">130</span>);
@@ -3206,9 +3299,9 @@ for looking things up; the semantics are in the earlier sections.</p>
 <li><strong>Comments:</strong> <code>// to end of line</code> and <code>/* block */</code> (block comments do not nest).</li>
 <li><strong>Identifiers:</strong> ASCII letters, digits and <code>_</code>, not starting with a digit.</li>
 <li><strong>Integer literals:</strong> decimal digits, optionally <code>: type</code> (<code>255: u8</code>). No sign, no hex, no separators. <strong>Float literals:</strong> <code>1.5</code>, <code>0.25: f32</code>. <strong>Booleans:</strong> <code>true</code>, <code>false</code>. <strong>Unit value:</strong> <code>()</code>.</li>
-<li><strong>No string or character literals.</strong> Write bytes as numbers (<code>72: u8</code>) into an array or a <code>Vec&lt;u8&gt;</code>.</li>
+<li><strong>String literals:</strong> <code>&quot;…&quot;</code>, type <code>str</code>. Escapes <code>\n \r \t \0 \\ \&quot;</code> and <code>\u{hex}</code>; any other source character stands for itself. A literal must close on its own line. <strong>Byte literals:</strong> <code>b&quot;…&quot;</code>, type <code>array&lt;u8, N&gt;</code>; the same escapes except <code>\xNN</code> in place of <code>\u{…}</code>, ASCII characters only, at least one byte. <strong>No character literals:</strong> a byte is <code>b&quot;a&quot;[0]</code> or a number.</li>
 <li><strong>Keywords:</strong> <code>fn struct enum resource match if else while return auto module import export unsafe extern break continue move mut true false as void</code>.</li>
-<li><strong>Reserved type names</strong> (cannot be identifiers): <code>i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 isize usize f32 f64 bool ref rawptr array handle mutex guard</code>. The words <code>shared</code> and <code>exclusive</code> are ordinary identifiers that only have meaning inside <code>ref&lt;…, …&gt;</code>.</li>
+<li><strong>Reserved type names</strong> (cannot be identifiers): <code>i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 isize usize f32 f64 bool str ref rawptr array handle mutex guard</code>. The words <code>shared</code> and <code>exclusive</code> are ordinary identifiers that only have meaning inside <code>ref&lt;…, …&gt;</code>.</li>
 <li>Whitespace and newlines are insignificant between tokens; brace placement is a matter of style.</li>
 </ul>
 <h3>Types</h3>
@@ -3216,6 +3309,7 @@ for looking things up; the semantics are in the earlier sections.</p>
 <thead><tr><th>Type syntax</th><th>Meaning</th></tr></thead>
 <tbody>
 <tr><td><code>i32</code>, <code>u8</code>, <code>f64</code>, <code>bool</code>, …</td><td>built-in scalars</td></tr>
+<tr><td><code>str</code></td><td>text value (§21)</td></tr>
 <tr><td><code>void</code></td><td>the unit type (its value is written <code>()</code>)</td></tr>
 <tr><td><code>ref&lt;T, shared&gt;</code>, <code>ref&lt;T, exclusive&gt;</code></td><td>references</td></tr>
 <tr><td><code>rawptr&lt;T&gt;</code></td><td>raw pointer</td></tr>
@@ -3334,6 +3428,7 @@ of a declaration or the right side of an assignment, the enclosing statement sti
 <thead><tr><th>Form</th><th>Example</th></tr></thead>
 <tbody>
 <tr><td>literals and names</td><td><code>42</code>, <code>3.5</code>, <code>true</code>, <code>()</code>, <code>x</code>, <code>mod::item</code></td></tr>
+<tr><td>string and byte literals</td><td><code>&quot;hello\n&quot;</code> (a <code>str</code>), <code>b&quot;\x00\xff&quot;</code> (an <code>array&lt;u8, 2&gt;</code>)</td></tr>
 <tr><td>struct literal</td><td><code>Point { .x = 1, .y = 2 }</code>, <code>Box&lt;i32&gt; { .value = 5 }</code></td></tr>
 <tr><td>array literal</td><td><code>[1, 2, 3]</code></td></tr>
 <tr><td>enum variant</td><td><code>Some(5)</code>, <code>None</code>, <code>Shape::Dot</code></td></tr>
@@ -3359,7 +3454,7 @@ of a declaration or the right side of an assignment, the enclosing statement sti
 <p>Things the grammar does not provide, each a considered decision recorded in the
 specification:</p>
 <ul>
-<li>no string or character literals; no <code>for</code> loop; no <code>switch</code>; no <code>goto</code></li>
+<li>no character literals, no indexing or slicing of a <code>str</code>; no <code>for</code> loop; no <code>switch</code>; no <code>goto</code></li>
 <li>no <code>import … as</code> renaming; no method-call syntax (<code>v.push(x)</code>); no operator overloading</li>
 <li>no nested patterns in <code>match</code>, and destructuring only of single-field structs</li>
 <li>no partial initialisation of aggregates</li>
@@ -3371,8 +3466,9 @@ specification:</p>
 </ul>
 <h3>What an implementation must document</h3>
 <p>The width of <code>isize</code>/<code>usize</code>; byte order; enum discriminant width; struct padding; the
-value of <code>dangling&lt;T&gt;()</code>; the encoding of function values; and the form in which faults and
-diagnostics are reported. Everything else is fixed by the language.</p>
+value of <code>dangling&lt;T&gt;()</code>; the encoding of function values; the address <code>str_ptr</code> gives for a
+<code>str</code>'s bytes and whether equal values share one; and the form in which faults and diagnostics are
+reported. Everything else is fixed by the language.</p>
 
 <nav class="pager"><a class="prev" href="#s21">&larr; §21 The prelude and standard library</a><a class="top" href="#top">Top</a><a class="next" href="#appx">A Appendix: diagnostics &rarr;</a></nav></section>
 <section id="appx">
@@ -3412,7 +3508,7 @@ rule is applied statically where the checker can see the problem and dynamically
 <tr><td><code>diag.shift-amount-out-of-range</code></td><td>both</td><td>shift by the bit width or more</td><td>mask the amount</td></tr>
 <tr><td><code>diag.narrowing-overflow</code></td><td>both</td><td><code>narrow</code> or <code>to_int</code> of a value that does not fit</td><td><code>narrow_wrapping</code>, or widen the target</td></tr>
 <tr><td><code>diag.literal-out-of-range</code></td><td>static</td><td>a literal that does not fit its type</td><td>fix the literal or its type</td></tr>
-<tr><td><code>diag.index-out-of-bounds</code></td><td>both</td><td>array or <code>Vec</code> index at or past the length</td><td>check the index first</td></tr>
+<tr><td><code>diag.index-out-of-bounds</code></td><td>both</td><td>array or <code>Vec</code> index, or <code>str_byte</code> position, at or past the length</td><td>check the index first</td></tr>
 <tr><td><code>diag.non-exhaustive-match</code></td><td>static</td><td>a variant with no arm and no <code>_</code></td><td>add arms</td></tr>
 <tr><td><code>diag.propagate-outside-fallible-context</code></td><td>static</td><td><code>?</code> in a function whose return type is not <code>Result&lt;_, E&gt;</code> with the same <code>E</code></td><td>change the return type or <code>map_err</code></td></tr>
 <tr><td><code>diag.spawn-borrow-closure</code></td><td>static</td><td><code>spawn</code> given a closure that borrows</td><td>add <code>move</code></td></tr>
@@ -3424,7 +3520,6 @@ rule is applied statically where the checker can see the problem and dynamically
 </table>
 
 <nav class="pager"><a class="prev" href="#s22">&larr; §22 Surface syntax reference</a><a class="top" href="#top">Top</a></nav></section>
-
 
 <div class="book-navigation">
     <a href="Appendix_05.html" class="nav-btn">&larr; Previous</a>
