@@ -216,11 +216,11 @@ Consider an array and two pointers into different elements.
 {
     int values[2] = {0, 0};
     
-    /* obtain pointers to distinct elements of the same array */
+    /* obtain pointers to distinct elements of the same array... */
     int* a = &amp;values[0];
     int* b = &amp;values[1];
 
-    /* dereference the pointers to assign values */
+    /* dereference the pointers to assign values... */
     *a = 7;
     *b = 8;
 
@@ -243,11 +243,14 @@ conflicting access is introduced.
 {
     array&lt;i32, 2&gt; values = [0, 0];
     
-    /* obtain pointers to distinct elements of the same array */
+    // CobaltC allows multiple mutable (exclusive) references to the same 
+    // data structure, provided their memory locations are statically proven 
+    // to be disjoint (non-overlapping).
     ref&lt;i32, exclusive&gt; a = &amp;mut values[0];
     ref&lt;i32, exclusive&gt; b = &amp;mut values[1];
 
-    /* dereference the pointers to assign values */
+    // Safe to modify concurrently because the borrow checker has verified 
+    // that 'a' and 'b' target completely separate memory slots.
     *a = 7;
     *b = 8;
 }</code></pre>
