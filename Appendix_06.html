@@ -140,6 +140,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
             width: 30%;
             height: 30%;          
         }
+
 </style>
 </head>
 <body>
@@ -277,6 +278,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 <p>-----------------------------------------------------------------------------------</p>
 
 
+
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -392,15 +394,22 @@ output shown below the code.</p>
     <span class="c">// Print an i32 in decimal.</span>
     <span class="k">export</span> <span class="k">fn</span> int(<span class="t">i32</span> n)
     {
-        <span class="k">if</span> (n &lt; <span class="n">0</span>)
+        <span class="t">i64</span> v = <span class="p">widen</span>&lt;<span class="t">i64</span>&gt;(n);                            <span class="c">// widen first: -(-2147483648) does not fit in an i32</span>
+        <span class="k">if</span> (v &lt; <span class="n">0</span>)
         {
             <span class="p">print</span>(<span class="s">&quot;-&quot;</span>);
-            int(-n);
+            digits(-v);
             <span class="k">return</span>;                                       <span class="c">// `return` with no value in a void function</span>
         }
+        digits(v);
+    }
+
+    <span class="c">// The decimal digits of a value that is not negative. Not exported.</span>
+    <span class="k">fn</span> digits(<span class="t">i64</span> n)
+    {
         <span class="k">if</span> (n &gt;= <span class="n">10</span>)
         {
-            int(n / <span class="n">10</span>);                                  <span class="c">// recursion is ordinary</span>
+            digits(n / <span class="n">10</span>);                               <span class="c">// recursion is ordinary</span>
         }
         <span class="t">u8</span> digit = <span class="p">narrow</span>&lt;<span class="t">u8</span>&gt;(n % <span class="n">10</span>);                    <span class="c">// no implicit conversions: narrow is explicit and checked</span>
         put(digit + <span class="n">48</span>);                                  <span class="c">// &#x27;0&#x27; is 48; the literal takes u8 from `digit`</span>
@@ -2583,8 +2592,9 @@ location, and a library moves as a unit. Use forward slashes and stay inside the
 (<code>diag.module-file-not-found</code>), a file whose body would load itself again through some chain of
 declarations (<code>diag.module-cycle</code>), and one file named by two declarations
 (<code>diag.module-file-duplicate</code> — it would be two distinct modules and two distinct <code>Rect</code> types).
-A diagnostic inside a loaded file names that file and its own line. A <code>fn main</code> in a loaded file
-is just the item <code>geo::main</code>; the program's entry is the root file's <code>main</code>.</p>
+A <code>fn main</code> in a loaded file is just the item <code>geo::main</code>; the program's entry is the root file's
+<code>main</code>, and a program with none is <code>diag.no-main</code>. The reference interpreter reports a diagnostic
+inside a loaded file against that file and its own line.</p>
 <h3>How a name is found</h3>
 <p>An unqualified name is first looked up as a local variable or parameter. Failing that, in
 this order: an item of the current module; an <code>import</code> in the current module whose last segment
@@ -2613,6 +2623,22 @@ over its invariants.</p>
         <span class="t">i32</span> cached_area;              <span class="c">// private: only this module&#x27;s functions may touch it</span>
     }
 }</code></pre></figure>
+<figure class="code"><div class="code-head"><span class="code-title">A private field</span><span class="badge bad">rejected: diag.name-not-visible</span></div><pre><code><span class="k">module</span> shapes
+{
+    <span class="k">export</span> <span class="k">struct</span> Rect
+    {
+        <span class="k">export</span> <span class="t">i32</span> w;
+        <span class="t">i32</span> cached_area;
+    }
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="k">auto</span> r = shapes::Rect { .w = <span class="n">1</span>, .cached_area = <span class="n">0</span> };   <span class="c">// <span class="bad">✗</span> <span class="dg">diag.name-not-visible</span>: cached_area is private</span>
+}</code></pre></figure>
+<p>Naming a private field from outside its module — reading it, writing it, giving it in a
+struct literal, or destructuring it — is <code>diag.name-not-visible</code>, the same diagnostic as for a
+private function. Give the module a constructor function if callers need to build the struct.</p>
 <div class="callout rule"><div class="callout-title">Rules of thumb</div><ul>
 <li>Start every module with everything private; export only what callers need.</li>
 <li>Prefer qualified calls (<code>maths::square(x)</code>) in code that reads like a library; <code>import</code> the handful of names you use constantly.</li>
@@ -3095,6 +3121,10 @@ body. Type arguments are written <code>name&lt;T&gt;(…)</code> where the signa
 </tbody>
 </table>
 <h3><code>str</code> and <code>print</code></h3>
+<p>CobaltC has two text types, and the short version is: <strong><code>str</code> is a text constant,
+<code>String</code> is text you own.</strong> Fixed text you write in your program is a <code>str</code>; text you build,
+receive or keep ownership of is a <code>String</code> (below). The end of this section compares them side by
+side.</p>
 <p>A string literal <code>&quot;…&quot;</code> is a value of type <code>str</code>: a sequence of bytes that is valid UTF-8
 by construction, because the literal syntax has no way to write an arbitrary byte. A <code>str</code> is not a
 reference and not a resource. It behaves exactly like an integer: copying it is free, nothing owns
@@ -3299,6 +3329,248 @@ is the trust-transition pattern of §20 in miniature.</p>
         },
     }
 }</code></pre></figure>
+<h3>Which text type?</h3>
+<p>Rust programmers will recognise the pair, and C programmers may wonder why there are two
+text types at all. The reason is that a constant should not have to be managed. If <code>&quot;hi&quot;</code> were a
+<code>String</code>, every literal would be a heap allocation with an owner: it would be moved, destroyed at
+scope end, and allocated again on every pass through a loop, all for text that never changes. So a
+literal is a <code>str</code>, which behaves like the number <code>5</code>. <code>String</code> is kept for text that really does
+need an owner.</p>
+<table>
+<thead><tr><th></th><th><code>str</code></th><th><code>String</code></th><th><code>b&quot;…&quot;</code></th></tr></thead>
+<tbody>
+<tr><td>What it is</td><td>a text constant</td><td>owned text</td><td>raw bytes</td></tr>
+<tr><td>Written as</td><td><code>&quot;hello&quot;</code></td><td><code>String::from_str(&quot;hello&quot;)</code>, <code>String::from_utf8(bytes)</code></td><td><code>b&quot;hello&quot;</code></td></tr>
+<tr><td>Type</td><td><code>str</code></td><td><code>String</code></td><td><code>array&lt;u8, N&gt;</code></td></tr>
+<tr><td>Valid UTF-8</td><td>yes, by the literal grammar</td><td>yes, by construction or validation</td><td>not guaranteed</td></tr>
+<tr><td>Resource (moved, destroyed)</td><td>no: copied like an integer</td><td>yes</td><td>no</td></tr>
+<tr><td>Allocates</td><td>never</td><td>yes</td><td>no (an ordinary array)</td></tr>
+<tr><td>Passed to</td><td><code>print</code>, <code>==</code>, <code>str_len</code>, <code>str_byte</code></td><td><code>String::len</code>, <code>String::into_bytes</code></td><td><code>write</code> and other raw-byte code</td></tr>
+</tbody>
+</table>
+<div class="callout rule"><div class="callout-title">Rules of thumb</div><ul>
+<li>Text written in your source code: use <code>str</code>. Pass it, store it in structs and <code>Vec&lt;str&gt;</code>, and print it freely.</li>
+<li>Text built at run time, or text you need to own: use <code>String</code>, created explicitly from a <code>str</code> with <code>String::from_str</code>.</li>
+<li>Bytes from outside the program (a file, a socket, FFI): they stay <code>Vec&lt;u8&gt;</code> until <code>String::from_utf8</code> accepts them.</li>
+<li>Bytes that are not text (a protocol header, data for <code>write</code>): use <code>b&quot;…&quot;</code>.</li>
+</ul>
+</div>
+<p>The two text types never convert into each other silently (§12's no-implicit-conversion
+rule). Going from <code>str</code> to <code>String</code> is an explicit call that makes a copy, and nothing turns a
+<code>String</code> back into a <code>str</code>: a <code>str</code> is always a literal's value, so it cannot refer to bytes that
+something else owns.</p>
+<div class="callout note"><div class="callout-title">Printing other text</div>The prelude prints only <code>str</code>. <code>print</code> is the one output function it provides, because
+a <code>str</code> is the text the language guarantees is valid and printing it is what almost every program
+does. Printing a <code>u8</code>, a <code>Vec&lt;u8&gt;</code> or a <code>String</code> is left to your own code, written the way <code>print</code>
+itself is: a few lines around the <code>write</code> extern inside <code>unsafe</code>, as in the two examples below.
+<code>print</code> adds no capability of its own.</div>
+<p>Everything starts from <code>put</code>, which writes one byte. <code>print_bytes</code> walks a <code>Vec&lt;u8&gt;</code>
+through a shared reference. <code>print_string</code> is more awkward: the library has no way to borrow a
+<code>String</code>'s bytes, so it takes the <code>String</code>, prints its bytes, and hands back a rebuilt one, which
+runs the UTF-8 validator a second time. The caller receives it in a new binding, because a binding
+whose value has moved cannot be assigned again.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Printing a byte, a Vec<u8> and a String</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
+<span class="k">fn</span> check(<span class="t">bool</span> ok)
+{
+    <span class="t">i32</span> z = <span class="k">if</span> (ok)
+    {
+        <span class="n">1</span>
+    }
+    <span class="k">else</span>
+    {
+        <span class="n">0</span>
+    };
+    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
+}
+
+<span class="c">// Write one byte to standard output: the same shape as the prelude&#x27;s print.</span>
+<span class="k">fn</span> put(<span class="t">u8</span> b)
+{
+    <span class="k">auto</span> buf = [b];                   <span class="c">// an array&lt;u8, 1&gt;</span>
+    <span class="t">rawptr</span>&lt;<span class="t">u8</span>&gt; p = <span class="p">reinterpret_ptr</span>&lt;<span class="t">u8</span>&gt;(<span class="p">rawptr_of</span>(&amp;buf));
+    <span class="k">unsafe</span>
+    {
+        <span class="p">write</span>(p, <span class="n">1</span>);                  <span class="c">// trusted: p points at one valid byte</span>
+    }
+}
+
+<span class="k">fn</span> print_bytes(<span class="t">ref</span>&lt;<span class="p">Vec</span>&lt;<span class="t">u8</span>&gt;, <span class="t">shared</span>&gt; v)
+{
+    <span class="t">usize</span> i = <span class="n">0</span>;
+    <span class="k">while</span> (i &lt; <span class="p">Vec</span>::len(v))
+    {
+        put(*<span class="p">Vec</span>::index_shared(v, i));
+        i = i + <span class="n">1</span>;
+    }
+}
+
+<span class="c">// A String&#x27;s bytes are reachable only by taking the String apart, so this</span>
+<span class="c">// takes it, prints it, and hands a rebuilt one back.</span>
+<span class="k">fn</span> print_string(<span class="p">String</span> s) : <span class="p">String</span>
+{
+    <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; bytes = <span class="p">String</span>::into_bytes(s);
+    print_bytes(&amp;bytes);
+    <span class="k">match</span> (<span class="p">String</span>::from_utf8(bytes))  <span class="c">// validates again: the cost of the round trip</span>
+    {
+        <span class="p">Ok</span>(t)  : t,
+        <span class="p">Err</span>(_) : <span class="p">String</span>::from_str(<span class="s">&quot;&quot;</span>),   <span class="c">// cannot happen: the bytes came from a String</span>
+    }
+}
+
+<span class="k">fn</span> main()
+{
+    put(<span class="s">b&quot;a&quot;</span>[<span class="n">0</span>]);                     <span class="c">// a single byte</span>
+    put(<span class="s">b&quot;\n&quot;</span>[<span class="n">0</span>]);
+
+    <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; v = <span class="p">Vec</span>::new();
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="s">b&quot;o&quot;</span>[<span class="n">0</span>]);
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="s">b&quot;k&quot;</span>[<span class="n">0</span>]);
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">10</span>);            <span class="c">// newline</span>
+    print_bytes(&amp;v);
+
+    <span class="p">String</span> s = <span class="p">String</span>::from_str(<span class="s">&quot;caf\u{e9}\n&quot;</span>);
+    <span class="p">String</span> t = print_string(s);       <span class="c">// a new binding: s has moved and cannot be assigned again</span>
+    check(<span class="p">String</span>::len(&amp;t) == <span class="n">6</span>);
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>a
+ok
+café
+</pre></div></figure>
+<p>Numbers are turned into digits by hand. <code>print_i32</code> widens to <code>i64</code> first so that the
+most negative <code>i32</code> can be negated safely. <code>print_f32</code> prints three decimal places: it handles NaN
+and infinity, scales by 1000 and rounds with <code>to_int</code>, and switches to scientific form for values
+too large for that scaling to fit in an <code>i64</code>.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Printing an i32 and an f32</span><span class="badge ok">runs</span></div><pre><code><span class="k">fn</span> put(<span class="t">u8</span> b)
+{
+    <span class="k">auto</span> buf = [b];
+    <span class="t">rawptr</span>&lt;<span class="t">u8</span>&gt; p = <span class="p">reinterpret_ptr</span>&lt;<span class="t">u8</span>&gt;(<span class="p">rawptr_of</span>(&amp;buf));
+    <span class="k">unsafe</span>
+    {
+        <span class="p">write</span>(p, <span class="n">1</span>);
+    }
+}
+
+<span class="c">// The decimal digits of n, which must not be negative.</span>
+<span class="k">fn</span> print_digits(<span class="t">i64</span> n)
+{
+    <span class="k">if</span> (n &gt;= <span class="n">10</span>)
+    {
+        print_digits(n / <span class="n">10</span>);
+    }
+    put(<span class="p">narrow</span>&lt;<span class="t">u8</span>&gt;(n % <span class="n">10</span>) + <span class="n">48</span>);     <span class="c">// &#x27;0&#x27; is 48</span>
+}
+
+<span class="k">fn</span> print_i32(<span class="t">i32</span> n)
+{
+    <span class="t">i64</span> v = <span class="p">widen</span>&lt;<span class="t">i64</span>&gt;(n);            <span class="c">// widen first: -(-2147483648) does not fit in an i32</span>
+    <span class="k">if</span> (v &lt; <span class="n">0</span>)
+    {
+        <span class="p">print</span>(<span class="s">&quot;-&quot;</span>);
+        v = -v;
+    }
+    print_digits(v);
+}
+
+<span class="c">// Three decimal places, rounded; very large values in scientific form.</span>
+<span class="c">// An f32 holds only about 7 significant digits, so digits past that are noise.</span>
+<span class="k">fn</span> print_f32(<span class="t">f32</span> x)
+{
+    <span class="k">if</span> (x != x)                       <span class="c">// only NaN is unequal to itself</span>
+    {
+        <span class="p">print</span>(<span class="s">&quot;NaN&quot;</span>);
+        <span class="k">return</span>;
+    }
+    <span class="t">f32</span> v = x;
+    <span class="k">if</span> (v &lt; <span class="n">0.0</span>)
+    {
+        <span class="p">print</span>(<span class="s">&quot;-&quot;</span>);
+        v = -v;
+    }
+    <span class="k">if</span> (v - v != <span class="n">0.0</span>)                 <span class="c">// infinity minus infinity is NaN</span>
+    {
+        <span class="p">print</span>(<span class="s">&quot;inf&quot;</span>);
+        <span class="k">return</span>;
+    }
+    <span class="t">i32</span> exp = <span class="n">0</span>;
+    <span class="k">if</span> (v &gt;= <span class="n">1000000000.0</span>)            <span class="c">// keep v * 1000 well inside i64</span>
+    {
+        <span class="k">while</span> (v &gt;= <span class="n">10.0</span>)
+        {
+            v = v / <span class="n">10.0</span>;
+            exp = exp + <span class="n">1</span>;
+        }
+    }
+    <span class="t">i64</span> scaled = <span class="p">to_int</span>&lt;<span class="t">i64</span>&gt;(v * <span class="n">1000.0</span> + <span class="n">0.5</span>);   <span class="c">// to_int truncates, so + 0.5 rounds</span>
+    print_digits(scaled / <span class="n">1000</span>);
+    <span class="p">print</span>(<span class="s">&quot;.&quot;</span>);
+    <span class="t">i64</span> frac = scaled % <span class="n">1000</span>;
+    <span class="k">if</span> (frac &lt; <span class="n">100</span>)
+    {
+        <span class="p">print</span>(<span class="s">&quot;0&quot;</span>);
+    }
+    <span class="k">if</span> (frac &lt; <span class="n">10</span>)
+    {
+        <span class="p">print</span>(<span class="s">&quot;0&quot;</span>);
+    }
+    print_digits(frac);
+    <span class="k">if</span> (exp &gt; <span class="n">0</span>)
+    {
+        <span class="p">print</span>(<span class="s">&quot;e&quot;</span>);
+        print_i32(exp);
+    }
+}
+
+<span class="k">fn</span> main()
+{
+    print_i32(<span class="n">42</span>);
+    <span class="p">print</span>(<span class="s">&quot; &quot;</span>);
+    print_i32(-<span class="n">7</span>);
+    <span class="p">print</span>(<span class="s">&quot; &quot;</span>);
+    print_i32(-<span class="n">2147483648</span>);
+    <span class="p">print</span>(<span class="s">&quot;\n&quot;</span>);
+
+    print_f32(<span class="n">3.14159</span>);
+    <span class="p">print</span>(<span class="s">&quot; &quot;</span>);
+    print_f32(-<span class="n">0.5</span>);
+    <span class="p">print</span>(<span class="s">&quot; &quot;</span>);
+    print_f32(<span class="n">12345.678</span>);
+    <span class="p">print</span>(<span class="s">&quot; &quot;</span>);
+    print_f32(<span class="n">60000000000.0</span>);
+    <span class="p">print</span>(<span class="s">&quot;\n&quot;</span>);
+
+    <span class="t">f32</span> zero = <span class="n">0.0</span>;
+    print_f32(<span class="n">1.0</span> / zero);
+    <span class="p">print</span>(<span class="s">&quot; &quot;</span>);
+    print_f32(zero / zero);
+    <span class="p">print</span>(<span class="s">&quot;\n&quot;</span>);
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>42 -7 -2147483648
+3.142 -0.500 12345.678 6.000e10
+inf NaN
+</pre></div></figure>
+<figure class="code"><div class="code-head"><span class="code-title">A literal is not a String</span><span class="badge bad">rejected: diag.type-mismatch</span></div><pre><code><span class="k">fn</span> main()
+{
+    <span class="p">String</span> s = <span class="s">&quot;hi&quot;</span>;                  <span class="c">// <span class="bad">✗</span> <span class="dg">diag.type-mismatch</span> (static): &quot;hi&quot; is a str</span>
+}</code></pre></figure>
+<figure class="code"><div class="code-head"><span class="code-title">The bridge is explicit</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
+<span class="k">fn</span> check(<span class="t">bool</span> ok)
+{
+    <span class="t">i32</span> z = <span class="k">if</span> (ok)
+    {
+        <span class="n">1</span>
+    }
+    <span class="k">else</span>
+    {
+        <span class="n">0</span>
+    };
+    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="p">String</span> s = <span class="p">String</span>::from_str(<span class="s">&quot;hi&quot;</span>);   <span class="c">// <span class="ok">✓</span> the explicit, allocating bridge</span>
+    check(<span class="p">String</span>::len(&amp;s) == <span class="n">2</span>);
+}</code></pre></figure>
 <h3><code>Rc&lt;T&gt;</code></h3>
 <p>Shared ownership as a library: a reference-counted box. <code>Rc::clone</code> makes another handle
 to the same box; the value is destroyed when the last handle is dropped. Access is read-only (a
@@ -3435,7 +3707,8 @@ for looking things up; the semantics are in the earlier sections.</p>
     items
 }
 
-<span class="k">module</span> name <span class="s">&quot;./path/to/file.cb&quot;</span>;            <span class="c">// the same, with that file&#x27;s items as the body (§17)</span>
+<span class="k">module</span> name <span class="s">&quot;./path/to/file.cb&quot;</span>;            <span class="c">// the same, with that file&#x27;s items as the body (§17);</span>
+                                            <span class="c">// `export module name &quot;…&quot;;` as for the inline form</span>
 
 <span class="k">import</span> path::to::item;</code></pre></figure>
 <h3>Statements and blocks</h3>
@@ -3514,7 +3787,7 @@ of a declaration or the right side of an assignment, the enclosing statement sti
 specification:</p>
 <ul>
 <li>no character literals, no indexing or slicing of a <code>str</code>; no <code>for</code> loop; no <code>switch</code>; no <code>goto</code></li>
-<li>no <code>import … as</code> renaming; no search path or package system for file-backed modules (a path is relative to the file that writes it); no method-call syntax (<code>v.push(x)</code>); no operator overloading</li>
+<li>no <code>import … as</code> renaming; no method-call syntax (<code>v.push(x)</code>); no operator overloading</li>
 <li>no nested patterns in <code>match</code>, and destructuring only of single-field structs</li>
 <li>no partial initialisation of aggregates</li>
 <li>no lifetime annotations: a function returning a reference must have exactly one reference parameter</li>
@@ -3545,6 +3818,9 @@ rule is applied statically where the checker can see the problem and dynamically
 <tr><td><code>diag.module-file-not-found</code></td><td>static</td><td><code>module m &quot;…&quot;;</code> names no readable file</td><td>fix the path (relative to the declaring file) or create the file</td></tr>
 <tr><td><code>diag.module-cycle</code></td><td>static</td><td>a file's module body loads itself again, directly or through other files</td><td>move the shared items into a third file both name</td></tr>
 <tr><td><code>diag.module-file-duplicate</code></td><td>static</td><td>one file is named by two <code>module</code> declarations</td><td>declare it once; reach it by qualified path or <code>import</code></td></tr>
+<tr><td><code>diag.no-main</code></td><td>static</td><td>no <code>fn main()</code> at the root module (a <code>main</code> inside a module is just <code>m::main</code>)</td><td>declare <code>fn main()</code> at the root, or run the file that has one</td></tr>
+<tr><td><code>diag.div-overflow</code></td><td>both</td><td><code>min / -1</code> or <code>min % -1</code> for a signed type</td><td><code>checked_div</code>, or widen first</td></tr>
+<tr><td><code>diag.transfer-without-authority</code></td><td>both</td><td>a move from a binding that no longer holds its resource (already moved or destroyed)</td><td>move from the current holder</td></tr>
 <tr><td><code>diag.type-mismatch</code></td><td>static</td><td>an operand or argument has the wrong type</td><td>convert explicitly; fix the types</td></tr>
 <tr><td><code>diag.unbounded-type-parameter</code></td><td>static</td><td>arithmetic, comparison, field access or a call on a bare <code>T</code></td><td>use a concrete type</td></tr>
 <tr><td><code>diag.cannot-infer-type-parameter</code></td><td>static</td><td>a generic argument is fixed by nothing</td><td>write <code>name&lt;T&gt;(…)</code> or declare the variable's type</td></tr>
@@ -3582,6 +3858,7 @@ rule is applied statically where the checker can see the problem and dynamically
 </table>
 
 <nav class="pager"><a class="prev" href="#s22">&larr; §22 Surface syntax reference</a><a class="top" href="#top">Top</a></nav></section>
+
 
 <div class="book-navigation">
     <a href="Appendix_05.html" class="nav-btn">&larr; Previous</a>
