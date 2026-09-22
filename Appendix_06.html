@@ -277,7 +277,6 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 <p>-----------------------------------------------------------------------------------</p>
 
 
-
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -2433,7 +2432,7 @@ when talking to foreign code (§20).</p>
 <nav class="pager"><a class="prev" href="#s15">&larr; §15 Functions and closures</a><a class="top" href="#top">Top</a><a class="next" href="#s17">§17 Modules and name resolution &rarr;</a></nav></section>
 <section id="s17">
 <h2><span class="secnum">§17</span>Modules and name resolution</h2>
-<div class="spec-ref">Governing specification file: <code>spec/17-modules.md</code></div><p class="blurb">module, export and import; private by default; a fixed lookup order for every name.</p>
+<div class="spec-ref">Governing specification file: <code>spec/17-modules.md</code></div><p class="blurb">module, export and import; private by default; a module's body may be another file; a fixed lookup order for every name.</p>
 <p>Modules group declarations and control which names are visible where. They introduce no
 new semantics: ownership, borrowing and every other rule apply unchanged across module boundaries.
 The vocabulary is C++20's: <code>module</code>, <code>import</code>, <code>export</code>.</p>
@@ -2529,6 +2528,63 @@ imports would give one name two meanings, qualify.</p>
     check(square(<span class="n">6</span>) == <span class="n">36</span>);           <span class="c">// resolves through the import</span>
     check(maths::square(<span class="n">7</span>) == <span class="n">49</span>);    <span class="c">// the qualified form still works</span>
 }</code></pre></figure>
+<h3>A module in another file</h3>
+<p>A module's body can be a separate file. <code>module geo &quot;./geometry.cb&quot;;</code> means exactly
+<code>module geo { … }</code> with the file's declarations as the body: the same visibility, the same
+<code>import</code>, the same lookup. The declaring file names the module; the other file's top level is
+anonymous, just as an inline body is. The path is relative to the directory of the file that
+writes it, so a file can itself declare file-backed modules with paths relative to its own
+location, and a library moves as a unit. Use forward slashes and stay inside the tree (no leading
+<code>/</code>, no <code>..</code>); anything beyond that is up to the implementation.</p>
+<figure class="code"><div class="code-head"><span class="code-title">geometry.cb</span></div><pre><code><span class="c">// geometry.cb -- the body of a module. Nothing here names the module;</span>
+<span class="c">// the file that declares it does. Only `export` items are visible there.</span>
+<span class="k">export</span> <span class="k">struct</span> Rect
+{
+    <span class="k">export</span> <span class="t">f64</span> w;
+    <span class="k">export</span> <span class="t">f64</span> h;
+}
+
+<span class="k">export</span> <span class="k">fn</span> area(Rect r) : <span class="t">f64</span>
+{
+    r.w * r.h
+}
+
+<span class="k">fn</span> scale_factor() : <span class="t">f64</span>               <span class="c">// private to this module</span>
+{
+    <span class="n">1.0</span>
+}</code></pre></figure>
+<figure class="code"><div class="code-head"><span class="code-title">main.cb</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
+<span class="k">fn</span> check(<span class="t">bool</span> ok)
+{
+    <span class="t">i32</span> z = <span class="k">if</span> (ok)
+    {
+        <span class="n">1</span>
+    }
+    <span class="k">else</span>
+    {
+        <span class="n">0</span>
+    };
+    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
+}
+
+<span class="c">// main.cb -- run this one: `coby main.cb`</span>
+<span class="k">module</span> geo <span class="s">&quot;./geometry.cb&quot;</span>;           <span class="c">// module geo { … } with geometry.cb&#x27;s items as the body</span>
+
+<span class="k">import</span> geo::Rect;
+
+<span class="k">fn</span> main()
+{
+    Rect r = Rect { .w = <span class="n">3.0</span>, .h = <span class="n">4.0</span> };
+    check(geo::area(r) == <span class="n">12.0</span>);      <span class="c">// qualified, as with any module</span>
+    <span class="c">// geo::scale_factor();           // <span class="bad">✗</span> <span class="dg">diag.name-not-visible</span>: private, exactly as in one file</span>
+}</code></pre></figure>
+<p>Three things are rejected before anything runs: a path that names no file
+(<code>diag.module-file-not-found</code>), a file whose body would load itself again through some chain of
+declarations (<code>diag.module-cycle</code>), and one file named by two declarations
+(<code>diag.module-file-duplicate</code> — it would be two distinct modules and two distinct <code>Rect</code> types).
+A diagnostic inside a loaded file names that file and its own line. A <code>fn main</code> in a loaded file
+is just the item <code>geo::main</code>; the program's entry is the root file's <code>main</code>.</p>
 <h3>How a name is found</h3>
 <p>An unqualified name is first looked up as a local variable or parameter. Failing that, in
 this order: an item of the current module; an <code>import</code> in the current module whose last segment
@@ -2561,6 +2617,7 @@ over its invariants.</p>
 <li>Start every module with everything private; export only what callers need.</li>
 <li>Prefer qualified calls (<code>maths::square(x)</code>) in code that reads like a library; <code>import</code> the handful of names you use constantly.</li>
 <li>Module boundaries are not safety boundaries: <code>unsafe</code> is lexical (§20). To confine trusted code, keep the functions that wrap it un-exported.</li>
+<li>Split a program across files with <code>module m &quot;./m.cb&quot;;</code>, one file per module; keep paths relative and let the declaring file do the naming.</li>
 </ul>
 </div>
 
@@ -3378,6 +3435,8 @@ for looking things up; the semantics are in the earlier sections.</p>
     items
 }
 
+<span class="k">module</span> name <span class="s">&quot;./path/to/file.cb&quot;</span>;            <span class="c">// the same, with that file&#x27;s items as the body (§17)</span>
+
 <span class="k">import</span> path::to::item;</code></pre></figure>
 <h3>Statements and blocks</h3>
 <figure class="code"><div class="code-head"><span class="code-title">Statement forms</span></div><pre><code>T x = e;                 <span class="c">// typed local</span>
@@ -3455,7 +3514,7 @@ of a declaration or the right side of an assignment, the enclosing statement sti
 specification:</p>
 <ul>
 <li>no character literals, no indexing or slicing of a <code>str</code>; no <code>for</code> loop; no <code>switch</code>; no <code>goto</code></li>
-<li>no <code>import … as</code> renaming; no method-call syntax (<code>v.push(x)</code>); no operator overloading</li>
+<li>no <code>import … as</code> renaming; no search path or package system for file-backed modules (a path is relative to the file that writes it); no method-call syntax (<code>v.push(x)</code>); no operator overloading</li>
 <li>no nested patterns in <code>match</code>, and destructuring only of single-field structs</li>
 <li>no partial initialisation of aggregates</li>
 <li>no lifetime annotations: a function returning a reference must have exactly one reference parameter</li>
@@ -3483,6 +3542,9 @@ rule is applied statically where the checker can see the problem and dynamically
 <tr><td><code>diag.unbound-name</code></td><td>static</td><td>a name resolves to nothing</td><td>declare it, fix the spelling, or <code>import</code> it</td></tr>
 <tr><td><code>diag.ambiguous-name</code></td><td>static</td><td>two imports or two enums supply the same name</td><td>qualify it</td></tr>
 <tr><td><code>diag.name-not-visible</code></td><td>static</td><td>the item is private to another module</td><td>mark it <code>export</code> or move the use</td></tr>
+<tr><td><code>diag.module-file-not-found</code></td><td>static</td><td><code>module m &quot;…&quot;;</code> names no readable file</td><td>fix the path (relative to the declaring file) or create the file</td></tr>
+<tr><td><code>diag.module-cycle</code></td><td>static</td><td>a file's module body loads itself again, directly or through other files</td><td>move the shared items into a third file both name</td></tr>
+<tr><td><code>diag.module-file-duplicate</code></td><td>static</td><td>one file is named by two <code>module</code> declarations</td><td>declare it once; reach it by qualified path or <code>import</code></td></tr>
 <tr><td><code>diag.type-mismatch</code></td><td>static</td><td>an operand or argument has the wrong type</td><td>convert explicitly; fix the types</td></tr>
 <tr><td><code>diag.unbounded-type-parameter</code></td><td>static</td><td>arithmetic, comparison, field access or a call on a bare <code>T</code></td><td>use a concrete type</td></tr>
 <tr><td><code>diag.cannot-infer-type-parameter</code></td><td>static</td><td>a generic argument is fixed by nothing</td><td>write <code>name&lt;T&gt;(…)</code> or declare the variable's type</td></tr>
