@@ -168,7 +168,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <li><a href="#s18"><span class="n">§18</span>Errors and failure</a></li>
 <li><a href="#s19"><span class="n">§19</span>Concurrency</a></li>
 <li><a href="#s20"><span class="n">§20</span>Unsafe, raw pointers and FFI</a></li>
-<li><a href="#s21"><span class="n">§21</span>The prelude and standard library</a></li>
+<li><a href="#s21"><span class="n">§21</span>The standard library, std</a></li>
 <li><a href="#s22"><span class="n">§22</span>Surface syntax reference</a></li>
 <li class="group">Appendix</li>
 <li><a href="#appx"><span class="n">A</span>Appendix: diagnostics</a></li>
@@ -281,7 +281,9 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
-<figure class="code"><div class="code-head"><span class="code-title">hello.cb</span><span class="badge ok">runs</span></div><pre><code><span class="k">fn</span> main()
+<figure class="code"><div class="code-head"><span class="code-title">hello.cb</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
 {
     <span class="p">print</span>(<span class="s">&quot;Hello, CobaltC!\n&quot;</span>);
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>Hello, CobaltC!
@@ -381,12 +383,17 @@ and prints the output shown below the code.</p>
 <span class="c">// Vec, references, Result and `?`, generics, a closure, and a thread.</span>
 <span class="c">// ------------------------------------------------------------------</span>
 
+<span class="k">import</span> std;
+
 <span class="c">// A module of output helpers. Fixed text is a `str` literal handed to</span>
-<span class="c">// the prelude&#x27;s `print`; the prelude has no number formatting, so</span>
+<span class="c">// the standard library&#x27;s `print`; `std` has no number formatting, so</span>
 <span class="c">// digits go out as bytes through the one extern function it declares,</span>
-<span class="c">// `write`, and calling an extern needs `unsafe`.</span>
+<span class="c">// `write`, and calling an extern needs `unsafe`. A module sees only</span>
+<span class="c">// what it imports itself, so `out` imports `std` too.</span>
 <span class="k">module</span> out
 {
+    <span class="k">import</span> std;
+
     <span class="k">export</span> <span class="k">fn</span> put(<span class="t">u8</span> b)
     {
         <span class="k">auto</span> buf = [b];                                   <span class="c">// an array&lt;u8, 1&gt;</span>
@@ -586,7 +593,7 @@ L3
 <li><strong><code>Log</code> is a <code>resource</code></strong>: it owns a <code>Vec</code>. It has a destructor <code>fn Log::drop</code>, which the language runs at the end of <code>main</code>. Passing or assigning a resource moves it.</li>
 <li><strong>No implicit conversions.</strong> <code>narrow&lt;u8&gt;(n % 10)</code> and <code>widen&lt;i32&gt;(b - 48)</code> say exactly what happens to the representation, and <code>narrow</code> is checked at run time.</li>
 <li><strong>Library calls are qualified</strong>: <code>Vec::push(&amp;mut v, x)</code>, <code>Vec::len(&amp;v)</code>, <code>Vec::index_shared(&amp;v, i)</code>. There is no method-call syntax.</li>
-<li><strong>Text is a <code>str</code> value; <code>print</code> writes it.</strong> <code>&quot;C&quot;</code> and <code>&quot;\n&quot;</code> are <code>str</code> literals, copyable values with no owner. There is no number formatting in the prelude, so the <code>out</code> module turns digits into bytes and writes them through the <code>write</code> extern inside an <code>unsafe</code> block; <code>b&quot;42&quot;</code> is a byte-array literal, <code>array&lt;u8, 2&gt;</code>.</li>
+<li><strong>Text is a <code>str</code> value; <code>print</code> writes it.</strong> <code>&quot;C&quot;</code> and <code>&quot;\n&quot;</code> are <code>str</code> literals, copyable values with no owner. There is no number formatting in <code>std</code>, so the <code>out</code> module turns digits into bytes and writes them through the <code>write</code> extern inside an <code>unsafe</code> block; <code>b&quot;42&quot;</code> is a byte-array literal, <code>array&lt;u8, 2&gt;</code>.</li>
 </ul>
 <p>Further showcases can be found in the repository's
 <a href="https://github.com/strawberry9/CobaltC/tree/main/showcase">showcase directory</a>; its
@@ -697,7 +704,9 @@ decide. These are ordinary generic calls with the operand type inferred from the
 <tr><td><code>checked_add(a, b)</code>, <code>checked_sub</code>, <code>checked_mul</code>, <code>checked_div</code>, <code>checked_rem</code></td><td><code>Option&lt;T&gt;</code></td><td><code>None</code> (also for division by zero)</td></tr>
 </tbody>
 </table>
-<figure class="code"><div class="code-head"><span class="code-title">Explicit overflow policies</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<figure class="code"><div class="code-head"><span class="code-title">Explicit overflow policies</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
 <span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
 <span class="k">fn</span> check(<span class="t">bool</span> ok)
 {
@@ -882,7 +891,9 @@ run time otherwise. Nothing is ever copied silently, so there can never be two o
     consume(t);                       <span class="c">// <span class="ok">✓</span> t moves into consume</span>
     consume(t);                       <span class="c">// <span class="bad">✗</span> <span class="dg">diag.stale-binding</span>: t no longer owns anything</span>
 }</code></pre></figure>
-<figure class="code"><div class="code-head"><span class="code-title">Moving into a new name</span><span class="badge ok">runs</span></div><pre><code><span class="k">fn</span> main()
+<figure class="code"><div class="code-head"><span class="code-title">Moving into a new name</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
 {
     <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v = <span class="p">Vec</span>::new();
     <span class="k">auto</span> w = v;                       <span class="c">// moves the Vec into w; v is now stale</span>
@@ -891,7 +902,9 @@ run time otherwise. Nothing is ever copied silently, so there can never be two o
 <p>Because a resource is never copied, it cannot appear where a copy would be made: you
 cannot compare two <code>Vec</code>s with <code>==</code>, and you cannot read one out of a field of a live struct. Take
 a reference instead (§09), or move the whole container.</p>
-<figure class="code"><div class="code-head"><span class="code-title">No value semantics for resources</span><span class="badge bad">rejected: diag.read-of-resource</span></div><pre><code><span class="k">fn</span> main()
+<figure class="code"><div class="code-head"><span class="code-title">No value semantics for resources</span><span class="badge bad">rejected: diag.read-of-resource</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
 {
     <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; a = <span class="p">Vec</span>::new();
     <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; b = <span class="p">Vec</span>::new();
@@ -906,7 +919,9 @@ destroyed after the struct's own destructor, innermost first, in reverse declara
 resource, so there is no leak diagnostic.</p>
 <p>You can also destroy a resource early with <code>drop(x)</code>. Afterwards <code>x</code> is stale; if you need
 the name again, declare it again (shadowing is allowed).</p>
-<figure class="code"><div class="code-head"><span class="code-title">Where destruction happens</span><span class="badge ok">runs</span></div><pre><code><span class="k">fn</span> make() : <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt;
+<figure class="code"><div class="code-head"><span class="code-title">Where destruction happens</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> make() : <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt;
 {
     <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v = <span class="p">Vec</span>::new();
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">1</span>);
@@ -930,7 +945,9 @@ the name again, declare it again (shadowing is allowed).</p>
 exclusive reference to the value and returns nothing. The language calls it exactly once, when the
 resource is destroyed; you may not call it yourself. Inside it you can mutate the value but not
 move out of it. Field resources are destroyed after the body runs.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Destruction order</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Writes one byte so we can observe destruction order.</span>
+<figure class="code"><div class="code-head"><span class="code-title">Destruction order</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Writes one byte so we can observe destruction order.</span>
 <span class="k">fn</span> put(<span class="t">u8</span> b)
 {
     <span class="k">auto</span> buf = [b];
@@ -969,7 +986,9 @@ move out of it. Field resources are destroyed after the body runs.</p>
 in reverse field order, so what was built last is torn down first. The output above is a newline
 followed by <code>4321</code>.</div>
 <h3>Things the rules forbid</h3>
-<figure class="code"><div class="code-head"><span class="code-title">Overwriting a live resource</span><span class="badge bad">rejected: diag.overwrite-of-live-resource</span></div><pre><code><span class="k">fn</span> main()
+<figure class="code"><div class="code-head"><span class="code-title">Overwriting a live resource</span><span class="badge bad">rejected: diag.overwrite-of-live-resource</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
 {
     <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v = <span class="p">Vec</span>::new();
     v = <span class="p">Vec</span>::new();                   <span class="c">// <span class="bad">✗</span> <span class="dg">diag.overwrite-of-live-resource</span>: the old Vec would be lost</span>
@@ -1046,7 +1065,9 @@ the first access inside the function that meets both, the point where it actuall
 until that variable's block ends; a reference passed straight to a call dies when the statement
 ends. This is why consecutive calls that each borrow the same variable are fine, and why wrapping a
 borrow in a block is the usual way to end it early.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Borrows end with their holder</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<figure class="code"><div class="code-head"><span class="code-title">Borrows end with their holder</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
 <span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
 <span class="k">fn</span> check(<span class="t">bool</span> ok)
 {
@@ -1200,13 +1221,17 @@ type, so a function's signature tells the caller exactly what it may do.</p>
 <h3>Moving or destroying needs solitude</h3>
 <p>Moving a resource, or destroying it (with <code>drop</code> or at scope end), requires that no other
 path to it exists at all. Otherwise a reference would be left pointing at nothing.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Destroying while borrowed</span><span class="badge bad">rejected: diag.destroy-while-aliased</span></div><pre><code><span class="k">fn</span> main()
+<figure class="code"><div class="code-head"><span class="code-title">Destroying while borrowed</span><span class="badge bad">rejected: diag.destroy-while-aliased</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
 {
     <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v = <span class="p">Vec</span>::new();
     <span class="k">auto</span> r = &amp;v;
     <span class="p">drop</span>(v);                          <span class="c">// <span class="bad">✗</span> <span class="dg">diag.destroy-while-aliased</span>: r is still live</span>
 }</code></pre></figure>
-<figure class="code"><div class="code-head"><span class="code-title">Moving while borrowed</span><span class="badge bad">rejected: diag.move-while-aliased</span></div><pre><code><span class="k">fn</span> take(<span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v)
+<figure class="code"><div class="code-head"><span class="code-title">Moving while borrowed</span><span class="badge bad">rejected: diag.move-while-aliased</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> take(<span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v)
 {
 }
 
@@ -1468,7 +1493,9 @@ obtained before a <code>push</code> that reallocates is stale afterwards. Where 
 borrow and the push in one function, it rejects the program; where it cannot (the push happens
 through a reference parameter, say), the stale reference faults at its next use. Either way it does
 not read freed memory.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Holding an element reference across a push</span><span class="badge bad">rejected: diag.aliasing-conflict</span></div><pre><code><span class="k">fn</span> main()
+<figure class="code"><div class="code-head"><span class="code-title">Holding an element reference across a push</span><span class="badge bad">rejected: diag.aliasing-conflict</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
 {
     <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v = <span class="p">Vec</span>::new();
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">10</span>);
@@ -1669,7 +1696,9 @@ separate copy of the declaration, so there is no run-time type information and n
 sites. There is no trait or bound system: inside a generic body a value of bare type <code>T</code> can be
 stored, passed, returned, referenced and moved, but not added, compared, indexed or called. If you
 need arithmetic, take a concrete type.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Generic declarations</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<figure class="code"><div class="code-head"><span class="code-title">Generic declarations</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
 <span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
 <span class="k">fn</span> check(<span class="t">bool</span> ok)
 {
@@ -1719,7 +1748,9 @@ explicit type argument (<code>identity&lt;i64&gt;(5)</code>), the type of an arg
 <em>expected type</em> where the call appears (a declared variable type, a parameter type, a field
 type). Nothing is ever inferred from how a value is used later, so a call that fixes nothing is
 rejected:</p>
-<figure class="code"><div class="code-head"><span class="code-title">Nothing to infer from</span><span class="badge bad">rejected: diag.cannot-infer-type-parameter</span></div><pre><code><span class="k">fn</span> main()
+<figure class="code"><div class="code-head"><span class="code-title">Nothing to infer from</span><span class="badge bad">rejected: diag.cannot-infer-type-parameter</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
 {
     <span class="k">auto</span> v = <span class="p">Vec</span>::new();              <span class="c">// <span class="bad">✗</span> <span class="dg">diag.cannot-infer-type-parameter</span>: nothing says what T is</span>
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">1</span>);             <span class="c">//   (a later use does not count)</span>
@@ -1727,7 +1758,9 @@ rejected:</p>
 <p>The same holds when the call is an argument to another generic call. <code>Mutex::new&lt;T&gt;</code> is
 one: with <code>auto</code> nothing reaches it, so nothing reaches the <code>Vec::new()</code> inside it either. Give the
 outer binding its type and both are fixed.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Inference through Mutex::new</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<figure class="code"><div class="code-head"><span class="code-title">Inference through Mutex::new</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
 <span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
 <span class="k">fn</span> check(<span class="t">bool</span> ok)
 {
@@ -1748,11 +1781,15 @@ outer binding its type and both are fixed.</p>
     <span class="t">mutex</span>&lt;<span class="t">i64</span>&gt; big = <span class="p">Mutex</span>::new(<span class="n">5000000000</span>);     <span class="c">// and the literal is an i64 for the same reason</span>
     check(<span class="p">Vec</span>::len(&amp;*<span class="p">lock</span>(&amp;m)) == <span class="n">0</span>);
 }</code></pre></figure>
-<figure class="code"><div class="code-head"><span class="code-title">Nothing to infer from</span><span class="badge bad">rejected: diag.cannot-infer-type-parameter</span></div><pre><code><span class="k">fn</span> main()
+<figure class="code"><div class="code-head"><span class="code-title">Nothing to infer from</span><span class="badge bad">rejected: diag.cannot-infer-type-parameter</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
 {
     <span class="k">auto</span> m = <span class="p">Mutex</span>::new(<span class="p">Vec</span>::new());  <span class="c">// <span class="bad">✗</span> <span class="dg">diag.cannot-infer-type-parameter</span>: nothing fixes Vec&#x27;s T</span>
 }</code></pre></figure>
-<figure class="code"><div class="code-head"><span class="code-title">Where inferred types come from</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<figure class="code"><div class="code-head"><span class="code-title">Where inferred types come from</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
 <span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
 <span class="k">fn</span> check(<span class="t">bool</span> ok)
 {
@@ -1891,7 +1928,9 @@ operand runs only when needed.</p>
     check(n == <span class="n">2</span>);
 }</code></pre></figure>
 <h3>Expressions that produce values</h3>
-<figure class="code"><div class="code-head"><span class="code-title">if, match and blocks as values</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<figure class="code"><div class="code-head"><span class="code-title">if, match and blocks as values</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
 <span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
 <span class="k">fn</span> check(<span class="t">bool</span> ok)
 {
@@ -1989,7 +2028,9 @@ of the same type.</p>
 anything declared inside it is destroyed before the condition is tested again. <code>break</code> exits the
 innermost loop; <code>continue</code> jumps to its next test. Both are typed <code>never</code> and must appear inside a
 <code>while</code>. Counting loops are written by hand with an index.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Loops</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<figure class="code"><div class="code-head"><span class="code-title">Loops</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
 <span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
 <span class="k">fn</span> check(<span class="t">bool</span> ok)
 {
@@ -2170,7 +2211,9 @@ documentation that the compiler checks (<code>diag.capture-list-mismatch</code>)
 is decided by the body, not the list: a variable the body only reads is captured by shared
 reference; one the body writes, borrows exclusively, or moves is captured by exclusive reference.
 Prefix <code>move</code> to capture by value instead, moving resources into the closure.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Capturing</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<figure class="code"><div class="code-head"><span class="code-title">Capturing</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
 <span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
 <span class="k">fn</span> check(<span class="t">bool</span> ok)
 {
@@ -2439,7 +2482,9 @@ payload into the arm's binder and consumes the enum: after the <code>match</code
 This is what makes <code>match (Vec::pop(&amp;mut v)) { Some(x) : …, None : … }</code> hand you the popped
 element. To look inside a resource enum without consuming it, match on a reference to it using only
 <code>_</code> and payload-less arms, or write a function that takes a reference to the payload.</p>
-<figure class="code"><div class="code-head"><span class="code-title">A resource payload moves out</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<figure class="code"><div class="code-head"><span class="code-title">A resource payload moves out</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
 <span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
 <span class="k">fn</span> check(<span class="t">bool</span> ok)
 {
@@ -2474,7 +2519,7 @@ element. To look inside a resource enum without consuming it, match on a referen
 }</code></pre></figure>
 <h3>Generic aggregates</h3>
 <p><code>struct Box&lt;T&gt; { T value; }</code> and <code>enum Maybe&lt;T&gt; { Just(T), Nothing }</code> declare families of
-types. The prelude's <code>Option&lt;T&gt;</code> and <code>Result&lt;T, E&gt;</code> are ordinary enums of exactly this kind (§21).
+types. <code>std</code>'s <code>Option&lt;T&gt;</code> and <code>Result&lt;T, E&gt;</code> are ordinary enums of exactly this kind (§21).
 Type arguments may be left off a literal when the declared type of the variable, parameter or field
 fixes them (§12).</p>
 <h3>Layout</h3>
@@ -2502,6 +2547,12 @@ The vocabulary is C++20's: <code>module</code>, <code>import</code>, <code>expor
 <em>private</em> by default: usable from its own module and the modules nested inside it. <code>export</code>
 on a declaration makes it usable from outside. An exported item inside a private module is only
 reachable where that module is.</p>
+<p>Each declaration adds one qualified name (<code>bank::fee</code>, <code>bank::Account::open</code>,
+<code>Shape::Circle</code>), and a name may be added only once, so declaring <code>fee</code> twice in <code>bank</code> is
+<code>diag.duplicate-item</code>. The same simple name in two different modules is two different names. An
+associated function <code>fn T::name</code> belongs in the module that declares <code>T</code>; anywhere else it is
+<code>diag.foreign-associated-fn</code>, so no program can add to, or replace, the functions of <code>std</code>'s
+<code>Vec</code>.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Modules and visibility</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
 <span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
 <span class="k">fn</span> check(<span class="t">bool</span> ok)
@@ -2589,6 +2640,67 @@ imports would give one name two meanings, qualify.</p>
     check(square(<span class="n">6</span>) == <span class="n">36</span>);           <span class="c">// resolves through the import</span>
     check(maths::square(<span class="n">7</span>) == <span class="n">49</span>);    <span class="c">// the qualified form still works</span>
 }</code></pre></figure>
+<p><code>import m;</code> naming a module does two things: <code>m</code> itself resolves, as with any import, and
+every item <code>m</code> exports, including the variants of its exported enums, can be used unqualified. This
+is how programs use the standard library: <code>import std;</code>. A name is looked up in a fixed order: the
+module's own declarations first, then single-name imports, then module imports, then the
+enclosing modules. So a module's own <code>print</code> wins over <code>std::print</code>, which stays reachable by its
+full name. If two imported modules both export a name, using that name unqualified is
+<code>diag.ambiguous-name</code>; importing both is fine, so a module that gains an export never breaks a
+program that does not use it. An import acts only in the module that writes it: a nested module, or
+a module in a file of its own, writes its own <code>import std;</code>.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Importing a module</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
+<span class="k">fn</span> check(<span class="t">bool</span> ok)
+{
+    <span class="t">i32</span> z = <span class="k">if</span> (ok)
+    {
+        <span class="n">1</span>
+    }
+    <span class="k">else</span>
+    {
+        <span class="n">0</span>
+    };
+    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
+}
+
+<span class="k">module</span> shapes
+{
+    <span class="k">import</span> std;
+
+    <span class="k">export</span> <span class="k">enum</span> Shape
+    {
+        Square(<span class="t">i32</span>),
+        Dot,
+    }
+
+    <span class="k">export</span> <span class="k">fn</span> describe(Shape s)
+    {
+        <span class="k">match</span> (s)
+        {
+            Square(_) : <span class="p">print</span>(<span class="s">&quot;square\n&quot;</span>),
+            Dot : <span class="p">print</span>(<span class="s">&quot;dot\n&quot;</span>),
+        }
+    }
+}
+
+<span class="k">import</span> shapes;
+
+<span class="k">fn</span> <span class="p">print</span>(<span class="t">str</span> s)                       <span class="c">// the root&#x27;s own print is found before std::print</span>
+{
+    std::<span class="p">print</span>(<span class="s">&quot;&gt; &quot;</span>);
+    std::<span class="p">print</span>(s);
+}
+
+<span class="k">fn</span> main()
+{
+    describe(Square(<span class="n">2</span>));              <span class="c">// shapes::describe and shapes::Shape::Square, unqualified</span>
+    <span class="p">print</span>(<span class="s">&quot;done\n&quot;</span>);
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>square
+&gt; done
+</pre></div></figure>
 <h3>A module in another file</h3>
 <p>A module's body can be a separate file. <code>module geo &quot;./geometry.cb&quot;;</code> means exactly
 <code>module geo { … }</code> with the file's declarations as the body: the same visibility, the same
@@ -2714,7 +2826,9 @@ destructor exactly as a normal scope exit would, and the program terminates repo
 name. Nothing can intercept this. The point is that a fault cannot corrupt state or leak an external
 resource on the way out, and that a program that reaches its end has never once violated a checked
 rule.</p>
-<figure class="code"><div class="code-head"><span class="code-title">A fault unwinds, then terminates</span><span class="badge bad">rejected: diag.div-by-zero</span></div><pre><code><span class="k">resource</span> <span class="k">struct</span> Guarded
+<figure class="code"><div class="code-head"><span class="code-title">A fault unwinds, then terminates</span><span class="badge bad">rejected: diag.div-by-zero</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">resource</span> <span class="k">struct</span> Guarded
 {
     <span class="t">i32</span> tag;
 }
@@ -2740,11 +2854,13 @@ program print the name, the rule that fired, what was required and what was obse
 hint.</p>
 <h3><code>Result</code>, <code>Option</code> and <code>?</code></h3>
 <p><code>Result&lt;T, E&gt;</code> is <code>Ok(T)</code> or <code>Err(E)</code>; <code>Option&lt;T&gt;</code> is <code>Some(T)</code> or <code>None</code>. Both are plain
-prelude enums, taken apart with <code>match</code>. The postfix <code>?</code> operator unwraps a <code>Result</code>: on <code>Ok(v)</code> it
+enums of <code>std</code>, taken apart with <code>match</code>. The postfix <code>?</code> operator unwraps a <code>Result</code>: on <code>Ok(v)</code> it
 yields <code>v</code>, on <code>Err(e)</code> it returns <code>Err(e)</code> from the enclosing function immediately. That function
 must therefore return <code>Result&lt;_, E&gt;</code> with exactly the same <code>E</code>; convert first with
 <code>map_err(r, f)</code> if the error types differ.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Result and ?</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<figure class="code"><div class="code-head"><span class="code-title">Result and ?</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
 <span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
 <span class="k">fn</span> check(<span class="t">bool</span> ok)
 {
@@ -2800,7 +2916,9 @@ must therefore return <code>Result&lt;_, E&gt;</code> with exactly the same <cod
         },
     }
 }</code></pre></figure>
-<figure class="code"><div class="code-head"><span class="code-title">? needs a matching return type</span><span class="badge bad">rejected: diag.propagate-outside-fallible-context</span></div><pre><code><span class="k">fn</span> f() : <span class="t">i32</span>
+<figure class="code"><div class="code-head"><span class="code-title">? needs a matching return type</span><span class="badge bad">rejected: diag.propagate-outside-fallible-context</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> f() : <span class="t">i32</span>
 {
     <span class="p">Result</span>&lt;<span class="t">i32</span>, <span class="t">i32</span>&gt; r = <span class="p">Ok</span>(<span class="n">1</span>);
     r?                                <span class="c">// <span class="bad">✗</span> <span class="dg">diag.propagate-outside-fallible-context</span>: f does not return Result&lt;_, i32&gt;</span>
@@ -2848,7 +2966,9 @@ never outlives its handle. What a thread borrows is still checked at every use, 
 the referent ends first (a handle kept in a variable declared outside the borrowed local's block,
 or an element released by a reallocating <code>Vec::push</code>), the thread's next use of it is
 <code>diag.stale-binding</code>.</p>
-<figure class="code"><div class="code-head"><span class="code-title">spawn and join</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<figure class="code"><div class="code-head"><span class="code-title">spawn and join</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
 <span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
 <span class="k">fn</span> check(<span class="t">bool</span> ok)
 {
@@ -3046,7 +3166,9 @@ from then on every ordinary rule applies to it. You can borrow it (<code>&amp;re
 it, or <code>drop</code> it. Reclaiming the same address twice gives the same object, so two references
 obtained that way are checked against each other like any two references. This is how <code>Vec</code>
 hands out references to its elements.</p>
-<figure class="code"><div class="code-head"><span class="code-title">reclaim</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<figure class="code"><div class="code-head"><span class="code-title">reclaim</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
 <span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
 <span class="k">fn</span> check(<span class="t">bool</span> ok)
 {
@@ -3086,8 +3208,8 @@ result may only be integers, floats, <code>bool</code>, <code>void</code> and <c
 is a <em>claim</em>: a genuine value of its declared type, but one whose relationship to anything
 else (that a returned length is right, that a pointer is valid) is not established until your code
 checks it.</p>
-<p>The prelude declares one extern, <code>write(rawptr&lt;u8&gt; buf, usize len) : isize</code>. The
-prelude's <code>print</code> (§21) is a thin safe wrapper over it, and it is how every number in this guide is
+<p><code>std</code> declares one extern, <code>write(rawptr&lt;u8&gt; buf, usize len) : isize</code>, and
+<code>std::print</code> (§21) is a thin safe wrapper over it, and it is how every number in this guide is
 written out. Linking, calling conventions and the rest of the foreign side are outside the language
 and documented by each implementation.</p>
 <p>Both implementations call real C functions on x86-64 Linux: an <code>extern fn</code> names a
@@ -3127,7 +3249,9 @@ FfiType, pointers included. The interpreter's memory is simulated, so it can pas
     check(distance == <span class="n">7</span>);
     check(<span class="k">unsafe</span> { toupper(<span class="n">99</span>) } == <span class="n">67</span>);                   <span class="c">// &#x27;c&#x27; -&gt; &#x27;C&#x27;</span>
 }</code></pre></figure>
-<figure class="code"><div class="code-head"><span class="code-title">Calling the write extern</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Write one byte to standard output through the `write` extern.</span>
+<figure class="code"><div class="code-head"><span class="code-title">Calling the write extern</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Write one byte to standard output through the `write` extern.</span>
 <span class="k">fn</span> put(<span class="t">u8</span> b)
 {
     <span class="k">auto</span> buf = [b];
@@ -3137,6 +3261,8 @@ FfiType, pointers included. The interpreter's memory is simulated, so it can pas
         <span class="p">write</span>(p, <span class="n">1</span>);
     }
 }
+
+<span class="k">import</span> std;
 
 <span class="k">fn</span> main()
 {
@@ -3150,7 +3276,9 @@ FfiType, pointers included. The interpreter's memory is simulated, so it can pas
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>Hi
 
 </pre></div></figure>
-<figure class="code"><div class="code-head"><span class="code-title">Only plain types cross an extern boundary</span><span class="badge bad">rejected: diag.extern-non-ffi-type</span></div><pre><code><span class="k">extern</span> <span class="k">fn</span> takes_vec(<span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v);      <span class="c">// <span class="bad">✗</span> <span class="dg">diag.extern-non-ffi-type</span>: a Vec cannot cross the boundary</span>
+<figure class="code"><div class="code-head"><span class="code-title">Only plain types cross an extern boundary</span><span class="badge bad">rejected: diag.extern-non-ffi-type</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">extern</span> <span class="k">fn</span> takes_vec(<span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v);      <span class="c">// <span class="bad">✗</span> <span class="dg">diag.extern-non-ffi-type</span>: a Vec cannot cross the boundary</span>
 
 <span class="k">fn</span> main()
 {
@@ -3168,16 +3296,19 @@ its life, because there is no operation that could break it.</p>
 </ul>
 </div>
 
-<nav class="pager"><a class="prev" href="#s19">&larr; §19 Concurrency</a><a class="top" href="#top">Top</a><a class="next" href="#s21">§21 The prelude and standard library &rarr;</a></nav></section>
+<nav class="pager"><a class="prev" href="#s19">&larr; §19 Concurrency</a><a class="top" href="#top">Top</a><a class="next" href="#s21">§21 The standard library, std &rarr;</a></nav></section>
 <section id="s21">
-<h2><span class="secnum">§21</span>The prelude and standard library</h2>
-<div class="spec-ref">Governing specification file: <code>spec/21-standard-library-semantics.md</code></div><p class="blurb">Option, Result, the intrinsics, str and print, and Vec, String and Rc written in CobaltC.</p>
-<p>The prelude is what every program gets without importing anything: the intrinsics, the
-<code>Option</code> and <code>Result</code> enums, the text value type <code>str</code> with <code>print</code>, and three library types written
-in CobaltC itself, <code>Vec&lt;T&gt;</code>, <code>String</code> and <code>Rc&lt;T&gt;</code>. Their source is part of the specification, which
-is the language's proof that the mechanisms in this guide are enough to build real containers.</p>
-<h3>Prelude types</h3>
-<figure class="code"><div class="code-head"><span class="code-title">Declared by the prelude</span></div><pre><code><span class="k">export</span> <span class="k">enum</span> <span class="p">Option</span>&lt;T&gt;
+<h2><span class="secnum">§21</span>The standard library, std</h2>
+<div class="spec-ref">Governing specification file: <code>spec/21-standard-library-semantics.md</code></div><p class="blurb">import std; Option, Result, the intrinsics, str and print, and Vec, String and Rc written in CobaltC.</p>
+<p>The standard library is the module <code>std</code>: the <code>Option</code> and <code>Result</code> enums, <code>print</code>,
+<code>write</code> and <code>map_err</code>, and three library types written in CobaltC itself, <code>Vec&lt;T&gt;</code>, <code>String</code> and
+<code>Rc&lt;T&gt;</code>. A program uses it with <code>import std;</code>, or by qualified paths such as <code>std::Vec</code>. Its source
+is part of the specification, which is the language's proof that the mechanisms in this guide are
+enough to build real containers. Being a module, it keeps its private parts private: no program
+can touch <code>Vec</code>'s length or buffer, <code>String</code>'s bytes or <code>Rc</code>'s count. The intrinsics and the text
+value type <code>str</code> belong to the language itself and need no import.</p>
+<h3>Types in <code>std</code></h3>
+<figure class="code"><div class="code-head"><span class="code-title">Declared in std</span></div><pre><code><span class="k">export</span> <span class="k">enum</span> <span class="p">Option</span>&lt;T&gt;
 {
     <span class="p">Some</span>(T),
     <span class="p">None</span>
@@ -3195,7 +3326,7 @@ is the language's proof that the mechanisms in this guide are enough to build re
 
 <span class="k">export</span> <span class="k">struct</span> <span class="p">Utf8Error</span>
 {
-    <span class="t">usize</span> offset;                     <span class="c">// where validation failed</span>
+    <span class="k">export</span> <span class="t">usize</span> offset;              <span class="c">// where validation failed</span>
 }</code></pre></figure>
 <h3>Intrinsics</h3>
 <p>Intrinsics are called like functions; their behaviour is given by rules rather than by a
@@ -3213,10 +3344,10 @@ body. Type arguments are written <code>name&lt;T&gt;(…)</code> where the signa
 <tr><td><code>reclaim&lt;T&gt;(p)</code>, <code>release(p, n)</code>, <code>copy_raw(dst, src, n)</code></td><td>raw memory as objects (unsafe)</td><td>§20</td></tr>
 <tr><td><code>allocate(n, align)</code>, <code>deallocate(p, n, align)</code></td><td>raw allocation (<code>deallocate</code> is unsafe)</td><td>§20</td></tr>
 <tr><td><code>dangling&lt;T&gt;()</code></td><td>a well-aligned non-null address that must never be dereferenced; used for empty containers</td><td>§21</td></tr>
-<tr><td><code>write(buf, len)</code></td><td>the one extern: write bytes to standard output (unsafe)</td><td>§20</td></tr>
+<tr><td><code>write(buf, len)</code></td><td><code>std</code>'s one extern: write bytes to standard output (unsafe)</td><td>§20</td></tr>
 <tr><td><code>str_len(s)</code>, <code>str_byte(s, i)</code>, <code>str_ptr(s)</code></td><td>a <code>str</code>'s byte count, one byte (bounds-checked), and the address of its bytes (safe)</td><td>§21</td></tr>
-<tr><td><code>print(s)</code></td><td>write a <code>str</code> to standard output; an ordinary prelude function holding the one <code>unsafe</code></td><td>§21</td></tr>
-<tr><td><code>map_err(r, f)</code></td><td>convert a <code>Result</code>'s error type with <code>f</code></td><td>§18</td></tr>
+<tr><td><code>print(s)</code></td><td>write a <code>str</code> to standard output; an ordinary function of <code>std</code> holding the one <code>unsafe</code></td><td>§21</td></tr>
+<tr><td><code>map_err(r, f)</code></td><td>convert a <code>Result</code>'s error type with <code>f</code> (a function of <code>std</code>)</td><td>§18</td></tr>
 </tbody>
 </table>
 <h3><code>str</code> and <code>print</code></h3>
@@ -3231,10 +3362,12 @@ it, nothing frees it, and you can pass it, store it in a struct or a <code>Vec&l
 <code>==</code>, and hand it to another thread without any annotation. Its bytes are reached with <code>str_len</code>
 and <code>str_byte</code>; there is no indexing or slicing syntax. Escapes are <code>\n \r \t \0 \\ \&quot;</code> and
 <code>\u{…}</code> for a Unicode scalar value; a literal must close on its own line.</p>
-<p><code>print(s)</code> writes a <code>str</code> to standard output. It is an ordinary function in the prelude
+<p><code>print(s)</code> writes a <code>str</code> to standard output. It is an ordinary function of <code>std</code>
 whose body is the <code>write</code> extern inside an <code>unsafe</code> block, so a program that only prints text never
 writes <code>unsafe</code> itself.</p>
-<figure class="code"><div class="code-head"><span class="code-title">str values</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<figure class="code"><div class="code-head"><span class="code-title">str values</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
 <span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
 <span class="k">fn</span> check(<span class="t">bool</span> ok)
 {
@@ -3306,7 +3439,9 @@ copied out (so <code>Vec&lt;Vec&lt;i32&gt;&gt;</code> works without any special 
 <tr><td><code>Vec::index_exclusive</code></td><td><code>(ref&lt;Vec&lt;T&gt;, exclusive&gt;, usize) : ref&lt;T, exclusive&gt;</code></td><td>as above, for writing</td></tr>
 </tbody>
 </table>
-<figure class="code"><div class="code-head"><span class="code-title">Using Vec</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<figure class="code"><div class="code-head"><span class="code-title">Using Vec</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
 <span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
 <span class="k">fn</span> check(<span class="t">bool</span> ok)
 {
@@ -3352,7 +3487,9 @@ copied out (so <code>Vec&lt;Vec&lt;i32&gt;&gt;</code> works without any special 
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> nested, v);        <span class="c">// v moves into the outer Vec</span>
     check(<span class="p">Vec</span>::len(<span class="p">Vec</span>::index_shared(&amp;nested, <span class="n">0</span>)) == <span class="n">8</span>);
 }                                     <span class="c">// nested is destroyed: each inner Vec, then the outer buffer</span></code></pre></figure>
-<figure class="code"><div class="code-head"><span class="code-title">Vec bounds</span><span class="badge bad">rejected: diag.index-out-of-bounds</span></div><pre><code><span class="k">fn</span> main()
+<figure class="code"><div class="code-head"><span class="code-title">Vec bounds</span><span class="badge bad">rejected: diag.index-out-of-bounds</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
 {
     <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v = <span class="p">Vec</span>::new();
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">1</span>);
@@ -3361,7 +3498,9 @@ copied out (so <code>Vec&lt;Vec&lt;i32&gt;&gt;</code> works without any special 
 <p>A <code>Vec</code> can hold references. While it does, they count as live borrows: the referent
 cannot be written past them, and a stored <code>&amp;mut</code> is the only way in until the element is popped or
 the <code>Vec</code> is destroyed.</p>
-<figure class="code"><div class="code-head"><span class="code-title">A Vec of references</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<figure class="code"><div class="code-head"><span class="code-title">A Vec of references</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
 <span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
 <span class="k">fn</span> check(<span class="t">bool</span> ok)
 {
@@ -3391,7 +3530,9 @@ the <code>Vec</code> is destroyed.</p>
     check(x == <span class="n">7</span>);
     x = <span class="n">8</span>;                                           <span class="c">// x is free again</span>
 }</code></pre></figure>
-<figure class="code"><div class="code-head"><span class="code-title">Writing past a stored borrow</span><span class="badge bad">rejected: diag.aliasing-conflict</span></div><pre><code><span class="k">fn</span> main()
+<figure class="code"><div class="code-head"><span class="code-title">Writing past a stored borrow</span><span class="badge bad">rejected: diag.aliasing-conflict</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
 {
     <span class="t">i32</span> x = <span class="n">1</span>;
     <span class="p">Vec</span>&lt;<span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">exclusive</span>&gt;&gt; writers = <span class="p">Vec</span>::new();
@@ -3417,7 +3558,9 @@ is the trust-transition pattern of §20 in miniature.</p>
 <tr><td><code>String::into_bytes</code></td><td><code>(String) : Vec&lt;u8&gt;</code> (gives the bytes back, consuming the string)</td></tr>
 </tbody>
 </table>
-<figure class="code"><div class="code-head"><span class="code-title">Validating bytes into a String</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<figure class="code"><div class="code-head"><span class="code-title">Validating bytes into a String</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
 <span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
 <span class="k">fn</span> check(<span class="t">bool</span> ok)
 {
@@ -3498,7 +3641,7 @@ need an owner.</p>
 rule). Going from <code>str</code> to <code>String</code> is an explicit call that makes a copy, and nothing turns a
 <code>String</code> back into a <code>str</code>: a <code>str</code> is always a literal's value, so it cannot refer to bytes that
 something else owns.</p>
-<div class="callout note"><div class="callout-title">Printing other text</div>The prelude prints only <code>str</code>. <code>print</code> is the one output function it provides, because
+<div class="callout note"><div class="callout-title">Printing other text</div><code>std</code> prints only <code>str</code>. <code>print</code> is the one output function it provides, because
 a <code>str</code> is the text the language guarantees is valid and printing it is what almost every program
 does. Printing a <code>u8</code>, a <code>Vec&lt;u8&gt;</code> or a <code>String</code> is left to your own code, written the way <code>print</code>
 itself is: a few lines around the <code>write</code> extern inside <code>unsafe</code>, as in the two examples below.
@@ -3508,7 +3651,9 @@ through a shared reference. <code>print_string</code> is more awkward: the libra
 <code>String</code>'s bytes, so it takes the <code>String</code>, prints its bytes, and hands back a rebuilt one, which
 runs the UTF-8 validator a second time. The caller receives it in a new binding, because a binding
 whose value has moved cannot be assigned again.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Printing a byte, a Vec<u8> and a String</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<figure class="code"><div class="code-head"><span class="code-title">Printing a byte, a Vec<u8> and a String</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
 <span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
 <span class="k">fn</span> check(<span class="t">bool</span> ok)
 {
@@ -3523,7 +3668,7 @@ whose value has moved cannot be assigned again.</p>
     <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
 }
 
-<span class="c">// Write one byte to standard output: the same shape as the prelude&#x27;s print.</span>
+<span class="c">// Write one byte to standard output: the same shape as std&#x27;s print.</span>
 <span class="k">fn</span> put(<span class="t">u8</span> b)
 {
     <span class="k">auto</span> buf = [b];                   <span class="c">// an array&lt;u8, 1&gt;</span>
@@ -3579,7 +3724,9 @@ café
 most negative <code>i32</code> can be negated safely. <code>print_f32</code> prints three decimal places: it handles NaN
 and infinity, scales by 1000 and rounds with <code>to_int</code>, and switches to scientific form for values
 too large for that scaling to fit in an <code>i64</code>.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Printing an i32 and an f32</span><span class="badge ok">runs</span></div><pre><code><span class="k">fn</span> put(<span class="t">u8</span> b)
+<figure class="code"><div class="code-head"><span class="code-title">Printing an i32 and an f32</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> put(<span class="t">u8</span> b)
 {
     <span class="k">auto</span> buf = [b];
     <span class="t">rawptr</span>&lt;<span class="t">u8</span>&gt; p = <span class="p">reinterpret_ptr</span>&lt;<span class="t">u8</span>&gt;(<span class="p">rawptr_of</span>(&amp;buf));
@@ -3686,11 +3833,15 @@ too large for that scaling to fit in an <code>i64</code>.</p>
 3.142 -0.500 12345.678 6.000e10
 inf NaN
 </pre></div></figure>
-<figure class="code"><div class="code-head"><span class="code-title">A literal is not a String</span><span class="badge bad">rejected: diag.type-mismatch</span></div><pre><code><span class="k">fn</span> main()
+<figure class="code"><div class="code-head"><span class="code-title">A literal is not a String</span><span class="badge bad">rejected: diag.type-mismatch</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
 {
     <span class="p">String</span> s = <span class="s">&quot;hi&quot;</span>;                  <span class="c">// <span class="bad">✗</span> <span class="dg">diag.type-mismatch</span> (static): &quot;hi&quot; is a str</span>
 }</code></pre></figure>
-<figure class="code"><div class="code-head"><span class="code-title">The bridge is explicit</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<figure class="code"><div class="code-head"><span class="code-title">The bridge is explicit</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
 <span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
 <span class="k">fn</span> check(<span class="t">bool</span> ok)
 {
@@ -3722,7 +3873,9 @@ shared reference); put a <code>mutex</code> inside if you need mutation. <code>R
 <tr><td><code>Rc::get</code></td><td><code>(ref&lt;Rc&lt;T&gt;, shared&gt;) : ref&lt;T, shared&gt;</code></td></tr>
 </tbody>
 </table>
-<figure class="code"><div class="code-head"><span class="code-title">Reference counting</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<figure class="code"><div class="code-head"><span class="code-title">Reference counting</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
 <span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
 <span class="k">fn</span> check(<span class="t">bool</span> ok)
 {
@@ -3941,7 +4094,7 @@ value of <code>dangling&lt;T&gt;()</code>; the encoding of function values; the 
 <code>str</code>'s bytes and whether equal values share one; and the form in which faults and diagnostics are
 reported. Everything else is fixed by the language.</p>
 
-<nav class="pager"><a class="prev" href="#s21">&larr; §21 The prelude and standard library</a><a class="top" href="#top">Top</a><a class="next" href="#appx">A Appendix: diagnostics &rarr;</a></nav></section>
+<nav class="pager"><a class="prev" href="#s21">&larr; §21 The standard library, std</a><a class="top" href="#top">Top</a><a class="next" href="#appx">A Appendix: diagnostics &rarr;</a></nav></section>
 <section id="appx">
 <h2><span class="secnum">A</span>Appendix: diagnostics</h2>
 <p class="blurb">Every named diagnostic, what it means, and the usual fix.</p>
@@ -3957,6 +4110,8 @@ rule is applied statically where the checker can see the problem and dynamically
 <tr><td><code>diag.module-file-not-found</code></td><td>static</td><td><code>module m &quot;…&quot;;</code> names no readable file</td><td>fix the path (relative to the declaring file) or create the file</td></tr>
 <tr><td><code>diag.module-cycle</code></td><td>static</td><td>a file's module body loads itself again, directly or through other files</td><td>move the shared items into a third file both name</td></tr>
 <tr><td><code>diag.module-file-duplicate</code></td><td>static</td><td>one file is named by two <code>module</code> declarations</td><td>declare it once; reach it by qualified path or <code>import</code></td></tr>
+<tr><td><code>diag.duplicate-item</code></td><td>static</td><td>two declarations add the same qualified name</td><td>rename one, or move it into a module</td></tr>
+<tr><td><code>diag.foreign-associated-fn</code></td><td>static</td><td><code>fn T::name</code> in a module that does not declare <code>T</code> (for example <code>fn Vec::first_or</code> outside <code>std</code>)</td><td>declare a plain function, or put it in <code>T</code>'s module</td></tr>
 <tr><td><code>diag.no-main</code></td><td>static</td><td>no <code>fn main()</code> at the root module (a <code>main</code> inside a module is just <code>m::main</code>)</td><td>declare <code>fn main()</code> at the root, or run the file that has one</td></tr>
 <tr><td><code>diag.div-overflow</code></td><td>both</td><td><code>min / -1</code> or <code>min % -1</code> for a signed type</td><td><code>checked_div</code>, or widen first</td></tr>
 <tr><td><code>diag.transfer-without-authority</code></td><td>both</td><td>a move from a binding that no longer holds its resource (already moved or destroyed)</td><td>move from the current holder</td></tr>
