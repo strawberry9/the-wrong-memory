@@ -176,6 +176,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 </aside>
 <main>
 
+
 <div style="text-align: center;">
   <img src="CobaltC_Cyber_Guardian_Poster_small.png" alt="CobaltC">
 </div>
@@ -587,6 +588,13 @@ L3
 <li><strong>Library calls are qualified</strong>: <code>Vec::push(&amp;mut v, x)</code>, <code>Vec::len(&amp;v)</code>, <code>Vec::index_shared(&amp;v, i)</code>. There is no method-call syntax.</li>
 <li><strong>Text is a <code>str</code> value; <code>print</code> writes it.</strong> <code>&quot;C&quot;</code> and <code>&quot;\n&quot;</code> are <code>str</code> literals, copyable values with no owner. There is no number formatting in the prelude, so the <code>out</code> module turns digits into bytes and writes them through the <code>write</code> extern inside an <code>unsafe</code> block; <code>b&quot;42&quot;</code> is a byte-array literal, <code>array&lt;u8, 2&gt;</code>.</li>
 </ul>
+<p>Further showcases can be found in the repository's
+<a href="https://github.com/strawberry9/CobaltC/tree/main/showcase">showcase directory</a>:
+twenty-nine complete programs in three tiers — from FizzBuzz and a Fibonacci that finds its own
+overflow point, through threads, mutexes and reference counting, to a bytecode interpreter, an
+ASCII Mandelbrot and a hex dump of values' in-memory layout — each chosen to show something
+particular to CobaltC, and each run under both the interpreter and the compiler with identical
+output.</p>
 
 <nav class="pager"><a class="prev" href="#intro">&larr; Introduction</a><a class="top" href="#top">Top</a><a class="next" href="#s06">§06 Arithmetic and numeric types &rarr;</a></nav></section>
 <section id="s06">
