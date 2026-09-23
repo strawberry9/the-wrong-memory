@@ -140,7 +140,6 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
             width: 30%;
             height: 30%;          
         }
-
 </style>
 </head>
 <body>
@@ -350,12 +349,19 @@ mechanism or would have hidden a semantic fact the language wants to keep visibl
 syntax. After that there is one section per chapter of the normative specification, numbered the
 same way (§06 to §22) so you can cross-reference. If you are new, a good order is: the tour, then
 §22 (syntax reference), then §06 onward. Each section ends with a short list of rules of thumb.</p>
-<p>Every code block that is a complete program has been run through the reference
-interpreter. A green <em>runs</em> badge means it executes to completion; a red badge names the
+<p>Every code block that is a complete program has been run through both implementations,
+the reference interpreter <code>coby</code> and the native compiler <code>cobc</code>, which agree on every one. A green
+<em>runs</em> badge means it executes to completion; a red badge names the
 diagnostic the language reports for that program. Diagnostics are labelled <em>static</em> (the
 program is rejected before it runs) or <em>dynamic</em> (a checked fault at run time); where a check
 is static only when the operands are literal, both labels may appear in the text. Comments inside
 examples use &#10003; for accepted lines and &#10007; for rejected ones.</p>
+<h3>Running a program</h3>
+<p>Save a program as a <code>.cb</code> file. <code>coby program.cb</code> interprets it; <code>cobc --run
+program.cb</code> compiles it to native code and runs it, and <code>cobc -o program program.cb</code> keeps the
+executable. Both take the program's entry file (it may name other files as modules, §17), both exit
+with status 0 when the program runs to completion, and both print a rejected program's diagnostic
+the same way and exit with status 1. The repository's README says how to build them.</p>
 <p>All code in this guide uses Allman brace style (every opening brace on its own
 line) and four-space indentation. That is a documentation convention: CobaltC ignores whitespace
 between tokens, so any brace placement is equally valid.</p>
@@ -365,8 +371,8 @@ between tokens, so any brace placement is equally valid.</p>
 <h2>A tour in one program</h2>
 <p class="blurb">A complete, runnable program that introduces the syntax before the reference sections begin.</p>
 <p>Here is a complete program. Read it once for the shape of the syntax; every
-construct it uses has its own section later. It runs on the reference interpreter and prints the
-output shown below the code.</p>
+construct it uses has its own section later. It runs under both the interpreter and the compiler
+and prints the output shown below the code.</p>
 <figure class="code"><div class="code-head"><span class="code-title">tour.cb</span><span class="badge ok">runs</span></div><pre><code><span class="c">// ------------------------------------------------------------------</span>
 <span class="c">// A first CobaltC program: a temperature log.</span>
 <span class="c">//</span>
@@ -1016,6 +1022,20 @@ this one (the thing it was borrowed from). Forming a conflicting borrow is repor
     <span class="k">auto</span> r1 = &amp;<span class="k">mut</span> x;                 <span class="c">// <span class="ok">✓</span> exclusive</span>
     <span class="k">auto</span> r2 = &amp;x;                     <span class="c">// <span class="bad">✗</span> <span class="dg">diag.aliasing-conflict</span>: r1 is exclusive and still live</span>
     *r1 = <span class="n">2</span>;
+}</code></pre></figure>
+<p>Borrows in one argument list are all formed before the call holds any of them, so passing
+two conflicting references to the same storage is accepted at the call. The conflict is reported at
+the first access inside the function that meets both, the point where it actually matters.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Two references to one variable in a call</span><span class="badge bad">rejected: diag.aliasing-conflict</span></div><pre><code><span class="k">fn</span> set_then_read(<span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">exclusive</span>&gt; a, <span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt; b) : <span class="t">i32</span>
+{
+    *a = <span class="n">1</span>;                           <span class="c">// <span class="bad">✗</span> <span class="dg">diag.aliasing-conflict</span> (dynamic): b reaches the same i32</span>
+    *b
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="t">i32</span> x = <span class="n">0</span>;
+    set_then_read(&amp;<span class="k">mut</span> x, &amp;x);        <span class="c">// accepted here; each borrow formed while the other was not yet held</span>
 }</code></pre></figure>
 <h3>When does a borrow end?</h3>
 <p>A reference lives as long as something holds it. A reference stored in a variable lives
@@ -1699,6 +1719,34 @@ rejected:</p>
 {
     <span class="k">auto</span> v = <span class="p">Vec</span>::new();              <span class="c">// <span class="bad">✗</span> <span class="dg">diag.cannot-infer-type-parameter</span>: nothing says what T is</span>
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">1</span>);             <span class="c">//   (a later use does not count)</span>
+}</code></pre></figure>
+<p>The same holds when the call is an argument to another generic call. <code>Mutex::new&lt;T&gt;</code> is
+one: with <code>auto</code> nothing reaches it, so nothing reaches the <code>Vec::new()</code> inside it either. Give the
+outer binding its type and both are fixed.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Inference through Mutex::new</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
+<span class="k">fn</span> check(<span class="t">bool</span> ok)
+{
+    <span class="t">i32</span> z = <span class="k">if</span> (ok)
+    {
+        <span class="n">1</span>
+    }
+    <span class="k">else</span>
+    {
+        <span class="n">0</span>
+    };
+    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="t">mutex</span>&lt;<span class="p">Vec</span>&lt;<span class="t">u8</span>&gt;&gt; m = <span class="p">Mutex</span>::new(<span class="p">Vec</span>::new());   <span class="c">// T of Mutex::new, then T of Vec::new, from the declaration</span>
+    <span class="t">mutex</span>&lt;<span class="t">i64</span>&gt; big = <span class="p">Mutex</span>::new(<span class="n">5000000000</span>);     <span class="c">// and the literal is an i64 for the same reason</span>
+    check(<span class="p">Vec</span>::len(&amp;*<span class="p">lock</span>(&amp;m)) == <span class="n">0</span>);
+}</code></pre></figure>
+<figure class="code"><div class="code-head"><span class="code-title">Nothing to infer from</span><span class="badge bad">rejected: diag.cannot-infer-type-parameter</span></div><pre><code><span class="k">fn</span> main()
+{
+    <span class="k">auto</span> m = <span class="p">Mutex</span>::new(<span class="p">Vec</span>::new());  <span class="c">// <span class="bad">✗</span> <span class="dg">diag.cannot-infer-type-parameter</span>: nothing fixes Vec&#x27;s T</span>
 }</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">Where inferred types come from</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
 <span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
@@ -2593,7 +2641,7 @@ location, and a library moves as a unit. Use forward slashes and stay inside the
 declarations (<code>diag.module-cycle</code>), and one file named by two declarations
 (<code>diag.module-file-duplicate</code> — it would be two distinct modules and two distinct <code>Rect</code> types).
 A <code>fn main</code> in a loaded file is just the item <code>geo::main</code>; the program's entry is the root file's
-<code>main</code>, and a program with none is <code>diag.no-main</code>. The reference interpreter reports a diagnostic
+<code>main</code>, and a program with none is <code>diag.no-main</code>. Both implementations report a diagnostic
 inside a loaded file against that file and its own line.</p>
 <h3>How a name is found</h3>
 <p>An unqualified name is first looked up as a local variable or parameter. Failing that, in
@@ -2683,8 +2731,9 @@ rule.</p>
     <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v = <span class="p">Vec</span>::new();
     divide(<span class="n">1</span>, <span class="n">0</span>);                     <span class="c">// <span class="bad">✗</span> <span class="dg">diag.div-by-zero</span> (dynamic): v and g are destroyed, then the program ends</span>
 }</code></pre></figure>
-<p>Faults are named <code>diag.…</code> and listed in the appendix. The interpreter prints the name,
-the rule that fired, what was required and what was observed, and a repair hint.</p>
+<p>Faults are named <code>diag.…</code> and listed in the appendix. Both the interpreter and a compiled
+program print the name, the rule that fired, what was required and what was observed, and a repair
+hint.</p>
 <h3><code>Result</code>, <code>Option</code> and <code>?</code></h3>
 <p><code>Result&lt;T, E&gt;</code> is <code>Ok(T)</code> or <code>Err(E)</code>; <code>Option&lt;T&gt;</code> is <code>Some(T)</code> or <code>None</code>. Both are plain
 prelude enums, taken apart with <code>match</code>. The postfix <code>?</code> operator unwraps a <code>Result</code>: on <code>Ok(v)</code> it
@@ -2790,8 +2839,11 @@ starts. What the primitives add is a way to <em>share mutable state on purpose</
 the spawning thread is rejected: <code>diag.spawn-borrow-closure</code>). Arguments are passed exactly as for a
 call: plain values are copied, resources move to the new thread, references are lent. <code>join(h)</code>
 waits for the thread and returns its result, consuming the handle. A handle is a resource: if it is
-still alive when its scope ends, the thread is joined then and its result discarded, so a thread can
-never outlive the frame that created it and nothing it borrowed can be freed underneath it.</p>
+still alive when its scope ends, the thread is joined then and its result discarded, so a thread
+never outlives its handle. What a thread borrows is still checked at every use, as in any call: if
+the referent ends first (a handle kept in a variable declared outside the borrowed local's block,
+or an element released by a reallocating <code>Vec::push</code>), the thread's next use of it is
+<code>diag.stale-binding</code>.</p>
 <figure class="code"><div class="code-head"><span class="code-title">spawn and join</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
 <span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
 <span class="k">fn</span> check(<span class="t">bool</span> ok)
@@ -2898,6 +2950,11 @@ serialises access.</p>
 thread-local storage. Steps of different threads interleave at the granularity of single
 operations and every operation sees a consistent state; a <code>join</code> or a <code>lock</code> that cannot proceed
 simply waits. <code>Rc&lt;T&gt;</code> is not thread-safe; to share across threads, share a <code>mutex</code>.</p>
+<div class="callout note"><div class="callout-title">Parallel or interleaved</div>The compiler <code>cobc</code> runs threads in parallel on separate cores; the interpreter <code>coby</code>
+runs them one at a time. A program that follows the rules gets the same result from both. Where the
+language leaves an outcome to timing — writing a variable while another thread may still be reading
+it through a reference is <code>diag.aliasing-conflict</code> if the thread is still running, and fine if it has
+finished — each is free to show either permitted outcome, and they may differ.</div>
 <div class="callout rule"><div class="callout-title">Rules of thumb</div><ul>
 <li>Every thread has an owner: the handle. Join it explicitly to get the result; let scope end join it if you do not care.</li>
 <li>Share a <code>mutex</code> by shared reference; keep each guard in the smallest block that needs it.</li>
@@ -3858,7 +3915,6 @@ rule is applied statically where the checker can see the problem and dynamically
 </table>
 
 <nav class="pager"><a class="prev" href="#s22">&larr; §22 Surface syntax reference</a><a class="top" href="#top">Top</a></nav></section>
-
 
 <div class="book-navigation">
     <a href="Appendix_05.html" class="nav-btn">&larr; Previous</a>
