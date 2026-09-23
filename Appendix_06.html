@@ -176,7 +176,6 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 </aside>
 <main>
 
-
 <div style="text-align: center;">
   <img src="CobaltC_Cyber_Guardian_Poster_small.png" alt="CobaltC">
 </div>
@@ -276,6 +275,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
     </a>
 </p>
 <p>-----------------------------------------------------------------------------------</p>
+
 
 
 <section id="intro">
@@ -589,12 +589,9 @@ L3
 <li><strong>Text is a <code>str</code> value; <code>print</code> writes it.</strong> <code>&quot;C&quot;</code> and <code>&quot;\n&quot;</code> are <code>str</code> literals, copyable values with no owner. There is no number formatting in the prelude, so the <code>out</code> module turns digits into bytes and writes them through the <code>write</code> extern inside an <code>unsafe</code> block; <code>b&quot;42&quot;</code> is a byte-array literal, <code>array&lt;u8, 2&gt;</code>.</li>
 </ul>
 <p>Further showcases can be found in the repository's
-<a href="https://github.com/strawberry9/CobaltC/tree/main/showcase">showcase directory</a>:
-twenty-nine complete programs in three tiers — from FizzBuzz and a Fibonacci that finds its own
-overflow point, through threads, mutexes and reference counting, to a bytecode interpreter, an
-ASCII Mandelbrot and a hex dump of values' in-memory layout — each chosen to show something
-particular to CobaltC, and each run under both the interpreter and the compiler with identical
-output.</p>
+<a href="https://github.com/strawberry9/CobaltC/tree/main/showcase">showcase directory</a>; its
+<a href="https://github.com/strawberry9/CobaltC/blob/main/showcase/README.md">README</a> describes
+them all.</p>
 
 <nav class="pager"><a class="prev" href="#intro">&larr; Introduction</a><a class="top" href="#top">Top</a><a class="next" href="#s06">§06 Arithmetic and numeric types &rarr;</a></nav></section>
 <section id="s06">
@@ -3093,6 +3090,43 @@ checks it.</p>
 prelude's <code>print</code> (§21) is a thin safe wrapper over it, and it is how every number in this guide is
 written out. Linking, calling conventions and the rest of the foreign side are outside the language
 and documented by each implementation.</p>
+<p>Both implementations call real C functions on x86-64 Linux: an <code>extern fn</code> names a
+function in the C library or the maths library by its declared name. The compiler passes any
+FfiType, pointers included. The interpreter's memory is simulated, so it can pass only integers,
+<code>bool</code> and floats, and reports a call that needs a pointer as unsupported rather than guessing.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Calling C functions</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
+<span class="k">fn</span> check(<span class="t">bool</span> ok)
+{
+    <span class="t">i32</span> z = <span class="k">if</span> (ok)
+    {
+        <span class="n">1</span>
+    }
+    <span class="k">else</span>
+    {
+        <span class="n">0</span>
+    };
+    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
+}
+
+<span class="k">extern</span> <span class="k">fn</span> sqrt(<span class="t">f64</span> x) : <span class="t">f64</span>;          <span class="c">// from the maths library</span>
+<span class="k">extern</span> <span class="k">fn</span> labs(<span class="t">i64</span> x) : <span class="t">i64</span>;          <span class="c">// from the C library</span>
+<span class="k">extern</span> <span class="k">fn</span> toupper(<span class="t">i32</span> c) : <span class="t">i32</span>;
+
+<span class="k">fn</span> main()
+{
+    <span class="t">f64</span> root = <span class="k">unsafe</span>
+    {
+        sqrt(<span class="n">2.0</span>)
+    };
+    check(root * root &gt; <span class="n">1.9999</span> &amp;&amp; root * root &lt; <span class="n">2.0001</span>);   <span class="c">// a claim, checked before it is trusted</span>
+    <span class="t">i64</span> distance = <span class="k">unsafe</span>
+    {
+        labs(<span class="n">3</span> - <span class="n">10</span>)
+    };
+    check(distance == <span class="n">7</span>);
+    check(<span class="k">unsafe</span> { toupper(<span class="n">99</span>) } == <span class="n">67</span>);                   <span class="c">// &#x27;c&#x27; -&gt; &#x27;C&#x27;</span>
+}</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">Calling the write extern</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Write one byte to standard output through the `write` extern.</span>
 <span class="k">fn</span> put(<span class="t">u8</span> b)
 {
