@@ -603,7 +603,7 @@ them all.</p>
 <nav class="pager"><a class="prev" href="#intro">&larr; Introduction</a><a class="top" href="#top">Top</a><a class="next" href="#s06">§06 Arithmetic and numeric types &rarr;</a></nav></section>
 <section id="s06">
 <h2><span class="secnum">§06</span>Arithmetic and numeric types</h2>
-<div class="spec-ref">Governing specification file: <code>spec/06-arithmetic.md</code></div><p class="blurb">Checked integer arithmetic, explicit conversions, and how literals get their types.</p>
+<div class="spec-ref">Governing specification file: <code>spec/06-arithmetic.md</code></div><p class="blurb">Checked integer arithmetic, explicit conversions, how literals get their types, and the sizes and limits of types.</p>
 <p>Numbers are where silent corruption usually starts, so CobaltC's arithmetic is
 <em>checked by default</em>: an operation whose mathematical result does not fit its type does not
 wrap around, it faults. Every other policy (wrapping, saturating, or returning <code>None</code>) is a named
@@ -628,8 +628,8 @@ type comes from, in order: an explicit suffix <code>123: u8</code>; the <em>expe
 (a declared variable type, a parameter type, a field type, or the other operand of the same
 operator); otherwise the default, <code>i32</code> for integers and <code>f64</code> for floats. A literal that does not
 fit its type is a static error. A minus written directly before an integer literal is checked
-with it, as one negative value, so <code>-2147483648</code> is the smallest <code>i32</code>; there are no named
-limits such as <code>i32::MIN</code>. Float literals are <code>digits . digits</code>, optionally suffixed
+with it, as one negative value, so <code>-2147483648</code> is the smallest <code>i32</code>. A type's limits also
+have names, <code>min_value&lt;i32&gt;()</code> and <code>max_value&lt;i32&gt;()</code> (below). Float literals are <code>digits . digits</code>, optionally suffixed
 <code>: f32</code>. A string literal <code>&quot;…&quot;</code> is always a <code>str</code> and a byte literal <code>b&quot;…&quot;</code> always an
 <code>array&lt;u8, N&gt;</code> (§21, §22); neither takes an expected type.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Literal typing</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
@@ -792,9 +792,9 @@ conversion. Each takes the target type as a type argument.</p>
 <thead><tr><th>Intrinsic</th><th>From → to</th><th>Behaviour</th></tr></thead>
 <tbody>
 <tr><td><code>widen&lt;U&gt;(x)</code></td><td>integer to a wider integer whose range contains every value</td><td>always exact, never faults (<code>u8 → i32</code>, <code>i32 → i64</code>)</td></tr>
-<tr><td><code>narrow&lt;U&gt;(x)</code></td><td>integer to an integer that cannot hold every value</td><td>checked: <code>diag.narrowing-overflow</code> if <code>x</code> does not fit</td></tr>
-<tr><td><code>narrow_wrapping&lt;U&gt;(x)</code></td><td>as <code>narrow</code></td><td>keeps the low bits, never faults</td></tr>
-<tr><td><code>reinterpret&lt;U&gt;(x)</code></td><td>between same-width signed and unsigned (and <code>usize</code> ⇄ <code>isize</code>)</td><td>the same bit pattern read as the other type</td></tr>
+<tr><td><code>narrow&lt;U&gt;(x)</code></td><td>any integer to any integer</td><td>checked: <code>diag.narrowing-overflow</code> if <code>x</code> does not fit</td></tr>
+<tr><td><code>narrow_wrapping&lt;U&gt;(x)</code></td><td>any integer to any integer</td><td>keeps the low bits, never faults</td></tr>
+<tr><td><code>reinterpret&lt;U&gt;(x)</code></td><td>between the signed and unsigned types of one width (and <code>usize</code> ⇄ <code>isize</code>)</td><td>the same bit pattern read as the other type</td></tr>
 <tr><td><code>to_float&lt;U&gt;(x)</code></td><td>integer to <code>f32</code>/<code>f64</code></td><td>nearest representable value</td></tr>
 <tr><td><code>to_int&lt;U&gt;(x)</code></td><td>float to integer</td><td>truncates toward zero; checked: infinities, <code>NaN</code> and out-of-range values fault</td></tr>
 </tbody>
@@ -836,11 +836,219 @@ conversion. Each takes the target type as a type argument.</p>
 {
     to_byte(<span class="n">300</span>);                     <span class="c">// <span class="bad">✗</span> <span class="dg">diag.narrowing-overflow</span> (dynamic)</span>
 }</code></pre></figure>
+<p><code>widen</code> is only accepted where every value of the source fits the target, so it can never
+lose one: <code>widen&lt;u64&gt;</code> of an <code>i32</code> is a static error, because a negative <code>i32</code> has no <code>u64</code>
+value. <code>narrow</code> works between any two integer types, and never faults where the value fits.
+Use it for <code>usize</code> and <code>isize</code>: whether <code>usize → u64</code> is a widening depends on the address
+width, so <code>narrow&lt;u64&gt;(n)</code> is the spelling that is accepted by every implementation.</p>
+<figure class="code"><div class="code-head"><span class="code-title">A widening that could lose a value</span><span class="badge bad">rejected: diag.type-mismatch</span></div><pre><code><span class="k">fn</span> to_u64(<span class="t">i32</span> x) : <span class="t">u64</span>
+{
+    <span class="p">widen</span>&lt;<span class="t">u64</span>&gt;(x)                     <span class="c">// <span class="bad">✗</span> <span class="dg">diag.type-mismatch</span> (static): -1 has no u64 value; use narrow</span>
+}
+
+<span class="k">fn</span> main()
+{
+    to_u64(<span class="n">1</span>);
+}</code></pre></figure>
+<h3>Sizes and limits of types</h3>
+<p>Four intrinsics describe a type rather than a value. Each takes the type as its type
+argument, written explicitly, and no other arguments.</p>
+<table>
+<thead><tr><th>Intrinsic</th><th>Result</th><th>Meaning</th><th>For</th></tr></thead>
+<tbody>
+<tr><td><code>sizeof&lt;T&gt;()</code></td><td><code>usize</code></td><td>the bytes a <code>T</code> occupies, padding included</td><td>any type</td></tr>
+<tr><td><code>alignof&lt;T&gt;()</code></td><td><code>usize</code></td><td>the alignment a <code>T</code>'s address must have, in bytes</td><td>any type</td></tr>
+<tr><td><code>min_value&lt;T&gt;()</code></td><td><code>T</code></td><td>the smallest value of <code>T</code></td><td>integer types</td></tr>
+<tr><td><code>max_value&lt;T&gt;()</code></td><td><code>T</code></td><td>the largest value of <code>T</code></td><td>integer types</td></tr>
+</tbody>
+</table>
+<p>Every fixed-width type has the same size and limits on every implementation:
+<code>sizeof&lt;i32&gt;()</code> is 4 and <code>max_value&lt;i32&gt;()</code> is 2147483647. <code>isize</code> and <code>usize</code> have the address
+width, which each implementation documents, so for them the intrinsics are the portable way to
+write a size or limit, where a literal is not. A struct's size and alignment follow from its
+fields (§16): each field is aligned, and the struct's alignment is its largest field's.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Sizes and limits</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
+<span class="k">fn</span> check(<span class="t">bool</span> ok)
+{
+    <span class="t">i32</span> z = <span class="k">if</span> (ok)
+    {
+        <span class="n">1</span>
+    }
+    <span class="k">else</span>
+    {
+        <span class="n">0</span>
+    };
+    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
+}
+
+<span class="k">struct</span> Pair
+{
+    <span class="t">u8</span> tag;
+    <span class="t">u32</span> value;
+}
+
+<span class="k">fn</span> main()
+{
+    check(<span class="p">sizeof</span>&lt;<span class="t">i32</span>&gt;() == <span class="n">4</span>);
+    check(<span class="p">sizeof</span>&lt;<span class="t">u64</span>&gt;() == <span class="n">8</span>);
+    check(<span class="p">alignof</span>&lt;<span class="t">u64</span>&gt;() == <span class="n">8</span>);                      <span class="c">// a number is aligned to its own size</span>
+    check(<span class="p">sizeof</span>&lt;<span class="t">bool</span>&gt;() == <span class="n">1</span>);
+    check(<span class="p">sizeof</span>&lt;<span class="t">array</span>&lt;<span class="t">u16</span>, <span class="n">10</span>&gt;&gt;() == <span class="n">20</span>);           <span class="c">// an array has no padding</span>
+    check(<span class="p">alignof</span>&lt;Pair&gt;() == <span class="n">4</span>);                     <span class="c">// its largest field&#x27;s alignment</span>
+    check(<span class="p">sizeof</span>&lt;Pair&gt;() == <span class="n">8</span>);                      <span class="c">// tag, 3 bytes of padding, value</span>
+    check(<span class="p">sizeof</span>&lt;<span class="t">usize</span>&gt;() == <span class="p">sizeof</span>&lt;<span class="t">isize</span>&gt;());       <span class="c">// the address width, whatever it is</span>
+
+    check(<span class="p">min_value</span>&lt;<span class="t">i8</span>&gt;() == -<span class="n">128</span>);
+    check(<span class="p">max_value</span>&lt;<span class="t">u8</span>&gt;() == <span class="n">255</span>);
+    check(<span class="p">max_value</span>&lt;<span class="t">i32</span>&gt;() == <span class="n">2147483647</span>);
+    check(<span class="p">min_value</span>&lt;<span class="t">u64</span>&gt;() == <span class="n">0</span>);
+    check(<span class="p">max_value</span>&lt;<span class="t">usize</span>&gt;() == ~(<span class="n">0</span>: <span class="t">usize</span>));        <span class="c">// every bit set, at any address width</span>
+    check(<span class="p">wrapping_add</span>(<span class="p">max_value</span>&lt;<span class="t">i32</span>&gt;(), <span class="n">1</span>) == <span class="p">min_value</span>&lt;<span class="t">i32</span>&gt;());
+}</code></pre></figure>
+<p>Limits are most often the starting value of a search, a bound to clamp against, or a
+value that means "none". Here are all three:</p>
+<figure class="code"><div class="code-head"><span class="code-title">Limits as sentinels and bounds</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
+<span class="k">fn</span> check(<span class="t">bool</span> ok)
+{
+    <span class="t">i32</span> z = <span class="k">if</span> (ok)
+    {
+        <span class="n">1</span>
+    }
+    <span class="k">else</span>
+    {
+        <span class="n">0</span>
+    };
+    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
+}
+
+<span class="c">// The spread of a list: start the minimum at the largest i64 and the</span>
+<span class="c">// maximum at the smallest, so the first element replaces both.</span>
+<span class="k">fn</span> spread(<span class="t">ref</span>&lt;<span class="p">Vec</span>&lt;<span class="t">i64</span>&gt;, <span class="t">shared</span>&gt; v) : <span class="t">i64</span>
+{
+    <span class="t">i64</span> lo = <span class="p">max_value</span>&lt;<span class="t">i64</span>&gt;();
+    <span class="t">i64</span> hi = <span class="p">min_value</span>&lt;<span class="t">i64</span>&gt;();
+    <span class="t">usize</span> i = <span class="n">0</span>;
+    <span class="k">while</span> (i &lt; <span class="p">Vec</span>::len(v))
+    {
+        <span class="t">i64</span> x = *<span class="p">Vec</span>::index_shared(v, i);
+        <span class="k">if</span> (x &lt; lo)
+        {
+            lo = x;
+        }
+        <span class="k">if</span> (x &gt; hi)
+        {
+            hi = x;
+        }
+        i = i + <span class="n">1</span>;
+    }
+    hi - lo
+}
+
+<span class="c">// Clamp into i32&#x27;s range, then narrow: the narrow can no longer fault.</span>
+<span class="k">fn</span> clamp_to_i32(<span class="t">i64</span> x) : <span class="t">i32</span>
+{
+    <span class="k">if</span> (x &gt; <span class="p">widen</span>&lt;<span class="t">i64</span>&gt;(<span class="p">max_value</span>&lt;<span class="t">i32</span>&gt;()))
+    {
+        <span class="p">max_value</span>&lt;<span class="t">i32</span>&gt;()
+    }
+    <span class="k">else</span> <span class="k">if</span> (x &lt; <span class="p">widen</span>&lt;<span class="t">i64</span>&gt;(<span class="p">min_value</span>&lt;<span class="t">i32</span>&gt;()))
+    {
+        <span class="p">min_value</span>&lt;<span class="t">i32</span>&gt;()
+    }
+    <span class="k">else</span>
+    {
+        <span class="p">narrow</span>&lt;<span class="t">i32</span>&gt;(x)
+    }
+}
+
+<span class="c">// The index of the first b, or usize&#x27;s maximum for &quot;not found&quot;.</span>
+<span class="k">fn</span> find(<span class="t">ref</span>&lt;<span class="p">Vec</span>&lt;<span class="t">u8</span>&gt;, <span class="t">shared</span>&gt; v, <span class="t">u8</span> b) : <span class="t">usize</span>
+{
+    <span class="t">usize</span> i = <span class="n">0</span>;
+    <span class="k">while</span> (i &lt; <span class="p">Vec</span>::len(v))
+    {
+        <span class="k">if</span> (*<span class="p">Vec</span>::index_shared(v, i) == b)
+        {
+            <span class="k">return</span> i;
+        }
+        i = i + <span class="n">1</span>;
+    }
+    <span class="p">max_value</span>&lt;<span class="t">usize</span>&gt;()
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="p">Vec</span>&lt;<span class="t">i64</span>&gt; v = <span class="p">Vec</span>::new();
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">7</span>);
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, -<span class="n">3</span>);
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">12</span>);
+    check(spread(&amp;v) == <span class="n">15</span>);
+
+    check(clamp_to_i32(<span class="n">5000000000</span>) == <span class="n">2147483647</span>);
+    check(clamp_to_i32(-<span class="n">5000000000</span>) == -<span class="n">2147483648</span>);
+    check(clamp_to_i32(<span class="n">42</span>) == <span class="n">42</span>);
+
+    <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; bytes = <span class="p">Vec</span>::new();
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> bytes, <span class="n">10</span>);
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> bytes, <span class="n">20</span>);
+    check(find(&amp;bytes, <span class="n">20</span>) == <span class="n">1</span>);
+    check(find(&amp;bytes, <span class="n">99</span>) == <span class="p">max_value</span>&lt;<span class="t">usize</span>&gt;());
+}</code></pre></figure>
+<p>A generic function may use the limits of its own type parameter. It cannot do arithmetic
+on a <code>T</code> (§12: there are no bounds), but it can produce a <code>T</code>'s limit and pass it on. Each use is
+checked when the function is instantiated, so a <code>T</code> that is not an integer type is rejected before
+the program runs.</p>
+<figure class="code"><div class="code-head"><span class="code-title">A limit in a generic function</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
+<span class="k">fn</span> check(<span class="t">bool</span> ok)
+{
+    <span class="t">i32</span> z = <span class="k">if</span> (ok)
+    {
+        <span class="n">1</span>
+    }
+    <span class="k">else</span>
+    {
+        <span class="n">0</span>
+    };
+    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
+}
+
+<span class="c">// The value inside, or T&#x27;s maximum if there is none.</span>
+<span class="k">fn</span> or_max&lt;T&gt;(<span class="p">Option</span>&lt;T&gt; r) : T
+{
+    <span class="k">match</span> (r)
+    {
+        <span class="p">Some</span>(x) : x,
+        <span class="p">None</span> : <span class="p">max_value</span>&lt;T&gt;(),
+    }
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="t">u64</span> big = <span class="n">5000000000</span>;
+    check(or_max(<span class="p">checked_mul</span>(big, big)) == <span class="p">max_value</span>&lt;<span class="t">u64</span>&gt;());   <span class="c">// the product overflows u64</span>
+    check(or_max(<span class="p">checked_add</span>(<span class="n">2</span>: <span class="t">i32</span>, <span class="n">3</span>)) == <span class="n">5</span>);
+}</code></pre></figure>
+<figure class="code"><div class="code-head"><span class="code-title">Limits are for integer types</span><span class="badge bad">rejected: diag.type-mismatch</span></div><pre><code><span class="k">fn</span> main()
+{
+    <span class="p">max_value</span>&lt;<span class="t">f64</span>&gt;();                 <span class="c">// <span class="bad">✗</span> <span class="dg">diag.type-mismatch</span> (static): only integer types have these</span>
+}</code></pre></figure>
+<figure class="code"><div class="code-head"><span class="code-title">Going past a limit</span><span class="badge bad">rejected: diag.arith-overflow</span></div><pre><code><span class="k">fn</span> main()
+{
+    <span class="p">max_value</span>&lt;<span class="t">i32</span>&gt;() + <span class="n">1</span>;             <span class="c">// <span class="bad">✗</span> <span class="dg">diag.arith-overflow</span> (dynamic): a limit is a value, not a literal</span>
+}</code></pre></figure>
 <div class="callout rule"><div class="callout-title">Rules of thumb</div><ul>
 <li>Default arithmetic is checked. If you want wrapping, write <code>wrapping_add</code>; if you want to handle overflow, write <code>checked_add</code> and match on the <code>Option</code>.</li>
 <li>Never expect a conversion to happen for you. Reach for <code>widen</code> first; use <code>narrow</code> (checked) or <code>narrow_wrapping</code> (deliberate truncation) when going the other way.</li>
 <li>Use <code>usize</code> for lengths and indices, <code>isize</code> for pointer offsets, and suffix a literal (<code>5: u8</code>) when the context does not already fix its type.</li>
 <li>Floats never fault. Remember that <code>NaN</code> is unequal to itself.</li>
+<li>Write a type's limits as <code>min_value&lt;T&gt;()</code> and <code>max_value&lt;T&gt;()</code>. For <code>isize</code> and <code>usize</code> they are the only portable spelling.</li>
 </ul>
 </div>
 
@@ -2529,8 +2737,9 @@ fixes them (§12).</p>
 <h3>Layout</h3>
 <p>Struct fields are laid out in declaration order with implementation-documented padding;
 arrays are contiguous with no padding; an enum is a discriminant of documented width followed by
-the largest payload, aligned. <code>sizeof&lt;T&gt;()</code> and <code>alignof&lt;T&gt;()</code> report the result. You need this only
-when talking to foreign code (§20).</p>
+the largest payload, aligned. <code>sizeof&lt;T&gt;()</code> and <code>alignof&lt;T&gt;()</code> report the result (examples in §06,
+"Sizes and limits of types"). You need this mostly when talking to foreign code or managing raw
+memory (§20).</p>
 <div class="callout rule"><div class="callout-title">Rules of thumb</div><ul>
 <li>Reach for an enum whenever a value is one of several cases; <code>match</code> forces you to handle each one.</li>
 <li>Use <code>_</code> sparingly: a wildcard arm silently absorbs variants you add later.</li>
@@ -3334,14 +3543,17 @@ value type <code>str</code> belong to the language itself and need no import.</p
 }</code></pre></figure>
 <h3>Intrinsics</h3>
 <p>Intrinsics are called like functions; their behaviour is given by rules rather than by a
-body. Type arguments are written <code>name&lt;T&gt;(…)</code> where the signature needs one.</p>
+body. Type arguments are written <code>name&lt;T&gt;(…)</code> where the signature needs one. Their names are not
+reserved: a function or variable of your own with the same name is what the name means, and the
+intrinsic is used only where there is none.</p>
 <table>
 <thead><tr><th>Intrinsic</th><th>Purpose</th><th>See</th></tr></thead>
 <tbody>
 <tr><td><code>drop(x)</code></td><td>destroy a resource now</td><td>§07</td></tr>
 <tr><td><code>wrapping_*</code>, <code>saturating_*</code>, <code>checked_*</code></td><td>alternative overflow policies</td><td>§06</td></tr>
 <tr><td><code>widen&lt;U&gt;</code>, <code>narrow&lt;U&gt;</code>, <code>narrow_wrapping&lt;U&gt;</code>, <code>reinterpret&lt;U&gt;</code>, <code>to_float&lt;U&gt;</code>, <code>to_int&lt;U&gt;</code></td><td>numeric conversions</td><td>§06</td></tr>
-<tr><td><code>sizeof&lt;T&gt;()</code>, <code>alignof&lt;T&gt;()</code></td><td>layout queries, in bytes</td><td>§16</td></tr>
+<tr><td><code>sizeof&lt;T&gt;()</code>, <code>alignof&lt;T&gt;()</code></td><td>layout queries, in bytes</td><td>§06, §16</td></tr>
+<tr><td><code>min_value&lt;T&gt;()</code>, <code>max_value&lt;T&gt;()</code></td><td>an integer type's smallest and largest value</td><td>§06</td></tr>
 <tr><td><code>spawn(f, args…)</code>, <code>join(h)</code></td><td>threads</td><td>§19</td></tr>
 <tr><td><code>Mutex::new(v)</code>, <code>lock(&amp;m)</code></td><td>mutual exclusion</td><td>§19</td></tr>
 <tr><td><code>rawptr_of(&amp;x)</code>, <code>reinterpret_ptr&lt;U&gt;(p)</code></td><td>obtain and retype raw pointers (safe)</td><td>§20</td></tr>
@@ -4156,6 +4368,7 @@ rule is applied statically where the checker can see the problem and dynamically
 </table>
 
 <nav class="pager"><a class="prev" href="#s22">&larr; §22 Surface syntax reference</a><a class="top" href="#top">Top</a></nav></section>
+
 
 <div class="book-navigation">
     <a href="Appendix_05.html" class="nav-btn">&larr; Previous</a>
