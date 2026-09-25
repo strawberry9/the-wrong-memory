@@ -107,7 +107,6 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
   .two { grid-template-columns: 1fr; }
   table { display: block; overflow-x: auto; }
 }
-
 .book-navigation
 {
             display: flex;
@@ -277,6 +276,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
     </a>
 </p>
 <p>------------------------------------------------------------------------</p>
+
 
 
 <section id="intro">
@@ -2189,9 +2189,9 @@ here, so <code>x &amp; 1 == 0</code> parses as <code>(x &amp; 1) == 0</code>. Wh
 <nav class="pager"><a class="prev" href="#s12">&larr; §12 The type system</a><a class="top" href="#top">Top</a><a class="next" href="#s14">§14 Control flow and scopes &rarr;</a></nav></section>
 <section id="s14">
 <h2><span class="secnum">§14</span>Control flow and scopes</h2>
-<div class="spec-ref">Governing specification file: <code>spec/14-control-flow.md</code></div><p class="blurb">Blocks, if, while, break and continue; scope exit as the moment of destruction; and the fixed line between compile-time and run-time checks.</p>
-<p>Control flow is C's, minus <code>for</code>, <code>switch</code> and <code>goto</code>, plus expression-valued <code>if</code> and
-<code>match</code>. What is new is how carefully the language ties <em>scope</em> to <em>destruction</em>, and
+<div class="spec-ref">Governing specification file: <code>spec/14-control-flow.md</code></div><p class="blurb">Blocks, if, while, for, foreach, break and continue; scope exit as the moment of destruction; and the fixed line between compile-time and run-time checks.</p>
+<p>Control flow is C's <code>if</code>, <code>while</code> and <code>for</code>, without <code>switch</code> and <code>goto</code>, plus
+expression-valued <code>if</code> and <code>match</code> and a <code>foreach</code> over collections. What is new is how carefully the language ties <em>scope</em> to <em>destruction</em>, and
 the precise line between what the compiler proves and what the run time checks.</p>
 <h3>Blocks and scopes</h3>
 <p>A block <code>{ … }</code> opens a scope. Variables declared in it die when it ends, in reverse
@@ -2251,7 +2251,7 @@ block that runs once) is a syntax error here, and the message says to remove the
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">4</span>);
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">9</span>);
     <span class="t">i32</span> total = <span class="n">0</span>;
-    <span class="k">for</span> (<span class="t">usize</span> k = <span class="n">0</span>; k &lt; <span class="p">Vec</span>::len(&amp;v); k += <span class="n">1</span>)   <span class="c">// the idiomatic index loop over a Vec</span>
+    <span class="k">for</span> (<span class="t">usize</span> k = <span class="n">0</span>; k &lt; <span class="p">Vec</span>::len(&amp;v); k += <span class="n">1</span>)   <span class="c">// an index loop; foreach (below) is shorter</span>
     {
         total += *<span class="p">Vec</span>::index_shared(&amp;v, k);
     }
@@ -2270,6 +2270,90 @@ block that runs once) is a syntax error here, and the message says to remove the
 <figure class="code"><div class="code-head"><span class="code-title">break outside a loop</span><span class="badge bad">rejected: diag.break-outside-loop</span></div><pre><code><span class="k">fn</span> main()
 {
     <span class="k">break</span>;                            <span class="c">// <span class="bad">✗</span> <span class="dg">diag.break-outside-loop</span></span>
+}</code></pre></figure>
+<h3><code>foreach</code></h3>
+<p><code>foreach (x in c) { … }</code> visits every element of a <code>Vec</code>, an array, a <code>HashSet</code> or a
+<code>HashMap</code>, in order: by index for a <code>Vec</code> or an array, in insertion order for a set or a map. How
+the loop holds the collection is written at the loop, the same three ways a function takes a
+value:</p>
+<table>
+<thead><tr><th>Written</th><th>Each element is</th><th>Afterwards</th></tr></thead>
+<tbody>
+<tr><td><code>foreach (x in c)</code></td><td>the element itself, moved out of <code>c</code></td><td><code>c</code> is gone: the loop consumed it</td></tr>
+<tr><td><code>foreach (x in &amp;c)</code></td><td>a shared reference, <code>ref&lt;T, shared&gt;</code>: read it</td><td><code>c</code> is unchanged and usable</td></tr>
+<tr><td><code>foreach (x in &amp;mut c)</code></td><td>an exclusive reference: <code>*x = …</code> changes the element</td><td><code>c</code> is usable, with its changes</td></tr>
+</tbody>
+</table>
+<p>Use <code>&amp;c</code> most of the time. A second name gives the position: <code>foreach (i, x in &amp;v)</code> has
+<code>i : usize</code>. A <code>HashMap</code> is always looped over with two names, the key and the value:
+<code>foreach (k, v in &amp;m)</code>. <code>printf</code> prints what a reference refers to, so <code>printf(&quot;%d&quot;, x)</code> works
+with <code>x</code> a <code>ref&lt;i32, shared&gt;</code>; elsewhere write <code>*x</code> for the number.</p>
+<figure class="code"><div class="code-head"><span class="code-title">The three forms</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> shout(<span class="p">String</span> s)                    <span class="c">// takes ownership</span>
+{
+    printf(<span class="s">&quot;%s!\n&quot;</span>, &amp;s);
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="p">Vec</span>&lt;<span class="p">String</span>&gt; names = <span class="p">Vec</span>::new();
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> names, <span class="p">String</span>::from_str(<span class="s">&quot;ada&quot;</span>));
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> names, <span class="p">String</span>::from_str(<span class="s">&quot;lin&quot;</span>));
+    foreach (i, name in &amp;names)       <span class="c">// read: names is still usable afterwards</span>
+    {
+        printf(<span class="s">&quot;%d: %s\n&quot;</span>, i, name);
+    }
+
+    <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; numbers = <span class="p">Vec</span>::new();
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> numbers, <span class="n">3</span>);
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> numbers, <span class="n">5</span>);
+    foreach (n in &amp;<span class="k">mut</span> numbers)       <span class="c">// change in place</span>
+    {
+        *n *= <span class="n">2</span>;
+    }
+    foreach (n in &amp;numbers)
+    {
+        printf(<span class="s">&quot;%d &quot;</span>, n);             <span class="c">// printf reads through the reference</span>
+    }
+    printf(<span class="s">&quot;\n&quot;</span>);
+
+    HashMap&lt;<span class="t">str</span>, <span class="t">u32</span>&gt; stock = HashMap::new();
+    HashMap::insert(&amp;<span class="k">mut</span> stock, <span class="s">&quot;pens&quot;</span>, <span class="n">12</span>);
+    HashMap::insert(&amp;<span class="k">mut</span> stock, <span class="s">&quot;ink&quot;</span>, <span class="n">3</span>);
+    foreach (item, count in &amp;stock)
+    {
+        printf(<span class="s">&quot;%-5s %2d\n&quot;</span>, item, count);
+    }
+
+    foreach (name in names)           <span class="c">// consume: each String moves into shout</span>
+    {
+        shout(name);
+    }
+    <span class="c">// names is gone here; using it would be <span class="dg">diag.stale-binding</span></span>
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>0: ada
+1: lin
+6 10 
+pens  12
+ink    3
+ada!
+lin!
+</pre></div></figure>
+<p>The loop's borrow of the collection lasts the whole loop, so a body that tries to change
+the collection itself (push to it, clear it) is rejected before the program runs, the same
+aliasing rule as anywhere else. There is no iterator invalidation to debug. A consuming loop
+left early, by <code>break</code>, <code>return</code> or a fault, destroys the elements it had not reached, exactly
+once.</p>
+<figure class="code"><div class="code-head"><span class="code-title">The collection cannot change under the loop</span><span class="badge bad">rejected: diag.aliasing-conflict</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v = <span class="p">Vec</span>::new();
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">1</span>);
+    foreach (x in &amp;v)
+    {
+        <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, *x);        <span class="c">// <span class="bad">✗</span> <span class="dg">diag.aliasing-conflict</span> (static): v is borrowed by the loop</span>
+    }
 }</code></pre></figure>
 <h3>Early exit and unwinding</h3>
 <p><code>return</code>, <code>break</code>, <code>continue</code>, and a run-time fault all leave scopes the same way: every
@@ -4522,8 +4606,9 @@ take the key by reference, so they copy nothing.</p>
 <tr><td><code>HashSet::new</code>, <code>len</code>, <code>insert</code>, <code>contains</code>, <code>remove</code>, <code>remove_ordered</code>, <code>at</code></td><td>the same for a set; <code>insert</code> and <code>remove</code> say whether anything changed</td></tr>
 </tbody>
 </table>
-<p>Entries are kept in the order they were added, so a loop over <code>0..len</code> visits them in that
-order, the same in the interpreter and the compiler, whatever the keys hash to. <code>remove</code> is quick
+<p>Entries are kept in the order they were added, so <code>foreach (k, v in &amp;m)</code> (§14) visits
+them in that order, the same in the interpreter and the compiler, whatever the keys hash to.
+<code>key_at</code> and <code>value_at</code> reach entry <code>i</code> directly. <code>remove</code> is quick
 because it fills the gap with the last entry; use <code>remove_ordered</code> when the order matters.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Counting words, and a set</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
@@ -4535,9 +4620,9 @@ because it fills the gap with the last entry; use <code>remove_ordered</code> wh
     {
         *HashMap::entry(&amp;<span class="k">mut</span> counts, <span class="p">String</span>::from_str(words[i]), <span class="n">0</span>) += <span class="n">1</span>;   <span class="c">// 0 if new, then + 1</span>
     }
-    <span class="k">for</span> (<span class="t">usize</span> i = <span class="n">0</span>; i &lt; HashMap::len(&amp;counts); i += <span class="n">1</span>)
+    foreach (word, n in &amp;counts)                        <span class="c">// insertion order</span>
     {
-        printf(<span class="s">&quot;%-4s %d\n&quot;</span>, HashMap::key_at(&amp;counts, i), *HashMap::value_at(&amp;counts, i));
+        printf(<span class="s">&quot;%-4s %d\n&quot;</span>, word, n);
     }
 
     <span class="p">String</span> cat = <span class="p">String</span>::from_str(<span class="s">&quot;cat&quot;</span>);
@@ -4786,7 +4871,7 @@ of a declaration or the right side of an assignment, the enclosing statement sti
 <p>Things the grammar does not provide, each a considered decision recorded in the
 specification:</p>
 <ul>
-<li>no character literals, no indexing or slicing of a <code>str</code>; no <code>for</code> loop; no <code>switch</code>; no <code>goto</code></li>
+<li>no character literals (<code>b&#x27;x&#x27;</code> is a byte, a <code>u8</code>), no indexing or slicing of a <code>str</code>; no <code>switch</code>; no <code>goto</code></li>
 <li>no <code>import … as</code> renaming; no method-call syntax (<code>v.push(x)</code>); no operator overloading</li>
 <li>no nested patterns in <code>match</code>, and destructuring only of single-field structs</li>
 <li>no partial initialisation of aggregates</li>
