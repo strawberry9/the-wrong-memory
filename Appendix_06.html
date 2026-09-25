@@ -280,7 +280,6 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 <p>------------------------------------------------------------------------</p>
 
 
-
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -632,9 +631,12 @@ type comes from, in order: an explicit suffix <code>123: u8</code>; the <em>expe
 operator); otherwise the default, <code>i32</code> for integers and <code>f64</code> for floats. A literal that does not
 fit its type is a static error. A minus written directly before an integer literal is checked
 with it, as one negative value, so <code>-2147483648</code> is the smallest <code>i32</code>. A type's limits also
-have names, <code>min_value&lt;i32&gt;()</code> and <code>max_value&lt;i32&gt;()</code> (below). Float literals are <code>digits . digits</code>, optionally suffixed
-<code>: f32</code>. A string literal <code>&quot;…&quot;</code> is always a <code>str</code> and a byte literal <code>b&quot;…&quot;</code> always an
-<code>array&lt;u8, N&gt;</code> (§21, §22); neither takes an expected type.</p>
+have names, <code>min_value&lt;i32&gt;()</code> and <code>max_value&lt;i32&gt;()</code> (below). Float literals are <code>digits . digits</code>, with an
+optional exponent (<code>1.5e-3</code>, <code>2.5E3</code>, or <code>1e5</code> with no fraction), optionally suffixed <code>: f32</code>;
+one too large for its type (<code>1e400</code>) is a static error, not infinity. A byte character <code>b&#x27;a&#x27;</code>
+is always a <code>u8</code>: one ASCII character or an escape (<code>b&#x27;\n&#x27;</code>, <code>b&#x27;\&#x27;&#x27;</code>, <code>b&#x27;\x7f&#x27;</code>), for writing
+bytes readably in code that parses. A string literal <code>&quot;…&quot;</code> is always a <code>str</code> and a byte literal
+<code>b&quot;…&quot;</code> always an <code>array&lt;u8, N&gt;</code> (§21, §22); neither takes an expected type.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Literal typing</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
 <span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
 <span class="k">fn</span> check(<span class="t">bool</span> ok)
@@ -658,11 +660,14 @@ have names, <code>min_value&lt;i32&gt;()</code> and <code>max_value&lt;i32&gt;()
     <span class="k">auto</span> d = b + <span class="n">1</span>;                   <span class="c">// the 1 takes u8 from b; d is u8</span>
     <span class="k">auto</span> e = <span class="n">2.5</span>;                     <span class="c">// f64</span>
     <span class="t">f32</span> f = <span class="n">0.5</span>: <span class="t">f32</span>;
+    <span class="t">f64</span> tiny = <span class="n">1.5</span>e-<span class="n">3</span>;                <span class="c">// an exponent: 0.0015</span>
+    <span class="t">u8</span> comma = b&#x27;,&#x27;;                  <span class="c">// a byte character: 44</span>
     <span class="t">i64</span> g = -<span class="n">1</span>;                       <span class="c">// the expected type reaches through unary minus</span>
     <span class="t">i32</span> lo = -<span class="n">2147483648</span>;             <span class="c">// min(i32): 2147483648 alone would not fit</span>
     check(d == <span class="n">201</span>);
     check(g &lt; <span class="n">0</span>);
     check(lo + <span class="n">2147483647</span> == -<span class="n">1</span>);
+    check(tiny == <span class="n">0.0015</span> &amp;&amp; comma == <span class="n">44</span>);
     check(<span class="p">sizeof</span>&lt;<span class="t">u64</span>&gt;() == <span class="n">8</span>);        <span class="c">// sizeof and alignof are intrinsics returning usize</span>
     check(<span class="p">alignof</span>&lt;<span class="t">u16</span>&gt;() == <span class="n">2</span>);
 }</code></pre></figure>
@@ -1132,8 +1137,11 @@ created it. Locals are destroyed in reverse order of creation. A struct's resour
 destroyed after the struct's own destructor, innermost first, in reverse declaration order. A
 <code>return</code>, <code>break</code>, <code>continue</code> or run-time fault unwinds the same way. There is no way to leak a
 resource, so there is no leak diagnostic.</p>
-<p>You can also destroy a resource early with <code>drop(x)</code>. Afterwards <code>x</code> is stale; if you need
-the name again, declare it again (shadowing is allowed).</p>
+<p>You can also destroy a resource early with <code>drop(x)</code>. Afterwards <code>x</code> is stale until you give
+it a new value: once <code>x</code>'s value has gone, moved away or dropped, <code>x = e</code> gives it a new one, which
+is destroyed at the end of <code>x</code>'s own block like its first value. Assigning over a value that is
+still there is an error for a resource (<code>diag.overwrite-of-live-resource</code>): drop it first, so a
+destruction is always visible. Declaring the name again (shadowing) works too.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Where destruction happens</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> make() : <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt;
@@ -1152,7 +1160,7 @@ the name again, declare it again (shadowing is allowed).</p>
     make();                           <span class="c">// an unstored temporary: destroyed at this `;`</span>
     <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v = <span class="p">Vec</span>::new();
     <span class="p">drop</span>(v);                          <span class="c">// <span class="ok">✓</span> destroyed early; v is now stale</span>
-    <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v = <span class="p">Vec</span>::new();          <span class="c">// <span class="ok">✓</span> a fresh binding shadows the stale one</span>
+    v = <span class="p">Vec</span>::new();                   <span class="c">// <span class="ok">✓</span> v&#x27;s value has gone, so v takes a new one</span>
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">3</span>);
 }</code></pre></figure>
 <h3>Destructors</h3>
@@ -3111,7 +3119,9 @@ hint.</p>
 enums of <code>std</code>, taken apart with <code>match</code>. The postfix <code>?</code> operator unwraps a <code>Result</code>: on <code>Ok(v)</code> it
 yields <code>v</code>, on <code>Err(e)</code> it returns <code>Err(e)</code> from the enclosing function immediately. That function
 must therefore return <code>Result&lt;_, E&gt;</code> with exactly the same <code>E</code>; convert first with
-<code>map_err(r, f)</code> if the error types differ.</p>
+<code>map_err(r, f)</code> if the error types differ. Where a default will do, <code>Option::unwrap_or(o, d)</code> and
+<code>Result::unwrap_or(r, d)</code> give the value, or <code>d</code> when there is none; the default is evaluated
+either way, and one that goes unused is destroyed.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Result and ?</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="c">// Fault deliberately when a check fails: a checked division by a</span>
@@ -3131,11 +3141,11 @@ must therefore return <code>Result&lt;_, E&gt;</code> with exactly the same <cod
 
 <span class="k">fn</span> digit(<span class="t">u8</span> b) : <span class="p">Result</span>&lt;<span class="t">i32</span>, <span class="t">u8</span>&gt;
 {
-    <span class="k">if</span> (b &gt; <span class="n">57</span> || b &lt; <span class="n">48</span>)             <span class="c">// not &#x27;0&#x27;..&#x27;9&#x27;</span>
+    <span class="k">if</span> (b &gt; b&#x27;<span class="n">9</span>&#x27; || b &lt; b&#x27;<span class="n">0</span>&#x27;)         <span class="c">// not a digit</span>
     {
         <span class="k">return</span> <span class="p">Err</span>(b);
     }
-    <span class="p">Ok</span>(<span class="p">widen</span>&lt;<span class="t">i32</span>&gt;(b - <span class="n">48</span>))
+    <span class="p">Ok</span>(<span class="p">widen</span>&lt;<span class="t">i32</span>&gt;(b - b&#x27;<span class="n">0</span>&#x27;))
 }
 
 <span class="k">fn</span> two_digits(<span class="t">u8</span> hi, <span class="t">u8</span> lo) : <span class="p">Result</span>&lt;<span class="t">i32</span>, <span class="t">u8</span>&gt;
@@ -3147,7 +3157,7 @@ must therefore return <code>Result&lt;_, E&gt;</code> with exactly the same <cod
 
 <span class="k">fn</span> main()
 {
-    <span class="k">match</span> (two_digits(<span class="n">52</span>, <span class="n">50</span>))        <span class="c">// &#x27;4&#x27;, &#x27;2&#x27;</span>
+    <span class="k">match</span> (two_digits(b&#x27;<span class="n">4</span>&#x27;, b&#x27;<span class="n">2</span>&#x27;))
     {
         <span class="p">Ok</span>(v) :
         {
@@ -3158,7 +3168,7 @@ must therefore return <code>Result&lt;_, E&gt;</code> with exactly the same <cod
             check(<span class="k">false</span>);
         },
     }
-    <span class="k">match</span> (two_digits(<span class="n">52</span>, <span class="n">120</span>))       <span class="c">// &#x27;4&#x27;, &#x27;x&#x27;</span>
+    <span class="k">match</span> (two_digits(b&#x27;<span class="n">4</span>&#x27;, b&#x27;x&#x27;))
     {
         <span class="p">Ok</span>(_) :
         {
@@ -3166,7 +3176,7 @@ must therefore return <code>Result&lt;_, E&gt;</code> with exactly the same <cod
         },
         <span class="p">Err</span>(e) :
         {
-            check(e == <span class="n">120</span>);
+            check(e == b&#x27;x&#x27;);
         },
     }
 }</code></pre></figure>
@@ -3730,6 +3740,7 @@ intrinsic is used only where there is none.</p>
 <tr><td><code>arg_count()</code>, <code>arg(i)</code></td><td>the number of program arguments, and argument <code>i</code> as a <code>String</code> (functions of <code>std</code>)</td><td>§21</td></tr>
 <tr><td><code>arg_bytes(i, buf, len)</code></td><td>an extern of <code>std</code>: copy argument <code>i</code>'s bytes, whatever they are (unsafe)</td><td>§21</td></tr>
 <tr><td><code>parse&lt;T&gt;(&amp;s)</code></td><td>read a whole <code>String</code> as a number of type <code>T</code> (a function of <code>std</code>)</td><td>§21</td></tr>
+<tr><td><code>Option::unwrap_or(o, d)</code>, <code>Result::unwrap_or(r, d)</code></td><td>the value, or the default <code>d</code> when there is none (functions of <code>std</code>)</td><td>§18</td></tr>
 <tr><td><code>map_err(r, f)</code></td><td>convert a <code>Result</code>'s error type with <code>f</code> (a function of <code>std</code>)</td><td>§18</td></tr>
 </tbody>
 </table>
@@ -4154,13 +4165,13 @@ a <code>u8</code> prints as a number. To write bytes, use the <code>write</code>
 
 <span class="k">fn</span> main()
 {
-    put(<span class="s">b&quot;a&quot;</span>[<span class="n">0</span>]);                     <span class="c">// the byte for &#x27;a&#x27;</span>
-    <span class="p">print</span>(<span class="s">b&quot;a&quot;</span>[<span class="n">0</span>]);                   <span class="c">// the number 97</span>
+    put(b&#x27;a&#x27;);                        <span class="c">// the byte of `a`</span>
+    <span class="p">print</span>(b&#x27;a&#x27;);                      <span class="c">// a u8 prints as a number: 97</span>
     put(<span class="s">b&quot;\n&quot;</span>[<span class="n">0</span>]);
     <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; v = <span class="p">Vec</span>::new();
-    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="s">b&quot;o&quot;</span>[<span class="n">0</span>]);
-    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="s">b&quot;k&quot;</span>[<span class="n">0</span>]);
-    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">10</span>);            <span class="c">// newline</span>
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, b&#x27;o&#x27;);
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, b&#x27;k&#x27;);
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, b&#x27;\n&#x27;);
     print_bytes(&amp;v);
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>a97
 ok
@@ -4692,6 +4703,7 @@ rule is applied statically where the checker can see the problem and dynamically
 </table>
 
 <nav class="pager"><a class="prev" href="#s22">&larr; §22 Surface syntax reference</a><a class="top" href="#top">Top</a></nav></section>
+
 
 <div class="book-navigation">
     <a href="Appendix_05.html" class="nav-btn">&larr; Previous</a>
