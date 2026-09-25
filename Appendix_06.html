@@ -175,7 +175,6 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 </ol>
 </aside>
 <main>
-
 <div style="text-align: center;">
   <img src="CobaltC_Cyber_Guardian_Poster_small.png" alt="CobaltC">
 </div>
@@ -278,7 +277,6 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 <p>------------------------------------------------------------------------</p>
 
 
-
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -344,8 +342,8 @@ mechanism or would have hidden a semantic fact the language wants to keep visibl
 <li><strong>A trait or bound system.</strong> A generic body can store, pass and return a <code>T</code>, but not add, compare or call it.</li>
 <li><strong>Exceptions.</strong> A fault terminates the program after running destructors; expected failure is a <code>Result</code>.</li>
 <li><strong>Garbage collection.</strong> Ownership and scope-end destruction are deterministic; <code>Rc&lt;T&gt;</code> is a library type.</li>
-<li><strong>Character literals, string indexing and slicing.</strong> A <code>str</code> is a whole value; its bytes are reached with <code>str_byte</code>, and a single byte is written <code>b&quot;a&quot;[0]</code>. Text that arrives from outside is still bytes until <code>String::from_utf8</code> validates it.</li>
-<li><strong>A <code>mut</code> qualifier on bindings, <code>for</code> loops, <code>import … as</code> renaming, nested patterns, partial initialisation, lifetime annotations, atomics.</strong></li>
+<li><strong>Character literals, string indexing and slicing.</strong> A <code>str</code> is a whole value; its bytes are reached with <code>str_byte</code>, and a single byte is written <code>b&#x27;a&#x27;</code>, a <code>u8</code>. Text that arrives from outside is still bytes until <code>String::from_utf8</code> validates it.</li>
+<li><strong>A <code>mut</code> qualifier on bindings, <code>switch</code> and <code>goto</code>, <code>import … as</code> renaming, nested patterns, partial initialisation, lifetime annotations, atomics.</strong></li>
 </ul>
 <h3>How to read this guide</h3>
 <p>The next section is a complete program you can read top to bottom to absorb the
@@ -381,7 +379,7 @@ and prints the output shown below the code.</p>
 <span class="c">//</span>
 <span class="c">// One page that touches most of the language: a module, structs, an</span>
 <span class="c">// enum with payloads and `match`, a resource with a destructor,</span>
-<span class="c">// Vec, references, Result and `?`, generics, a closure, and a thread.</span>
+<span class="c">// Vec and foreach, references, Result and `?`, generics, a closure, and a thread.</span>
 <span class="c">// ------------------------------------------------------------------</span>
 
 <span class="k">import</span> std;
@@ -479,10 +477,8 @@ and prints the output shown below the code.</p>
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> log.entries, Reading { .tenths = <span class="n">340</span>, .sensor = <span class="n">2</span> });
 
     <span class="c">// Loop over the entries through a shared reference to each one.</span>
-    <span class="t">usize</span> i = <span class="n">0</span>;
-    <span class="k">while</span> (i &lt; <span class="p">Vec</span>::len(&amp;log.entries))
+    foreach (r in &amp;log.entries)                           <span class="c">// r : ref&lt;Reading, shared&gt;</span>
     {
-        <span class="k">auto</span> r = <span class="p">Vec</span>::index_shared(&amp;log.entries, i);      <span class="c">// ref&lt;Reading, shared&gt;; dies at the `;` unless held</span>
         <span class="k">match</span> (judge(r))
         {
             Cold(by) :            <span class="c">// &quot;C&quot; then the shortfall</span>
@@ -499,7 +495,6 @@ and prints the output shown below the code.</p>
             },
         }
         printf(<span class="s">&quot;\n&quot;</span>);
-        i = i + <span class="n">1</span>;
     }
 
     <span class="c">// Result handling with match. `b&quot;42&quot;` is a byte-array literal:</span>
@@ -550,6 +545,7 @@ L3
 <li><strong><code>&amp;x</code> is a shared (read-only) reference and <code>&amp;mut x</code> an exclusive one.</strong> <code>*r</code> reads or writes through a reference; <code>r.field</code> works directly on a reference to a struct.</li>
 <li><strong><code>Log</code> is a <code>resource</code></strong>: it owns a <code>Vec</code>. It has a destructor <code>fn Log::drop</code>, which the language runs at the end of <code>main</code>. Passing or assigning a resource moves it.</li>
 <li><strong>No implicit conversions.</strong> <code>widen&lt;i32&gt;(b - b&#x27;0&#x27;)</code> says exactly what happens to the representation; its opposite, <code>narrow</code>, is checked at run time. <code>b&#x27;0&#x27;</code> is the byte 48.</li>
+<li><strong><code>foreach (r in &amp;log.entries)</code></strong> visits each element through a shared reference; <code>in c</code> would take the elements and <code>in &amp;mut c</code> change them in place.</li>
 <li><strong>Library calls are qualified</strong>: <code>Vec::push(&amp;mut v, x)</code>, <code>Vec::len(&amp;v)</code>, <code>Vec::index_shared(&amp;v, i)</code>. There is no method-call syntax.</li>
 <li><strong>Text is a <code>str</code> value; <code>printf</code> writes it.</strong> <code>&quot;F&quot;</code> is a <code>str</code> literal, a copyable value with no owner. <code>printf</code> is C's, but its format is checked against its arguments when the program is compiled; <code>b&quot;42&quot;</code> is a byte-array literal, <code>array&lt;u8, 2&gt;</code>.</li>
 <li><strong>Modules and constants.</strong> <code>limits</code> exports two <code>const</code> values, used as <code>limits::COLD</code> and <code>limits::HOT</code>.</li>
@@ -583,7 +579,8 @@ named intrinsic with a documented behaviour.</p>
 where an <code>i32</code> is expected. Unary minus applies only to signed and float types.</p>
 <h3>Literals</h3>
 <p>Integer literals are digit strings: decimal, or hexadecimal, octal or binary after <code>0x</code>,
-<code>0o</code> or <code>0b</code> (<code>0xFF</code>, <code>0o755</code>, <code>0b1010</code>); there is no sign and no digit separator. A literal's
+<code>0o</code> or <code>0b</code> (<code>0xFF</code>, <code>0o755</code>, <code>0b1010</code>), with no sign. A <code>_</code> between two digits groups them and
+is ignored: <code>1_000_000</code>, <code>0xFFFF_0000</code>, <code>3.141_592</code> (anywhere else, a <code>_</code> is a syntax error). A literal's
 type comes from, in order: an explicit suffix <code>123: u8</code>; the <em>expected type</em> at that position
 (a declared variable type, a parameter type, a field type, or the other operand of the same
 operator); otherwise the default, <code>i32</code> for integers and <code>f64</code> for floats. An expression made only
@@ -624,6 +621,7 @@ bytes readably in code that parses. A string literal <code>&quot;…&quot;</code
     <span class="t">f64</span> tiny = <span class="n">1.5</span>e-<span class="n">3</span>;                <span class="c">// an exponent: 0.0015</span>
     <span class="t">u8</span> comma = b&#x27;,&#x27;;                  <span class="c">// a byte character: 44</span>
     <span class="t">u32</span> mask = <span class="n">0</span>xFF00;                <span class="c">// hexadecimal; also 0o17 (octal) and 0b1010 (binary)</span>
+    <span class="t">u64</span> ns = <span class="n">1</span>_000_000_000;           <span class="c">// _ groups digits: one second in nanoseconds</span>
     <span class="t">u64</span> sixteen_gib = <span class="n">16</span> * <span class="n">1024</span> * <span class="n">1024</span> * <span class="n">1024</span>;   <span class="c">// literals only: computed in u64</span>
     <span class="t">i64</span> g = -<span class="n">1</span>;                       <span class="c">// the expected type reaches through unary minus</span>
     <span class="t">i32</span> lo = -<span class="n">2147483648</span>;             <span class="c">// min(i32): 2147483648 alone would not fit</span>
@@ -631,7 +629,7 @@ bytes readably in code that parses. A string literal <code>&quot;…&quot;</code
     check(g &lt; <span class="n">0</span>);
     check(lo + <span class="n">2147483647</span> == -<span class="n">1</span>);
     check(tiny == <span class="n">0.0015</span> &amp;&amp; comma == <span class="n">44</span> &amp;&amp; mask == <span class="n">65280</span>);
-    check(sixteen_gib == <span class="n">17179869184</span>);
+    check(sixteen_gib == <span class="n">17</span>_179_869_184 &amp;&amp; ns == <span class="n">1000000000</span>);
     check(<span class="p">sizeof</span>&lt;<span class="t">u64</span>&gt;() == <span class="n">8</span>);        <span class="c">// sizeof and alignof are intrinsics returning usize</span>
     check(<span class="p">alignof</span>&lt;<span class="t">u16</span>&gt;() == <span class="n">2</span>);
 }</code></pre></figure>
@@ -903,10 +901,9 @@ value that means "none". Here are all three:</p>
 {
     <span class="t">i64</span> lo = <span class="p">max_value</span>&lt;<span class="t">i64</span>&gt;();
     <span class="t">i64</span> hi = <span class="p">min_value</span>&lt;<span class="t">i64</span>&gt;();
-    <span class="t">usize</span> i = <span class="n">0</span>;
-    <span class="k">while</span> (i &lt; <span class="p">Vec</span>::len(v))
+    foreach (p in v)
     {
-        <span class="t">i64</span> x = *<span class="p">Vec</span>::index_shared(v, i);
+        <span class="t">i64</span> x = *p;
         <span class="k">if</span> (x &lt; lo)
         {
             lo = x;
@@ -915,7 +912,6 @@ value that means "none". Here are all three:</p>
         {
             hi = x;
         }
-        i = i + <span class="n">1</span>;
     }
     hi - lo
 }
@@ -940,14 +936,12 @@ value that means "none". Here are all three:</p>
 <span class="c">// The index of the first b, or usize&#x27;s maximum for &quot;not found&quot;.</span>
 <span class="k">fn</span> find(<span class="t">ref</span>&lt;<span class="p">Vec</span>&lt;<span class="t">u8</span>&gt;, <span class="t">shared</span>&gt; v, <span class="t">u8</span> b) : <span class="t">usize</span>
 {
-    <span class="t">usize</span> i = <span class="n">0</span>;
-    <span class="k">while</span> (i &lt; <span class="p">Vec</span>::len(v))
+    foreach (i, x in v)
     {
-        <span class="k">if</span> (*<span class="p">Vec</span>::index_shared(v, i) == b)
+        <span class="k">if</span> (*x == b)
         {
             <span class="k">return</span> i;
         }
-        i = i + <span class="n">1</span>;
     }
     <span class="p">max_value</span>&lt;<span class="t">usize</span>&gt;()
 }
@@ -3671,11 +3665,9 @@ and the values are copied into a <code>Vec</code>.</p>
     printf(<span class="s">&quot;%v&quot;</span>, geometry::rect_area(<span class="n">6</span>, <span class="n">7</span>));
     printf(<span class="s">&quot;\n&quot;</span>);
     <span class="p">Vec</span>&lt;<span class="t">i64</span>&gt; sq = geometry::first_squares(<span class="n">5</span>);
-    <span class="t">usize</span> i = <span class="n">0</span>;
-    <span class="k">while</span> (i &lt; <span class="p">Vec</span>::len(&amp;sq))
+    foreach (x in &amp;sq)
     {
-        printf(<span class="s">&quot;%v &quot;</span>, *<span class="p">Vec</span>::index_shared(&amp;sq, i));
-        i = i + <span class="n">1</span>;
+        printf(<span class="s">&quot;%v &quot;</span>, x);
     }
     printf(<span class="s">&quot;\n&quot;</span>);
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>42
@@ -4314,11 +4306,9 @@ a <code>u8</code> prints as a number. To write bytes, use the <code>write</code>
 
 <span class="k">fn</span> print_bytes(<span class="t">ref</span>&lt;<span class="p">Vec</span>&lt;<span class="t">u8</span>&gt;, <span class="t">shared</span>&gt; v)
 {
-    <span class="t">usize</span> i = <span class="n">0</span>;
-    <span class="k">while</span> (i &lt; <span class="p">Vec</span>::len(v))
+    foreach (b in v)
     {
-        put(*<span class="p">Vec</span>::index_shared(v, i));
-        i = i + <span class="n">1</span>;
+        put(*b);
     }
 }
 
@@ -4326,7 +4316,7 @@ a <code>u8</code> prints as a number. To write bytes, use the <code>write</code>
 {
     put(b&#x27;a&#x27;);                        <span class="c">// the byte of `a`</span>
     printf(<span class="s">&quot;%v&quot;</span>, b&#x27;a&#x27;);                      <span class="c">// a u8 prints as a number: 97</span>
-    put(<span class="s">b&quot;\n&quot;</span>[<span class="n">0</span>]);
+    put(b&#x27;\n&#x27;);
     <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; v = <span class="p">Vec</span>::new();
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, b&#x27;o&#x27;);
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, b&#x27;k&#x27;);
@@ -4616,9 +4606,9 @@ because it fills the gap with the last entry; use <code>remove_ordered</code> wh
 {
     <span class="t">array</span>&lt;<span class="t">str</span>, <span class="n">9</span>&gt; words = [<span class="s">&quot;the&quot;</span>, <span class="s">&quot;cat&quot;</span>, <span class="s">&quot;and&quot;</span>, <span class="s">&quot;the&quot;</span>, <span class="s">&quot;hat&quot;</span>, <span class="s">&quot;and&quot;</span>, <span class="s">&quot;the&quot;</span>, <span class="s">&quot;bat&quot;</span>, <span class="s">&quot;sat&quot;</span>];
     HashMap&lt;<span class="p">String</span>, <span class="t">u32</span>&gt; counts = HashMap::new();
-    <span class="k">for</span> (<span class="t">usize</span> i = <span class="n">0</span>; i &lt; <span class="n">9</span>; i += <span class="n">1</span>)
+    foreach (w in words)
     {
-        *HashMap::entry(&amp;<span class="k">mut</span> counts, <span class="p">String</span>::from_str(words[i]), <span class="n">0</span>) += <span class="n">1</span>;   <span class="c">// 0 if new, then + 1</span>
+        *HashMap::entry(&amp;<span class="k">mut</span> counts, <span class="p">String</span>::from_str(w), <span class="n">0</span>) += <span class="n">1</span>;   <span class="c">// 0 if new, then + 1</span>
     }
     foreach (word, n in &amp;counts)                        <span class="c">// insertion order</span>
     {
@@ -4712,8 +4702,8 @@ for looking things up; the semantics are in the earlier sections.</p>
 <ul>
 <li><strong>Comments:</strong> <code>// to end of line</code> and <code>/* block */</code> (block comments do not nest).</li>
 <li><strong>Identifiers:</strong> ASCII letters, digits and <code>_</code>, not starting with a digit.</li>
-<li><strong>Integer literals:</strong> decimal digits, optionally <code>: type</code> (<code>255: u8</code>). No sign, no hex, no separators. <strong>Float literals:</strong> <code>1.5</code>, <code>0.25: f32</code>. <strong>Booleans:</strong> <code>true</code>, <code>false</code>. <strong>Unit value:</strong> <code>()</code>.</li>
-<li><strong>String literals:</strong> <code>&quot;…&quot;</code>, type <code>str</code>. Escapes <code>\n \r \t \0 \\ \&quot;</code> and <code>\u{hex}</code>; any other source character stands for itself. A literal must close on its own line. <strong>Byte literals:</strong> <code>b&quot;…&quot;</code>, type <code>array&lt;u8, N&gt;</code>; the same escapes except <code>\xNN</code> in place of <code>\u{…}</code>, ASCII characters only, at least one byte. <strong>No character literals:</strong> a byte is <code>b&quot;a&quot;[0]</code> or a number.</li>
+<li><strong>Integer literals:</strong> decimal digits, or hexadecimal, octal or binary after <code>0x</code>, <code>0o</code>, <code>0b</code>, optionally <code>: type</code> (<code>255: u8</code>, <code>0xFF: u8</code>). No sign: <code>-</code> is an operator. <strong>Float literals:</strong> <code>1.5</code>, <code>0.25: f32</code>, <code>1.0e-7</code>. <strong>Digit separators:</strong> a <code>_</code> between two digits is ignored (<code>1_000_000</code>, <code>0xFFFF_0000</code>). <strong>Booleans:</strong> <code>true</code>, <code>false</code>. <strong>Unit value:</strong> <code>()</code>.</li>
+<li><strong>String literals:</strong> <code>&quot;…&quot;</code>, type <code>str</code>. Escapes <code>\n \r \t \0 \\ \&quot;</code> and <code>\u{hex}</code>; any other source character stands for itself. A literal must close on its own line. <strong>Byte literals:</strong> <code>b&quot;…&quot;</code>, type <code>array&lt;u8, N&gt;</code>; the same escapes except <code>\xNN</code> in place of <code>\u{…}</code>, ASCII characters only, at least one byte. <strong>Byte character literals:</strong> <code>b&#x27;a&#x27;</code>, type <code>u8</code>, one ASCII character or escape. <strong>No character literals</strong> (a <code>char</code> type).</li>
 <li><strong>Keywords:</strong> <code>fn struct enum resource match if else while return auto module import export unsafe extern break continue move mut true false as void</code>.</li>
 <li><strong>Reserved type names</strong> (cannot be identifiers): <code>i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 isize usize f32 f64 bool str ref rawptr array handle mutex guard</code>. The words <code>shared</code> and <code>exclusive</code> are ordinary identifiers that only have meaning inside <code>ref&lt;…, …&gt;</code>.</li>
 <li>Whitespace and newlines are insignificant between tokens; brace placement is a matter of style.</li>
@@ -4946,6 +4936,7 @@ rule is applied statically where the checker can see the problem and dynamically
 
 <nav class="pager"><a class="prev" href="#s22">&larr; §22 Surface syntax reference</a><a class="top" href="#top">Top</a></nav></section>
 
+
 <div class="book-navigation">
     <a href="Appendix_05.html" class="nav-btn">&larr; Previous</a>
     <a href="Appendix_07.html" class="nav-btn">Appendix VII &rarr;</a>
@@ -4959,7 +4950,6 @@ rule is applied statically where the checker can see the problem and dynamically
     </a>.
   </p>
 </footer>
-
 
 </main>
 </div>
