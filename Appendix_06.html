@@ -278,6 +278,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 <p>------------------------------------------------------------------------</p>
 
 
+
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -3513,7 +3514,7 @@ its life, because there is no operation that could break it.</p>
 <h2><span class="secnum">§21</span>The standard library, std</h2>
 <div class="spec-ref">Governing specification file: <code>spec/21-standard-library-semantics.md</code></div><p class="blurb">import std; Option, Result, the intrinsics, str and print, and Vec, String and Rc written in CobaltC.</p>
 <p>The standard library is the module <code>std</code>: the <code>Option</code> and <code>Result</code> enums, <code>print</code>,
-<code>write</code> and <code>map_err</code>, and three library types written in CobaltC itself, <code>Vec&lt;T&gt;</code>, <code>String</code> and
+<code>write</code>, <code>read</code>, <code>read_line</code> and <code>map_err</code>, and three library types written in CobaltC itself, <code>Vec&lt;T&gt;</code>, <code>String</code> and
 <code>Rc&lt;T&gt;</code>. A program uses it with <code>import std;</code>, or by qualified paths such as <code>std::Vec</code>. Its source
 is part of the specification, which is the language's proof that the mechanisms in this guide are
 enough to build real containers. Being a module, it keeps its private parts private: no program
@@ -3539,6 +3540,12 @@ value type <code>str</code> belong to the language itself and need no import.</p
 <span class="k">export</span> <span class="k">struct</span> <span class="p">Utf8Error</span>
 {
     <span class="k">export</span> <span class="t">usize</span> offset;              <span class="c">// where validation failed</span>
+}
+
+<span class="k">export</span> <span class="k">enum</span> ReadError                 <span class="c">// why read_line failed</span>
+{
+    Io,
+    Utf8(<span class="p">Utf8Error</span>)
 }</code></pre></figure>
 <h3>Intrinsics</h3>
 <p>Intrinsics are called like functions; their behaviour is given by rules rather than by a
@@ -3559,9 +3566,11 @@ intrinsic is used only where there is none.</p>
 <tr><td><code>reclaim&lt;T&gt;(p)</code>, <code>release(p, n)</code>, <code>copy_raw(dst, src, n)</code></td><td>raw memory as objects (unsafe)</td><td>§20</td></tr>
 <tr><td><code>allocate(n, align)</code>, <code>deallocate(p, n, align)</code></td><td>raw allocation (<code>deallocate</code> is unsafe)</td><td>§20</td></tr>
 <tr><td><code>dangling&lt;T&gt;()</code></td><td>a well-aligned non-null address that must never be dereferenced; used for empty containers</td><td>§21</td></tr>
-<tr><td><code>write(buf, len)</code></td><td><code>std</code>'s one extern: write bytes to standard output (unsafe)</td><td>§20</td></tr>
+<tr><td><code>write(buf, len)</code></td><td>an extern of <code>std</code>: write bytes to standard output (unsafe)</td><td>§20</td></tr>
+<tr><td><code>read(buf, len)</code></td><td>an extern of <code>std</code>: read bytes from standard input (unsafe; <code>cobc</code> only)</td><td>§21</td></tr>
 <tr><td><code>str_len(s)</code>, <code>str_byte(s, i)</code>, <code>str_ptr(s)</code></td><td>a <code>str</code>'s byte count, one byte (bounds-checked), and the address of its bytes (safe)</td><td>§21</td></tr>
 <tr><td><code>print(x)</code></td><td>write a <code>str</code>, a number, a <code>bool</code> or a <code>String</code> (through <code>&amp;</code>) to standard output; a function of <code>std</code></td><td>§21</td></tr>
+<tr><td><code>read_line()</code></td><td>read the next line of standard input as a <code>String</code> (a function of <code>std</code>; <code>cobc</code> only)</td><td>§21</td></tr>
 <tr><td><code>map_err(r, f)</code></td><td>convert a <code>Result</code>'s error type with <code>f</code> (a function of <code>std</code>)</td><td>§18</td></tr>
 </tbody>
 </table>
@@ -4054,6 +4063,83 @@ written with ordinary arithmetic, printing the pieces:</p>
     <span class="p">String</span> s = <span class="p">String</span>::from_str(<span class="s">&quot;hi&quot;</span>);   <span class="c">// <span class="ok">✓</span> the explicit, allocating bridge</span>
     check(<span class="p">String</span>::len(&amp;s) == <span class="n">2</span>);
 }</code></pre></figure>
+<h3>Reading input</h3>
+<p><code>read_line()</code> reads the next line of standard input. It returns a
+<code>Result&lt;Option&lt;String&gt;, ReadError&gt;</code>:</p>
+<table>
+<thead><tr><th>Result</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>Ok(Some(line))</code></td><td>the next line, without its <code>\n</code>; a last line with no <code>\n</code> counts too</td></tr>
+<tr><td><code>Ok(None)</code></td><td>the input has ended (and every later call says so again)</td></tr>
+<tr><td><code>Err(Utf8(e))</code></td><td>the line is not valid UTF-8; <code>e.offset</code> is the bad byte's position in the line, and the next call reads the line after it</td></tr>
+<tr><td><code>Err(Io)</code></td><td>the input could not be read</td></tr>
+</tbody>
+</table>
+<p>Only <code>\n</code> ends a line, so a line typed on Windows keeps its <code>\r</code>. The line is a
+<code>String</code> that has already been checked, so a program that reads never writes <code>unsafe</code>, and <code>?</code>
+passes a <code>ReadError</code> up to the caller. Underneath is the <code>read</code> extern, the counterpart of
+<code>write</code>, which you can call yourself inside <code>unsafe</code> to read raw bytes.</p>
+<div class="callout warn"><div class="callout-title">Watch out</div>Only the compiler reads input. The interpreter <code>coby</code> stops at the first read with
+<code>unsupported: reading input needs cobc; coby does not read standard input</code> (exit status 3);
+everything before that point runs as usual. Compile a program that reads with <code>cobc</code> and give it
+input, for example <code>printf &#x27;ada\nlin\n&#x27; | cobc --run greet.cb</code>.</div>
+<figure class="code"><div class="code-head"><span class="code-title">Reading lines (cobc only)</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Greets every line of input; blank lines are skipped.</span>
+<span class="k">fn</span> greet_all() : <span class="p">Result</span>&lt;<span class="t">usize</span>, ReadError&gt;
+{
+    <span class="t">usize</span> count = <span class="n">0</span>;
+    <span class="k">while</span> (<span class="k">true</span>)
+    {
+        <span class="k">auto</span> line = read_line()?;     <span class="c">// an error goes back to main</span>
+        <span class="k">match</span> (line)
+        {
+            <span class="p">Some</span>(name) :
+            {
+                <span class="k">if</span> (<span class="p">String</span>::len(&amp;name) &gt; <span class="n">0</span>)
+                {
+                    <span class="p">print</span>(<span class="s">&quot;hello, &quot;</span>);
+                    <span class="p">print</span>(&amp;name);
+                    <span class="p">print</span>(<span class="s">&quot;\n&quot;</span>);
+                    count = count + <span class="n">1</span>;
+                }
+            },
+            <span class="p">None</span> :
+            {
+                <span class="k">return</span> <span class="p">Ok</span>(count);     <span class="c">// the end of input</span>
+            },
+        }
+    }
+    <span class="p">Ok</span>(count)
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="k">match</span> (greet_all())
+    {
+        <span class="p">Ok</span>(n) :
+        {
+            <span class="p">print</span>(n);
+            <span class="p">print</span>(<span class="s">&quot; greeted\n&quot;</span>);
+        },
+        <span class="p">Err</span>(e) :
+        {
+            <span class="k">match</span> (e)
+            {
+                Io :
+                {
+                    <span class="p">print</span>(<span class="s">&quot;could not read input\n&quot;</span>);
+                },
+                Utf8(u) :
+                {
+                    <span class="p">print</span>(<span class="s">&quot;not UTF-8 at byte &quot;</span>);
+                    <span class="p">print</span>(u.offset);
+                    <span class="p">print</span>(<span class="s">&quot;\n&quot;</span>);
+                },
+            }
+        },
+    }
+}</code></pre></figure>
 <h3><code>Rc&lt;T&gt;</code></h3>
 <p>Shared ownership as a library: a reference-counted box. <code>Rc::clone</code> makes another handle
 to the same box; the value is destroyed when the last handle is dropped. Access is read-only (a
@@ -4359,6 +4445,7 @@ rule is applied statically where the checker can see the problem and dynamically
     </a>.
   </p>
 </footer>
+
 
 </main>
 </div>
