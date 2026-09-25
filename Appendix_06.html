@@ -279,6 +279,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 <p>------------------------------------------------------------------------</p>
 
 
+
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -286,7 +287,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 <span class="k">fn</span> main()
 {
-    <span class="p">print</span>(<span class="s">&quot;Hello, CobaltC!\n&quot;</span>);
+    printf(<span class="s">&quot;Hello, CobaltC!\n&quot;</span>);
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>Hello, CobaltC!
 </pre></div></figure>
 <h3>What CobaltC is</h3>
@@ -332,7 +333,7 @@ turn.</p>
 <tr><td>Failure is never silent</td><td>Two channels only: a <em>checked fault</em> is fatal and unwinds destructors; recoverable errors are <code>Result</code> values with the <code>?</code> operator. There is no catch.</td><td>§18</td></tr>
 <tr><td>Threads do not race</td><td><code>spawn</code>/<code>join</code> with owning handles; a <code>mutex</code> whose interior is reachable only through a <code>lock</code> guard. The same aliasing rules apply across threads.</td><td>§19</td></tr>
 <tr><td>External data is a claim, not a fact</td><td><code>unsafe</code> blocks record what you assert. <code>rawptr&lt;T&gt;</code>, <code>reclaim</code>, <code>allocate</code> and <code>extern fn</code> are the only doors to the outside, and FFI signatures are restricted to plain types.</td><td>§20</td></tr>
-<tr><td>Text is a value, not a resource</td><td>A string literal <code>&quot;…&quot;</code> is a <code>str</code>: a copyable value like an integer, valid UTF-8 by construction, never owned or freed. <code>print</code> writes one. Owned, growable text is <code>String</code>, built from a <code>str</code> or validated from bytes.</td><td>§21</td></tr>
+<tr><td>Text is a value, not a resource</td><td>A string literal <code>&quot;…&quot;</code> is a <code>str</code>: a copyable value like an integer, valid UTF-8 by construction, never owned or freed. <code>printf</code> writes one. Owned, growable text is <code>String</code>, built from a <code>str</code> or validated from bytes.</td><td>§21</td></tr>
 <tr><td>The library proves the language is sufficient</td><td><code>Vec&lt;T&gt;</code>, <code>String</code> and <code>Rc&lt;T&gt;</code> are written in CobaltC itself, using nothing the language does not give you.</td><td>§21</td></tr>
 </tbody>
 </table>
@@ -387,9 +388,9 @@ and prints the output shown below the code.</p>
 <span class="k">import</span> std;
 
 <span class="c">// A module of output helpers. Fixed text is a `str` literal handed to</span>
-<span class="c">// the standard library&#x27;s `print`; `std` has no number formatting, so</span>
-<span class="c">// digits go out as bytes through the one extern function it declares,</span>
-<span class="c">// `write`, and calling an extern needs `unsafe`. A module sees only</span>
+<span class="c">// the standard library&#x27;s `printf`; to show an extern call, this module</span>
+<span class="c">// writes digits itself, as bytes through the extern function `std`</span>
+<span class="c">// declares, `write`, and calling an extern needs `unsafe`. A module sees only</span>
 <span class="c">// what it imports itself, so `out` imports `std` too.</span>
 <span class="k">module</span> out
 {
@@ -411,7 +412,7 @@ and prints the output shown below the code.</p>
         <span class="t">i64</span> v = <span class="p">widen</span>&lt;<span class="t">i64</span>&gt;(n);                            <span class="c">// widen first: -(-2147483648) does not fit in an i32</span>
         <span class="k">if</span> (v &lt; <span class="n">0</span>)
         {
-            <span class="p">print</span>(<span class="s">&quot;-&quot;</span>);
+            printf(<span class="s">&quot;-&quot;</span>);
             digits(-v);
             <span class="k">return</span>;                                       <span class="c">// `return` with no value in a void function</span>
         }
@@ -473,9 +474,9 @@ and prints the output shown below the code.</p>
 <span class="c">// The destructor. It is never called directly; the language runs it.</span>
 <span class="k">fn</span> Log::<span class="p">drop</span>(<span class="t">ref</span>&lt;Log, <span class="t">exclusive</span>&gt; self)
 {
-    <span class="p">print</span>(<span class="s">&quot;L&quot;</span>);
+    printf(<span class="s">&quot;L&quot;</span>);
     out::int(<span class="p">narrow</span>&lt;<span class="t">i32</span>&gt;(<span class="p">Vec</span>::len(&amp;self.entries)));
-    <span class="p">print</span>(<span class="s">&quot;\n&quot;</span>);
+    printf(<span class="s">&quot;\n&quot;</span>);
     <span class="c">// self.entries (a Vec, itself a resource) is destroyed after this body.</span>
 }
 
@@ -525,20 +526,20 @@ and prints the output shown below the code.</p>
         {
             Cold(by) :            <span class="c">// &quot;C&quot; then the shortfall</span>
             {
-                <span class="p">print</span>(<span class="s">&quot;C&quot;</span>);
+                printf(<span class="s">&quot;C&quot;</span>);
                 out::int(by);
             },
             Fine :
             {
-                <span class="p">print</span>(<span class="s">&quot;F&quot;</span>);
+                printf(<span class="s">&quot;F&quot;</span>);
             },
             Hot(by) :             <span class="c">// &quot;H&quot; then the excess</span>
             {
-                <span class="p">print</span>(<span class="s">&quot;H&quot;</span>);
+                printf(<span class="s">&quot;H&quot;</span>);
                 out::int(by);
             },
         }
-        <span class="p">print</span>(<span class="s">&quot;\n&quot;</span>);
+        printf(<span class="s">&quot;\n&quot;</span>);
         i = i + <span class="n">1</span>;
     }
 
@@ -553,10 +554,10 @@ and prints the output shown below the code.</p>
         },
         <span class="p">Err</span>(_) :
         {
-            <span class="p">print</span>(<span class="s">&quot;?&quot;</span>);
+            printf(<span class="s">&quot;?&quot;</span>);
         },
     }
-    <span class="p">print</span>(<span class="s">&quot;\n&quot;</span>);
+    printf(<span class="s">&quot;\n&quot;</span>);
 
     <span class="c">// A closure. The capture list names every outer variable the body</span>
     <span class="c">// uses; `scale` is only read, so it is captured by shared reference.</span>
@@ -566,16 +567,16 @@ and prints the output shown below the code.</p>
         x * scale
     };
     out::int(scaled(<span class="n">4</span>));
-    <span class="p">print</span>(<span class="s">&quot;\n&quot;</span>);
+    printf(<span class="s">&quot;\n&quot;</span>);
 
     out::int(first_of(<span class="n">9</span>, <span class="n">8</span>));                             <span class="c">// T := i32</span>
-    <span class="p">print</span>(<span class="s">&quot;\n&quot;</span>);
+    printf(<span class="s">&quot;\n&quot;</span>);
 
     <span class="c">// A thread: spawn takes a function and its arguments; join waits</span>
     <span class="c">// and returns the result. The handle is a resource too.</span>
     <span class="k">auto</span> h = <span class="p">spawn</span>(work, <span class="n">21</span>);
     out::int(<span class="p">join</span>(h));
-    <span class="p">print</span>(<span class="s">&quot;\n&quot;</span>);
+    printf(<span class="s">&quot;\n&quot;</span>);
 }   <span class="c">// `log` is destroyed here: its destructor prints &quot;L3&quot;, then the Vec frees its buffer.</span></code></pre><div class="code-output"><span class="out-label">output</span><pre>C30
 F
 H40
@@ -594,7 +595,7 @@ L3
 <li><strong><code>Log</code> is a <code>resource</code></strong>: it owns a <code>Vec</code>. It has a destructor <code>fn Log::drop</code>, which the language runs at the end of <code>main</code>. Passing or assigning a resource moves it.</li>
 <li><strong>No implicit conversions.</strong> <code>narrow&lt;u8&gt;(n % 10)</code> and <code>widen&lt;i32&gt;(b - 48)</code> say exactly what happens to the representation, and <code>narrow</code> is checked at run time.</li>
 <li><strong>Library calls are qualified</strong>: <code>Vec::push(&amp;mut v, x)</code>, <code>Vec::len(&amp;v)</code>, <code>Vec::index_shared(&amp;v, i)</code>. There is no method-call syntax.</li>
-<li><strong>Text is a <code>str</code> value; <code>print</code> writes it.</strong> <code>&quot;C&quot;</code> and <code>&quot;\n&quot;</code> are <code>str</code> literals, copyable values with no owner. There is no number formatting in <code>std</code>, so the <code>out</code> module turns digits into bytes and writes them through the <code>write</code> extern inside an <code>unsafe</code> block; <code>b&quot;42&quot;</code> is a byte-array literal, <code>array&lt;u8, 2&gt;</code>.</li>
+<li><strong>Text is a <code>str</code> value; <code>printf</code> writes it.</strong> <code>&quot;C&quot;</code> and <code>&quot;\n&quot;</code> are <code>str</code> literals, copyable values with no owner. <code>printf(&quot;%d&quot;, n)</code> would write a number; to show an extern call, the <code>out</code> module turns digits into bytes itself and writes them through the <code>write</code> extern inside an <code>unsafe</code> block; <code>b&quot;42&quot;</code> is a byte-array literal, <code>array&lt;u8, 2&gt;</code>.</li>
 </ul>
 <p>Further showcases can be found in the repository's
 <a href="https://github.com/strawberry9/CobaltC/tree/main/showcase">showcase directory</a>; its
@@ -2545,21 +2546,19 @@ program's name.</p>
 {
     <span class="k">if</span> (arg_count() != <span class="n">1</span>)
     {
-        <span class="p">print</span>(<span class="s">&quot;usage: greet NAME\n&quot;</span>);
+        printf(<span class="s">&quot;usage: greet NAME\n&quot;</span>);
         <span class="k">return</span> <span class="n">2</span>;                     <span class="c">// exit status 2</span>
     }
     <span class="k">match</span> (arg(<span class="n">0</span>))
     {
         <span class="p">Ok</span>(name) :
         {
-            <span class="p">print</span>(<span class="s">&quot;hello, &quot;</span>);
-            <span class="p">print</span>(&amp;name);
-            <span class="p">print</span>(<span class="s">&quot;\n&quot;</span>);
+            printf(<span class="s">&quot;hello, %v\n&quot;</span>, &amp;name);
             <span class="n">0</span>
         },
         <span class="p">Err</span>(_) :
         {
-            <span class="p">print</span>(<span class="s">&quot;the name is not UTF-8\n&quot;</span>);
+            printf(<span class="s">&quot;the name is not UTF-8\n&quot;</span>);
             <span class="n">1</span>
         },
     }
@@ -2925,7 +2924,7 @@ imports would give one name two meanings, qualify.</p>
 every item <code>m</code> exports, including the variants of its exported enums, can be used unqualified. This
 is how programs use the standard library: <code>import std;</code>. A name is looked up in a fixed order: the
 module's own declarations first, then single-name imports, then module imports, then the
-enclosing modules. So a module's own <code>print</code> wins over <code>std::print</code>, which stays reachable by its
+enclosing modules. So a module's own <code>printf</code> wins over <code>std::printf</code>, which stays reachable by its
 full name. If two imported modules both export a name, using that name unqualified is
 <code>diag.ambiguous-name</code>; importing both is fine, so a module that gains an export never breaks a
 program that does not use it. An import acts only in the module that writes it: a nested module, or
@@ -2961,24 +2960,24 @@ a module in a file of its own, writes its own <code>import std;</code>.</p>
     {
         <span class="k">match</span> (s)
         {
-            Square(_) : <span class="p">print</span>(<span class="s">&quot;square\n&quot;</span>),
-            Dot : <span class="p">print</span>(<span class="s">&quot;dot\n&quot;</span>),
+            Square(_) : printf(<span class="s">&quot;square\n&quot;</span>),
+            Dot : printf(<span class="s">&quot;dot\n&quot;</span>),
         }
     }
 }
 
 <span class="k">import</span> shapes;
 
-<span class="k">fn</span> <span class="p">print</span>(<span class="t">str</span> s)                       <span class="c">// the root&#x27;s own print is found before std::print</span>
+<span class="k">fn</span> printf(<span class="t">str</span> s)                      <span class="c">// the root&#x27;s own printf is found before std::printf</span>
 {
-    std::<span class="p">print</span>(<span class="s">&quot;&gt; &quot;</span>);
-    std::<span class="p">print</span>(s);
+    std::printf(<span class="s">&quot;&gt; &quot;</span>);
+    std::printf(<span class="s">&quot;%v&quot;</span>, s);
 }
 
 <span class="k">fn</span> main()
 {
     describe(Square(<span class="n">2</span>));              <span class="c">// shapes::describe and shapes::Shape::Square, unqualified</span>
-    <span class="p">print</span>(<span class="s">&quot;done\n&quot;</span>);
+    printf(<span class="s">&quot;done\n&quot;</span>);
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>square
 &gt; done
 </pre></div></figure>
@@ -3546,7 +3545,7 @@ is a <em>claim</em>: a genuine value of its declared type, but one whose relatio
 else (that a returned length is right, that a pointer is valid) is not established until your code
 checks it.</p>
 <p><code>std</code> declares two externs: <code>write(rawptr&lt;u8&gt; buf, usize len) : isize</code>, which
-<code>std::print</code> (§21) writes through, with the <code>unsafe</code> block inside <code>std</code>, and its counterpart <code>read</code>,
+<code>printf</code> (§21) writes through, with the <code>unsafe</code> block inside <code>std</code>, and its counterpart <code>read</code>,
 which <code>read_line</code> reads through. Calling conventions and how code is linked are outside the language
 and documented by each implementation; a program names the C code it needs with <code>extern &quot;…&quot;;</code>
 (below).</p>
@@ -3654,17 +3653,16 @@ and the values are copied into a <code>Vec</code>.</p>
 
 <span class="k">fn</span> main()
 {
-    <span class="p">print</span>(geometry::rect_area(<span class="n">6</span>, <span class="n">7</span>));
-    <span class="p">print</span>(<span class="s">&quot;\n&quot;</span>);
+    printf(<span class="s">&quot;%v&quot;</span>, geometry::rect_area(<span class="n">6</span>, <span class="n">7</span>));
+    printf(<span class="s">&quot;\n&quot;</span>);
     <span class="p">Vec</span>&lt;<span class="t">i64</span>&gt; sq = geometry::first_squares(<span class="n">5</span>);
     <span class="t">usize</span> i = <span class="n">0</span>;
     <span class="k">while</span> (i &lt; <span class="p">Vec</span>::len(&amp;sq))
     {
-        <span class="p">print</span>(*<span class="p">Vec</span>::index_shared(&amp;sq, i));
-        <span class="p">print</span>(<span class="s">&quot; &quot;</span>);
+        printf(<span class="s">&quot;%v &quot;</span>, *<span class="p">Vec</span>::index_shared(&amp;sq, i));
         i = i + <span class="n">1</span>;
     }
-    <span class="p">print</span>(<span class="s">&quot;\n&quot;</span>);
+    printf(<span class="s">&quot;\n&quot;</span>);
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>42
 0 1 4 9 16 
 </pre></div></figure>
@@ -3744,8 +3742,8 @@ its life, because there is no operation that could break it.</p>
 <nav class="pager"><a class="prev" href="#s19">&larr; §19 Concurrency</a><a class="top" href="#top">Top</a><a class="next" href="#s21">§21 The standard library, std &rarr;</a></nav></section>
 <section id="s21">
 <h2><span class="secnum">§21</span>The standard library, std</h2>
-<div class="spec-ref">Governing specification file: <code>spec/21-standard-library-semantics.md</code></div><p class="blurb">import std; Option, Result, the intrinsics, str and print, and Vec, String and Rc written in CobaltC.</p>
-<p>The standard library is the module <code>std</code>: the <code>Option</code> and <code>Result</code> enums, <code>print</code>,
+<div class="spec-ref">Governing specification file: <code>spec/21-standard-library-semantics.md</code></div><p class="blurb">import std; Option, Result, the intrinsics, str and printf, and Vec, String and Rc written in CobaltC.</p>
+<p>The standard library is the module <code>std</code>: the <code>Option</code> and <code>Result</code> enums, <code>printf</code>, <code>sprintf</code>,
 <code>write</code>, <code>read</code>, <code>read_line</code>, <code>arg_count</code>, <code>arg</code>, <code>arg_bytes</code>, <code>parse</code>, <code>read_file</code>, <code>write_file</code> and <code>map_err</code>, and three library types written in CobaltC itself, <code>Vec&lt;T&gt;</code>, <code>String</code> and
 <code>Rc&lt;T&gt;</code>. A program uses it with <code>import std;</code>, or by qualified paths such as <code>std::Vec</code>. Its source
 is part of the specification, which is the language's proof that the mechanisms in this guide are
@@ -3816,7 +3814,8 @@ intrinsic is used only where there is none.</p>
 <tr><td><code>write(buf, len)</code></td><td>an extern of <code>std</code>: write bytes to standard output (unsafe)</td><td>§20</td></tr>
 <tr><td><code>read(buf, len)</code></td><td>an extern of <code>std</code>: read bytes from standard input (unsafe; <code>cobc</code> only)</td><td>§21</td></tr>
 <tr><td><code>str_len(s)</code>, <code>str_byte(s, i)</code>, <code>str_ptr(s)</code></td><td>a <code>str</code>'s byte count, one byte (bounds-checked), and the address of its bytes (safe)</td><td>§21</td></tr>
-<tr><td><code>print(x)</code></td><td>write a <code>str</code>, a number, a <code>bool</code> or a <code>String</code> (through <code>&amp;</code>) to standard output; a function of <code>std</code></td><td>§21</td></tr>
+<tr><td><code>printf(&quot;%v&quot;, x)</code></td><td>write a <code>str</code>, a number, a <code>bool</code> or a <code>String</code> (through <code>&amp;</code>) to standard output; a function of <code>std</code></td><td>§21</td></tr>
+<tr><td><code>printf(fmt, args…)</code>, <code>String::appendf(&amp;mut s, fmt, args…)</code></td><td>C-style formatted output, to standard output or into a <code>String</code>, checked when compiled (functions of <code>std</code>)</td><td>§21</td></tr>
 <tr><td><code>read_line()</code></td><td>read the next line of standard input as a <code>String</code> (a function of <code>std</code>; <code>cobc</code> only)</td><td>§21</td></tr>
 <tr><td><code>arg_count()</code>, <code>arg(i)</code></td><td>the number of program arguments, and argument <code>i</code> as a <code>String</code> (functions of <code>std</code>)</td><td>§21</td></tr>
 <tr><td><code>arg_bytes(i, buf, len)</code></td><td>an extern of <code>std</code>: copy argument <code>i</code>'s bytes, whatever they are (unsafe)</td><td>§21</td></tr>
@@ -3826,7 +3825,7 @@ intrinsic is used only where there is none.</p>
 <tr><td><code>map_err(r, f)</code></td><td>convert a <code>Result</code>'s error type with <code>f</code> (a function of <code>std</code>)</td><td>§18</td></tr>
 </tbody>
 </table>
-<h3><code>str</code> and <code>print</code></h3>
+<h3><code>str</code></h3>
 <p>CobaltC has two text types, and the short version is: <strong><code>str</code> is a text constant,
 <code>String</code> is text you own.</strong> Fixed text you write in your program is a <code>str</code>; text you build,
 receive or keep ownership of is a <code>String</code> (below). The end of this section compares them side by
@@ -3838,8 +3837,8 @@ it, nothing frees it, and you can pass it, store it in a struct or a <code>Vec&l
 <code>==</code>, and hand it to another thread without any annotation. Its bytes are reached with <code>str_len</code>
 and <code>str_byte</code>; there is no indexing or slicing syntax. Escapes are <code>\n \r \t \0 \\ \&quot;</code> and
 <code>\u{…}</code> for a Unicode scalar value; a literal must close on its own line.</p>
-<p><code>print(s)</code> writes a <code>str</code> to standard output. It prints numbers, <code>bool</code> and <code>String</code>
-too (see "Printing" below). The <code>unsafe</code> block that reaches the <code>write</code> extern is inside <code>std</code>, so a
+<p><code>printf(&quot;%v&quot;, s)</code> writes a <code>str</code> to standard output. It prints numbers, <code>bool</code> and <code>String</code>
+too (see "Printing: <code>printf</code>" below). The <code>unsafe</code> block that reaches the <code>write</code> extern is inside <code>std</code>, so a
 program that only prints never writes <code>unsafe</code> itself.</p>
 <figure class="code"><div class="code-head"><span class="code-title">str values</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
@@ -3866,8 +3865,7 @@ program that only prints never writes <code>unsafe</code> itself.</p>
 
 <span class="k">fn</span> shout(<span class="t">str</span> s)
 {
-    <span class="p">print</span>(s);
-    <span class="p">print</span>(<span class="s">&quot;!\n&quot;</span>);
+    printf(<span class="s">&quot;%v!\n&quot;</span>, s);
 }
 
 <span class="k">fn</span> main()
@@ -3886,8 +3884,7 @@ program that only prints never writes <code>unsafe</code> itself.</p>
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> words, greeting);
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> words, <span class="s">&quot;world&quot;</span>);
     shout(*<span class="p">Vec</span>::index_shared(&amp;words, <span class="n">1</span>));
-    <span class="p">print</span>(greeting);
-    <span class="p">print</span>(<span class="s">&quot;\n&quot;</span>);
+    printf(<span class="s">&quot;%v\n&quot;</span>, greeting);
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>world!
 hello
 </pre></div></figure>
@@ -4035,7 +4032,7 @@ miniature.</p>
 <tr><td><code>String::len</code></td><td><code>(ref&lt;String, shared&gt;) : usize</code> (bytes)</td></tr>
 <tr><td><code>String::into_bytes</code></td><td><code>(String) : Vec&lt;u8&gt;</code> (gives the bytes back, consuming the string)</td></tr>
 <tr><td><code>String::as_bytes</code></td><td><code>(ref&lt;String, shared&gt;) : ref&lt;Vec&lt;u8&gt;, shared&gt;</code> (read the bytes in place)</td></tr>
-<tr><td><code>String::append</code></td><td><code>(ref&lt;String, exclusive&gt;, T)</code> for any <code>T</code> <code>print</code> takes: adds what <code>print</code> would write</td></tr>
+<tr><td><code>String::append</code></td><td><code>(ref&lt;String, exclusive&gt;, T)</code> for any <code>T</code> <code>%v</code> takes: adds what <code>printf(&quot;%v&quot;, x)</code> would write</td></tr>
 </tbody>
 </table>
 <figure class="code"><div class="code-head"><span class="code-title">Validating bytes into a String</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
@@ -4107,7 +4104,7 @@ need an owner.</p>
 <tr><td>Valid UTF-8</td><td>yes, by the literal grammar</td><td>yes, by construction or validation</td><td>not guaranteed</td></tr>
 <tr><td>Resource (moved, destroyed)</td><td>no: copied like an integer</td><td>yes</td><td>no</td></tr>
 <tr><td>Allocates</td><td>never</td><td>yes</td><td>no (an ordinary array)</td></tr>
-<tr><td>Passed to</td><td><code>print</code>, <code>==</code>, <code>str_len</code>, <code>str_byte</code></td><td><code>print</code> (as <code>&amp;s</code>), <code>String::len</code>, <code>String::into_bytes</code></td><td><code>write</code> and other raw-byte code</td></tr>
+<tr><td>Passed to</td><td><code>printf</code>, <code>==</code>, <code>str_len</code>, <code>str_byte</code></td><td><code>printf</code> (as <code>&amp;s</code>), <code>String::len</code>, <code>String::into_bytes</code></td><td><code>write</code> and other raw-byte code</td></tr>
 </tbody>
 </table>
 <div class="callout rule"><div class="callout-title">Rules of thumb</div><ul>
@@ -4121,18 +4118,63 @@ need an owner.</p>
 rule). Going from <code>str</code> to <code>String</code> is an explicit call that makes a copy, and nothing turns a
 <code>String</code> back into a <code>str</code>: a <code>str</code> is always a literal's value, so it cannot refer to bytes that
 something else owns.</p>
-<h3>Printing</h3>
-<p><code>print(x)</code> writes one value to standard output. It takes any of the types below, and
-nothing else: a struct, a <code>Vec</code> or an <code>Option</code> is a static type error, so printing a composite value
-means printing its parts. There is no <code>println</code>; end a line with <code>print(&quot;\n&quot;)</code>.</p>
+<h3>Printing: <code>printf</code></h3>
+<p><code>printf</code> is the one way a program writes output. It is C's, with one difference that matters: the format is checked against its
+arguments when the program is compiled. The format must be a string literal; each <code>%</code> specifier
+must match its argument's type and there must be exactly one argument per specifier, or the
+program is rejected (<code>diag.type-mismatch</code>, or <code>diag.format-invalid</code> for a malformed specifier). So
+a <code>printf</code> can never misprint or crash at run time. <code>sprintf(fmt, args…)</code> returns the same text as a
+new <code>String</code> (C's <code>sprintf</code> without a buffer to overflow), and <code>String::appendf(&amp;mut s, fmt, args…)</code>
+adds it to an existing one. There is no <code>println</code>; end a line with <code>\n</code>.</p>
+<table>
+<thead><tr><th>Specifier</th><th>Takes</th><th>Prints</th></tr></thead>
+<tbody>
+<tr><td><code>%d</code> <code>%i</code> <code>%u</code></td><td>any integer type</td><td>decimal; no <code>%ld</code>/<code>%lld</code>/<code>%zu</code> needed, the type is known</td></tr>
+<tr><td><code>%x</code> <code>%X</code> <code>%o</code> <code>%b</code></td><td>any integer type</td><td>hex, octal, binary (<code>#</code> adds <code>0x</code>, <code>0X</code>, <code>0o</code>, <code>0b</code>)</td></tr>
+<tr><td><code>%f</code> <code>%e</code> <code>%g</code> (and <code>%F</code> <code>%E</code> <code>%G</code>)</td><td><code>f32</code>, <code>f64</code></td><td>fixed, exponent, or shortest of the two, 6 digits by default</td></tr>
+<tr><td><code>%s</code></td><td><code>str</code>, <code>&amp;String</code>, <code>bool</code></td><td>the text</td></tr>
+<tr><td><code>%v</code></td><td>any of the above</td><td>the value as CobaltC writes it (below)</td></tr>
+<tr><td><code>%%</code></td><td>nothing</td><td>a <code>%</code></td></tr>
+</tbody>
+</table>
+<p>Flags, a width and a precision work as in C: <code>%-8s</code> pads on the right, <code>%05d</code> pads with
+zeros, <code>%+d</code> always shows a sign, <code>%.2f</code> rounds to two decimals, <code>%8.3f</code> does both. Widths count
+characters, so text in any language lines up. There is no <code>%c</code>.</p>
+<figure class="code"><div class="code-head"><span class="code-title">printf, sprintf and appendf</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    <span class="p">String</span> item = <span class="p">String</span>::from_str(<span class="s">&quot;widget&quot;</span>);
+    <span class="t">u32</span> qty = <span class="n">12</span>;
+    <span class="t">f64</span> price = <span class="n">3.5</span>;
+    printf(<span class="s">&quot;%-8s|%5d|%8.2f|%#06x\n&quot;</span>, &amp;item, qty, price, <span class="n">255</span>);
+    printf(<span class="s">&quot;%.1f%% done, %e left\n&quot;</span>, <span class="n">99.5</span>, <span class="n">0.00042</span>);
+    <span class="p">String</span> line = sprintf(<span class="s">&quot;%s x %d&quot;</span>, &amp;item, qty);
+    <span class="p">String</span>::appendf(&amp;<span class="k">mut</span> line, <span class="s">&quot; = %.2f&quot;</span>, price * <span class="n">12.0</span>);
+    printf(<span class="s">&quot;%v\n&quot;</span>, &amp;line);
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>widget  |   12|    3.50|0x00ff
+99.5% done, 4.200000e-04 left
+widget x 12 = 42.00
+</pre></div></figure>
+<figure class="code"><div class="code-head"><span class="code-title">Checked when compiled</span><span class="badge bad">rejected: diag.type-mismatch</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    printf(<span class="s">&quot;%d items\n&quot;</span>, <span class="s">&quot;twelve&quot;</span>);   <span class="c">// <span class="bad">✗</span> <span class="dg">diag.type-mismatch</span>: %d takes an integer</span>
+}</code></pre></figure>
+<h4><code>%v</code>: any value</h4>
+<p><code>%v</code> is not C's: it writes a value the way CobaltC writes it, whatever its type, so
+<code>printf(&quot;%v\n&quot;, x)</code> needs no thought about <code>x</code>. It takes any of the types below, and nothing else:
+a struct, a <code>Vec</code> or an <code>Option</code> is a static type error, so printing a composite value means
+printing its parts. It takes a width and <code>-</code>, but no precision.</p>
 <table>
 <thead><tr><th>Argument</th><th>Written as</th><th>Examples</th></tr></thead>
 <tbody>
-<tr><td><code>str</code></td><td>its bytes</td><td><code>print(&quot;hi&quot;)</code> → <code>hi</code></td></tr>
+<tr><td><code>str</code></td><td>its bytes</td><td><code>printf(&quot;%v&quot;, &quot;hi&quot;)</code> → <code>hi</code></td></tr>
 <tr><td>any integer type</td><td>decimal, <code>-</code> if negative</td><td><code>-42</code>, <code>18446744073709551615</code></td></tr>
 <tr><td><code>f32</code>, <code>f64</code></td><td>the shortest digits that read back as the same value</td><td><code>0.1</code>, <code>1.0</code>, <code>0.3333333333333333</code>, <code>1.0e21</code>, <code>1.0e-7</code>, <code>NaN</code>, <code>inf</code></td></tr>
 <tr><td><code>bool</code></td><td><code>true</code> or <code>false</code></td><td></td></tr>
-<tr><td><code>ref&lt;String, shared&gt;</code></td><td>the string's bytes</td><td><code>print(&amp;s)</code></td></tr>
+<tr><td><code>ref&lt;String, shared&gt;</code></td><td>the string's bytes</td><td><code>printf(&quot;%v&quot;, &amp;s)</code></td></tr>
 </tbody>
 </table>
 <p>A float prints as few digits as identify it exactly: <code>0.1</code> prints as <code>0.1</code>, even though
@@ -4141,15 +4183,14 @@ value. A whole number keeps a <code>.0</code>, so floats and integers look diffe
 10<sup>21</sup> the number is written out in full; beyond that range it gets an exponent. An <code>f32</code> chooses
 its digits as an <code>f32</code>, so <code>0.1: f32</code> also prints <code>0.1</code>. This is the rule JavaScript and Python
 use.</p>
-<p><code>print</code> is generic: its argument type is checked when it is used, and a generic function
-can print its own <code>T</code>. The check happens for each type the function is used with, so <code>show</code> below
+<p><code>%v</code>'s argument type is checked where the <code>printf</code> is, and a generic function can print
+its own <code>T</code>. The check happens for each type the function is used with, so <code>show</code> below
 accepts numbers and text, and would be rejected for a struct.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Printing values</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> show&lt;T&gt;(T x)                       <span class="c">// T is checked where show is used</span>
 {
-    <span class="p">print</span>(x);
-    <span class="p">print</span>(<span class="s">&quot;\n&quot;</span>);
+    printf(<span class="s">&quot;%v\n&quot;</span>, x);
 }
 
 <span class="k">fn</span> main()
@@ -4166,13 +4207,9 @@ accepts numbers and text, and would be rejected for a struct.</p>
     show(zero / zero);
 
     <span class="p">String</span> name = <span class="p">String</span>::from_str(<span class="s">&quot;owned text&quot;</span>);
-    <span class="p">print</span>(&amp;name);                     <span class="c">// a String through a reference: name stays usable</span>
-    <span class="p">print</span>(<span class="s">&quot;\n&quot;</span>);
-    <span class="p">print</span>(<span class="s">&quot;x = &quot;</span>);
-    <span class="p">print</span>(<span class="n">3</span>);
-    <span class="p">print</span>(<span class="s">&quot;, y = &quot;</span>);
-    <span class="p">print</span>(<span class="n">4.5</span>);
-    <span class="p">print</span>(<span class="s">&quot;\n&quot;</span>);
+    printf(<span class="s">&quot;%v&quot;</span>, &amp;name);                     <span class="c">// a String through a reference: name stays usable</span>
+    printf(<span class="s">&quot;\n&quot;</span>);
+    printf(<span class="s">&quot;x = %v, y = %v\n&quot;</span>, <span class="n">3</span>, <span class="n">4.5</span>);
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>-42
 18446744073709551615
 true
@@ -4190,7 +4227,7 @@ x = 3, y = 4.5
 <span class="k">fn</span> main()
 {
     <span class="p">String</span> s = <span class="p">String</span>::from_str(<span class="s">&quot;text&quot;</span>);
-    <span class="p">print</span>(s);                         <span class="c">// <span class="bad">✗</span> <span class="dg">diag.type-mismatch</span> (static): a String prints through &amp;s</span>
+    printf(<span class="s">&quot;%v&quot;</span>, s);                         <span class="c">// <span class="bad">✗</span> <span class="dg">diag.type-mismatch</span> (static): a String prints through &amp;s</span>
 }</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">Composite values are not printable</span><span class="badge bad">rejected: diag.type-mismatch</span></div><pre><code><span class="k">import</span> std;
 
@@ -4202,9 +4239,9 @@ x = 3, y = 4.5
 
 <span class="k">fn</span> main()
 {
-    <span class="p">print</span>(Point { .x = <span class="n">1</span>, .y = <span class="n">2</span> });  <span class="c">// <span class="bad">✗</span> <span class="dg">diag.type-mismatch</span> (static): print the fields instead</span>
+    printf(<span class="s">&quot;%v&quot;</span>, Point { .x = <span class="n">1</span>, .y = <span class="n">2</span> });  <span class="c">// <span class="bad">✗</span> <span class="dg">diag.type-mismatch</span> (static): print the fields instead</span>
 }</code></pre></figure>
-<p>Raw bytes are not text, so <code>print</code> does not take a <code>u8</code> as a character or a <code>Vec&lt;u8&gt;</code>:
+<p>Raw bytes are not text, so <code>printf</code> does not take a <code>u8</code> as a character or a <code>Vec&lt;u8&gt;</code>:
 a <code>u8</code> prints as a number. To write bytes, use the <code>write</code> extern the way <code>std</code> does, around an
 <code>unsafe</code> block. <code>put</code> writes one byte and <code>print_bytes</code> a whole <code>Vec&lt;u8&gt;</code>:</p>
 <figure class="code"><div class="code-head"><span class="code-title">Printing bytes</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
@@ -4248,7 +4285,7 @@ a <code>u8</code> prints as a number. To write bytes, use the <code>write</code>
 <span class="k">fn</span> main()
 {
     put(b&#x27;a&#x27;);                        <span class="c">// the byte of `a`</span>
-    <span class="p">print</span>(b&#x27;a&#x27;);                      <span class="c">// a u8 prints as a number: 97</span>
+    printf(<span class="s">&quot;%v&quot;</span>, b&#x27;a&#x27;);                      <span class="c">// a u8 prints as a number: 97</span>
     put(<span class="s">b&quot;\n&quot;</span>[<span class="n">0</span>]);
     <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; v = <span class="p">Vec</span>::new();
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, b&#x27;o&#x27;);
@@ -4257,39 +4294,6 @@ a <code>u8</code> prints as a number. To write bytes, use the <code>write</code>
     print_bytes(&amp;v);
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>a97
 ok
-</pre></div></figure>
-<p><code>print</code> has no formatting options. Fixed decimal places, padding or other layouts are
-written with ordinary arithmetic, printing the pieces:</p>
-<figure class="code"><div class="code-head"><span class="code-title">Fixed decimal places</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
-
-<span class="c">// x with exactly two decimal places, rounded half away from zero.</span>
-<span class="k">fn</span> print_money(<span class="t">f64</span> x)
-{
-    <span class="t">f64</span> v = x;
-    <span class="k">if</span> (v &lt; <span class="n">0.0</span>)
-    {
-        <span class="p">print</span>(<span class="s">&quot;-&quot;</span>);
-        v = -v;
-    }
-    <span class="t">i64</span> cents = <span class="p">to_int</span>&lt;<span class="t">i64</span>&gt;(v * <span class="n">100.0</span> + <span class="n">0.5</span>);   <span class="c">// to_int truncates, so + 0.5 rounds</span>
-    <span class="p">print</span>(cents / <span class="n">100</span>);
-    <span class="p">print</span>(<span class="s">&quot;.&quot;</span>);
-    <span class="k">if</span> (cents % <span class="n">100</span> &lt; <span class="n">10</span>)
-    {
-        <span class="p">print</span>(<span class="s">&quot;0&quot;</span>);
-    }
-    <span class="p">print</span>(cents % <span class="n">100</span>);
-}
-
-<span class="k">fn</span> main()
-{
-    print_money(<span class="n">3.14159</span>);
-    <span class="p">print</span>(<span class="s">&quot; &quot;</span>);
-    print_money(-<span class="n">0.5</span>);
-    <span class="p">print</span>(<span class="s">&quot; &quot;</span>);
-    print_money(<span class="n">12.0</span>);
-    <span class="p">print</span>(<span class="s">&quot;\n&quot;</span>);
-}</code></pre><div class="code-output"><span class="out-label">output</span><pre>3.14 -0.50 12.00
 </pre></div></figure>
 <figure class="code"><div class="code-head"><span class="code-title">A literal is not a String</span><span class="badge bad">rejected: diag.type-mismatch</span></div><pre><code><span class="k">import</span> std;
 
@@ -4354,9 +4358,7 @@ input, for example <code>printf &#x27;ada\nlin\n&#x27; | cobc --run greet.cb</co
             {
                 <span class="k">if</span> (<span class="p">String</span>::len(&amp;name) &gt; <span class="n">0</span>)
                 {
-                    <span class="p">print</span>(<span class="s">&quot;hello, &quot;</span>);
-                    <span class="p">print</span>(&amp;name);
-                    <span class="p">print</span>(<span class="s">&quot;\n&quot;</span>);
+                    printf(<span class="s">&quot;hello, %v\n&quot;</span>, &amp;name);
                     count = count + <span class="n">1</span>;
                 }
             },
@@ -4375,8 +4377,7 @@ input, for example <code>printf &#x27;ada\nlin\n&#x27; | cobc --run greet.cb</co
     {
         <span class="p">Ok</span>(n) :
         {
-            <span class="p">print</span>(n);
-            <span class="p">print</span>(<span class="s">&quot; greeted\n&quot;</span>);
+            printf(<span class="s">&quot;%v greeted\n&quot;</span>, n);
         },
         <span class="p">Err</span>(e) :
         {
@@ -4384,13 +4385,11 @@ input, for example <code>printf &#x27;ada\nlin\n&#x27; | cobc --run greet.cb</co
             {
                 Io :
                 {
-                    <span class="p">print</span>(<span class="s">&quot;could not read input\n&quot;</span>);
+                    printf(<span class="s">&quot;could not read input\n&quot;</span>);
                 },
                 Utf8(u) :
                 {
-                    <span class="p">print</span>(<span class="s">&quot;not UTF-8 at byte &quot;</span>);
-                    <span class="p">print</span>(u.offset);
-                    <span class="p">print</span>(<span class="s">&quot;\n&quot;</span>);
+                    printf(<span class="s">&quot;not UTF-8 at byte %v\n&quot;</span>, u.offset);
                 },
             }
         },
@@ -4415,17 +4414,11 @@ you can call inside <code>unsafe</code> for an argument's raw bytes.</p>
         {
             <span class="p">Ok</span>(a) :
             {
-                <span class="p">print</span>(i);
-                <span class="p">print</span>(<span class="s">&quot;: &quot;</span>);
-                <span class="p">print</span>(&amp;a);
-                <span class="p">print</span>(<span class="s">&quot;\n&quot;</span>);
+                printf(<span class="s">&quot;%v: %v\n&quot;</span>, i, &amp;a);
             },
             <span class="p">Err</span>(e) :
             {
-                <span class="p">print</span>(i);
-                <span class="p">print</span>(<span class="s">&quot;: not UTF-8 at byte &quot;</span>);
-                <span class="p">print</span>(e.offset);
-                <span class="p">print</span>(<span class="s">&quot;\n&quot;</span>);
+                printf(<span class="s">&quot;%v: not UTF-8 at byte %v\n&quot;</span>, i, e.offset);
             },
         }
         i = i + <span class="n">1</span>;
@@ -4434,7 +4427,7 @@ you can call inside <code>unsafe</code> for an argument's raw bytes.</p>
 1: two
 </pre></div></figure>
 <h3>Numbers and text</h3>
-<p><code>String::append(&amp;mut s, x)</code> adds to <code>s</code> exactly what <code>print(x)</code> would write, for the same
+<p><code>String::append(&amp;mut s, x)</code> adds to <code>s</code> exactly what <code>printf(&quot;%v&quot;, x)</code> would write, for the same
 types: a <code>str</code>, any integer, <code>f32</code>/<code>f64</code>, <code>bool</code>, or another <code>String</code> through <code>&amp;</code>. So a line can be
 built piece by piece and printed, or kept, once. <code>parse&lt;T&gt;(&amp;s)</code> goes the other way: it reads the
 whole <code>String</code> as a number of type <code>T</code>, any integer type, <code>f32</code> or <code>f64</code>, and returns a
@@ -4450,7 +4443,7 @@ whole <code>String</code> as a number of type <code>T</code>, any integer type, 
 </table>
 <p>Parsing is strict: an optional <code>+</code> or <code>-</code>, then digits, and for a float an optional fraction and
 exponent (<code>2.5e-3</code>), or <code>inf</code> or <code>NaN</code>. No spaces anywhere, so a line typed on Windows ends in a <code>\r</code>
-that makes it <code>Invalid</code>. Floats are rounded correctly, and every float <code>print</code> writes parses back to
+that makes it <code>Invalid</code>. Floats are rounded correctly, and every float <code>%v</code> writes parses back to
 the same value. To take a line apart first, <code>String::as_bytes(&amp;s)</code> gives its bytes to read.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Parsing arguments, building a line: <code>coby sum.cb 1.5 2 0.25</code></span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
@@ -4480,7 +4473,7 @@ the same value. To take a line apart first, <code>String::as_bytes(&amp;s)</code
                 <span class="p">String</span>::append(&amp;<span class="k">mut</span> msg, <span class="s">&quot; is not a number: &quot;</span>);
                 <span class="p">String</span>::append(&amp;<span class="k">mut</span> msg, &amp;a);
                 <span class="p">String</span>::append(&amp;<span class="k">mut</span> msg, <span class="s">&quot;\n&quot;</span>);
-                <span class="p">print</span>(&amp;msg);
+                printf(<span class="s">&quot;%v&quot;</span>, &amp;msg);
                 <span class="k">return</span> <span class="n">1</span>;
             },
         }
@@ -4490,7 +4483,7 @@ the same value. To take a line apart first, <code>String::as_bytes(&amp;s)</code
     <span class="p">String</span>::append(&amp;<span class="k">mut</span> line, <span class="s">&quot;total &quot;</span>);
     <span class="p">String</span>::append(&amp;<span class="k">mut</span> line, total);
     <span class="p">String</span>::append(&amp;<span class="k">mut</span> line, <span class="s">&quot;\n&quot;</span>);
-    <span class="p">print</span>(&amp;line);
+    printf(<span class="s">&quot;%v&quot;</span>, &amp;line);
     <span class="n">0</span>
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>total 3.75
 </pre></div></figure>
@@ -4524,28 +4517,28 @@ value's type says which enum is meant, but building one by hand is written <code
         },
         <span class="p">Err</span>(_) :
         {
-            <span class="p">print</span>(<span class="s">&quot;cannot write notes.txt\n&quot;</span>);
+            printf(<span class="s">&quot;cannot write notes.txt\n&quot;</span>);
             <span class="k">return</span> <span class="n">1</span>;
         },
     }
     <span class="p">String</span> back = <span class="p">Result</span>::unwrap_or(read_file(&amp;path), <span class="p">String</span>::new());
-    <span class="p">print</span>(&amp;back);
+    printf(<span class="s">&quot;%v&quot;</span>, &amp;back);
     <span class="p">String</span> gone = <span class="p">String</span>::from_str(<span class="s">&quot;no-such-file.txt&quot;</span>);
     <span class="k">match</span> (read_file(&amp;gone))
     {
         <span class="p">Ok</span>(_) :
         {
-            <span class="p">print</span>(<span class="s">&quot;?\n&quot;</span>);
+            printf(<span class="s">&quot;?\n&quot;</span>);
         },
         <span class="p">Err</span>(e) : <span class="k">match</span> (e)
         {
             NotFound :
             {
-                <span class="p">print</span>(<span class="s">&quot;no-such-file.txt: not found\n&quot;</span>);
+                printf(<span class="s">&quot;no-such-file.txt: not found\n&quot;</span>);
             },
             _ :
             {
-                <span class="p">print</span>(<span class="s">&quot;no-such-file.txt: cannot read it\n&quot;</span>);
+                printf(<span class="s">&quot;no-such-file.txt: cannot read it\n&quot;</span>);
             },
         },
     }
