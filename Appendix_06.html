@@ -2497,10 +2497,45 @@ closure cannot be called re-entrantly.</p>
 <p><code>fn name&lt;T&gt;(...)</code> declares type parameters; see §12 for what a body may do with <code>T</code> and
 how <code>T</code> is inferred at each call.</p>
 <h3><code>main</code></h3>
-<p>A program is a set of declarations with exactly one <code>fn main()</code> at the top level, taking no
-parameters and returning nothing. Execution is the evaluation of <code>main()</code>; the program's observable
-behaviour is its termination outcome (success or a named fault) plus the sequence of <code>extern</code> calls
-it makes.</p>
+<p>A program is a set of declarations with exactly one <code>main</code> at the top level, taking no
+parameters: <code>fn main()</code>, or <code>fn main() : u8</code>. Execution is the evaluation of <code>main()</code>; the program's
+observable behaviour is its termination outcome (success or a named fault) plus the sequence of
+<code>extern</code> calls it makes.</p>
+<p>A <code>main</code> that returns a <code>u8</code> sets the program's <strong>exit status</strong>; <code>fn main()</code>
+exits with 0. Returning from <code>main</code> runs every destructor still pending and waits for every
+thread, as leaving any block does, so the status is reported only after all of that. A fault
+still ends the program with its diagnostic instead. The arguments the program was started with
+come from <code>arg_count()</code> and <code>arg(i)</code> (§21); argument 0 is the first one after the program, not the
+program's name.</p>
+<figure class="code"><div class="code-head"><span class="code-title">An exit status and an argument: <code>coby greet.cb Ada</code></span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main() : <span class="t">u8</span>
+{
+    <span class="k">if</span> (arg_count() != <span class="n">1</span>)
+    {
+        <span class="p">print</span>(<span class="s">&quot;usage: greet NAME\n&quot;</span>);
+        <span class="k">return</span> <span class="n">2</span>;                     <span class="c">// exit status 2</span>
+    }
+    <span class="k">match</span> (arg(<span class="n">0</span>))
+    {
+        <span class="p">Ok</span>(name) :
+        {
+            <span class="p">print</span>(<span class="s">&quot;hello, &quot;</span>);
+            <span class="p">print</span>(&amp;name);
+            <span class="p">print</span>(<span class="s">&quot;\n&quot;</span>);
+            <span class="n">0</span>
+        },
+        <span class="p">Err</span>(_) :
+        {
+            <span class="p">print</span>(<span class="s">&quot;the name is not UTF-8\n&quot;</span>);
+            <span class="n">1</span>
+        },
+    }
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>hello, Ada
+</pre></div></figure>
+<p>Run with no argument, the same program prints its usage line and exits with status 2.
+A <code>main</code> with parameters, or returning anything other than <code>u8</code>, is rejected with
+<code>diag.no-main</code>.</p>
 <div class="callout rule"><div class="callout-title">Rules of thumb</div><ul>
 <li>Choose the parameter kind that says the least: a shared reference if the function only reads, an exclusive reference if it modifies, by value only if it needs to keep the thing.</li>
 <li>Return values rather than out-parameters; a struct or an enum is cheap to return.</li>
@@ -3623,7 +3658,7 @@ its life, because there is no operation that could break it.</p>
 <h2><span class="secnum">§21</span>The standard library, std</h2>
 <div class="spec-ref">Governing specification file: <code>spec/21-standard-library-semantics.md</code></div><p class="blurb">import std; Option, Result, the intrinsics, str and print, and Vec, String and Rc written in CobaltC.</p>
 <p>The standard library is the module <code>std</code>: the <code>Option</code> and <code>Result</code> enums, <code>print</code>,
-<code>write</code>, <code>read</code>, <code>read_line</code> and <code>map_err</code>, and three library types written in CobaltC itself, <code>Vec&lt;T&gt;</code>, <code>String</code> and
+<code>write</code>, <code>read</code>, <code>read_line</code>, <code>arg_count</code>, <code>arg</code>, <code>arg_bytes</code> and <code>map_err</code>, and three library types written in CobaltC itself, <code>Vec&lt;T&gt;</code>, <code>String</code> and
 <code>Rc&lt;T&gt;</code>. A program uses it with <code>import std;</code>, or by qualified paths such as <code>std::Vec</code>. Its source
 is part of the specification, which is the language's proof that the mechanisms in this guide are
 enough to build real containers. Being a module, it keeps its private parts private: no program
@@ -3680,6 +3715,8 @@ intrinsic is used only where there is none.</p>
 <tr><td><code>str_len(s)</code>, <code>str_byte(s, i)</code>, <code>str_ptr(s)</code></td><td>a <code>str</code>'s byte count, one byte (bounds-checked), and the address of its bytes (safe)</td><td>§21</td></tr>
 <tr><td><code>print(x)</code></td><td>write a <code>str</code>, a number, a <code>bool</code> or a <code>String</code> (through <code>&amp;</code>) to standard output; a function of <code>std</code></td><td>§21</td></tr>
 <tr><td><code>read_line()</code></td><td>read the next line of standard input as a <code>String</code> (a function of <code>std</code>; <code>cobc</code> only)</td><td>§21</td></tr>
+<tr><td><code>arg_count()</code>, <code>arg(i)</code></td><td>the number of program arguments, and argument <code>i</code> as a <code>String</code> (functions of <code>std</code>)</td><td>§21</td></tr>
+<tr><td><code>arg_bytes(i, buf, len)</code></td><td>an extern of <code>std</code>: copy argument <code>i</code>'s bytes, whatever they are (unsafe)</td><td>§21</td></tr>
 <tr><td><code>map_err(r, f)</code></td><td>convert a <code>Result</code>'s error type with <code>f</code> (a function of <code>std</code>)</td><td>§18</td></tr>
 </tbody>
 </table>
@@ -4249,6 +4286,43 @@ input, for example <code>printf &#x27;ada\nlin\n&#x27; | cobc --run greet.cb</co
         },
     }
 }</code></pre></figure>
+<h3>Program arguments</h3>
+<p><code>arg_count()</code> is the number of arguments the program was started with, and <code>arg(i)</code>
+is argument <code>i</code> as a <code>Result&lt;String, Utf8Error&gt;</code>. Argument 0 is the first one after the program:
+<code>coby prog.cb a b</code> and <code>cobc --run prog.cb a b</code> both give <code>a</code> and <code>b</code>, and the program's own name
+is not an argument. Each argument is checked on its own, so one that is not UTF-8 is an <code>Err</code>
+without affecting the others. <code>arg(i)</code> with <code>i ≥ arg_count()</code> faults <code>diag.index-out-of-bounds</code>,
+as indexing a <code>Vec</code> does. Both tools pass arguments. Underneath is the <code>arg_bytes</code> extern, which
+you can call inside <code>unsafe</code> for an argument's raw bytes.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Listing the arguments: <code>coby args.cb one two</code></span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    <span class="t">usize</span> i = <span class="n">0</span>;
+    <span class="k">while</span> (i &lt; arg_count())
+    {
+        <span class="k">match</span> (arg(i))
+        {
+            <span class="p">Ok</span>(a) :
+            {
+                <span class="p">print</span>(i);
+                <span class="p">print</span>(<span class="s">&quot;: &quot;</span>);
+                <span class="p">print</span>(&amp;a);
+                <span class="p">print</span>(<span class="s">&quot;\n&quot;</span>);
+            },
+            <span class="p">Err</span>(e) :
+            {
+                <span class="p">print</span>(i);
+                <span class="p">print</span>(<span class="s">&quot;: not UTF-8 at byte &quot;</span>);
+                <span class="p">print</span>(e.offset);
+                <span class="p">print</span>(<span class="s">&quot;\n&quot;</span>);
+            },
+        }
+        i = i + <span class="n">1</span>;
+    }
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>0: one
+1: two
+</pre></div></figure>
 <h3><code>Rc&lt;T&gt;</code></h3>
 <p>Shared ownership as a library: a reference-counted box. <code>Rc::clone</code> makes another handle
 to the same box; the value is destroyed when the last handle is dropped. Access is read-only (a
@@ -4554,7 +4628,6 @@ rule is applied statically where the checker can see the problem and dynamically
     </a>.
   </p>
 </footer>
-
 
 </main>
 </div>
