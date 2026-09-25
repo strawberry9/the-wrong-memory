@@ -279,7 +279,6 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 <p>------------------------------------------------------------------------</p>
 
 
-
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -387,48 +386,12 @@ and prints the output shown below the code.</p>
 
 <span class="k">import</span> std;
 
-<span class="c">// A module of output helpers. Fixed text is a `str` literal handed to</span>
-<span class="c">// the standard library&#x27;s `printf`; to show an extern call, this module</span>
-<span class="c">// writes digits itself, as bytes through the extern function `std`</span>
-<span class="c">// declares, `write`, and calling an extern needs `unsafe`. A module sees only</span>
-<span class="c">// what it imports itself, so `out` imports `std` too.</span>
-<span class="k">module</span> out
+<span class="c">// A module. Its `export` items are reached as `limits::COLD`; the rest</span>
+<span class="c">// stay inside. A `const` is a named value fixed when the program is compiled.</span>
+<span class="k">module</span> limits
 {
-    <span class="k">import</span> std;
-
-    <span class="k">export</span> <span class="k">fn</span> put(<span class="t">u8</span> b)
-    {
-        <span class="k">auto</span> buf = [b];                                   <span class="c">// an array&lt;u8, 1&gt;</span>
-        <span class="t">rawptr</span>&lt;<span class="t">u8</span>&gt; p = <span class="p">reinterpret_ptr</span>&lt;<span class="t">u8</span>&gt;(<span class="p">rawptr_of</span>(&amp;buf));
-        <span class="k">unsafe</span>
-        {
-            <span class="p">write</span>(p, <span class="n">1</span>);                                  <span class="c">// trusted: p points at one valid byte</span>
-        }
-    }
-
-    <span class="c">// Print an i32 in decimal.</span>
-    <span class="k">export</span> <span class="k">fn</span> int(<span class="t">i32</span> n)
-    {
-        <span class="t">i64</span> v = <span class="p">widen</span>&lt;<span class="t">i64</span>&gt;(n);                            <span class="c">// widen first: -(-2147483648) does not fit in an i32</span>
-        <span class="k">if</span> (v &lt; <span class="n">0</span>)
-        {
-            printf(<span class="s">&quot;-&quot;</span>);
-            digits(-v);
-            <span class="k">return</span>;                                       <span class="c">// `return` with no value in a void function</span>
-        }
-        digits(v);
-    }
-
-    <span class="c">// The decimal digits of a value that is not negative. Not exported.</span>
-    <span class="k">fn</span> digits(<span class="t">i64</span> n)
-    {
-        <span class="k">if</span> (n &gt;= <span class="n">10</span>)
-        {
-            digits(n / <span class="n">10</span>);                               <span class="c">// recursion is ordinary</span>
-        }
-        <span class="t">u8</span> digit = <span class="p">narrow</span>&lt;<span class="t">u8</span>&gt;(n % <span class="n">10</span>);                    <span class="c">// no implicit conversions: narrow is explicit and checked</span>
-        put(digit + <span class="n">48</span>);                                  <span class="c">// &#x27;0&#x27; is 48; the literal takes u8 from `digit`</span>
-    }
+    <span class="k">export</span> <span class="k">const</span> <span class="t">i32</span> COLD = <span class="n">150</span>;                          <span class="c">// tenths of a degree</span>
+    <span class="k">export</span> <span class="k">const</span> <span class="t">i32</span> HOT = <span class="n">300</span>;
 }
 
 <span class="c">// A plain struct: copied on assignment, comparable with ==.</span>
@@ -450,13 +413,13 @@ and prints the output shown below the code.</p>
 <span class="c">// so the function&#x27;s value is whichever branch runs.</span>
 <span class="k">fn</span> judge(<span class="t">ref</span>&lt;Reading, <span class="t">shared</span>&gt; r) : Verdict
 {
-    <span class="k">if</span> (r.tenths &lt; <span class="n">150</span>)
+    <span class="k">if</span> (r.tenths &lt; limits::COLD)
     {
-        Cold(<span class="n">150</span> - r.tenths)
+        Cold(limits::COLD - r.tenths)
     }
-    <span class="k">else</span> <span class="k">if</span> (r.tenths &gt; <span class="n">300</span>)
+    <span class="k">else</span> <span class="k">if</span> (r.tenths &gt; limits::HOT)
     {
-        Hot(r.tenths - <span class="n">300</span>)
+        Hot(r.tenths - limits::HOT)
     }
     <span class="k">else</span>
     {
@@ -474,20 +437,18 @@ and prints the output shown below the code.</p>
 <span class="c">// The destructor. It is never called directly; the language runs it.</span>
 <span class="k">fn</span> Log::<span class="p">drop</span>(<span class="t">ref</span>&lt;Log, <span class="t">exclusive</span>&gt; self)
 {
-    printf(<span class="s">&quot;L&quot;</span>);
-    out::int(<span class="p">narrow</span>&lt;<span class="t">i32</span>&gt;(<span class="p">Vec</span>::len(&amp;self.entries)));
-    printf(<span class="s">&quot;\n&quot;</span>);
+    printf(<span class="s">&quot;L%d\n&quot;</span>, <span class="p">Vec</span>::len(&amp;self.entries));             <span class="c">// printf&#x27;s format is checked when compiled</span>
     <span class="c">// self.entries (a Vec, itself a resource) is destroyed after this body.</span>
 }
 
 <span class="c">// A fallible function returns a Result. Err carries the offending byte.</span>
 <span class="k">fn</span> digit(<span class="t">u8</span> b) : <span class="p">Result</span>&lt;<span class="t">i32</span>, <span class="t">u8</span>&gt;
 {
-    <span class="k">if</span> (b &gt; <span class="n">57</span> || b &lt; <span class="n">48</span>)
+    <span class="k">if</span> (b &gt; b&#x27;<span class="n">9</span>&#x27; || b &lt; b&#x27;<span class="n">0</span>&#x27;)
     {
         <span class="k">return</span> <span class="p">Err</span>(b);
     }
-    <span class="p">Ok</span>(<span class="p">widen</span>&lt;<span class="t">i32</span>&gt;(b - <span class="n">48</span>))                                <span class="c">// widening is always safe, still spelled out</span>
+    <span class="p">Ok</span>(<span class="p">widen</span>&lt;<span class="t">i32</span>&gt;(b - b&#x27;<span class="n">0</span>&#x27;))                              <span class="c">// widening is always safe, still spelled out</span>
 }
 
 <span class="c">// `?` unwraps an Ok, or returns the Err from this function at once.</span>
@@ -526,8 +487,7 @@ and prints the output shown below the code.</p>
         {
             Cold(by) :            <span class="c">// &quot;C&quot; then the shortfall</span>
             {
-                printf(<span class="s">&quot;C&quot;</span>);
-                out::int(by);
+                printf(<span class="s">&quot;C%d&quot;</span>, by);
             },
             Fine :
             {
@@ -535,8 +495,7 @@ and prints the output shown below the code.</p>
             },
             Hot(by) :             <span class="c">// &quot;H&quot; then the excess</span>
             {
-                printf(<span class="s">&quot;H&quot;</span>);
-                out::int(by);
+                printf(<span class="s">&quot;H%d&quot;</span>, by);
             },
         }
         printf(<span class="s">&quot;\n&quot;</span>);
@@ -550,7 +509,7 @@ and prints the output shown below the code.</p>
     {
         <span class="p">Ok</span>(v) :
         {
-            out::int(v);
+            printf(<span class="s">&quot;%d&quot;</span>, v);
         },
         <span class="p">Err</span>(_) :
         {
@@ -566,17 +525,14 @@ and prints the output shown below the code.</p>
     {
         x * scale
     };
-    out::int(scaled(<span class="n">4</span>));
-    printf(<span class="s">&quot;\n&quot;</span>);
+    printf(<span class="s">&quot;%d\n&quot;</span>, scaled(<span class="n">4</span>));
 
-    out::int(first_of(<span class="n">9</span>, <span class="n">8</span>));                             <span class="c">// T := i32</span>
-    printf(<span class="s">&quot;\n&quot;</span>);
+    printf(<span class="s">&quot;%d\n&quot;</span>, first_of(<span class="n">9</span>, <span class="n">8</span>));                      <span class="c">// T := i32</span>
 
     <span class="c">// A thread: spawn takes a function and its arguments; join waits</span>
     <span class="c">// and returns the result. The handle is a resource too.</span>
     <span class="k">auto</span> h = <span class="p">spawn</span>(work, <span class="n">21</span>);
-    out::int(<span class="p">join</span>(h));
-    printf(<span class="s">&quot;\n&quot;</span>);
+    printf(<span class="s">&quot;%d\n&quot;</span>, <span class="p">join</span>(h));
 }   <span class="c">// `log` is destroyed here: its destructor prints &quot;L3&quot;, then the Vec frees its buffer.</span></code></pre><div class="code-output"><span class="out-label">output</span><pre>C30
 F
 H40
@@ -593,9 +549,10 @@ L3
 <li><strong>Conditions need parentheses</strong> (<code>if (c)</code>, <code>while (c)</code>, <code>match (e)</code>), and <code>match</code> arms are <code>Pattern : expression,</code> with a comma after each arm.</li>
 <li><strong><code>&amp;x</code> is a shared (read-only) reference and <code>&amp;mut x</code> an exclusive one.</strong> <code>*r</code> reads or writes through a reference; <code>r.field</code> works directly on a reference to a struct.</li>
 <li><strong><code>Log</code> is a <code>resource</code></strong>: it owns a <code>Vec</code>. It has a destructor <code>fn Log::drop</code>, which the language runs at the end of <code>main</code>. Passing or assigning a resource moves it.</li>
-<li><strong>No implicit conversions.</strong> <code>narrow&lt;u8&gt;(n % 10)</code> and <code>widen&lt;i32&gt;(b - 48)</code> say exactly what happens to the representation, and <code>narrow</code> is checked at run time.</li>
+<li><strong>No implicit conversions.</strong> <code>widen&lt;i32&gt;(b - b&#x27;0&#x27;)</code> says exactly what happens to the representation; its opposite, <code>narrow</code>, is checked at run time. <code>b&#x27;0&#x27;</code> is the byte 48.</li>
 <li><strong>Library calls are qualified</strong>: <code>Vec::push(&amp;mut v, x)</code>, <code>Vec::len(&amp;v)</code>, <code>Vec::index_shared(&amp;v, i)</code>. There is no method-call syntax.</li>
-<li><strong>Text is a <code>str</code> value; <code>printf</code> writes it.</strong> <code>&quot;C&quot;</code> and <code>&quot;\n&quot;</code> are <code>str</code> literals, copyable values with no owner. <code>printf(&quot;%d&quot;, n)</code> would write a number; to show an extern call, the <code>out</code> module turns digits into bytes itself and writes them through the <code>write</code> extern inside an <code>unsafe</code> block; <code>b&quot;42&quot;</code> is a byte-array literal, <code>array&lt;u8, 2&gt;</code>.</li>
+<li><strong>Text is a <code>str</code> value; <code>printf</code> writes it.</strong> <code>&quot;F&quot;</code> is a <code>str</code> literal, a copyable value with no owner. <code>printf</code> is C's, but its format is checked against its arguments when the program is compiled; <code>b&quot;42&quot;</code> is a byte-array literal, <code>array&lt;u8, 2&gt;</code>.</li>
+<li><strong>Modules and constants.</strong> <code>limits</code> exports two <code>const</code> values, used as <code>limits::COLD</code> and <code>limits::HOT</code>.</li>
 </ul>
 <p>Further showcases can be found in the repository's
 <a href="https://github.com/strawberry9/CobaltC/tree/main/showcase">showcase directory</a>; its
@@ -1177,25 +1134,14 @@ resource is destroyed; you may not call it yourself. Inside it you can mutate th
 move out of it. Field resources are destroyed after the body runs.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Destruction order</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
-<span class="c">// Writes one byte so we can observe destruction order.</span>
-<span class="k">fn</span> put(<span class="t">u8</span> b)
-{
-    <span class="k">auto</span> buf = [b];
-    <span class="t">rawptr</span>&lt;<span class="t">u8</span>&gt; p = <span class="p">reinterpret_ptr</span>&lt;<span class="t">u8</span>&gt;(<span class="p">rawptr_of</span>(&amp;buf));
-    <span class="k">unsafe</span>
-    {
-        <span class="p">write</span>(p, <span class="n">1</span>);
-    }
-}
-
 <span class="k">resource</span> <span class="k">struct</span> Tagged
 {
-    <span class="t">u8</span> tag;
+    <span class="t">str</span> tag;
 }
 
 <span class="k">fn</span> Tagged::<span class="p">drop</span>(<span class="t">ref</span>&lt;Tagged, <span class="t">exclusive</span>&gt; self)
 {
-    put(self.tag);                    <span class="c">// runs once, when this Tagged is destroyed</span>
+    printf(<span class="s">&quot;%s&quot;</span>, self.tag);          <span class="c">// runs once, when this Tagged is destroyed</span>
 }
 
 <span class="k">resource</span> <span class="k">struct</span> Holder
@@ -1206,10 +1152,10 @@ move out of it. Field resources are destroyed after the body runs.</p>
 
 <span class="k">fn</span> main()
 {
-    Tagged x = Tagged { .tag = <span class="n">49</span> };                  <span class="c">// &#x27;1&#x27;</span>
-    Tagged y = Tagged { .tag = <span class="n">50</span> };                  <span class="c">// &#x27;2&#x27;</span>
-    Holder h = Holder { .a = Tagged { .tag = <span class="n">51</span> }, .b = Tagged { .tag = <span class="n">52</span> } };   <span class="c">// &#x27;3&#x27;, &#x27;4&#x27;</span>
-    put(<span class="n">10</span>);
+    Tagged x = Tagged { .tag = <span class="s">&quot;1&quot;</span> };
+    Tagged y = Tagged { .tag = <span class="s">&quot;2&quot;</span> };
+    Holder h = Holder { .a = Tagged { .tag = <span class="s">&quot;3&quot;</span> }, .b = Tagged { .tag = <span class="s">&quot;4&quot;</span> } };
+    printf(<span class="s">&quot;\n&quot;</span>);
 }   <span class="c">// h first (its fields in reverse order: 4 then 3), then y, then x</span></code></pre><div class="code-output"><span class="out-label">output</span><pre>
 4321</pre></div></figure>
 <div class="callout note"><div class="callout-title">Note</div>Destructors run in reverse declaration order, last declared first, and a struct's fields
@@ -3588,19 +3534,6 @@ FfiType, pointers included. The interpreter's memory is simulated, so it can pas
 }</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">Calling the write extern</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
-<span class="c">// Write one byte to standard output through the `write` extern.</span>
-<span class="k">fn</span> put(<span class="t">u8</span> b)
-{
-    <span class="k">auto</span> buf = [b];
-    <span class="t">rawptr</span>&lt;<span class="t">u8</span>&gt; p = <span class="p">reinterpret_ptr</span>&lt;<span class="t">u8</span>&gt;(<span class="p">rawptr_of</span>(&amp;buf));
-    <span class="k">unsafe</span>
-    {
-        <span class="p">write</span>(p, <span class="n">1</span>);
-    }
-}
-
-<span class="k">import</span> std;
-
 <span class="k">fn</span> main()
 {
     <span class="k">auto</span> msg = <span class="s">b&quot;Hi\n&quot;</span>;                          <span class="c">// a byte-array literal: array&lt;u8, 3&gt;</span>
@@ -3609,9 +3542,7 @@ FfiType, pointers included. The interpreter's memory is simulated, so it can pas
     {
         <span class="p">write</span>(p, <span class="n">3</span>)                   <span class="c">// the extern call; its result is a claim about how much was written</span>
     };
-    put(<span class="n">10</span>);
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>Hi
-
 </pre></div></figure>
 <figure class="code"><div class="code-head"><span class="code-title">Only plain types cross an extern boundary</span><span class="badge bad">rejected: diag.extern-non-ffi-type</span></div><pre><code><span class="k">import</span> std;
 
@@ -3742,13 +3673,13 @@ its life, because there is no operation that could break it.</p>
 <nav class="pager"><a class="prev" href="#s19">&larr; §19 Concurrency</a><a class="top" href="#top">Top</a><a class="next" href="#s21">§21 The standard library, std &rarr;</a></nav></section>
 <section id="s21">
 <h2><span class="secnum">§21</span>The standard library, std</h2>
-<div class="spec-ref">Governing specification file: <code>spec/21-standard-library-semantics.md</code></div><p class="blurb">import std; Option, Result, the intrinsics, str and printf, and Vec, String and Rc written in CobaltC.</p>
-<p>The standard library is the module <code>std</code>: the <code>Option</code> and <code>Result</code> enums, <code>printf</code>, <code>sprintf</code>,
-<code>write</code>, <code>read</code>, <code>read_line</code>, <code>arg_count</code>, <code>arg</code>, <code>arg_bytes</code>, <code>parse</code>, <code>read_file</code>, <code>write_file</code> and <code>map_err</code>, and three library types written in CobaltC itself, <code>Vec&lt;T&gt;</code>, <code>String</code> and
-<code>Rc&lt;T&gt;</code>. A program uses it with <code>import std;</code>, or by qualified paths such as <code>std::Vec</code>. Its source
+<div class="spec-ref">Governing specification file: <code>spec/21-standard-library-semantics.md</code></div><p class="blurb">import std; Option, Result, the intrinsics, str and printf, and Vec, String, HashMap, HashSet and Rc written in CobaltC.</p>
+<p>The standard library is the module <code>std</code>: the <code>Option</code> and <code>Result</code> enums, <code>printf</code>, <code>eprintf</code>, <code>sprintf</code>,
+<code>write</code>, <code>read</code>, <code>read_line</code>, <code>arg_count</code>, <code>arg</code>, <code>arg_bytes</code>, <code>parse</code>, <code>read_file</code>, <code>write_file</code> and <code>map_err</code>, and the library types written in CobaltC itself, <code>Vec&lt;T&gt;</code>, <code>String</code>,
+<code>HashMap&lt;K, V&gt;</code>, <code>HashSet&lt;K&gt;</code> and <code>Rc&lt;T&gt;</code>. A program uses it with <code>import std;</code>, or by qualified paths such as <code>std::Vec</code>. Its source
 is part of the specification, which is the language's proof that the mechanisms in this guide are
 enough to build real containers. Being a module, it keeps its private parts private: no program
-can touch <code>Vec</code>'s length or buffer, <code>String</code>'s bytes or <code>Rc</code>'s count. The intrinsics and the text
+can touch <code>Vec</code>'s length or buffer, <code>String</code>'s bytes, a <code>HashMap</code>'s table or <code>Rc</code>'s count. The intrinsics and the text
 value type <code>str</code> belong to the language itself and need no import.</p>
 <h3>Types in <code>std</code></h3>
 <figure class="code"><div class="code-head"><span class="code-title">Declared in std</span></div><pre><code><span class="k">export</span> <span class="k">enum</span> <span class="p">Option</span>&lt;T&gt;
@@ -3815,7 +3746,7 @@ intrinsic is used only where there is none.</p>
 <tr><td><code>read(buf, len)</code></td><td>an extern of <code>std</code>: read bytes from standard input (unsafe; <code>cobc</code> only)</td><td>§21</td></tr>
 <tr><td><code>str_len(s)</code>, <code>str_byte(s, i)</code>, <code>str_ptr(s)</code></td><td>a <code>str</code>'s byte count, one byte (bounds-checked), and the address of its bytes (safe)</td><td>§21</td></tr>
 <tr><td><code>printf(&quot;%v&quot;, x)</code></td><td>write a <code>str</code>, a number, a <code>bool</code> or a <code>String</code> (through <code>&amp;</code>) to standard output; a function of <code>std</code></td><td>§21</td></tr>
-<tr><td><code>printf(fmt, args…)</code>, <code>String::appendf(&amp;mut s, fmt, args…)</code></td><td>C-style formatted output, to standard output or into a <code>String</code>, checked when compiled (functions of <code>std</code>)</td><td>§21</td></tr>
+<tr><td><code>printf(fmt, args…)</code>, <code>eprintf(fmt, args…)</code>, <code>sprintf(fmt, args…)</code>, <code>String::appendf(&amp;mut s, fmt, args…)</code></td><td>C-style formatted output, to standard output, to standard error, as a new <code>String</code> or into one, checked when compiled (functions of <code>std</code>)</td><td>§21</td></tr>
 <tr><td><code>read_line()</code></td><td>read the next line of standard input as a <code>String</code> (a function of <code>std</code>; <code>cobc</code> only)</td><td>§21</td></tr>
 <tr><td><code>arg_count()</code>, <code>arg(i)</code></td><td>the number of program arguments, and argument <code>i</code> as a <code>String</code> (functions of <code>std</code>)</td><td>§21</td></tr>
 <tr><td><code>arg_bytes(i, buf, len)</code></td><td>an extern of <code>std</code>: copy argument <code>i</code>'s bytes, whatever they are (unsafe)</td><td>§21</td></tr>
@@ -4110,6 +4041,7 @@ need an owner.</p>
 <div class="callout rule"><div class="callout-title">Rules of thumb</div><ul>
 <li>Text written in your source code: use <code>str</code>. Pass it, store it in structs and <code>Vec&lt;str&gt;</code>, and print it freely.</li>
 <li>Text built at run time, or text you need to own: use <code>String</code>, created explicitly from a <code>str</code> with <code>String::from_str</code>.</li>
+<li>A function that takes text from anywhere, a literal or a run-time <code>String</code>, takes <code>ref&lt;String, shared&gt;</code>. A caller holding a literal copies it first (<code>String k = String::from_str(&quot;key&quot;); f(&amp;k);</code>): the copy is small, and the call site shows it.</li>
 <li>Bytes from outside the program (a file, a socket, FFI): they stay <code>Vec&lt;u8&gt;</code> until <code>String::from_utf8</code> accepts them.</li>
 <li>Bytes that are not text (a protocol header, data for <code>write</code>): use <code>b&quot;…&quot;</code>.</li>
 </ul>
@@ -4125,7 +4057,8 @@ must match its argument's type and there must be exactly one argument per specif
 program is rejected (<code>diag.type-mismatch</code>, or <code>diag.format-invalid</code> for a malformed specifier). So
 a <code>printf</code> can never misprint or crash at run time. <code>sprintf(fmt, args…)</code> returns the same text as a
 new <code>String</code> (C's <code>sprintf</code> without a buffer to overflow), and <code>String::appendf(&amp;mut s, fmt, args…)</code>
-adds it to an existing one. There is no <code>println</code>; end a line with <code>\n</code>.</p>
+adds it to an existing one. <code>eprintf(fmt, args…)</code> writes the same text to standard error, for
+messages that are not the program's output. There is no <code>println</code>; end a line with <code>\n</code>.</p>
 <table>
 <thead><tr><th>Specifier</th><th>Takes</th><th>Prints</th></tr></thead>
 <tbody>
@@ -4162,6 +4095,29 @@ widget x 12 = 42.00
 {
     printf(<span class="s">&quot;%d items\n&quot;</span>, <span class="s">&quot;twelve&quot;</span>);   <span class="c">// <span class="bad">✗</span> <span class="dg">diag.type-mismatch</span>: %d takes an integer</span>
 }</code></pre></figure>
+<figure class="code"><div class="code-head"><span class="code-title">Errors go to standard error: <code>coby greet.cb</code> with no argument</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main() : <span class="t">u8</span>
+{
+    <span class="k">if</span> (arg_count() != <span class="n">1</span>)
+    {
+        eprintf(<span class="s">&quot;usage: greet NAME\n&quot;</span>);   <span class="c">// to standard error, not mixed into the output</span>
+        <span class="k">return</span> <span class="n">2</span>;
+    }
+    <span class="k">match</span> (arg(<span class="n">0</span>))
+    {
+        <span class="p">Ok</span>(name) :
+        {
+            printf(<span class="s">&quot;hello, %s\n&quot;</span>, &amp;name);
+        },
+        <span class="p">Err</span>(e) :
+        {
+            eprintf(<span class="s">&quot;greet: the name is not UTF-8 (byte %d)\n&quot;</span>, e.offset);
+            <span class="k">return</span> <span class="n">1</span>;
+        },
+    }
+    <span class="n">0</span>
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre></pre></div></figure>
 <h4><code>%v</code>: any value</h4>
 <p><code>%v</code> is not C's: it writes a value the way CobaltC writes it, whatever its type, so
 <code>printf(&quot;%v\n&quot;, x)</code> needs no thought about <code>x</code>. It takes any of the types below, and nothing else:
@@ -4547,6 +4503,72 @@ value's type says which enum is meant, but building one by hand is written <code
 second line
 no-such-file.txt: not found
 </pre></div></figure>
+<h3><code>HashMap&lt;K, V&gt;</code> and <code>HashSet&lt;K&gt;</code></h3>
+<p><code>HashMap&lt;K, V&gt;</code> maps keys to values; <code>HashSet&lt;K&gt;</code> holds a set of keys. A key is an integer,
+a <code>bool</code>, a <code>str</code> or a <code>String</code>; any other key type (a float, a struct) is a static type error, since
+CobaltC has no way to ask an arbitrary type for a hash. The map owns its keys and values. Lookups
+take the key by reference, so they copy nothing.</p>
+<table>
+<thead><tr><th>Function</th><th>Does</th></tr></thead>
+<tbody>
+<tr><td><code>HashMap::new()</code>, <code>HashMap::len(&amp;m)</code></td><td>an empty map; the number of entries</td></tr>
+<tr><td><code>HashMap::insert(&amp;mut m, k, v)</code></td><td>adds <code>k</code>; if it was present, replaces its value and returns the old one as <code>Some</code></td></tr>
+<tr><td><code>HashMap::entry(&amp;mut m, k, fresh)</code></td><td>the value for <code>k</code> as an exclusive reference, adding <code>k</code> with <code>fresh</code> first if absent</td></tr>
+<tr><td><code>HashMap::get(&amp;m, &amp;k)</code>, <code>HashMap::get_mut(&amp;mut m, &amp;k)</code></td><td><code>Some</code> reference to the value, or <code>None</code></td></tr>
+<tr><td><code>HashMap::contains(&amp;m, &amp;k)</code></td><td>whether <code>k</code> is present</td></tr>
+<tr><td><code>HashMap::remove(&amp;mut m, &amp;k)</code></td><td>removes <code>k</code> and returns its value; fast: the last entry moves into its place</td></tr>
+<tr><td><code>HashMap::remove_ordered(&amp;mut m, &amp;k)</code></td><td>the same, keeping every other entry's place; takes time in proportion to the map's size</td></tr>
+<tr><td><code>HashMap::key_at(&amp;m, i)</code>, <code>HashMap::value_at(&amp;m, i)</code></td><td>entry <code>i</code>, for <code>i &lt; len</code>, in insertion order</td></tr>
+<tr><td><code>HashSet::new</code>, <code>len</code>, <code>insert</code>, <code>contains</code>, <code>remove</code>, <code>remove_ordered</code>, <code>at</code></td><td>the same for a set; <code>insert</code> and <code>remove</code> say whether anything changed</td></tr>
+</tbody>
+</table>
+<p>Entries are kept in the order they were added, so a loop over <code>0..len</code> visits them in that
+order, the same in the interpreter and the compiler, whatever the keys hash to. <code>remove</code> is quick
+because it fills the gap with the last entry; use <code>remove_ordered</code> when the order matters.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Counting words, and a set</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    <span class="t">array</span>&lt;<span class="t">str</span>, <span class="n">9</span>&gt; words = [<span class="s">&quot;the&quot;</span>, <span class="s">&quot;cat&quot;</span>, <span class="s">&quot;and&quot;</span>, <span class="s">&quot;the&quot;</span>, <span class="s">&quot;hat&quot;</span>, <span class="s">&quot;and&quot;</span>, <span class="s">&quot;the&quot;</span>, <span class="s">&quot;bat&quot;</span>, <span class="s">&quot;sat&quot;</span>];
+    HashMap&lt;<span class="p">String</span>, <span class="t">u32</span>&gt; counts = HashMap::new();
+    <span class="k">for</span> (<span class="t">usize</span> i = <span class="n">0</span>; i &lt; <span class="n">9</span>; i += <span class="n">1</span>)
+    {
+        *HashMap::entry(&amp;<span class="k">mut</span> counts, <span class="p">String</span>::from_str(words[i]), <span class="n">0</span>) += <span class="n">1</span>;   <span class="c">// 0 if new, then + 1</span>
+    }
+    <span class="k">for</span> (<span class="t">usize</span> i = <span class="n">0</span>; i &lt; HashMap::len(&amp;counts); i += <span class="n">1</span>)
+    {
+        printf(<span class="s">&quot;%-4s %d\n&quot;</span>, HashMap::key_at(&amp;counts, i), *HashMap::value_at(&amp;counts, i));
+    }
+
+    <span class="p">String</span> cat = <span class="p">String</span>::from_str(<span class="s">&quot;cat&quot;</span>);
+    <span class="k">match</span> (HashMap::get(&amp;counts, &amp;cat))
+    {
+        <span class="p">Some</span>(n) : printf(<span class="s">&quot;cat: %d\n&quot;</span>, *n),
+        <span class="p">None</span> : printf(<span class="s">&quot;no cat\n&quot;</span>),
+    }
+
+    HashSet&lt;<span class="t">u32</span>&gt; seen = HashSet::new();
+    <span class="t">u32</span> x = <span class="n">7</span>;
+    <span class="k">while</span> (HashSet::insert(&amp;<span class="k">mut</span> seen, x))                 <span class="c">// false once x comes round again</span>
+    {
+        x = x * x % <span class="n">10</span>;
+    }
+    printf(<span class="s">&quot;%d distinct, back to %d\n&quot;</span>, HashSet::len(&amp;seen), x);
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>the  3
+cat  1
+and  2
+hat  1
+bat  1
+sat  1
+cat: 1
+3 distinct, back to 1
+</pre></div></figure>
+<figure class="code"><div class="code-head"><span class="code-title">A float is not a key</span><span class="badge bad">rejected: diag.type-mismatch</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    HashMap&lt;<span class="t">f64</span>, <span class="t">str</span>&gt; m = HashMap::new();   <span class="c">// <span class="bad">✗</span> <span class="dg">diag.type-mismatch</span> (static): f64 is not a key type</span>
+}</code></pre></figure>
 <h3><code>Rc&lt;T&gt;</code></h3>
 <p>Shared ownership as a library: a reference-counted box. <code>Rc::clone</code> makes another handle
 to the same box; the value is destroyed when the last handle is dropped. Access is read-only (a
