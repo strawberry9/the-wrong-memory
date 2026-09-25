@@ -3673,7 +3673,7 @@ its life, because there is no operation that could break it.</p>
 <h2><span class="secnum">§21</span>The standard library, std</h2>
 <div class="spec-ref">Governing specification file: <code>spec/21-standard-library-semantics.md</code></div><p class="blurb">import std; Option, Result, the intrinsics, str and print, and Vec, String and Rc written in CobaltC.</p>
 <p>The standard library is the module <code>std</code>: the <code>Option</code> and <code>Result</code> enums, <code>print</code>,
-<code>write</code>, <code>read</code>, <code>read_line</code>, <code>arg_count</code>, <code>arg</code>, <code>arg_bytes</code>, <code>parse</code> and <code>map_err</code>, and three library types written in CobaltC itself, <code>Vec&lt;T&gt;</code>, <code>String</code> and
+<code>write</code>, <code>read</code>, <code>read_line</code>, <code>arg_count</code>, <code>arg</code>, <code>arg_bytes</code>, <code>parse</code>, <code>read_file</code>, <code>write_file</code> and <code>map_err</code>, and three library types written in CobaltC itself, <code>Vec&lt;T&gt;</code>, <code>String</code> and
 <code>Rc&lt;T&gt;</code>. A program uses it with <code>import std;</code>, or by qualified paths such as <code>std::Vec</code>. Its source
 is part of the specification, which is the language's proof that the mechanisms in this guide are
 enough to build real containers. Being a module, it keeps its private parts private: no program
@@ -3703,6 +3703,14 @@ value type <code>str</code> belong to the language itself and need no import.</p
 
 <span class="k">export</span> <span class="k">enum</span> ReadError                 <span class="c">// why read_line failed</span>
 {
+    Io,
+    Utf8(<span class="p">Utf8Error</span>)
+}
+
+<span class="k">export</span> <span class="k">enum</span> FileError                 <span class="c">// why read_file or write_file failed</span>
+{
+    NotFound,
+    Denied,
     Io,
     Utf8(<span class="p">Utf8Error</span>)
 }
@@ -3740,6 +3748,7 @@ intrinsic is used only where there is none.</p>
 <tr><td><code>arg_count()</code>, <code>arg(i)</code></td><td>the number of program arguments, and argument <code>i</code> as a <code>String</code> (functions of <code>std</code>)</td><td>§21</td></tr>
 <tr><td><code>arg_bytes(i, buf, len)</code></td><td>an extern of <code>std</code>: copy argument <code>i</code>'s bytes, whatever they are (unsafe)</td><td>§21</td></tr>
 <tr><td><code>parse&lt;T&gt;(&amp;s)</code></td><td>read a whole <code>String</code> as a number of type <code>T</code> (a function of <code>std</code>)</td><td>§21</td></tr>
+<tr><td><code>read_file(&amp;path)</code>, <code>write_file(&amp;path, &amp;text)</code></td><td>read a whole file as a <code>String</code>, or replace a file's contents (functions of <code>std</code>)</td><td>§21</td></tr>
 <tr><td><code>Option::unwrap_or(o, d)</code>, <code>Result::unwrap_or(r, d)</code></td><td>the value, or the default <code>d</code> when there is none (functions of <code>std</code>)</td><td>§18</td></tr>
 <tr><td><code>map_err(r, f)</code></td><td>convert a <code>Result</code>'s error type with <code>f</code> (a function of <code>std</code>)</td><td>§18</td></tr>
 </tbody>
@@ -4412,6 +4421,66 @@ the same value. To take a line apart first, <code>String::as_bytes(&amp;s)</code
     <span class="n">0</span>
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>total 3.75
 </pre></div></figure>
+<h3>Files</h3>
+<p><code>read_file(&amp;path)</code> reads a whole file as a <code>String</code>; <code>write_file(&amp;path, &amp;text)</code> makes the
+file hold exactly <code>text</code>, creating it or replacing what it held. Both take the path as a <code>String</code>
+(it usually comes from <code>arg</code>) and return a <code>Result</code> whose error is a <code>FileError</code>: <code>NotFound</code>,
+<code>Denied</code>, <code>Utf8(e)</code> for a file that is not valid UTF-8 (with the offset of the first bad byte), or
+<code>Io</code> for anything else. A relative path is relative to the directory the program runs in. Both
+tools read and write files.</p>
+<table>
+<thead><tr><th>Function</th><th>Signature</th></tr></thead>
+<tbody>
+<tr><td><code>read_file</code></td><td><code>(ref&lt;String, shared&gt; path) : Result&lt;String, FileError&gt;</code></td></tr>
+<tr><td><code>write_file</code></td><td><code>(ref&lt;String, shared&gt; path, ref&lt;String, shared&gt; text) : Result&lt;void, FileError&gt;</code></td></tr>
+</tbody>
+</table>
+<p>There is no file handle to open or close: each call handles the whole file. <code>ReadError</code>
+and <code>FileError</code> both have variants called <code>Io</code> and <code>Utf8</code>; a <code>match</code> names them plainly, since the
+value's type says which enum is meant, but building one by hand is written <code>FileError::Io</code>.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Writing a file and reading it back</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main() : <span class="t">u8</span>
+{
+    <span class="p">String</span> path = <span class="p">String</span>::from_str(<span class="s">&quot;notes.txt&quot;</span>);
+    <span class="p">String</span> text = <span class="p">String</span>::from_str(<span class="s">&quot;first line\nsecond line\n&quot;</span>);
+    <span class="k">match</span> (write_file(&amp;path, &amp;text))
+    {
+        <span class="p">Ok</span>(_) :
+        {
+        },
+        <span class="p">Err</span>(_) :
+        {
+            <span class="p">print</span>(<span class="s">&quot;cannot write notes.txt\n&quot;</span>);
+            <span class="k">return</span> <span class="n">1</span>;
+        },
+    }
+    <span class="p">String</span> back = <span class="p">Result</span>::unwrap_or(read_file(&amp;path), <span class="p">String</span>::new());
+    <span class="p">print</span>(&amp;back);
+    <span class="p">String</span> gone = <span class="p">String</span>::from_str(<span class="s">&quot;no-such-file.txt&quot;</span>);
+    <span class="k">match</span> (read_file(&amp;gone))
+    {
+        <span class="p">Ok</span>(_) :
+        {
+            <span class="p">print</span>(<span class="s">&quot;?\n&quot;</span>);
+        },
+        <span class="p">Err</span>(e) : <span class="k">match</span> (e)
+        {
+            NotFound :
+            {
+                <span class="p">print</span>(<span class="s">&quot;no-such-file.txt: not found\n&quot;</span>);
+            },
+            _ :
+            {
+                <span class="p">print</span>(<span class="s">&quot;no-such-file.txt: cannot read it\n&quot;</span>);
+            },
+        },
+    }
+    <span class="n">0</span>
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>first line
+second line
+no-such-file.txt: not found
+</pre></div></figure>
 <h3><code>Rc&lt;T&gt;</code></h3>
 <p>Shared ownership as a library: a reference-counted box. <code>Rc::clone</code> makes another handle
 to the same box; the value is destroyed when the last handle is dropped. Access is read-only (a
@@ -4718,6 +4787,7 @@ rule is applied statically where the checker can see the problem and dynamically
     </a>.
   </p>
 </footer>
+
 
 </main>
 </div>
