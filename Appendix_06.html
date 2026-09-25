@@ -3422,9 +3422,11 @@ result may only be integers, floats, <code>bool</code>, <code>void</code> and <c
 is a <em>claim</em>: a genuine value of its declared type, but one whose relationship to anything
 else (that a returned length is right, that a pointer is valid) is not established until your code
 checks it.</p>
-<p><code>std</code> declares one extern, <code>write(rawptr&lt;u8&gt; buf, usize len) : isize</code>, and
-<code>std::print</code> (§21) writes through it, with the <code>unsafe</code> block inside <code>std</code>. Linking, calling conventions and the rest of the foreign side are outside the language
-and documented by each implementation.</p>
+<p><code>std</code> declares two externs: <code>write(rawptr&lt;u8&gt; buf, usize len) : isize</code>, which
+<code>std::print</code> (§21) writes through, with the <code>unsafe</code> block inside <code>std</code>, and its counterpart <code>read</code>,
+which <code>read_line</code> reads through. Calling conventions and how code is linked are outside the language
+and documented by each implementation; a program names the C code it needs with <code>extern &quot;…&quot;;</code>
+(below).</p>
 <p>Both implementations call real C functions on x86-64 Linux: an <code>extern fn</code> names a
 function in the C library or the maths library by its declared name. The compiler passes any
 FfiType, pointers included. The interpreter's memory is simulated, so it can pass only integers,
@@ -3495,6 +3497,113 @@ FfiType, pointers included. The interpreter's memory is simulated, so it can pas
 
 <span class="k">fn</span> main()
 {
+}</code></pre></figure>
+<h3>Your own C code</h3>
+<p><code>extern &quot;…&quot;;</code> names C code for the compiler to link, so that the program's <code>extern fn</code>
+declarations can be found in it. It can go anywhere an item can, declares no name, and can be
+repeated; each piece of code is linked once. The program still builds with nothing but
+<code>cobc main.cb</code>.</p>
+<table>
+<thead><tr><th>Written</th><th>Links</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td><code>extern &quot;./shapes.c&quot;;</code></td><td>a C source file</td><td>compiled on its own, with the C compiler's warnings shown</td></tr>
+<tr><td><code>extern &quot;./lib/fast.o&quot;;</code>, <code>extern &quot;./lib/libfast.a&quot;;</code></td><td>an object file or static library</td><td>linked as it is</td></tr>
+<tr><td><code>extern &quot;./lib/libplugin.so&quot;;</code></td><td>a shared library</td><td>found wherever the program is run from</td></tr>
+<tr><td><code>extern &quot;z&quot;;</code></td><td>an installed library</td><td>as <code>cc -lz</code></td></tr>
+</tbody>
+</table>
+<p>A string beginning <code>./</code>, <code>../</code> or <code>/</code> is a file, and a relative path is relative to the
+file it is written in, exactly as in <code>module m &quot;./m.cb&quot;;</code>. So a module that wraps some C code can
+name it next to itself, and every program that uses the module gets it linked. Anything else is a
+library name. A missing file or library is reported at the line that names it.</p>
+<div class="callout warn"><div class="callout-title">Watch out</div>Only the compiler links C code. The interpreter accepts <code>extern &quot;…&quot;;</code> and ignores it;
+the first call into that code stops with <code>unsupported: no C function … which only cobc links</code>
+(exit status 3), and everything before it runs as usual.</div>
+<p>The usual shape is a module that keeps the <code>unsafe</code> calls to itself and exports safe
+functions. Two things make the wrappers below safe. First, <code>rect_area</code> takes <code>u8</code> sides, so the
+product always fits in the C function's <code>int32_t</code>. Second, <code>first_squares</code> lets the C function fill
+storage that comes from <code>allocate</code>, because a C function may write only outside the program's live
+objects (§20's rule for extern calls); the count it returns is a claim, checked before it is used,
+and the values are copied into a <code>Vec</code>.</p>
+<figure class="code"><div class="code-head"><span class="code-title">main.cb</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">module</span> geometry <span class="s">&quot;./geometry.cb&quot;</span>;
+
+<span class="k">fn</span> main()
+{
+    <span class="p">print</span>(geometry::rect_area(<span class="n">6</span>, <span class="n">7</span>));
+    <span class="p">print</span>(<span class="s">&quot;\n&quot;</span>);
+    <span class="p">Vec</span>&lt;<span class="t">i64</span>&gt; sq = geometry::first_squares(<span class="n">5</span>);
+    <span class="t">usize</span> i = <span class="n">0</span>;
+    <span class="k">while</span> (i &lt; <span class="p">Vec</span>::len(&amp;sq))
+    {
+        <span class="p">print</span>(*<span class="p">Vec</span>::index_shared(&amp;sq, i));
+        <span class="p">print</span>(<span class="s">&quot; &quot;</span>);
+        i = i + <span class="n">1</span>;
+    }
+    <span class="p">print</span>(<span class="s">&quot;\n&quot;</span>);
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>42
+0 1 4 9 16 
+</pre></div></figure>
+<figure class="code"><div class="code-head"><span class="code-title">geometry.cb</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">extern</span> <span class="s">&quot;./shapes.c&quot;</span>;                  <span class="c">// relative to this file</span>
+
+<span class="k">extern</span> <span class="k">fn</span> area(<span class="t">i32</span> w, <span class="t">i32</span> h) : <span class="t">i32</span>;
+<span class="k">extern</span> <span class="k">fn</span> squares(<span class="t">rawptr</span>&lt;<span class="t">i64</span>&gt; out, <span class="t">i64</span> n) : <span class="t">i64</span>;
+
+<span class="c">// u8 sides: the product always fits the C function&#x27;s int32_t.</span>
+<span class="k">export</span> <span class="k">fn</span> rect_area(<span class="t">u8</span> w, <span class="t">u8</span> h) : <span class="t">i32</span>
+{
+    <span class="k">unsafe</span> { area(<span class="p">widen</span>&lt;<span class="t">i32</span>&gt;(w), <span class="p">widen</span>&lt;<span class="t">i32</span>&gt;(h)) }
+}
+
+<span class="c">// C fills storage from allocate; the count it returns is checked,</span>
+<span class="c">// then the values are copied out.</span>
+<span class="k">export</span> <span class="k">fn</span> first_squares(<span class="t">u8</span> n) : <span class="p">Vec</span>&lt;<span class="t">i64</span>&gt;
+{
+    <span class="p">Vec</span>&lt;<span class="t">i64</span>&gt; out = <span class="p">Vec</span>::new();
+    <span class="t">usize</span> bytes = <span class="p">widen</span>&lt;<span class="t">usize</span>&gt;(n) * <span class="p">sizeof</span>&lt;<span class="t">i64</span>&gt;();
+    <span class="t">rawptr</span>&lt;<span class="t">u8</span>&gt; raw = <span class="k">match</span> (<span class="p">allocate</span>(bytes, <span class="p">alignof</span>&lt;<span class="t">i64</span>&gt;()))
+    {
+        <span class="p">Ok</span>(p) : p,
+        <span class="p">Err</span>(_) :
+        {
+            <span class="k">return</span> out;
+        },
+    };
+    <span class="t">rawptr</span>&lt;<span class="t">i64</span>&gt; buf = <span class="p">reinterpret_ptr</span>&lt;<span class="t">i64</span>&gt;(raw);
+    <span class="t">i64</span> written = <span class="k">unsafe</span> { squares(buf, <span class="p">widen</span>&lt;<span class="t">i64</span>&gt;(n)) };
+    <span class="k">if</span> (written &gt;= <span class="n">0</span> &amp;&amp; written &lt;= <span class="p">widen</span>&lt;<span class="t">i64</span>&gt;(n))
+    {
+        <span class="t">usize</span> i = <span class="n">0</span>;
+        <span class="k">while</span> (i &lt; <span class="p">narrow</span>&lt;<span class="t">usize</span>&gt;(written))
+        {
+            <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> out, <span class="k">unsafe</span> { *(buf + <span class="p">reinterpret</span>&lt;<span class="t">isize</span>&gt;(i)) });
+            i = i + <span class="n">1</span>;
+        }
+    }
+    <span class="k">unsafe</span>
+    {
+        <span class="p">deallocate</span>(raw, bytes, <span class="p">alignof</span>&lt;<span class="t">i64</span>&gt;());
+    }
+    out
+}</code></pre></figure>
+<figure class="code"><div class="code-head"><span class="code-title">shapes.c</span></div><pre><code>#include &lt;stdint.h&gt;
+
+int32_t area(int32_t w, int32_t h)
+{
+    <span class="k">return</span> w * h;
+}
+
+<span class="c">// Fills out[0..n) with the first n squares; returns how many it wrote.</span>
+int64_t squares(int64_t *out, int64_t n)
+{
+    for (int64_t i = <span class="n">0</span>; i &lt; n; i++)
+    {
+        out[i] = i * i;
+    }
+    <span class="k">return</span> n;
 }</code></pre></figure>
 <h3>From claim to fact</h3>
 <p>Data from outside (bytes read by an extern, a pointer handed back by a library, a length
