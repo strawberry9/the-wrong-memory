@@ -108,7 +108,8 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
   table { display: block; overflow-x: auto; }
 }
 
-.book-navigation {
+.book-navigation
+{
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -139,7 +140,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
             margin: 0 30px 20px 0;
             width: 30%;
             height: 30%;          
-        }
+}
 </style>
 </head>
 <body>
@@ -175,6 +176,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 </ol>
 </aside>
 <main>
+
 
 <div style="text-align: center;">
   <img src="CobaltC_Cyber_Guardian_Poster_small.png" alt="CobaltC">
@@ -3011,8 +3013,11 @@ inside a loaded file against that file and its own line.</p>
 <h3>How a name is found</h3>
 <p>An unqualified name is first looked up as a local variable or parameter. Failing that, in
 this order: an item of the current module; an <code>import</code> in the current module whose last segment
-matches; an item of an enclosing module, outward to the root; finally a variant of exactly one enum
-visible here. More than one candidate at a step is <code>diag.ambiguous-name</code>; none at all is
+matches; an item of an enclosing module, outward to the root; finally a variant: first of the
+enums of this module, or else of the nearest enclosing module with one of that name, and only if
+there is none, of an imported enum. So your own <code>enum Shape { …, Empty }</code> keeps its bare <code>Empty</code> even
+though <code>std</code>'s <code>ParseError</code> has an <code>Empty</code> too. More than one candidate at a step is
+<code>diag.ambiguous-name</code>; none at all is
 <code>diag.unbound-name</code>. A qualified name <code>a::b::c</code> starts by resolving <code>a</code> the same way and then walks
 into it, checking visibility at the end.</p>
 <p>Two special cases: an associated function declared as <code>fn Type::name(…)</code> is addressed as
@@ -3658,7 +3663,7 @@ its life, because there is no operation that could break it.</p>
 <h2><span class="secnum">§21</span>The standard library, std</h2>
 <div class="spec-ref">Governing specification file: <code>spec/21-standard-library-semantics.md</code></div><p class="blurb">import std; Option, Result, the intrinsics, str and print, and Vec, String and Rc written in CobaltC.</p>
 <p>The standard library is the module <code>std</code>: the <code>Option</code> and <code>Result</code> enums, <code>print</code>,
-<code>write</code>, <code>read</code>, <code>read_line</code>, <code>arg_count</code>, <code>arg</code>, <code>arg_bytes</code> and <code>map_err</code>, and three library types written in CobaltC itself, <code>Vec&lt;T&gt;</code>, <code>String</code> and
+<code>write</code>, <code>read</code>, <code>read_line</code>, <code>arg_count</code>, <code>arg</code>, <code>arg_bytes</code>, <code>parse</code> and <code>map_err</code>, and three library types written in CobaltC itself, <code>Vec&lt;T&gt;</code>, <code>String</code> and
 <code>Rc&lt;T&gt;</code>. A program uses it with <code>import std;</code>, or by qualified paths such as <code>std::Vec</code>. Its source
 is part of the specification, which is the language's proof that the mechanisms in this guide are
 enough to build real containers. Being a module, it keeps its private parts private: no program
@@ -3690,6 +3695,13 @@ value type <code>str</code> belong to the language itself and need no import.</p
 {
     Io,
     Utf8(<span class="p">Utf8Error</span>)
+}
+
+<span class="k">export</span> <span class="k">enum</span> ParseError                <span class="c">// why parse failed</span>
+{
+    Empty,
+    Invalid(<span class="t">usize</span>),                   <span class="c">// the offset where the number stops</span>
+    OutOfRange
 }</code></pre></figure>
 <h3>Intrinsics</h3>
 <p>Intrinsics are called like functions; their behaviour is given by rules rather than by a
@@ -3717,6 +3729,7 @@ intrinsic is used only where there is none.</p>
 <tr><td><code>read_line()</code></td><td>read the next line of standard input as a <code>String</code> (a function of <code>std</code>; <code>cobc</code> only)</td><td>§21</td></tr>
 <tr><td><code>arg_count()</code>, <code>arg(i)</code></td><td>the number of program arguments, and argument <code>i</code> as a <code>String</code> (functions of <code>std</code>)</td><td>§21</td></tr>
 <tr><td><code>arg_bytes(i, buf, len)</code></td><td>an extern of <code>std</code>: copy argument <code>i</code>'s bytes, whatever they are (unsafe)</td><td>§21</td></tr>
+<tr><td><code>parse&lt;T&gt;(&amp;s)</code></td><td>read a whole <code>String</code> as a number of type <code>T</code> (a function of <code>std</code>)</td><td>§21</td></tr>
 <tr><td><code>map_err(r, f)</code></td><td>convert a <code>Result</code>'s error type with <code>f</code> (a function of <code>std</code>)</td><td>§18</td></tr>
 </tbody>
 </table>
@@ -3915,17 +3928,21 @@ the <code>Vec</code> is destroyed.</p>
 pieces of §07 and §20 fit together.</div>
 <h3><code>String</code></h3>
 <p>A <code>String</code> is a <code>Vec&lt;u8&gt;</code> that is known to be valid UTF-8: owned, heap-allocated text,
-a resource. There are two ways to make one: <code>String::from_str</code> copies a <code>str</code>'s bytes (already
-valid, so nothing is checked), and <code>String::from_utf8</code> validates bytes that came from anywhere
-else. There is no way to mutate its bytes, so the guarantee holds for its whole life. <code>from_utf8</code>
-is the trust-transition pattern of §20 in miniature.</p>
+a resource. <code>String::new()</code> makes an empty one, <code>String::from_str</code> copies a <code>str</code>'s bytes
+(already valid, so nothing is checked), and <code>String::from_utf8</code> validates bytes that came from
+anywhere else. The only way to change one is <code>String::append</code>, which adds valid UTF-8 (below), so
+the guarantee holds for its whole life. <code>from_utf8</code> is the trust-transition pattern of §20 in
+miniature.</p>
 <table>
 <thead><tr><th>Function</th><th>Signature</th></tr></thead>
 <tbody>
+<tr><td><code>String::new</code></td><td><code>() : String</code> (empty)</td></tr>
 <tr><td><code>String::from_str</code></td><td><code>(str) : String</code> (copies; cannot fail)</td></tr>
 <tr><td><code>String::from_utf8</code></td><td><code>(Vec&lt;u8&gt;) : Result&lt;String, Utf8Error&gt;</code></td></tr>
 <tr><td><code>String::len</code></td><td><code>(ref&lt;String, shared&gt;) : usize</code> (bytes)</td></tr>
 <tr><td><code>String::into_bytes</code></td><td><code>(String) : Vec&lt;u8&gt;</code> (gives the bytes back, consuming the string)</td></tr>
+<tr><td><code>String::as_bytes</code></td><td><code>(ref&lt;String, shared&gt;) : ref&lt;Vec&lt;u8&gt;, shared&gt;</code> (read the bytes in place)</td></tr>
+<tr><td><code>String::append</code></td><td><code>(ref&lt;String, exclusive&gt;, T)</code> for any <code>T</code> <code>print</code> takes: adds what <code>print</code> would write</td></tr>
 </tbody>
 </table>
 <figure class="code"><div class="code-head"><span class="code-title">Validating bytes into a String</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
@@ -4322,6 +4339,67 @@ you can call inside <code>unsafe</code> for an argument's raw bytes.</p>
     }
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>0: one
 1: two
+</pre></div></figure>
+<h3>Numbers and text</h3>
+<p><code>String::append(&amp;mut s, x)</code> adds to <code>s</code> exactly what <code>print(x)</code> would write, for the same
+types: a <code>str</code>, any integer, <code>f32</code>/<code>f64</code>, <code>bool</code>, or another <code>String</code> through <code>&amp;</code>. So a line can be
+built piece by piece and printed, or kept, once. <code>parse&lt;T&gt;(&amp;s)</code> goes the other way: it reads the
+whole <code>String</code> as a number of type <code>T</code>, any integer type, <code>f32</code> or <code>f64</code>, and returns a
+<code>Result&lt;T, ParseError&gt;</code>.</p>
+<table>
+<thead><tr><th>Result</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>Ok(v)</code></td><td>the whole text is a number, and it fits in <code>T</code></td></tr>
+<tr><td><code>Err(Empty)</code></td><td>the text is empty</td></tr>
+<tr><td><code>Err(Invalid(k))</code></td><td>byte <code>k</code> cannot continue a number (<code>&quot;12x4&quot;</code> → 2), or the text ends too early (<code>&quot;-&quot;</code> → 1)</td></tr>
+<tr><td><code>Err(OutOfRange)</code></td><td>a number, but not one <code>T</code> can hold (<code>&quot;300&quot;</code> as <code>u8</code>)</td></tr>
+</tbody>
+</table>
+<p>Parsing is strict: an optional <code>+</code> or <code>-</code>, then digits, and for a float an optional fraction and
+exponent (<code>2.5e-3</code>), or <code>inf</code> or <code>NaN</code>. No spaces anywhere, so a line typed on Windows ends in a <code>\r</code>
+that makes it <code>Invalid</code>. Floats are rounded correctly, and every float <code>print</code> writes parses back to
+the same value. To take a line apart first, <code>String::as_bytes(&amp;s)</code> gives its bytes to read.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Parsing arguments, building a line: <code>coby sum.cb 1.5 2 0.25</code></span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Adds up its arguments: `coby sum.cb 1.5 2 x` reports the `x`.</span>
+<span class="k">fn</span> main() : <span class="t">u8</span>
+{
+    <span class="t">f64</span> total = <span class="n">0.0</span>;
+    <span class="t">usize</span> i = <span class="n">0</span>;
+    <span class="k">while</span> (i &lt; arg_count())
+    {
+        <span class="p">String</span> a = <span class="k">match</span> (arg(i))
+        {
+            <span class="p">Ok</span>(s) : s,
+            <span class="p">Err</span>(_) : <span class="p">String</span>::new(),
+        };
+        <span class="k">match</span> (parse&lt;<span class="t">f64</span>&gt;(&amp;a))
+        {
+            <span class="p">Ok</span>(v) :
+            {
+                total = total + v;
+            },
+            <span class="p">Err</span>(_) :
+            {
+                <span class="p">String</span> msg = <span class="p">String</span>::new();
+                <span class="p">String</span>::append(&amp;<span class="k">mut</span> msg, <span class="s">&quot;argument &quot;</span>);
+                <span class="p">String</span>::append(&amp;<span class="k">mut</span> msg, i);
+                <span class="p">String</span>::append(&amp;<span class="k">mut</span> msg, <span class="s">&quot; is not a number: &quot;</span>);
+                <span class="p">String</span>::append(&amp;<span class="k">mut</span> msg, &amp;a);
+                <span class="p">String</span>::append(&amp;<span class="k">mut</span> msg, <span class="s">&quot;\n&quot;</span>);
+                <span class="p">print</span>(&amp;msg);
+                <span class="k">return</span> <span class="n">1</span>;
+            },
+        }
+        i = i + <span class="n">1</span>;
+    }
+    <span class="p">String</span> line = <span class="p">String</span>::new();
+    <span class="p">String</span>::append(&amp;<span class="k">mut</span> line, <span class="s">&quot;total &quot;</span>);
+    <span class="p">String</span>::append(&amp;<span class="k">mut</span> line, total);
+    <span class="p">String</span>::append(&amp;<span class="k">mut</span> line, <span class="s">&quot;\n&quot;</span>);
+    <span class="p">print</span>(&amp;line);
+    <span class="n">0</span>
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>total 3.75
 </pre></div></figure>
 <h3><code>Rc&lt;T&gt;</code></h3>
 <p>Shared ownership as a library: a reference-counted box. <code>Rc::clone</code> makes another handle
