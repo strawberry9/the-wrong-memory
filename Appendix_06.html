@@ -177,7 +177,6 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 </aside>
 <main>
 
-
 <div style="text-align: center;">
   <img src="CobaltC_Cyber_Guardian_Poster_small.png" alt="CobaltC">
 </div>
@@ -625,10 +624,14 @@ named intrinsic with a documented behaviour.</p>
 <p>There is no implicit promotion: <code>i32 + i64</code> is a type error, and a <code>u8</code> cannot be passed
 where an <code>i32</code> is expected. Unary minus applies only to signed and float types.</p>
 <h3>Literals</h3>
-<p>Integer literals are decimal digit strings (no sign, no hex, no separators). A literal's
+<p>Integer literals are digit strings: decimal, or hexadecimal, octal or binary after <code>0x</code>,
+<code>0o</code> or <code>0b</code> (<code>0xFF</code>, <code>0o755</code>, <code>0b1010</code>); there is no sign and no digit separator. A literal's
 type comes from, in order: an explicit suffix <code>123: u8</code>; the <em>expected type</em> at that position
 (a declared variable type, a parameter type, a field type, or the other operand of the same
-operator); otherwise the default, <code>i32</code> for integers and <code>f64</code> for floats. A literal that does not
+operator); otherwise the default, <code>i32</code> for integers and <code>f64</code> for floats. An expression made only
+of literals and operators takes the expected type as a whole, so <code>u64 x = 1024 * 1024 * 1024 * 16;</code>
+is computed in <code>u64</code>, while <code>auto y = 65536 * 65536;</code> has no expected type, is an <code>i32</code>, and
+overflows. A literal that does not
 fit its type is a static error. A minus written directly before an integer literal is checked
 with it, as one negative value, so <code>-2147483648</code> is the smallest <code>i32</code>. A type's limits also
 have names, <code>min_value&lt;i32&gt;()</code> and <code>max_value&lt;i32&gt;()</code> (below). Float literals are <code>digits . digits</code>, with an
@@ -662,12 +665,15 @@ bytes readably in code that parses. A string literal <code>&quot;…&quot;</code
     <span class="t">f32</span> f = <span class="n">0.5</span>: <span class="t">f32</span>;
     <span class="t">f64</span> tiny = <span class="n">1.5</span>e-<span class="n">3</span>;                <span class="c">// an exponent: 0.0015</span>
     <span class="t">u8</span> comma = b&#x27;,&#x27;;                  <span class="c">// a byte character: 44</span>
+    <span class="t">u32</span> mask = <span class="n">0</span>xFF00;                <span class="c">// hexadecimal; also 0o17 (octal) and 0b1010 (binary)</span>
+    <span class="t">u64</span> sixteen_gib = <span class="n">16</span> * <span class="n">1024</span> * <span class="n">1024</span> * <span class="n">1024</span>;   <span class="c">// literals only: computed in u64</span>
     <span class="t">i64</span> g = -<span class="n">1</span>;                       <span class="c">// the expected type reaches through unary minus</span>
     <span class="t">i32</span> lo = -<span class="n">2147483648</span>;             <span class="c">// min(i32): 2147483648 alone would not fit</span>
     check(d == <span class="n">201</span>);
     check(g &lt; <span class="n">0</span>);
     check(lo + <span class="n">2147483647</span> == -<span class="n">1</span>);
-    check(tiny == <span class="n">0.0015</span> &amp;&amp; comma == <span class="n">44</span>);
+    check(tiny == <span class="n">0.0015</span> &amp;&amp; comma == <span class="n">44</span> &amp;&amp; mask == <span class="n">65280</span>);
+    check(sixteen_gib == <span class="n">17179869184</span>);
     check(<span class="p">sizeof</span>&lt;<span class="t">u64</span>&gt;() == <span class="n">8</span>);        <span class="c">// sizeof and alignof are intrinsics returning usize</span>
     check(<span class="p">alignof</span>&lt;<span class="t">u16</span>&gt;() == <span class="n">2</span>);
 }</code></pre></figure>
@@ -2217,9 +2223,13 @@ syntax error, and <code>a &lt; b == c</code> needs parentheses.</p>
 <tr><td>comparison</td><td><code>==</code> <code>!=</code> <code>&lt;</code> <code>&lt;=</code> <code>&gt;</code> <code>&gt;=</code></td><td>non-associative</td></tr>
 <tr><td>logical and</td><td><code>&amp;&amp;</code></td><td>short-circuit</td></tr>
 <tr><td>logical or</td><td><code>||</code></td><td>short-circuit</td></tr>
-<tr><td>assignment</td><td><code>=</code></td><td>right-associative; the left side must be a place</td></tr>
+<tr><td>assignment</td><td><code>=</code>  <code>+=</code>  <code>-=</code>  <code>*=</code>  <code>/=</code>  <code>%=</code>  <code>&amp;=</code>  <code>|=</code>  <code>^=</code>  <code>&lt;&lt;=</code>  <code>&gt;&gt;=</code></td><td>right-associative; the left side must be a place</td></tr>
 </tbody>
 </table>
+<p><code>x op= e</code> is <code>x = x op e</code> with <code>x</code> evaluated once: the same types, the same overflow
+check (<code>x += 1</code> can overflow), the same write rules. Evaluating the place once matters only when it
+contains a call, as in <code>*Vec::index_exclusive(&amp;mut v, i) += 1</code>, which calls <code>index_exclusive</code> once.
+There is no <code>++</code> or <code>--</code>; write <code>+= 1</code>.</p>
 <div class="callout warn"><div class="callout-title">Watch out</div>Unlike C, the bitwise operators bind <em>tighter</em> than shifts and comparisons
 here, so <code>x &amp; 1 == 0</code> parses as <code>(x &amp; 1) == 0</code>. When in doubt, add parentheses.</div>
 <div class="callout rule"><div class="callout-title">Rules of thumb</div><ul>
@@ -2246,11 +2256,15 @@ anywhere is destroyed at the semicolon.</p>
 <p><code>if (cond) { … } else { … }</code> with mandatory parentheses and mandatory braces. <code>else if</code>
 chains as expected. An <code>if</code> without <code>else</code> has type <code>void</code>; an <code>if</code> used as a value needs both arms,
 of the same type.</p>
-<h3><code>while</code>, <code>break</code>, <code>continue</code></h3>
-<p><code>while (cond) { … }</code> is the only loop. The body is a fresh scope each iteration, so
-anything declared inside it is destroyed before the condition is tested again. <code>break</code> exits the
-innermost loop; <code>continue</code> jumps to its next test. Both are typed <code>never</code> and must appear inside a
-<code>while</code>. Counting loops are written by hand with an index.</p>
+<h3><code>while</code>, <code>for</code>, <code>break</code>, <code>continue</code></h3>
+<p><code>while (cond) { … }</code> loops while <code>cond</code> holds; <code>for (init; cond; step) { … }</code> is C's
+counted loop: <code>init</code> runs once (a declaration there belongs to the loop), <code>cond</code> is tested before
+each iteration, and <code>step</code> runs after each one. Any of the three may be left out; a missing <code>cond</code>
+is <code>true</code>, so <code>for (;;)</code> loops until a <code>break</code>. The body is a fresh scope each iteration, so
+anything declared inside it is destroyed before the next test. <code>break</code> exits the innermost loop;
+<code>continue</code> goes to its next iteration, running a <code>for</code>'s <code>step</code> first. Both are typed <code>never</code> and
+must appear inside a loop. A body is always a block, so C's trap <code>for (…);</code> (an empty loop, then a
+block that runs once) is a syntax error here, and the message says to remove the <code>;</code>.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Loops</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="c">// Fault deliberately when a check fails: a checked division by a</span>
@@ -2289,14 +2303,22 @@ innermost loop; <code>continue</code> jumps to its next test. Both are typed <co
     <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v = <span class="p">Vec</span>::new();
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">4</span>);
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">9</span>);
-    <span class="t">usize</span> k = <span class="n">0</span>;
     <span class="t">i32</span> total = <span class="n">0</span>;
-    <span class="k">while</span> (k &lt; <span class="p">Vec</span>::len(&amp;v))          <span class="c">// the idiomatic index loop over a Vec</span>
+    <span class="k">for</span> (<span class="t">usize</span> k = <span class="n">0</span>; k &lt; <span class="p">Vec</span>::len(&amp;v); k += <span class="n">1</span>)   <span class="c">// the idiomatic index loop over a Vec</span>
     {
-        total = total + *<span class="p">Vec</span>::index_shared(&amp;v, k);
-        k = k + <span class="n">1</span>;
+        total += *<span class="p">Vec</span>::index_shared(&amp;v, k);
     }
     check(total == <span class="n">13</span>);
+    <span class="t">u32</span> odd = <span class="n">0</span>;
+    <span class="k">for</span> (<span class="t">u32</span> j = <span class="n">0</span>; j &lt; <span class="n">10</span>; j += <span class="n">1</span>)
+    {
+        <span class="k">if</span> (j % <span class="n">2</span> == <span class="n">0</span>)
+        {
+            <span class="k">continue</span>;                 <span class="c">// still runs j += 1</span>
+        }
+        odd += j;
+    }
+    check(odd == <span class="n">25</span>);
 }</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">break outside a loop</span><span class="badge bad">rejected: diag.break-outside-loop</span></div><pre><code><span class="k">fn</span> main()
 {
@@ -2960,6 +2982,57 @@ a module in a file of its own, writes its own <code>import std;</code>.</p>
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>square
 &gt; done
 </pre></div></figure>
+<h3>Constants</h3>
+<p><code>const τ NAME = e;</code> names a value, at the top level of any module. <code>NAME</code> can be used
+wherever its value could, with the visibility, <code>export</code>, <code>import</code> and qualified paths of any item.
+<code>e</code> must be a <em>constant expression</em>: literals, other constants, operators, struct, array and
+variant literals of constant expressions, a function's name, and the pure intrinsics (<code>min_value</code>,
+<code>sizeof</code>, <code>widen</code>, …). A constant cannot be a resource, cannot depend on itself, and cannot be
+assigned to or borrowed; an overflow in computing one is reported at the constant, before the
+program runs. Integer, float, <code>bool</code> and <code>str</code> constants cost nothing at run time: each use becomes
+the literal.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Constants</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
+<span class="k">fn</span> check(<span class="t">bool</span> ok)
+{
+    <span class="t">i32</span> z = <span class="k">if</span> (ok)
+    {
+        <span class="n">1</span>
+    }
+    <span class="k">else</span>
+    {
+        <span class="n">0</span>
+    };
+    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
+}
+
+<span class="k">const</span> <span class="t">u64</span> KIB = <span class="n">1024</span>;
+<span class="k">const</span> <span class="t">u64</span> MIB = KIB * KIB;
+<span class="k">const</span> <span class="t">u32</span> READ = <span class="n">0</span>x1;
+<span class="k">const</span> <span class="t">u32</span> WRITE = <span class="n">0</span>x2;
+<span class="k">const</span> <span class="t">u32</span> READ_WRITE = READ | WRITE;
+<span class="k">const</span> <span class="t">i32</span> LOWEST = -<span class="n">2147483648</span>;
+
+<span class="k">struct</span> Size
+{
+    <span class="t">u32</span> w;
+    <span class="t">u32</span> h;
+}
+
+<span class="k">const</span> Size SCREEN = Size { .w = <span class="n">640</span>, .h = <span class="n">480</span> };
+
+<span class="k">fn</span> main()
+{
+    check(MIB == <span class="n">1048576</span>);
+    check(READ_WRITE == <span class="n">3</span>);
+    check(LOWEST &lt; <span class="n">0</span>);
+    check(SCREEN.w * SCREEN.h == <span class="n">307200</span>);
+}</code></pre></figure>
+<p>A constant is typed exactly as a declaration <code>τ x = e;</code> would be: in
+<code>const u64 MIB = 1024 * 1024;</code> the literals are <code>u64</code>s, and an initializer that overflows its type,
+such as <code>const i32 BIG = 65536 * 65536;</code>, is rejected at the constant.</p>
 <h3>A module in another file</h3>
 <p>A module's body can be a separate file. <code>module geo &quot;./geometry.cb&quot;;</code> means exactly
 <code>module geo { … }</code> with the file's declarations as the body: the same visibility, the same
@@ -3649,7 +3722,7 @@ int32_t area(int32_t w, int32_t h)
 <span class="c">// Fills out[0..n) with the first n squares; returns how many it wrote.</span>
 int64_t squares(int64_t *out, int64_t n)
 {
-    for (int64_t i = <span class="n">0</span>; i &lt; n; i++)
+    <span class="k">for</span> (int64_t i = <span class="n">0</span>; i &lt; n; i++)
     {
         out[i] = i * i;
     }
@@ -4772,7 +4845,6 @@ rule is applied statically where the checker can see the problem and dynamically
 </table>
 
 <nav class="pager"><a class="prev" href="#s22">&larr; §22 Surface syntax reference</a><a class="top" href="#top">Top</a></nav></section>
-
 
 <div class="book-navigation">
     <a href="Appendix_05.html" class="nav-btn">&larr; Previous</a>
