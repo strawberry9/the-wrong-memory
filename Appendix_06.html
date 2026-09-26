@@ -4417,6 +4417,105 @@ miniature.</p>
         },
     }
 }</code></pre></figure>
+<h3><code>StringView</code>: part of a <code>String</code>, without copying</h3>
+<p><code>&amp;s[i..j]</code> on a <code>String</code> gives a <code>StringView</code>: a read-only view of the bytes <code>i</code> to <code>j</code>,
+with no copy. Positions are byte positions, <code>$</code> is the length, and both ends must fall on a
+character boundary (cutting through a multi-byte character is <code>diag.not-char-boundary</code>). A view
+prints with <code>%s</code>, compares with <code>==</code> to another view or a <code>str</code>, and can be sliced again,
+<code>&amp;v[1..$]</code>. It borrows its <code>String</code> exactly as a slice borrows a <code>Vec</code>: while the view lives, the
+<code>String</code> cannot be changed, and a view cannot outlive it. <code>String::from_view(v)</code> copies it into a
+<code>String</code> of its own when it must.</p>
+<table>
+<thead><tr><th>Function</th><th>Result</th></tr></thead>
+<tbody>
+<tr><td><code>StringView::len(v)</code></td><td>its length in bytes</td></tr>
+<tr><td><code>StringView::find(v, &quot;x&quot;)</code></td><td><code>Option&lt;usize&gt;</code>: where <code>x</code> first occurs</td></tr>
+<tr><td><code>StringView::starts_with(v, &quot;x&quot;)</code>, <code>ends_with</code></td><td><code>bool</code></td></tr>
+<tr><td><code>StringView::trim(v)</code>, <code>trim_start</code>, <code>trim_end</code></td><td>the view without ASCII white space at its ends</td></tr>
+<tr><td><code>StringView::split(v, &quot;,&quot;)</code></td><td>a <code>Vec&lt;StringView&gt;</code> of the parts, each a view of the same <code>String</code></td></tr>
+<tr><td><code>StringView::parse&lt;T&gt;(v)</code></td><td>a number, as <code>parse</code></td></tr>
+<tr><td><code>String::from_view(v)</code>, <code>String::append(&amp;mut s, v)</code></td><td>the text copied into a <code>String</code></td></tr>
+</tbody>
+</table>
+<figure class="code"><div class="code-head"><span class="code-title">Reading fields out of a line</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
+<span class="k">fn</span> check(<span class="t">bool</span> ok)
+{
+    <span class="t">i32</span> z = <span class="k">if</span> (ok)
+    {
+        <span class="n">1</span>
+    }
+    <span class="k">else</span>
+    {
+        <span class="n">0</span>
+    };
+    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
+}
+
+<span class="c">// The first word of a line: a view into the line itself.</span>
+<span class="k">fn</span> first_word(<span class="t">ref</span>&lt;<span class="p">String</span>, <span class="t">shared</span>&gt; s) : StringView
+{
+    StringView t = StringView::trim(&amp;(*s)[<span class="n">0</span>..$]);
+    <span class="k">match</span> (StringView::find(t, <span class="s">&quot; &quot;</span>))
+    {
+        <span class="p">Some</span>(i) : &amp;t[<span class="n">0</span>..i],
+        <span class="p">None</span> : t,
+    }
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="p">String</span> line = <span class="p">String</span>::from_str(<span class="s">&quot;  set width=80, height = 24  &quot;</span>);
+    check(first_word(&amp;line) == <span class="s">&quot;set&quot;</span>);
+
+    StringView args = StringView::trim(&amp;line[<span class="n">6</span>..$]);     <span class="c">// &quot;width=80, height = 24&quot;</span>
+    <span class="t">i64</span> area = <span class="n">1</span>;
+    foreach (field in StringView::split(args, <span class="s">&quot;,&quot;</span>))
+    {
+        <span class="k">match</span> (StringView::find(field, <span class="s">&quot;=&quot;</span>))
+        {
+            <span class="p">Some</span>(eq) :
+            {
+                StringView value = StringView::trim(&amp;field[eq + <span class="n">1</span>..$]);
+                <span class="k">match</span> (StringView::parse&lt;<span class="t">i64</span>&gt;(value))
+                {
+                    <span class="p">Ok</span>(n) : { area *= n; },
+                    <span class="p">Err</span>(_) : { check(<span class="k">false</span>); },
+                }
+            },
+            <span class="p">None</span> : { check(<span class="k">false</span>); },
+        }
+    }
+    check(area == <span class="n">1920</span>);
+    printf(<span class="s">&quot;%s -&gt; %d\n&quot;</span>, args, area);
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>width=80, height = 24 -&gt; 1920
+</pre></div></figure>
+<figure class="code"><div class="code-head"><span class="code-title">The viewed String cannot change</span><span class="badge bad">rejected: diag.aliasing-conflict</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
+<span class="k">fn</span> check(<span class="t">bool</span> ok)
+{
+    <span class="t">i32</span> z = <span class="k">if</span> (ok)
+    {
+        <span class="n">1</span>
+    }
+    <span class="k">else</span>
+    {
+        <span class="n">0</span>
+    };
+    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="p">String</span> name = <span class="p">String</span>::from_str(<span class="s">&quot;ada&quot;</span>);
+    StringView v = &amp;name[<span class="n">0</span>..$];
+    <span class="p">String</span>::push_ascii(&amp;<span class="k">mut</span> name, b&#x27;!&#x27;);   <span class="c">// <span class="bad">✗</span> <span class="dg">diag.aliasing-conflict</span> (static): v still views name</span>
+    check(v == <span class="s">&quot;ada&quot;</span>);
+}</code></pre></figure>
 <h3>Which text type?</h3>
 <p>Rust programmers will recognise the pair, and C programmers may wonder why there are two
 text types at all. The reason is that a constant should not have to be managed. If <code>&quot;hi&quot;</code> were a
@@ -4439,6 +4538,7 @@ need an owner.</p>
 <div class="callout rule"><div class="callout-title">Rules of thumb</div><ul>
 <li>Text written in your source code: use <code>str</code>. Pass it, store it in structs and <code>Vec&lt;str&gt;</code>, and print it freely.</li>
 <li>Text built at run time, or text you need to own: use <code>String</code>, created explicitly from a <code>str</code> with <code>String::from_str</code>.</li>
+<li>Part of a <code>String</code>, to read, compare, split or parse without copying: a <code>StringView</code>, <code>&amp;s[i..j]</code>.</li>
 <li>A function that takes text from anywhere, a literal or a run-time <code>String</code>, takes <code>ref&lt;String, shared&gt;</code>. A caller holding a literal copies it first (<code>String k = String::from_str(&quot;key&quot;); f(&amp;k);</code>): the copy is small, and the call site shows it.</li>
 <li>Bytes from outside the program (a file, a socket, FFI): they stay <code>Vec&lt;u8&gt;</code> until <code>String::from_utf8</code> accepts them.</li>
 <li>Bytes that are not text (a protocol header, data for <code>write</code>): use <code>b&quot;…&quot;</code>.</li>
@@ -4852,7 +4952,7 @@ tools read and write files.</p>
 <tr><td><code>write_file</code></td><td><code>(ref&lt;String, shared&gt; path, ref&lt;String, shared&gt; text) : Result&lt;void, FileError&gt;</code></td></tr>
 </tbody>
 </table>
-<p>There is no file handle to open or close: each call handles the whole file. <code>ReadError</code>
+<p>These two handle the whole file at once; <code>File</code>, below, reads and writes one in pieces. <code>ReadError</code>
 and <code>FileError</code> both have variants called <code>Io</code> and <code>Utf8</code>; a <code>match</code> names them plainly, since the
 value's type says which enum is meant, but building one by hand is written <code>FileError::Io</code>.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Writing a file and reading it back</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
@@ -4897,6 +4997,87 @@ value's type says which enum is meant, but building one by hand is written <code
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>first line
 second line
 no-such-file.txt: not found
+</pre></div></figure>
+<h3>Open files: <code>File</code></h3>
+<p>A <code>File</code> is an open file, for what <code>read_file</code> cannot do: bytes that are not text, files
+too large to hold, appending to a log. It is a resource, like <code>Vec</code>: it has one owner, can move to
+another thread, and its destructor closes it. <code>close</code> closes it too, and reports whether that
+worked (for a written file, whether the bytes were stored); after <code>close</code> the <code>File</code> is gone,
+so it cannot be used again. Every operation returns a <code>Result</code> whose error is a <code>FileError</code>.</p>
+<table>
+<thead><tr><th>Function</th><th>Does</th></tr></thead>
+<tbody>
+<tr><td><code>File::open(&amp;path)</code></td><td>open for reading; the file must exist</td></tr>
+<tr><td><code>File::create(&amp;path)</code></td><td>open for writing, empty: created, or its contents discarded</td></tr>
+<tr><td><code>File::append(&amp;path)</code></td><td>open for writing at the end, created if missing</td></tr>
+<tr><td><code>File::open_rw(&amp;path)</code></td><td>open for reading and writing, created if missing, contents kept</td></tr>
+<tr><td><code>File::read_line(&amp;mut f)</code></td><td>the next line without its <code>\n</code>, <code>None</code> at the end (as <code>read_line</code>)</td></tr>
+<tr><td><code>File::read(&amp;mut f, &amp;mut buf, max)</code></td><td>append up to <code>max</code> bytes to a <code>Vec&lt;u8&gt;</code>; how many, 0 at the end</td></tr>
+<tr><td><code>File::read_to_end(&amp;mut f, &amp;mut buf)</code></td><td>append the rest of the file to a <code>Vec&lt;u8&gt;</code></td></tr>
+<tr><td><code>File::write(&amp;mut f, &amp;bytes[i..j])</code>, <code>File::write_str(&amp;mut f, &amp;text)</code></td><td>write all of a slice of bytes, or a <code>String</code>'s text</td></tr>
+<tr><td><code>File::seek(&amp;mut f, pos)</code>, <code>File::len(&amp;f)</code></td><td>move to byte <code>pos</code> (a <code>u64</code>); the length in bytes</td></tr>
+<tr><td><code>File::close(f)</code></td><td>close it and say whether that worked</td></tr>
+<tr><td><code>read_bytes(&amp;path)</code>, <code>write_bytes(&amp;path, &amp;bytes[i..j])</code></td><td><code>read_file</code> and <code>write_file</code> for bytes: a <code>Vec&lt;u8&gt;</code></td></tr>
+</tbody>
+</table>
+<p>Reading is buffered, so <code>read_line</code> is quick; each write reaches the file before it returns,
+so gather many small pieces in a <code>String</code> or <code>Vec&lt;u8&gt;</code> first when speed matters.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Writing a log, reading it line by line, and seeking</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> opened(<span class="p">Result</span>&lt;File, FileError&gt; r) : File
+{
+    <span class="k">match</span> (r)
+    {
+        <span class="p">Ok</span>(f) : f,
+        <span class="p">Err</span>(_) : <span class="p">fault</span>(assertion_failed),
+    }
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="p">String</span> path = <span class="p">String</span>::from_str(<span class="s">&quot;app.log&quot;</span>);
+    File log = opened(File::create(&amp;path));
+    <span class="t">usize</span> i = <span class="n">1</span>;
+    <span class="k">while</span> (i &lt;= <span class="n">3</span>)
+    {
+        <span class="p">String</span> line = sprintf(<span class="s">&quot;event %v\n&quot;</span>, i);
+        <span class="p">Result</span>::unwrap_or(File::write_str(&amp;<span class="k">mut</span> log, &amp;line), ());
+        i = i + <span class="n">1</span>;
+    }
+    <span class="p">Result</span>::unwrap_or(File::close(log), ());
+
+    File input = opened(File::open(&amp;path));
+    printf(<span class="s">&quot;%v bytes\n&quot;</span>, <span class="p">Result</span>::unwrap_or(File::len(&amp;input), <span class="n">0</span>));
+    <span class="k">while</span> (<span class="k">true</span>)
+    {
+        <span class="k">match</span> (File::read_line(&amp;<span class="k">mut</span> input))
+        {
+            <span class="p">Ok</span>(o) : <span class="k">match</span> (o)
+            {
+                <span class="p">Some</span>(line) :
+                {
+                    printf(<span class="s">&quot;read: %s\n&quot;</span>, &amp;line);
+                },
+                <span class="p">None</span> :
+                {
+                    <span class="k">break</span>;
+                },
+            },
+            <span class="p">Err</span>(_) :
+            {
+                <span class="k">break</span>;
+            },
+        }
+    }
+    <span class="p">Result</span>::unwrap_or(File::seek(&amp;<span class="k">mut</span> input, <span class="n">6</span>), ());
+    <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; bytes = <span class="p">Vec</span>::new();
+    <span class="p">Result</span>::unwrap_or(File::read(&amp;<span class="k">mut</span> input, &amp;<span class="k">mut</span> bytes, <span class="n">1</span>), <span class="n">0</span>);
+    printf(<span class="s">&quot;byte 6 is %v\n&quot;</span>, bytes[<span class="n">0</span>]);
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>24 bytes
+read: event 1
+read: event 2
+read: event 3
+byte 6 is 49
 </pre></div></figure>
 <h3><code>HashMap&lt;K, V&gt;</code> and <code>HashSet&lt;K&gt;</code></h3>
 <p><code>HashMap&lt;K, V&gt;</code> maps keys to values; <code>HashSet&lt;K&gt;</code> holds a set of keys. A key is an integer,
