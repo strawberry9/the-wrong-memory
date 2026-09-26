@@ -175,6 +175,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 </ol>
 </aside>
 <main>
+
 <div style="text-align: center;">
   <img src="CobaltC_Cyber_Guardian_Poster_small.png" alt="CobaltC">
 </div>
@@ -1696,7 +1697,7 @@ whole.</p>
 <tr><td><code>T x = e;</code></td><td>declare <code>x</code> of type <code>T</code>, initialised from <code>e</code> (which is checked against <code>T</code>)</td></tr>
 <tr><td><code>auto x = e;</code></td><td>declare <code>x</code> with the type of <code>e</code></td></tr>
 <tr><td><code>T x;</code></td><td>declare <code>x</code> uninitialised; the type is required because there is nothing to infer from</td></tr>
-<tr><td><code>Name { f } = e;</code></td><td>destructure a single-field struct: bind <code>f</code> to its one field and consume the struct</td></tr>
+<tr><td><code>Name { f1, f2 } = e;</code></td><td>destructure a struct: bind each field to its name and consume the struct</td></tr>
 </tbody>
 </table>
 <p>Initialising from a plain value copies it; from a resource, moves it; from a temporary
@@ -1776,8 +1777,10 @@ literal supplies every field at once; after that, individual fields can be assig
     check(p.a == <span class="n">10</span>);
     check(p.b == <span class="n">2</span>);
 }</code></pre></figure>
-<h3>Destructuring a single-field struct</h3>
-<figure class="code"><div class="code-head"><span class="code-title">Single-field destructuring</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<h3>Destructuring a struct</h3>
+<figure class="code"><div class="code-head"><span class="code-title">Destructuring</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
 <span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
 <span class="k">fn</span> check(<span class="t">bool</span> ok)
 {
@@ -1792,20 +1795,25 @@ literal supplies every field at once; after that, individual fields can be assig
     <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
 }
 
-<span class="k">struct</span> Wrapper
+<span class="k">struct</span> Entry
 {
-    <span class="t">i32</span> value;
+    <span class="p">String</span> item;
+    <span class="t">i64</span> change;
 }
 
 <span class="k">fn</span> main()
 {
-    Wrapper w = Wrapper { .value = <span class="n">9</span> };
-    Wrapper { value } = w;            <span class="c">// binds `value`; w is consumed</span>
-    check(value == <span class="n">9</span>);
+    Entry e = Entry { .item = <span class="p">String</span>::from_str(<span class="s">&quot;pens&quot;</span>), .change = -<span class="n">3</span> };
+    Entry { item, change } = e;       <span class="c">// binds `item` and `change`; e is consumed</span>
+    check(<span class="p">String</span>::len(&amp;item) == <span class="n">4</span> &amp;&amp; change == -<span class="n">3</span>);
 }</code></pre></figure>
-<p>This is the only pattern form beyond <code>match</code> on enums. It exists so a wrapper type can
-give up its contents (the library's <code>String::into_bytes</code> uses it to hand back the <code>Vec&lt;u8&gt;</code>). If the
-field is a resource it moves out; the wrapper is destroyed in the same statement.</p>
+<p>This is the only pattern form beyond <code>match</code> on enums. It names every field of the
+struct, each once, in any order, and consumes the struct: a resource field moves out to its new
+binding, a plain one is copied. It is how a struct gives up a resource it holds (the library's
+<code>String::into_bytes</code> uses it to hand back the <code>Vec&lt;u8&gt;</code>), since a resource field cannot otherwise
+be moved out of a struct that lives on. Naming a field twice or leaving one out is a type error,
+and a struct with its own destructor cannot be destructured, since the destructor would then run
+on a struct whose fields had left it (<code>diag.move-out-of-field</code>).</p>
 <div class="callout rule"><div class="callout-title">Rules of thumb</div><ul>
 <li>Prefer <code>T x = e;</code> or <code>auto x = e;</code>. Declare uninitialised only when the value genuinely comes from a branch, and then assign in every branch.</li>
 <li>Build structs with a literal that names every field. Assign fields afterwards if needed.</li>
@@ -2280,7 +2288,7 @@ value:</p>
 </table>
 <p>Use <code>&amp;c</code> most of the time. A second name gives the position: <code>foreach (i, x in &amp;v)</code> has
 <code>i : usize</code>. A <code>HashMap</code> is always looped over with two names, the key and the value:
-<code>foreach (k, v in &amp;m)</code>. <code>printf</code> prints what a reference refers to, so <code>printf(&quot;%d&quot;, x)</code> works
+<code>foreach (k, v in &amp;m)</code>, or three to have the position too, <code>foreach (i, k, v in &amp;m)</code>. <code>printf</code> prints what a reference refers to, so <code>printf(&quot;%d&quot;, x)</code> works
 with <code>x</code> a <code>ref&lt;i32, shared&gt;</code>; elsewhere write <code>*x</code> for the number.</p>
 <figure class="code"><div class="code-head"><span class="code-title">The three forms</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
@@ -2699,7 +2707,89 @@ elements are plain (copied on assignment); an array of resources is a resource.<
     <span class="t">array</span>&lt;<span class="t">i32</span>, <span class="n">3</span>&gt; a = [<span class="n">1</span>, <span class="n">2</span>, <span class="n">3</span>];
     get(a, <span class="n">3</span>);                        <span class="c">// <span class="bad">✗</span> <span class="dg">diag.index-out-of-bounds</span> (dynamic)</span>
 }</code></pre></figure>
-<p>For a growable sequence use <code>Vec&lt;T&gt;</code> (§21).</p>
+<p>For a growable sequence use <code>Vec&lt;T&gt;</code> (§21). A <code>Vec</code> is indexed the same way, <code>v[i]</code>: it
+reads through <code>Vec::index_shared</code>, and writes (an assignment, <code>&amp;mut v[i]</code>) through
+<code>Vec::index_exclusive</code>, so every rule about borrowing the <code>Vec</code> applies.</p>
+<h3>Slices</h3>
+<p>A slice is a borrowed run of consecutive elements of an array, a <code>Vec</code>, or another slice:
+<code>&amp;a[i..j]</code> is elements <code>i</code> up to (not including) <code>j</code>, and <code>&amp;mut a[i..j]</code> the same for writing. Inside
+the brackets, <code>$</code> stands for the length of what is being indexed, so <code>&amp;a[0..$]</code> is all of it and
+<code>&amp;a[$ - 3 .. $]</code> the last three, and <code>v[$ - 1]</code> is a <code>Vec</code>'s last element. <code>$</code> is a <code>usize</code> like any
+index, so <code>v[$ - 1]</code> of an empty <code>v</code> is an overflow fault, never a wrapped-around index.</p>
+<p>The type is <code>slice&lt;T, shared&gt;</code> or <code>slice&lt;T, exclusive&gt;</code>. One parameter of that type takes any
+array, any <code>Vec</code>, or part of either, so a function need not be written once per container or per
+array length. <code>slice_len(s)</code> is its length; <code>s[i]</code> is bounds-checked; <code>foreach</code> works over it. A
+slice is a borrow like a reference: while it lives, what it views cannot be pushed to, popped from,
+or otherwise changed except through it, and a slice of a local cannot be returned.</p>
+<figure class="code"><div class="code-head"><span class="code-title">One function for arrays, Vecs and parts of them</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
+<span class="k">fn</span> check(<span class="t">bool</span> ok)
+{
+    <span class="t">i32</span> z = <span class="k">if</span> (ok)
+    {
+        <span class="n">1</span>
+    }
+    <span class="k">else</span>
+    {
+        <span class="n">0</span>
+    };
+    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
+}
+
+<span class="c">// Sorts any run of i32 in place: an array, a Vec, or part of one.</span>
+<span class="k">fn</span> sort(slice&lt;<span class="t">i32</span>, <span class="t">exclusive</span>&gt; s)
+{
+    <span class="k">for</span> (<span class="t">usize</span> i = <span class="n">1</span>; i &lt; slice_len(s); i += <span class="n">1</span>)
+    {
+        <span class="t">usize</span> j = i;
+        <span class="k">while</span> (j &gt; <span class="n">0</span> &amp;&amp; s[j - <span class="n">1</span>] &gt; s[j])
+        {
+            <span class="t">i32</span> t = s[j - <span class="n">1</span>];
+            s[j - <span class="n">1</span>] = s[j];
+            s[j] = t;
+            j -= <span class="n">1</span>;
+        }
+    }
+}
+
+<span class="k">fn</span> sum(slice&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt; s) : <span class="t">i32</span>
+{
+    <span class="t">i32</span> total = <span class="n">0</span>;
+    foreach (x in s)
+    {
+        total += *x;
+    }
+    total
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="k">auto</span> a = [<span class="n">5</span>, <span class="n">3</span>, <span class="n">9</span>, <span class="n">1</span>, <span class="n">7</span>, <span class="n">2</span>];
+    sort(&amp;<span class="k">mut</span> a[<span class="n">0</span>..<span class="n">3</span>]);                     <span class="c">// only the first three: [3, 5, 9, 1, 7, 2]</span>
+    check(a[<span class="n">0</span>] == <span class="n">3</span> &amp;&amp; a[<span class="n">3</span>] == <span class="n">1</span>);
+    check(sum(&amp;a[$ - <span class="n">3</span> .. $]) == <span class="n">10</span>);       <span class="c">// the last three</span>
+
+    <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v = <span class="p">Vec</span>::new();
+    foreach (x in [<span class="n">40</span>, <span class="n">10</span>, <span class="n">30</span>, <span class="n">20</span>])
+    {
+        <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, x);
+    }
+    sort(&amp;<span class="k">mut</span> v[<span class="n">0</span>..$]);                     <span class="c">// the same function, on a Vec</span>
+    check(v[<span class="n">0</span>] == <span class="n">10</span> &amp;&amp; v[$ - <span class="n">1</span>] == <span class="n">40</span>);
+    v[<span class="n">0</span>] += <span class="n">1</span>;                              <span class="c">// indexing a Vec, written</span>
+    check(sum(&amp;v[<span class="n">0</span>..$]) == <span class="n">101</span>);
+}</code></pre></figure>
+<figure class="code"><div class="code-head"><span class="code-title">A slice keeps its source borrowed</span><span class="badge bad">rejected: diag.aliasing-conflict</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v = <span class="p">Vec</span>::new();
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">1</span>);
+    <span class="k">auto</span> s = &amp;v[<span class="n">0</span>..<span class="n">1</span>];
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">2</span>);             <span class="c">// <span class="bad">✗</span> <span class="dg">diag.aliasing-conflict</span>: s still borrows v</span>
+}</code></pre></figure>
 <h3>Enums and <code>match</code></h3>
 <p>An enum lists its variants; each may carry one payload type. Variant names are used
 bare (<code>Cold(3)</code>, <code>Fine</code>) or qualified (<code>Verdict::Fine</code>) when two visible enums share a name. A
@@ -2778,6 +2868,67 @@ payload.</p>
 <span class="k">fn</span> main()
 {
     describe(Zero);
+}</code></pre></figure>
+<h4>Matching through a reference</h4>
+<p><code>match (e)</code> binds each payload by value: a plain one is copied, and a resource one (a
+<code>String</code>, a <code>Vec</code>, a <code>Box</code>) is moved out, which consumes the enum. To look at an enum without
+taking it apart, match a reference to it: <code>match (&amp;e)</code> binds each payload as a shared reference,
+<code>match (&amp;mut e)</code> as an exclusive one, through which the payload can be changed. A scrutinee that
+already is a reference, such as a function's <code>ref&lt;Expr, shared&gt;</code> parameter, binds in its own mode.
+The enum is not consumed, and the usual borrow rules apply to what is bound: nothing can replace
+the enum while a payload reference is still in use. This is how a tree built from <code>Box</code>es (§21)
+is walked.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Looking inside without taking apart</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
+<span class="k">fn</span> check(<span class="t">bool</span> ok)
+{
+    <span class="t">i32</span> z = <span class="k">if</span> (ok)
+    {
+        <span class="n">1</span>
+    }
+    <span class="k">else</span>
+    {
+        <span class="n">0</span>
+    };
+    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
+}
+
+<span class="k">enum</span> Expr
+{
+    Num(<span class="t">i64</span>),
+    Neg(Box&lt;Expr&gt;),
+}
+
+<span class="k">fn</span> eval(<span class="t">ref</span>&lt;Expr, <span class="t">shared</span>&gt; e) : <span class="t">i64</span>
+{
+    <span class="k">match</span> (e)                         <span class="c">// e is a reference: n and x are references too</span>
+    {
+        Num(n) : *n,
+        Neg(x) : -eval(Box::get(x)),
+    }
+}
+
+<span class="k">fn</span> main()
+{
+    Expr e = Neg(Box::new(Neg(Box::new(Num(<span class="n">7</span>)))));
+    check(eval(&amp;e) == <span class="n">7</span>);
+
+    <span class="p">Option</span>&lt;<span class="p">String</span>&gt; name = <span class="p">Some</span>(<span class="p">String</span>::from_str(<span class="s">&quot;ada&quot;</span>));
+    <span class="k">match</span> (&amp;<span class="k">mut</span> name)                 <span class="c">// change the payload in place</span>
+    {
+        <span class="p">Some</span>(s) : <span class="p">String</span>::push_ascii(s, b&#x27;!&#x27;),
+        <span class="p">None</span> : {},
+    }
+    <span class="t">usize</span> len = <span class="k">match</span> (&amp;name)         <span class="c">// look without consuming</span>
+    {
+        <span class="p">Some</span>(s) : <span class="p">String</span>::len(s),
+        <span class="p">None</span> : <span class="n">0</span>,
+    };
+    check(len == <span class="n">4</span>);
+    <span class="p">String</span> kept = <span class="p">Option</span>::unwrap_or(name, <span class="p">String</span>::new());   <span class="c">// name still owns its String</span>
+    check(<span class="p">String</span>::len(&amp;kept) == <span class="n">4</span>);
 }</code></pre></figure>
 <h4>Matching consumes a resource enum</h4>
 <p>If the enum carries a resource payload, matching on the enum by value <em>moves</em> the
@@ -3749,10 +3900,10 @@ its life, because there is no operation that could break it.</p>
 <nav class="pager"><a class="prev" href="#s19">&larr; §19 Concurrency</a><a class="top" href="#top">Top</a><a class="next" href="#s21">§21 The standard library, std &rarr;</a></nav></section>
 <section id="s21">
 <h2><span class="secnum">§21</span>The standard library, std</h2>
-<div class="spec-ref">Governing specification file: <code>spec/21-standard-library-semantics.md</code></div><p class="blurb">import std; Option, Result, the intrinsics, str and printf, and Vec, String, HashMap, HashSet and Rc written in CobaltC.</p>
+<div class="spec-ref">Governing specification file: <code>spec/21-standard-library-semantics.md</code></div><p class="blurb">import std; Option, Result, the intrinsics, str and printf, and Vec, String, HashMap, HashSet, Rc and Box written in CobaltC.</p>
 <p>The standard library is the module <code>std</code>: the <code>Option</code> and <code>Result</code> enums, <code>printf</code>, <code>eprintf</code>, <code>sprintf</code>,
 <code>write</code>, <code>read</code>, <code>read_line</code>, <code>arg_count</code>, <code>arg</code>, <code>arg_bytes</code>, <code>parse</code>, <code>read_file</code>, <code>write_file</code> and <code>map_err</code>, and the library types written in CobaltC itself, <code>Vec&lt;T&gt;</code>, <code>String</code>,
-<code>HashMap&lt;K, V&gt;</code>, <code>HashSet&lt;K&gt;</code> and <code>Rc&lt;T&gt;</code>. A program uses it with <code>import std;</code>, or by qualified paths such as <code>std::Vec</code>. Its source
+<code>HashMap&lt;K, V&gt;</code>, <code>HashSet&lt;K&gt;</code>, <code>Rc&lt;T&gt;</code> and <code>Box&lt;T&gt;</code>, and <code>swap</code> and <code>replace</code>. A program uses it with <code>import std;</code>, or by qualified paths such as <code>std::Vec</code>. Its source
 is part of the specification, which is the language's proof that the mechanisms in this guide are
 enough to build real containers. Being a module, it keeps its private parts private: no program
 can touch <code>Vec</code>'s length or buffer, <code>String</code>'s bytes, a <code>HashMap</code>'s table or <code>Rc</code>'s count. The intrinsics and the text
@@ -3917,6 +4068,8 @@ copied out (so <code>Vec&lt;Vec&lt;i32&gt;&gt;</code> works without any special 
 <tr><td><code>Vec::pop</code></td><td><code>(ref&lt;Vec&lt;T&gt;, exclusive&gt;) : Option&lt;T&gt;</code></td><td><code>None</code> when empty; moves a resource element out</td></tr>
 <tr><td><code>Vec::index_shared</code></td><td><code>(ref&lt;Vec&lt;T&gt;, shared&gt;, usize) : ref&lt;T, shared&gt;</code></td><td>bounds-checked: <code>diag.index-out-of-bounds</code></td></tr>
 <tr><td><code>Vec::index_exclusive</code></td><td><code>(ref&lt;Vec&lt;T&gt;, exclusive&gt;, usize) : ref&lt;T, exclusive&gt;</code></td><td>as above, for writing</td></tr>
+<tr><td><code>v[i]</code>, <code>&amp;v[i..j]</code></td><td>indexing and slicing (§16)</td><td><code>v[i]</code> reads through <code>index_shared</code>, writes through <code>index_exclusive</code>; <code>$</code> is <code>Vec::len(&amp;v)</code></td></tr>
+<tr><td><code>Vec::clear</code></td><td><code>(ref&lt;Vec&lt;T&gt;, exclusive&gt;)</code></td><td>destroys every element, first to last; keeps the buffer for reuse</td></tr>
 </tbody>
 </table>
 <figure class="code"><div class="code-head"><span class="code-title">Using Vec</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
@@ -4040,6 +4193,9 @@ miniature.</p>
 <tr><td><code>String::into_bytes</code></td><td><code>(String) : Vec&lt;u8&gt;</code> (gives the bytes back, consuming the string)</td></tr>
 <tr><td><code>String::as_bytes</code></td><td><code>(ref&lt;String, shared&gt;) : ref&lt;Vec&lt;u8&gt;, shared&gt;</code> (read the bytes in place)</td></tr>
 <tr><td><code>String::append</code></td><td><code>(ref&lt;String, exclusive&gt;, T)</code> for any <code>T</code> <code>%v</code> takes: adds what <code>printf(&quot;%v&quot;, x)</code> would write</td></tr>
+<tr><td><code>String::clone</code></td><td><code>(ref&lt;String, shared&gt;) : String</code> (a copy with the same bytes)</td></tr>
+<tr><td><code>String::push_ascii</code></td><td><code>(ref&lt;String, exclusive&gt;, u8)</code>: adds one ASCII byte; one of 128 or more faults <code>diag.not-ascii</code></td></tr>
+<tr><td><code>String::clear</code></td><td><code>(ref&lt;String, exclusive&gt;)</code> (empties it, keeping the buffer)</td></tr>
 </tbody>
 </table>
 <figure class="code"><div class="code-head"><span class="code-title">Validating bytes into a String</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
@@ -4684,8 +4840,119 @@ shared reference); put a <code>mutex</code> inside if you need mutation. <code>R
     check(*<span class="p">Vec</span>::index_shared(<span class="p">Rc</span>::get(&amp;b), <span class="n">0</span>) == <span class="n">42</span>);
     <span class="p">drop</span>(b);                          <span class="c">// count = 0: the Vec is destroyed, then the box is freed</span>
 }</code></pre></figure>
+<h3><code>Box&lt;T&gt;</code></h3>
+<p>A value on the heap with exactly one owner: <code>Rc</code> without the count. <code>Box::new(v)</code> moves <code>v</code>
+in; <code>Box::get(&amp;b)</code> and <code>Box::get_mut(&amp;mut b)</code> borrow it; <code>Box::into_inner(b)</code> moves it back out;
+destroying the <code>Box</code> destroys the value. Its main use is a type that contains itself, which needs
+something holding a pointer between it and itself: a struct that contains itself directly has no
+size, and is rejected with <code>diag.recursive-type</code>.</p>
+<figure class="code"><div class="code-head"><span class="code-title">A list that owns its nodes</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
+<span class="k">fn</span> check(<span class="t">bool</span> ok)
+{
+    <span class="t">i32</span> z = <span class="k">if</span> (ok)
+    {
+        <span class="n">1</span>
+    }
+    <span class="k">else</span>
+    {
+        <span class="n">0</span>
+    };
+    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
+}
+
+<span class="k">struct</span> Node
+{
+    <span class="t">i32</span> value;
+    <span class="p">Option</span>&lt;Box&lt;Node&gt;&gt; next;           <span class="c">// Option&lt;Node&gt; here would be <span class="dg">diag.recursive-type</span></span>
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="p">Option</span>&lt;Box&lt;Node&gt;&gt; list = <span class="p">None</span>;
+    list = <span class="p">Some</span>(Box::new(Node { .value = <span class="n">1</span>, .next = list }));   <span class="c">// each node owns the next</span>
+    list = <span class="p">Some</span>(Box::new(Node { .value = <span class="n">2</span>, .next = list }));
+
+    Box&lt;<span class="t">i32</span>&gt; counter = Box::new(<span class="n">41</span>);
+    *Box::get_mut(&amp;<span class="k">mut</span> counter) += <span class="n">1</span>;
+    check(*Box::get(&amp;counter) == <span class="n">42</span>);
+    <span class="t">i32</span> n = Box::into_inner(counter);  <span class="c">// the value back; the Box&#x27;s memory is freed</span>
+    check(n == <span class="n">42</span>);
+}                                     <span class="c">// list: both nodes destroyed, the outer one first</span></code></pre></figure>
+<figure class="code"><div class="code-head"><span class="code-title">A type cannot contain itself</span><span class="badge bad">rejected: diag.recursive-type</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">struct</span> Node
+{
+    <span class="t">i32</span> value;
+    <span class="p">Option</span>&lt;Node&gt; next;                <span class="c">// <span class="bad">✗</span> <span class="dg">diag.recursive-type</span> (static): Node would contain itself</span>
+}
+
+<span class="k">fn</span> main()
+{
+}</code></pre></figure>
+<h3><code>swap</code> and <code>replace</code></h3>
+<p>A value cannot be moved out of something you hold only by reference, since that would leave
+a hole. So two values behind references are exchanged by <code>swap(&amp;mut a, &amp;mut b)</code>, and one is
+exchanged for a new value by <code>replace(&amp;mut r, v)</code>, which returns the old one. Two elements of the
+same <code>Vec</code> or slice are exchanged by <code>Vec::swap(&amp;mut v, i, j)</code> or <code>slice_swap(s, i, j)</code>, which also
+handle <code>i == j</code>. Nothing is copied or destroyed: each value just changes place.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Sorting Strings, and exchanging fields</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
+<span class="k">fn</span> check(<span class="t">bool</span> ok)
+{
+    <span class="t">i32</span> z = <span class="k">if</span> (ok)
+    {
+        <span class="n">1</span>
+    }
+    <span class="k">else</span>
+    {
+        <span class="n">0</span>
+    };
+    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
+}
+
+<span class="c">// Sorts any run of Strings by length: the elements are resources, so</span>
+<span class="c">// they are exchanged, never copied out.</span>
+<span class="k">fn</span> sort_by_len(slice&lt;<span class="p">String</span>, <span class="t">exclusive</span>&gt; s)
+{
+    <span class="k">for</span> (<span class="t">usize</span> i = <span class="n">1</span>; i &lt; slice_len(s); i += <span class="n">1</span>)
+    {
+        <span class="t">usize</span> j = i;
+        <span class="k">while</span> (j &gt; <span class="n">0</span> &amp;&amp; <span class="p">String</span>::len(&amp;s[j - <span class="n">1</span>]) &gt; <span class="p">String</span>::len(&amp;s[j]))
+        {
+            slice_swap(s, j - <span class="n">1</span>, j);
+            j -= <span class="n">1</span>;
+        }
+    }
+}
+
+<span class="k">struct</span> Pair
+{
+    <span class="p">String</span> left;
+    <span class="p">String</span> right;
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="p">Vec</span>&lt;<span class="p">String</span>&gt; words = <span class="p">Vec</span>::new();
+    foreach (w in [<span class="s">&quot;pear&quot;</span>, <span class="s">&quot;fig&quot;</span>, <span class="s">&quot;banana&quot;</span>, <span class="s">&quot;kiwi&quot;</span>])
+    {
+        <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> words, <span class="p">String</span>::from_str(w));
+    }
+    sort_by_len(&amp;<span class="k">mut</span> words[<span class="n">0</span>..$]);
+    check(<span class="p">String</span>::len(&amp;words[<span class="n">0</span>]) == <span class="n">3</span> &amp;&amp; <span class="p">String</span>::len(&amp;words[$ - <span class="n">1</span>]) == <span class="n">6</span>);
+
+    Pair p = Pair { .left = <span class="p">String</span>::from_str(<span class="s">&quot;L&quot;</span>), .right = <span class="p">String</span>::from_str(<span class="s">&quot;RR&quot;</span>) };
+    swap(&amp;<span class="k">mut</span> p.left, &amp;<span class="k">mut</span> p.right);
+    <span class="p">String</span> old = replace(&amp;<span class="k">mut</span> p.left, <span class="p">String</span>::from_str(<span class="s">&quot;new&quot;</span>));   <span class="c">// old is &quot;RR&quot;</span>
+    check(<span class="p">String</span>::len(&amp;old) == <span class="n">2</span> &amp;&amp; <span class="p">String</span>::len(&amp;p.left) == <span class="n">3</span>);
+}</code></pre></figure>
 <div class="callout rule"><div class="callout-title">Rules of thumb</div><ul>
-<li><code>Vec&lt;T&gt;</code> for sequences, <code>Option&lt;T&gt;</code> for maybe-absent values, <code>Result&lt;T, E&gt;</code> for fallible calls, <code>Rc&lt;T&gt;</code> when two owners are genuinely needed.</li>
+<li><code>Vec&lt;T&gt;</code> for sequences, <code>Option&lt;T&gt;</code> for maybe-absent values, <code>Result&lt;T, E&gt;</code> for fallible calls, <code>Box&lt;T&gt;</code> for one value on the heap (a recursive type's link), <code>Rc&lt;T&gt;</code> when two owners are genuinely needed.</li>
 <li>Library functions take <code>&amp;v</code> or <code>&amp;mut v</code>; match the mode to what you need.</li>
 <li>Hold element references briefly; any <code>push</code> or <code>pop</code> may invalidate them (§10).</li>
 </ul>
@@ -4790,7 +5057,7 @@ for looking things up; the semantics are in the earlier sections.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Statement forms</span></div><pre><code>T x = e;                 <span class="c">// typed local</span>
 <span class="k">auto</span> x = e;              <span class="c">// inferred local</span>
 T x;                     <span class="c">// uninitialised local (must be assigned before use)</span>
-Name { f } = e;          <span class="c">// single-field destructuring</span>
+Name { f1, f2 } = e;     <span class="c">// destructuring: every field</span>
 e;                       <span class="c">// expression statement</span>
 
 {                        <span class="c">// a block; no ; needed after it</span>
@@ -4854,7 +5121,7 @@ of a declaration or the right side of an assignment, the enclosing statement sti
 <li><strong><code>[</code> starts a closure or an array.</strong> It is a closure only if the closing <code>]</code> is immediately followed by <code>( … ) {</code>. Otherwise it is an array literal.</li>
 <li><strong>Generic call or comparison?</strong> <code>name&lt;T&gt;(…)</code> with a type inside the angle brackets is always a generic instantiation. Comparisons are non-associative, so <code>a &lt; b &gt; c</code> is never a comparison.</li>
 <li><strong>Conditions are always parenthesised</strong>, which is why <code>if (Point { .x = 1 } == p) { … }</code> needs no special rule.</li>
-<li><strong><code>Name { f } = e;</code></strong> (bare identifier in braces) is destructuring; <code>Name { .f = e }</code> is a literal.</li>
+<li><strong><code>Name { f1, f2 } = e;</code></strong> (bare identifiers in braces) is destructuring; <code>Name { .f = e }</code> is a literal.</li>
 <li><strong><code>&amp;mut</code></strong> is two tokens, one operator. <code>x = y = z</code> assigns right to left.</li>
 </ul>
 <h3>Restrictions and deliberate absences</h3>
@@ -4863,7 +5130,7 @@ specification:</p>
 <ul>
 <li>no character literals (<code>b&#x27;x&#x27;</code> is a byte, a <code>u8</code>), no indexing or slicing of a <code>str</code>; no <code>switch</code>; no <code>goto</code></li>
 <li>no <code>import … as</code> renaming; no method-call syntax (<code>v.push(x)</code>); no operator overloading</li>
-<li>no nested patterns in <code>match</code>, and destructuring only of single-field structs</li>
+<li>no nested patterns in <code>match</code>; destructuring takes a struct apart whole, every field at once</li>
 <li>no partial initialisation of aggregates</li>
 <li>no lifetime annotations: a function returning a reference must have exactly one reference parameter</li>
 <li>no bounds on generic type parameters</li>
@@ -4912,7 +5179,7 @@ rule is applied statically where the checker can see the problem and dynamically
 <tr><td><code>diag.write-through-shared</code></td><td>static</td><td>assignment through a shared reference</td><td>as above</td></tr>
 <tr><td><code>diag.destroy-while-aliased</code></td><td>both</td><td><code>drop</code> or scope exit while a reference or guard is live</td><td>let the reference's holder end first</td></tr>
 <tr><td><code>diag.move-while-aliased</code></td><td>both</td><td>a move while a reference is live</td><td>end the reference before moving</td></tr>
-<tr><td><code>diag.move-out-of-field</code></td><td>static</td><td>moving a resource out of a live struct's field or through a reference</td><td>move the whole container or take a reference</td></tr>
+<tr><td><code>diag.move-out-of-field</code></td><td>static</td><td>moving a resource out of a live struct's field or through a reference</td><td>move the whole container, or match a reference (<code>match (&amp;e)</code>)</td></tr>
 <tr><td><code>diag.borrow-of-non-place</code>, <code>diag.borrow-of-temporary</code></td><td>static</td><td><code>&amp;</code> applied to a value or temporary</td><td>bind it first</td></tr>
 <tr><td><code>diag.no-destroy-authority</code>, <code>diag.transfer-without-authority</code></td><td>both</td><td>destroying or moving something this thread does not own</td><td>destroy in the owning thread, once</td></tr>
 <tr><td><code>diag.overwrite-of-live-resource</code></td><td>both</td><td>assigning over a resource that is still owned</td><td><code>drop</code> first</td></tr>
@@ -4935,7 +5202,6 @@ rule is applied statically where the checker can see the problem and dynamically
 </table>
 
 <nav class="pager"><a class="prev" href="#s22">&larr; §22 Surface syntax reference</a><a class="top" href="#top">Top</a></nav></section>
-
 
 <div class="book-navigation">
     <a href="Appendix_05.html" class="nav-btn">&larr; Previous</a>
