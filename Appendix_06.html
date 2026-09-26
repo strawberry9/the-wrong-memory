@@ -176,7 +176,6 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 </aside>
 <main>
 
-
 <div style="text-align: center;">
   <img src="CobaltC_Cyber_Guardian_Poster_small.png" alt="CobaltC">
 </div>
@@ -279,7 +278,6 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 <p>------------------------------------------------------------------------</p>
 
 
-
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -346,7 +344,7 @@ mechanism or would have hidden a semantic fact the language wants to keep visibl
 <li><strong>Exceptions.</strong> A fault terminates the program after running destructors; expected failure is a <code>Result</code>.</li>
 <li><strong>Garbage collection.</strong> Ownership and scope-end destruction are deterministic; <code>Rc&lt;T&gt;</code> is a library type.</li>
 <li><strong>Character literals, string indexing and slicing.</strong> A <code>str</code> is a whole value; its bytes are reached with <code>str_byte</code>, and a single byte is written <code>b&#x27;a&#x27;</code>, a <code>u8</code>. Text that arrives from outside is still bytes until <code>String::from_utf8</code> validates it.</li>
-<li><strong>A <code>mut</code> qualifier on bindings, <code>switch</code> and <code>goto</code>, <code>import … as</code> renaming, nested patterns, partial initialisation, lifetime annotations, atomics.</strong></li>
+<li><strong>A <code>mut</code> qualifier on bindings, <code>switch</code> and <code>goto</code>, <code>import … as</code> renaming, partial initialisation, lifetime annotations, atomics.</strong></li>
 </ul>
 <h3>How to read this guide</h3>
 <p>The next section is a complete program you can read top to bottom to absorb the
@@ -2895,8 +2893,7 @@ variant with no payload behaves as if it carried <code>()</code>.</p>
 <code>Variant(binder) : expression,</code> for a payload, <code>Variant : expression,</code> for none, or
 <code>_ : expression,</code> as a catch-all; every arm ends with a comma. The arms must cover every variant
 or include <code>_</code>. Arms are expressions, so a <code>match</code> produces a value; use a block as the arm body
-for statements. There are no nested patterns: one binder per arm, and it binds the whole
-payload.</p>
+for statements. Arms are tried in order and the first that fits is taken.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Enums</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
 <span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
 <span class="k">fn</span> check(<span class="t">bool</span> ok)
@@ -2965,6 +2962,77 @@ payload.</p>
 <span class="k">fn</span> main()
 {
     describe(Zero);
+}</code></pre></figure>
+<h4>Nested patterns</h4>
+<p>Inside the parentheses, a pattern can say what the payload itself must be, as deep as
+needed: <code>Ok(Some(line))</code> matches an <code>Ok</code> whose payload is a <code>Some</code>, and binds the <code>Some</code>'s
+payload. A name there is a binder, unless it is a variant's name (<code>Some(None)</code>), and <code>_</code> ignores
+that level. Since a variant has one payload, an arm binds at most one name, the innermost payload
+it reaches. Every value must reach some arm (the error names one that does not, such as
+<code>Ok(None)</code>), and every arm must be reachable: an arm whose values all go to earlier arms is
+rejected, since it could never run.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Nested patterns</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
+<span class="k">fn</span> check(<span class="t">bool</span> ok)
+{
+    <span class="t">i32</span> z = <span class="k">if</span> (ok)
+    {
+        <span class="n">1</span>
+    }
+    <span class="k">else</span>
+    {
+        <span class="n">0</span>
+    };
+    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
+}
+
+<span class="k">fn</span> classify(<span class="p">Result</span>&lt;<span class="p">Option</span>&lt;<span class="t">i32</span>&gt;, ParseError&gt; r) : <span class="t">i32</span>
+{
+    <span class="k">match</span> (r)
+    {
+        <span class="p">Ok</span>(<span class="p">Some</span>(n)) : n,              <span class="c">// two levels tested, the inner payload bound</span>
+        <span class="p">Ok</span>(<span class="p">None</span>) : <span class="n">0</span>,
+        <span class="p">Err</span>(Invalid(at)) : -<span class="n">100</span> - <span class="p">narrow</span>&lt;<span class="t">i32</span>&gt;(at),
+        <span class="p">Err</span>(_) : -<span class="n">1</span>,
+    }
+}
+
+<span class="k">fn</span> main()
+{
+    check(classify(<span class="p">Ok</span>(<span class="p">Some</span>(<span class="n">7</span>))) == <span class="n">7</span>);
+    check(classify(<span class="p">Ok</span>(<span class="p">None</span>)) == <span class="n">0</span>);
+    check(classify(<span class="p">Err</span>(Invalid(<span class="n">3</span>))) == -<span class="n">103</span>);
+    check(classify(<span class="p">Err</span>(Empty)) == -<span class="n">1</span>);
+}</code></pre></figure>
+<figure class="code"><div class="code-head"><span class="code-title">An arm that can never run</span><span class="badge bad">rejected: diag.unreachable-arm</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
+<span class="k">fn</span> check(<span class="t">bool</span> ok)
+{
+    <span class="t">i32</span> z = <span class="k">if</span> (ok)
+    {
+        <span class="n">1</span>
+    }
+    <span class="k">else</span>
+    {
+        <span class="n">0</span>
+    };
+    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="p">Option</span>&lt;<span class="p">Option</span>&lt;<span class="t">i32</span>&gt;&gt; o = <span class="p">Some</span>(<span class="p">None</span>);
+    <span class="t">i32</span> v = <span class="k">match</span> (o)
+    {
+        <span class="p">Some</span>(<span class="p">Some</span>(x)) : x,
+        <span class="p">Some</span>(<span class="p">None</span>) : <span class="n">1</span>,
+        <span class="p">Some</span>(_) : <span class="n">2</span>,                  <span class="c">// <span class="bad">✗</span> <span class="dg">diag.unreachable-arm</span>: every Some went to the arms above</span>
+        <span class="p">None</span> : <span class="n">0</span>,
+    };
 }</code></pre></figure>
 <h4>Matching through a reference</h4>
 <p><code>match (e)</code> binds each payload by value: a plain one is copied, and a resource one (a
@@ -5534,7 +5602,7 @@ specification:</p>
 <ul>
 <li>no character literals (<code>b&#x27;x&#x27;</code> is a byte, a <code>u8</code>), no indexing or slicing of a <code>str</code>; no <code>switch</code>; no <code>goto</code></li>
 <li>no <code>import … as</code> renaming; no method-call syntax (<code>v.push(x)</code>); no operator overloading</li>
-<li>no nested patterns in <code>match</code>; destructuring takes a struct apart whole, every field at once</li>
+<li>patterns in <code>match</code> are variants only, nested as deep as needed (no literal or struct patterns); destructuring takes a struct apart whole, every field at once</li>
 <li>no partial initialisation of aggregates</li>
 <li>no lifetime annotations: a function returning a reference must have exactly one reference parameter</li>
 <li>no bounds on generic type parameters</li>
@@ -5620,7 +5688,6 @@ rule is applied statically where the checker can see the problem and dynamically
     </a>.
   </p>
 </footer>
-
 
 </main>
 </div>
