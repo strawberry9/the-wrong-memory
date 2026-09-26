@@ -176,6 +176,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 </aside>
 <main>
 
+
 <div style="text-align: center;">
   <img src="CobaltC_Cyber_Guardian_Poster_small.png" alt="CobaltC">
 </div>
@@ -276,6 +277,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
     </a>
 </p>
 <p>------------------------------------------------------------------------</p>
+
 
 
 <section id="intro">
@@ -762,11 +764,11 @@ conversion. Each takes the target type as a type argument.</p>
 <table>
 <thead><tr><th>Intrinsic</th><th>From → to</th><th>Behaviour</th></tr></thead>
 <tbody>
-<tr><td><code>widen&lt;U&gt;(x)</code></td><td>integer to a wider integer whose range contains every value</td><td>always exact, never faults (<code>u8 → i32</code>, <code>i32 → i64</code>)</td></tr>
+<tr><td><code>widen&lt;U&gt;(x)</code></td><td>integer to a wider integer whose range contains every value; <code>f32</code> to <code>f64</code></td><td>always exact, never faults (<code>u8 → i32</code>, <code>i32 → i64</code>, <code>f32 → f64</code>)</td></tr>
 <tr><td><code>narrow&lt;U&gt;(x)</code></td><td>any integer to any integer</td><td>checked: <code>diag.narrowing-overflow</code> if <code>x</code> does not fit</td></tr>
 <tr><td><code>narrow_wrapping&lt;U&gt;(x)</code></td><td>any integer to any integer</td><td>keeps the low bits, never faults</td></tr>
-<tr><td><code>reinterpret&lt;U&gt;(x)</code></td><td>between the signed and unsigned types of one width (and <code>usize</code> ⇄ <code>isize</code>)</td><td>the same bit pattern read as the other type</td></tr>
-<tr><td><code>to_float&lt;U&gt;(x)</code></td><td>integer to <code>f32</code>/<code>f64</code></td><td>nearest representable value</td></tr>
+<tr><td><code>reinterpret&lt;U&gt;(x)</code></td><td>between the signed and unsigned types of one width (and <code>usize</code> ⇄ <code>isize</code>); between a float and an integer of its width (<code>f32</code> ⇄ <code>u32</code>/<code>i32</code>, <code>f64</code> ⇄ <code>u64</code>/<code>i64</code>)</td><td>the same bit pattern read as the other type</td></tr>
+<tr><td><code>to_float&lt;U&gt;(x)</code></td><td>any integer or float to <code>f32</code>/<code>f64</code></td><td>nearest representable value (ties to even); beyond the target's range an infinity, as float arithmetic gives; <code>NaN</code> stays <code>NaN</code></td></tr>
 <tr><td><code>to_int&lt;U&gt;(x)</code></td><td>float to integer</td><td>truncates toward zero; checked: infinities, <code>NaN</code> and out-of-range values fault</td></tr>
 </tbody>
 </table>
@@ -797,6 +799,38 @@ conversion. Each takes the target type as a type argument.</p>
     check(<span class="p">to_int</span>&lt;<span class="t">i32</span>&gt;(f * <span class="n">1.5</span>) == <span class="n">300</span>);
     <span class="t">usize</span> n = <span class="n">12</span>;
     check(<span class="p">narrow</span>&lt;<span class="t">i32</span>&gt;(n) == <span class="n">12</span>);                   <span class="c">// usize → i32 is a narrowing, so it is checked</span>
+}</code></pre></figure>
+<p>Between the two float types: <code>widen&lt;f64&gt;(x)</code> takes an <code>f32</code> to an <code>f64</code> exactly, and
+<code>to_float&lt;f32&gt;(x)</code> takes an <code>f64</code> to the nearest <code>f32</code>, rounding as float arithmetic does. There
+is no <code>widen&lt;f32&gt;</code> of an <code>f64</code>, since most <code>f64</code> values have no exact <code>f32</code>. <code>reinterpret</code> gives
+a float's IEEE-754 bits as an integer of the same width, and turns such an integer back into a
+float, with no <code>unsafe</code>.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Between f32 and f64, and a float's bits</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
+<span class="k">fn</span> check(<span class="t">bool</span> ok)
+{
+    <span class="t">i32</span> z = <span class="k">if</span> (ok)
+    {
+        <span class="n">1</span>
+    }
+    <span class="k">else</span>
+    {
+        <span class="n">0</span>
+    };
+    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="t">f32</span> sample = <span class="n">0.1</span>;
+    <span class="t">f64</span> d = <span class="p">widen</span>&lt;<span class="t">f64</span>&gt;(sample);                    <span class="c">// exact: 0.100000001490116...</span>
+    check(<span class="p">to_float</span>&lt;<span class="t">f32</span>&gt;(d) == sample);             <span class="c">// and back, rounded, to the same f32</span>
+    check(<span class="p">to_float</span>&lt;<span class="t">f32</span>&gt;(<span class="n">1.0</span> / <span class="n">3.0</span>) == <span class="n">0.33333334</span>: <span class="t">f32</span>);
+    <span class="t">u64</span> bits = <span class="p">reinterpret</span>&lt;<span class="t">u64</span>&gt;(-<span class="n">2.0</span>);
+    check(bits &gt;&gt; <span class="n">63</span> == <span class="n">1</span>);                        <span class="c">// the sign bit</span>
+    check(<span class="p">reinterpret</span>&lt;<span class="t">f64</span>&gt;(bits) == -<span class="n">2.0</span>);
+    check(<span class="p">reinterpret</span>&lt;<span class="t">u32</span>&gt;(<span class="n">1.0</span>: <span class="t">f32</span>) == <span class="n">0</span>x3f80_0000: <span class="t">u32</span>);
+    check(<span class="p">max_value</span>&lt;<span class="t">f32</span>&gt;() == <span class="n">3.4028235</span>e38: <span class="t">f32</span>);  <span class="c">// the largest finite f32</span>
 }</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">A narrowing that does not fit</span><span class="badge bad">rejected: diag.narrowing-overflow</span></div><pre><code><span class="k">fn</span> to_byte(<span class="t">i32</span> x) : <span class="t">u8</span>
 {
@@ -829,8 +863,8 @@ argument, written explicitly, and no other arguments.</p>
 <tbody>
 <tr><td><code>sizeof&lt;T&gt;()</code></td><td><code>usize</code></td><td>the bytes a <code>T</code> occupies, padding included</td><td>any type</td></tr>
 <tr><td><code>alignof&lt;T&gt;()</code></td><td><code>usize</code></td><td>the alignment a <code>T</code>'s address must have, in bytes</td><td>any type</td></tr>
-<tr><td><code>min_value&lt;T&gt;()</code></td><td><code>T</code></td><td>the smallest value of <code>T</code></td><td>integer types</td></tr>
-<tr><td><code>max_value&lt;T&gt;()</code></td><td><code>T</code></td><td>the largest value of <code>T</code></td><td>integer types</td></tr>
+<tr><td><code>min_value&lt;T&gt;()</code></td><td><code>T</code></td><td>the smallest value of <code>T</code> (for a float, the most negative finite one)</td><td>integer and float types</td></tr>
+<tr><td><code>max_value&lt;T&gt;()</code></td><td><code>T</code></td><td>the largest value of <code>T</code> (for a float, the largest finite one)</td><td>integer and float types</td></tr>
 </tbody>
 </table>
 <p>Every fixed-width type has the same size and limits on every implementation:
@@ -1002,9 +1036,9 @@ the program runs.</p>
     check(or_max(<span class="p">checked_mul</span>(big, big)) == <span class="p">max_value</span>&lt;<span class="t">u64</span>&gt;());   <span class="c">// the product overflows u64</span>
     check(or_max(<span class="p">checked_add</span>(<span class="n">2</span>: <span class="t">i32</span>, <span class="n">3</span>)) == <span class="n">5</span>);
 }</code></pre></figure>
-<figure class="code"><div class="code-head"><span class="code-title">Limits are for integer types</span><span class="badge bad">rejected: diag.type-mismatch</span></div><pre><code><span class="k">fn</span> main()
+<figure class="code"><div class="code-head"><span class="code-title">Limits are for number types</span><span class="badge bad">rejected: diag.type-mismatch</span></div><pre><code><span class="k">fn</span> main()
 {
-    <span class="p">max_value</span>&lt;<span class="t">f64</span>&gt;();                 <span class="c">// <span class="bad">✗</span> <span class="dg">diag.type-mismatch</span> (static): only integer types have these</span>
+    <span class="p">max_value</span>&lt;<span class="t">bool</span>&gt;();                <span class="c">// <span class="bad">✗</span> <span class="dg">diag.type-mismatch</span> (static): only number types have these</span>
 }</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">Going past a limit</span><span class="badge bad">rejected: diag.arith-overflow</span></div><pre><code><span class="k">fn</span> main()
 {
@@ -1100,7 +1134,10 @@ resource, so there is no leak diagnostic.</p>
 it a new value: once <code>x</code>'s value has gone, moved away or dropped, <code>x = e</code> gives it a new one, which
 is destroyed at the end of <code>x</code>'s own block like its first value. Assigning over a value that is
 still there is an error for a resource (<code>diag.overwrite-of-live-resource</code>): drop it first, so a
-destruction is always visible. Declaring the name again (shadowing) works too.</p>
+destruction is always visible. What counts is whether the value there owns anything: a <code>None</code> of an
+<code>Option&lt;String&gt;</code> owns nothing, so <code>o = Some(s);</code> over it is fine, while a <code>Some</code> must be dropped
+first. A type declared <code>resource</code>, or with a destructor, always owns. Declaring the name again
+(shadowing) works too.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Where destruction happens</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> make() : <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt;
@@ -1373,7 +1410,10 @@ borrows to a block and the owner is free again:</p>
 <h3>Shared means read-only, all the way down</h3>
 <p>An exclusive path can only be derived from an exclusive path. Given a <code>ref&lt;T, shared&gt;</code>
 you cannot write through it and cannot reborrow it exclusively: the mode is part of the reference's
-type, so a function's signature tells the caller exactly what it may do.</p>
+type, so a function's signature tells the caller exactly what it may do. The other direction is
+always allowed: an exclusive reference can be passed to a function that asks for a shared one, and
+the function gets a shared reborrow of it (as if you had written <code>&amp;*r</code>). With <code>v : ref&lt;Vec&lt;T&gt;,
+exclusive&gt;</code>, <code>Vec::len(v)</code> just works; likewise a <code>slice&lt;T, exclusive&gt;</code> for a <code>slice&lt;T, shared&gt;</code>.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Writing through a shared reference</span><span class="badge bad">rejected: diag.write-through-shared</span></div><pre><code><span class="k">struct</span> P
 {
     <span class="t">i32</span> a;
@@ -2006,7 +2046,37 @@ outer binding its type and both are fixed.</p>
 <p><code>auto x = e;</code> gives <code>x</code> the type of <code>e</code>. Since inference is downward only, <code>auto</code> works
 whenever <code>e</code> has a type of its own: a literal (<code>i32</code>/<code>f64</code> by default), an arithmetic expression, a
 call whose type parameters are already fixed, a struct literal with a concrete type. Where <code>e</code>
-needs help (<code>Vec::new()</code>), write the type on the left instead.</p>
+needs help (<code>Vec::new()</code>), write the type on the left instead: <code>auto m = Mutex::new(HashMap::new());</code>
+cannot know the map's types, but <code>mutex&lt;HashMap&lt;String, i64&gt;&gt; m = Mutex::new(HashMap::new());</code> can.
+The branches of an <code>if</code> or <code>match</code> share one type, and a branch that is only a literal takes it from
+the others: in <code>auto n = if (big) { count } else { 0 };</code> with <code>count : i64</code>, the <code>0</code> is an <code>i64</code>.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Branch types and declared types</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
+<span class="k">fn</span> check(<span class="t">bool</span> ok)
+{
+    <span class="t">i32</span> z = <span class="k">if</span> (ok)
+    {
+        <span class="n">1</span>
+    }
+    <span class="k">else</span>
+    {
+        <span class="n">0</span>
+    };
+    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="t">i64</span> count = <span class="n">5000000000</span>;
+    <span class="k">auto</span> n = <span class="k">if</span> (count &gt; <span class="n">10</span>) { count } <span class="k">else</span> { <span class="n">0</span> };     <span class="c">// 0 : i64, from the other branch</span>
+    <span class="p">Option</span>&lt;<span class="t">i64</span>&gt; o = <span class="p">None</span>;
+    <span class="k">auto</span> m = <span class="k">match</span> (o) { <span class="p">None</span> : -<span class="n">1</span>, <span class="p">Some</span>(v) : v };     <span class="c">// -1 : i64, from the Some arm</span>
+    check(n + m == <span class="n">4999999999</span>);
+    <span class="t">mutex</span>&lt;HashMap&lt;<span class="p">String</span>, <span class="t">i64</span>&gt;&gt; totals = <span class="p">Mutex</span>::new(HashMap::new());   <span class="c">// the declaration fixes K and V</span>
+    check(HashMap::len(&amp;*<span class="p">lock</span>(&amp;totals)) == <span class="n">0</span>);
+}</code></pre></figure>
 <div class="callout rule"><div class="callout-title">Rules of thumb</div><ul>
 <li>Write the type you mean; the language will not adjust it for you. Convert integers with <code>widen</code>/<code>narrow</code>, and take references explicitly.</li>
 <li>Use <code>auto</code> freely for values whose type is obvious from the right-hand side, and a written type for empty containers and generic constructors.</li>
@@ -2357,6 +2427,33 @@ once.</p>
         <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, *x);        <span class="c">// <span class="bad">✗</span> <span class="dg">diag.aliasing-conflict</span> (static): v is borrowed by the loop</span>
     }
 }</code></pre></figure>
+<p>An array of plain values, such as <code>array&lt;i32, 5&gt;</code>, is copied by the by-value form:
+<code>foreach (i, e in arr)</code> walks a copy, so <code>arr</code> is neither borrowed nor used up, a write to
+<code>arr[j]</code> in the body is allowed (and not seen by <code>e</code>), and <code>arr</code> is still there afterwards. To change
+the elements themselves, loop over <code>&amp;mut arr</code> and write through the reference: <code>*e = …</code>. While
+that loop runs, <code>arr</code> is borrowed by it, so reach the elements through <code>e</code>, not through <code>arr[j]</code>.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Changing an array in place</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    <span class="t">array</span>&lt;<span class="t">i32</span>, <span class="n">5</span>&gt; arr = [<span class="n">0</span>, <span class="n">0</span>, <span class="n">0</span>, <span class="n">0</span>, <span class="n">0</span>];
+
+    foreach (i, e in &amp;<span class="k">mut</span> arr)
+    {
+        *e = <span class="p">narrow</span>&lt;<span class="t">i32</span>&gt;(i) * <span class="n">10</span>;       <span class="c">// write through the element&#x27;s reference</span>
+    }
+    arr[<span class="n">4</span>] += <span class="n">1</span>;                        <span class="c">// direct indexing works too, outside the loop</span>
+
+    foreach (i, e in &amp;arr)
+    {
+        printf(<span class="s">&quot;[%v] = %v\n&quot;</span>, i, *e);
+    }
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>[0] = 0
+[1] = 10
+[2] = 20
+[3] = 30
+[4] = 41
+</pre></div></figure>
 <h3>Early exit and unwinding</h3>
 <p><code>return</code>, <code>break</code>, <code>continue</code>, and a run-time fault all leave scopes the same way: every
 statement scope and block between here and the target is exited in order, destroying what each one
@@ -2930,12 +3027,13 @@ is walked.</p>
     <span class="p">String</span> kept = <span class="p">Option</span>::unwrap_or(name, <span class="p">String</span>::new());   <span class="c">// name still owns its String</span>
     check(<span class="p">String</span>::len(&amp;kept) == <span class="n">4</span>);
 }</code></pre></figure>
-<h4>Matching consumes a resource enum</h4>
-<p>If the enum carries a resource payload, matching on the enum by value <em>moves</em> the
-payload into the arm's binder and consumes the enum: after the <code>match</code>, the scrutinee is stale.
-This is what makes <code>match (Vec::pop(&amp;mut v)) { Some(x) : …, None : … }</code> hand you the popped
-element. To look inside a resource enum without consuming it, match on a reference to it using only
-<code>_</code> and payload-less arms, or write a function that takes a reference to the payload.</p>
+<h4>An arm that takes the payload consumes the enum</h4>
+<p>If the enum carries a resource payload, an arm that binds that payload by value
+<em>moves</em> it into the binder and consumes the enum: if that arm ran, the scrutinee is stale
+afterwards. This is what makes <code>match (Vec::pop(&amp;mut v)) { Some(x) : …, None : … }</code> hand you the
+popped element. An arm that takes nothing out — <code>_</code>, a payload-less variant, or <code>Some(_)</code> — leaves
+the scrutinee alone, so <code>match (o) { None : …, _ : use(o) }</code> is fine. To look inside and keep the
+enum whatever the arm, match on a reference to it (above).</p>
 <figure class="code"><div class="code-head"><span class="code-title">A resource payload moves out</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="c">// Fault deliberately when a check fails: a checked division by a</span>
@@ -2964,12 +3062,23 @@ element. To look inside a resource enum without consuming it, match on a referen
     <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; payload = <span class="p">Vec</span>::new();
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> payload, <span class="n">4</span>);
     <span class="k">auto</span> s = Slot::Full(payload);     <span class="c">// payload moves into the enum</span>
-    <span class="t">usize</span> n = <span class="k">match</span> (s)               <span class="c">// s is consumed by this match</span>
+    <span class="t">usize</span> n = <span class="k">match</span> (s)               <span class="c">// the Full arm consumes s</span>
     {
         Full(v) : <span class="p">Vec</span>::len(&amp;v),       <span class="c">// v owns the Vec for the arm, and destroys it at the arm&#x27;s end</span>
         Empty   : <span class="n">0</span>,
     };
     check(n == <span class="n">1</span>);
+
+    <span class="p">Option</span>&lt;<span class="p">String</span>&gt; o = <span class="p">Some</span>(<span class="p">String</span>::from_str(<span class="s">&quot;kept&quot;</span>));
+    <span class="k">match</span> (o)
+    {
+        <span class="p">None</span> : {},
+        _ :                           <span class="c">// takes nothing out: o is still here</span>
+        {
+            <span class="p">String</span> t = <span class="p">Option</span>::unwrap_or(o, <span class="p">String</span>::new());
+            check(<span class="p">String</span>::len(&amp;t) == <span class="n">4</span>);
+        },
+    }
 }</code></pre></figure>
 <h3>Generic aggregates</h3>
 <p><code>struct Box&lt;T&gt; { T value; }</code> and <code>enum Maybe&lt;T&gt; { Just(T), Nothing }</code> declare families of
@@ -3207,6 +3316,63 @@ the literal.</p>
 <p>A constant is typed exactly as a declaration <code>τ x = e;</code> would be: in
 <code>const u64 MIB = 1024 * 1024;</code> the literals are <code>u64</code>s, and an initializer that overflows its type,
 such as <code>const i32 BIG = 65536 * 65536;</code>, is rejected at the constant.</p>
+<h3>Static assertions</h3>
+<p><code>static_assert(c)</code> and <code>static_assert(c, &quot;why&quot;)</code> check a constant condition when the program
+is compiled, not when it runs: a false one stops it with <code>diag.static-assert-failed</code> and shows the
+message. The condition is a constant expression (the same kind a <code>const</code> has), so it can use
+constants, <code>sizeof</code>, <code>alignof</code>, the limits and the conversions. It is checked in every function,
+called or not, and in a generic function once for each type it is used with, so
+<code>static_assert(sizeof&lt;T&gt;() &lt;= 8, &quot;…&quot;)</code> limits what <code>T</code> may be. At run time it does nothing.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Checked before the program runs</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
+<span class="k">fn</span> check(<span class="t">bool</span> ok)
+{
+    <span class="t">i32</span> z = <span class="k">if</span> (ok)
+    {
+        <span class="n">1</span>
+    }
+    <span class="k">else</span>
+    {
+        <span class="n">0</span>
+    };
+    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
+}
+
+<span class="k">struct</span> Header
+{
+    <span class="t">u32</span> magic;
+    <span class="t">u16</span> version;
+    <span class="t">u16</span> flags;
+    <span class="t">u64</span> length;
+}
+
+<span class="k">const</span> <span class="t">usize</span> BUF = <span class="n">4096</span>;
+
+<span class="c">// Stores a value that must fit in one machine word.</span>
+<span class="k">fn</span> word&lt;T&gt;(T x) : T
+{
+    static_assert(<span class="p">sizeof</span>&lt;T&gt;() &lt;= <span class="n">8</span>, <span class="s">&quot;word&lt;T&gt; needs T to fit in 8 bytes&quot;</span>);
+    x
+}
+
+<span class="k">fn</span> main()
+{
+    static_assert(<span class="p">sizeof</span>&lt;Header&gt;() == <span class="n">16</span>, <span class="s">&quot;Header must match the C struct&quot;</span>);
+    static_assert(BUF &amp; (BUF - <span class="n">1</span>) == <span class="n">0</span>, <span class="s">&quot;BUF must be a power of two&quot;</span>);
+    check(word(<span class="n">5</span>: <span class="t">i64</span>) == <span class="n">5</span> &amp;&amp; word(<span class="n">2.5</span>) == <span class="n">2.5</span>);
+}</code></pre></figure>
+<figure class="code"><div class="code-head"><span class="code-title">A failed assertion</span><span class="badge bad">rejected: diag.static-assert-failed</span></div><pre><code><span class="k">fn</span> word&lt;T&gt;(T x) : T
+{
+    static_assert(<span class="p">sizeof</span>&lt;T&gt;() &lt;= <span class="n">8</span>, <span class="s">&quot;word&lt;T&gt; needs T to fit in 8 bytes&quot;</span>);
+    x
+}
+
+<span class="k">fn</span> main()
+{
+    word(<span class="n">1</span>: <span class="t">i128</span>);                    <span class="c">// <span class="bad">✗</span> <span class="dg">diag.static-assert-failed</span> (static): an i128 is 16 bytes</span>
+}</code></pre></figure>
 <h3>A module in another file</h3>
 <p>A module's body can be a separate file. <code>module geo &quot;./geometry.cb&quot;;</code> means exactly
 <code>module geo { … }</code> with the file's declarations as the body: the same visibility, the same
@@ -4525,10 +4691,9 @@ ok
 <code>String</code> that has already been checked, so a program that reads never writes <code>unsafe</code>, and <code>?</code>
 passes a <code>ReadError</code> up to the caller. Underneath is the <code>read</code> extern, the counterpart of
 <code>write</code>, which you can call yourself inside <code>unsafe</code> to read raw bytes.</p>
-<div class="callout warn"><div class="callout-title">Watch out</div>Only the compiler reads input. The interpreter <code>coby</code> stops at the first read with
-<code>unsupported: reading input needs cobc; coby does not read standard input</code> (exit status 3);
-everything before that point runs as usual. Compile a program that reads with <code>cobc</code> and give it
-input, for example <code>printf &#x27;ada\nlin\n&#x27; | cobc --run greet.cb</code>.</div>
+<p>Both <code>coby</code> and <code>cobc</code> read standard input, from the terminal or from a pipe, for example
+<code>printf &#x27;ada\nlin\n&#x27; | coby greet.cb</code>. Standard output is flushed before each read, so a prompt
+printed with <code>printf</code> appears before the program waits.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Reading lines (cobc only)</span></div><pre><code><span class="k">import</span> std;
 
 <span class="c">// Greets every line of input; blank lines are skipped.</span>
@@ -4951,6 +5116,64 @@ handle <code>i == j</code>. Nothing is copied or destroyed: each value just chan
     <span class="p">String</span> old = replace(&amp;<span class="k">mut</span> p.left, <span class="p">String</span>::from_str(<span class="s">&quot;new&quot;</span>));   <span class="c">// old is &quot;RR&quot;</span>
     check(<span class="p">String</span>::len(&amp;old) == <span class="n">2</span> &amp;&amp; <span class="p">String</span>::len(&amp;p.left) == <span class="n">3</span>);
 }</code></pre></figure>
+<p>An empty slot is filled by plain assignment: a <code>None</code> owns nothing, so <code>*slot = Some(...)</code>
+writes over it (§07). To put a value where one may already be, use <code>replace</code>, which hands the old
+one back to you.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Filling an empty link</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
+<span class="k">fn</span> check(<span class="t">bool</span> ok)
+{
+    <span class="t">i32</span> z = <span class="k">if</span> (ok)
+    {
+        <span class="n">1</span>
+    }
+    <span class="k">else</span>
+    {
+        <span class="n">0</span>
+    };
+    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
+}
+
+<span class="k">struct</span> Node
+{
+    <span class="t">i64</span> val;
+    <span class="p">Option</span>&lt;Box&lt;Node&gt;&gt; next;
+}
+
+<span class="c">// Appends at the tail: walk to the empty link, then fill it.</span>
+<span class="k">fn</span> push_back(<span class="t">ref</span>&lt;<span class="p">Option</span>&lt;Box&lt;Node&gt;&gt;, <span class="t">exclusive</span>&gt; head, <span class="t">i64</span> v)
+{
+    <span class="t">ref</span>&lt;<span class="p">Option</span>&lt;Box&lt;Node&gt;&gt;, <span class="t">exclusive</span>&gt; slot = head;
+    <span class="k">while</span> (<span class="k">true</span>)
+    {
+        <span class="k">match</span> (&amp;<span class="k">mut</span> *slot)
+        {
+            <span class="p">Some</span>(b) : { slot = &amp;<span class="k">mut</span> Box::get_mut(b).next; },
+            <span class="p">None</span> : { <span class="k">break</span>; },
+        }
+    }
+    *slot = <span class="p">Some</span>(Box::new(Node { .val = v, .next = <span class="p">None</span> }));   <span class="c">// slot holds None: nothing to lose</span>
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="p">Option</span>&lt;Box&lt;Node&gt;&gt; list = <span class="p">None</span>;
+    push_back(&amp;<span class="k">mut</span> list, <span class="n">1</span>);
+    push_back(&amp;<span class="k">mut</span> list, <span class="n">2</span>);
+    <span class="t">i64</span> sum = <span class="n">0</span>;
+    <span class="t">ref</span>&lt;<span class="p">Option</span>&lt;Box&lt;Node&gt;&gt;, <span class="t">shared</span>&gt; cur = &amp;list;
+    <span class="k">while</span> (<span class="k">true</span>)
+    {
+        <span class="k">match</span> (cur)
+        {
+            <span class="p">Some</span>(b) : { sum += Box::get(b).val; cur = &amp;Box::get(b).next; },
+            <span class="p">None</span> : { <span class="k">break</span>; },
+        }
+    }
+    check(sum == <span class="n">3</span>);
+}</code></pre></figure>
 <div class="callout rule"><div class="callout-title">Rules of thumb</div><ul>
 <li><code>Vec&lt;T&gt;</code> for sequences, <code>Option&lt;T&gt;</code> for maybe-absent values, <code>Result&lt;T, E&gt;</code> for fallible calls, <code>Box&lt;T&gt;</code> for one value on the heap (a recursive type's link), <code>Rc&lt;T&gt;</code> when two owners are genuinely needed.</li>
 <li>Library functions take <code>&amp;v</code> or <code>&amp;mut v</code>; match the mode to what you need.</li>
@@ -5216,6 +5439,7 @@ rule is applied statically where the checker can see the problem and dynamically
     </a>.
   </p>
 </footer>
+
 
 </main>
 </div>
