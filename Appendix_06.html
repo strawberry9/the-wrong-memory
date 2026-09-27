@@ -175,10 +175,8 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 </ol>
 </aside>
 <main>
-
-
 <div style="text-align: center;">
-  <img src="CobaltC_Cyber_Guardian_Poster_small.png" alt="CobaltC">
+  <img src="images/CobaltC_Cyber_Guardian_Poster_small.png" alt="CobaltC">
 </div>
 
 <h2>Preface</h2>
@@ -217,7 +215,7 @@ Consider an array and two pointers into different elements.
 <pre><code>int main(void)
 {
     int values[2] = {0, 0};
-    
+
     /* obtain pointers to distinct elements of the same array... */
     int* a = &amp;values[0];
     int* b = &amp;values[1];
@@ -245,15 +243,16 @@ conflicting access is introduced.
 fn main()
 {
     array&lt;i32, 2&gt; values = [0, 0];
-    
-    // CobaltC allows multiple mutable (exclusive) references to the same 
-    // data structure, provided their memory locations are statically proven 
+
+    // CobaltC allows multiple mutable (exclusive) references to the same
+    // data structure, provided their memory locations are statically proven
     // to be disjoint (non-overlapping).
     ref&lt;i32, exclusive&gt; a = &amp;mut values[0];
     ref&lt;i32, exclusive&gt; b = &amp;mut values[1];
 
-    // Safe to modify concurrently because the borrow checker has verified 
-    // that 'a' and 'b' target completely separate memory slots.
+    // Both writes are allowed because the compiler has proven that 'a' and
+    // 'b' refer to separate elements (pointing both at values[0] is rejected
+    // before the program runs: diag.aliasing-conflict).
     *a = 7;
     *b = 8;
 }</code></pre>
@@ -269,15 +268,12 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 <p><strong>CobaltC → "You have the power. Let’s prove you’re exercising it correctly."</strong></p>
 </blockquote>
 
-<p>------------------------------------------------------------------------</p>
+<hr>
 <p>
-    CobaltC's interpreter (coby) and compiler (cobc) are available
-    <a href="https://github.com/strawberry9/CobaltC">
-        here
-    </a>
+CobaltC's interpreter (coby) and compiler (cobc) are available
+<a href="https://github.com/strawberry9/CobaltC">here</a>.
 </p>
-<p>
-<p>------------------------------------------------------------------------</p>
+<hr>
 
 <section id="intro">
 <h2>Introduction</h2>
@@ -3823,7 +3819,7 @@ same way a <code>match</code> would, and the early <code>return</code> runs dest
 <nav class="pager"><a class="prev" href="#s17">&larr; §17 Modules and name resolution</a><a class="top" href="#top">Top</a><a class="next" href="#s19">§19 Concurrency &rarr;</a></nav></section>
 <section id="s19">
 <h2><span class="secnum">§19</span>Concurrency</h2>
-<div class="spec-ref">Governing specification file: <code>spec/19-concurrency.md</code></div><p class="blurb">Threads owned by handles, mutexes reachable only through guards, and the same aliasing rules everywhere.</p>
+<div class="spec-ref">Governing specification file: <code>spec/19-concurrency.md</code></div><p class="blurb">Threads owned by handles, mutexes reachable only through guards, channels that move values between threads, and the same aliasing rules everywhere.</p>
 <p>CobaltC's concurrency is small: threads you start and must join, and a mutex whose
 contents can only be reached by locking it. The aliasing rules of §08 already forbid two threads
 from touching one object in conflicting ways, so most of the work is done before this section
@@ -3942,11 +3938,104 @@ serialises access.</p>
     <span class="k">auto</span> g1 = <span class="p">lock</span>(&amp;m);
     <span class="k">auto</span> g2 = <span class="p">lock</span>(&amp;m);               <span class="c">// <span class="bad">✗</span> <span class="dg">diag.mutex-reentrant-lock</span>: this thread already holds it</span>
 }</code></pre></figure>
+<p>A <code>mutex</code> may also be a field: a struct holding one or more mutexes is shared by
+reference like a bare one, each thread locking the field it needs (<code>lock(&amp;board.scores)</code>). Each
+mutex field is its own lock.</p>
+<h3>Passing values: <code>Channel</code></h3>
+<p>A <code>Channel&lt;T&gt;</code> from <code>std</code> is a queue between threads, shared by reference as a mutex is.
+<code>Channel::new(cap)</code> holds at most <code>cap</code> values (at least 1). <code>Channel::send(&amp;ch, v)</code> moves <code>v</code> in,
+waiting while the channel is full; <code>Channel::recv(&amp;ch)</code> moves the oldest value out as <code>Some(v)</code>,
+waiting while it is empty. A value in a channel has one owner, the channel, so a <code>String</code> or a
+<code>Vec</code> travels between threads without being shared or copied. A waiting thread uses no processor
+time.</p>
+<p><code>Channel::close(&amp;ch)</code> says nothing more is coming: the values already sent are still
+received, and then <code>recv</code> gives <code>None</code>, which is what ends a receiver's loop. A <code>send</code> after
+<code>close</code> does not lose its value: it gives it back as <code>Err(v)</code>. Destroying a channel destroys the
+values left in it, oldest first. The usual shape is a pool of workers: the main thread sends the
+jobs, closes the channel, and joins the workers, each of which stops at <code>None</code>.</p>
+<figure class="code"><div class="code-head"><span class="code-title">A pool of workers</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
+<span class="k">fn</span> check(<span class="t">bool</span> ok)
+{
+    <span class="t">i32</span> z = <span class="k">if</span> (ok)
+    {
+        <span class="n">1</span>
+    }
+    <span class="k">else</span>
+    {
+        <span class="n">0</span>
+    };
+    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
+}
+
+<span class="k">fn</span> worker(<span class="t">ref</span>&lt;Channel&lt;<span class="t">u64</span>&gt;, <span class="t">shared</span>&gt; jobs, <span class="t">ref</span>&lt;Channel&lt;<span class="t">u64</span>&gt;, <span class="t">shared</span>&gt; results)
+{
+    <span class="k">while</span> (<span class="k">true</span>)
+    {
+        <span class="k">match</span> (Channel::recv(jobs))
+        {
+            <span class="p">Some</span>(n) : Channel::send(results, n * n),
+            <span class="p">None</span> : <span class="k">break</span>,                        <span class="c">// closed and empty: this worker is done</span>
+        }
+    }
+}
+
+<span class="k">fn</span> main()
+{
+    Channel&lt;<span class="t">u64</span>&gt; jobs = Channel::new(<span class="n">4</span>);        <span class="c">// at most 4 jobs waiting at once</span>
+    Channel&lt;<span class="t">u64</span>&gt; results = Channel::new(<span class="n">16</span>);
+    {
+        <span class="k">auto</span> a = <span class="p">spawn</span>(worker, &amp;jobs, &amp;results);
+        <span class="k">auto</span> b = <span class="p">spawn</span>(worker, &amp;jobs, &amp;results);
+        <span class="t">u64</span> i = <span class="n">1</span>;
+        <span class="k">while</span> (i &lt;= <span class="n">10</span>)
+        {
+            Channel::send(&amp;jobs, i);            <span class="c">// waits while the channel is full</span>
+            i = i + <span class="n">1</span>;
+        }
+        Channel::close(&amp;jobs);                  <span class="c">// the workers stop once it is empty</span>
+        <span class="p">join</span>(a);
+        <span class="p">join</span>(b);
+    }
+    Channel::close(&amp;results);
+    <span class="t">u64</span> total = <span class="n">0</span>;
+    <span class="k">while</span> (<span class="k">true</span>)
+    {
+        <span class="k">match</span> (Channel::recv(&amp;results))
+        {
+            <span class="p">Some</span>(sq) : total = total + sq,
+            <span class="p">None</span> : <span class="k">break</span>,
+        }
+    }
+    check(total == <span class="n">385</span>);                        <span class="c">// 1 + 4 + … + 100, whichever worker did which</span>
+
+    Channel&lt;<span class="p">String</span>&gt; names = Channel::new(<span class="n">1</span>);
+    Channel::close(&amp;names);
+    <span class="k">match</span> (Channel::send(&amp;names, <span class="p">String</span>::from_str(<span class="s">&quot;late&quot;</span>)))
+    {
+        <span class="p">Ok</span>(_) : check(<span class="k">false</span>),
+        <span class="p">Err</span>(s) : check(<span class="p">String</span>::len(&amp;s) == <span class="n">4</span>),   <span class="c">// closed: the value comes back</span>
+    }
+}</code></pre></figure>
+<p>A wait that can never end because no other thread exists — the main thread receiving
+from an empty channel, or sending to a full one, with no spawned thread running — is a fault,
+<code>diag.channel-deadlock</code>. Other deadlocks are not detected.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Waiting alone</span><span class="badge bad">rejected: diag.channel-deadlock</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    Channel&lt;<span class="t">i32</span>&gt; ch = Channel::new(<span class="n">1</span>);
+    Channel::send(&amp;ch, <span class="n">1</span>);
+    Channel::send(&amp;ch, <span class="n">2</span>);            <span class="c">// <span class="bad">✗</span> <span class="dg">diag.channel-deadlock</span>: full, and no one to receive</span>
+}</code></pre></figure>
 <h3>What is not provided</h3>
-<p>No atomics, no memory orderings, no condition variables, no deadlock detection, no
-thread-local storage. Steps of different threads interleave at the granularity of single
-operations and every operation sees a consistent state; a <code>join</code> or a <code>lock</code> that cannot proceed
-simply waits. <code>Rc&lt;T&gt;</code> is not thread-safe; to share across threads, share a <code>mutex</code>.</p>
+<p>No atomics, no memory orderings, no condition variables, no thread-local storage, and
+deadlocks are detected only in the channel case above. Steps of different threads interleave at
+the granularity of single operations and every operation sees a consistent state; a <code>join</code>, a
+<code>lock</code>, a <code>send</code> or a <code>recv</code> that cannot proceed simply waits. <code>Rc&lt;T&gt;</code> is not thread-safe; to share
+across threads, share a <code>mutex</code> or pass values through a <code>Channel</code>.</p>
 <div class="callout note"><div class="callout-title">Parallel or interleaved</div>The compiler <code>cobc</code> runs threads in parallel on separate cores; the interpreter <code>coby</code>
 runs them one at a time. A program that follows the rules gets the same result from both. Where the
 language leaves an outcome to timing — writing a variable while another thread may still be reading
@@ -3955,6 +4044,7 @@ finished — each is free to show either permitted outcome, and they may differ.
 <div class="callout rule"><div class="callout-title">Rules of thumb</div><ul>
 <li>Every thread has an owner: the handle. Join it explicitly to get the result; let scope end join it if you do not care.</li>
 <li>Share a <code>mutex</code> by shared reference; keep each guard in the smallest block that needs it.</li>
+<li>To hand values from thread to thread, send them through a <code>Channel</code>; <code>close</code> it when the last value is sent.</li>
 <li>Move data into a thread with a <code>move</code> closure or by-value arguments; lend it with references only when the mutex rule allows.</li>
 </ul>
 </div>
@@ -4265,7 +4355,7 @@ its life, because there is no operation that could break it.</p>
 <div class="spec-ref">Governing specification file: <code>spec/21-standard-library-semantics.md</code></div><p class="blurb">import std; Option, Result, the intrinsics, str and printf, and Vec, String, HashMap, HashSet, Rc and Box written in CobaltC.</p>
 <p>The standard library is the module <code>std</code>: the <code>Option</code> and <code>Result</code> enums, <code>printf</code>, <code>eprintf</code>, <code>sprintf</code>,
 <code>write</code>, <code>read</code>, <code>read_line</code>, <code>arg_count</code>, <code>arg</code>, <code>arg_bytes</code>, <code>parse</code>, <code>read_file</code>, <code>write_file</code> and <code>map_err</code>, and the library types written in CobaltC itself, <code>Vec&lt;T&gt;</code>, <code>String</code>,
-<code>HashMap&lt;K, V&gt;</code>, <code>HashSet&lt;K&gt;</code>, <code>Rc&lt;T&gt;</code> and <code>Box&lt;T&gt;</code>, and <code>swap</code> and <code>replace</code>. A program uses it with <code>import std;</code>, or by qualified paths such as <code>std::Vec</code>. Its source
+<code>HashMap&lt;K, V&gt;</code>, <code>HashSet&lt;K&gt;</code>, <code>Rc&lt;T&gt;</code>, <code>Box&lt;T&gt;</code> and <code>Channel&lt;T&gt;</code> (§19), and <code>swap</code> and <code>replace</code>. A program uses it with <code>import std;</code>, or by qualified paths such as <code>std::Vec</code>. Its source
 is part of the specification, which is the language's proof that the mechanisms in this guide are
 enough to build real containers. Being a module, it keeps its private parts private: no program
 can touch <code>Vec</code>'s length or buffer, <code>String</code>'s bytes, a <code>HashMap</code>'s table or <code>Rc</code>'s count. The intrinsics and the text
@@ -5931,6 +6021,7 @@ rule is applied statically where the checker can see the problem and dynamically
 </table>
 
 <nav class="pager"><a class="prev" href="#s22">&larr; §22 Surface syntax reference</a><a class="top" href="#top">Top</a></nav></section>
+
 
 <div class="book-navigation">
     <a href="Appendix_05.html" class="nav-btn">&larr; Previous</a>
