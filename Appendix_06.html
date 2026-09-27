@@ -2856,8 +2856,8 @@ a module in a file of its own, writes its own <code>import std;</code>.</p>
 <p><code>const τ NAME = e;</code> names a value, at the top level of any module. <code>NAME</code> can be used
 wherever its value could, with the visibility, <code>export</code>, <code>import</code> and qualified paths of any item.
 <code>e</code> must be a <em>constant expression</em>: literals, other constants, operators, struct, array and
-variant literals of constant expressions, a function's name, and the pure intrinsics (<code>min_value</code>,
-<code>sizeof</code>, <code>widen</code>, …). A constant cannot be a resource, cannot depend on itself, and cannot be
+variant literals of constant expressions and their fields and elements (<code>SCREEN.w</code>, <code>PRIMES[2]</code>),
+a function's name, and the pure intrinsics (<code>min_value</code>, <code>sizeof</code>, <code>widen</code>, …). A constant cannot be a resource, cannot depend on itself, and cannot be
 assigned to or borrowed; an overflow in computing one is reported at the constant, before the
 program runs. Integer, float, <code>bool</code> and <code>str</code> constants cost nothing at run time: each use becomes
 the literal.</p>
@@ -2883,11 +2883,47 @@ the literal.</p>
     static_assert(MIB == <span class="n">1048576</span>);
     static_assert(READ_WRITE == <span class="n">3</span>);
     static_assert(LOWEST &lt; <span class="n">0</span>);
-    assert(SCREEN.w * SCREEN.h == <span class="n">307200</span>);
+    static_assert(SCREEN.w * SCREEN.h == <span class="n">307200</span>);   <span class="c">// a field of a constant is a constant</span>
 }</code></pre></figure>
 <p>A constant is typed exactly as a declaration <code>τ x = e;</code> would be: in
 <code>const u64 MIB = 1024 * 1024;</code> the literals are <code>u64</code>s, and an initializer that overflows its type,
 such as <code>const i32 BIG = 65536 * 65536;</code>, is rejected at the constant.</p>
+<p>A constant can also be declared inside a function, as a statement: <code>const u8 LIMIT = 200;</code>. It is
+the same kind of constant, but its name is <em>scoped like a local</em>: it can be used from its
+declaration to the end of its block, an inner block can declare another constant of the same name,
+and a later local variable of that name hides it. A local variable, even one set from a literal, is
+not a constant — any later statement could change it — so <code>static_assert</code> cannot use it; name the
+value with <code>const</code> when you want the check made before the program runs. A local constant's
+initializer can use other constants, but not a local variable or the function's type
+parameters.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Local constants</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> checksum(slice&lt;<span class="t">u8</span>, <span class="t">shared</span>&gt; data) : <span class="t">u32</span>
+{
+    <span class="k">const</span> <span class="t">u32</span> PRIME = <span class="n">16777619</span>;       <span class="c">// FNV-1a: the 32-bit prime and offset basis</span>
+    <span class="k">const</span> <span class="t">u32</span> SEED = <span class="n">2166136261</span>;
+    static_assert(PRIME % <span class="n">2</span> == <span class="n">1</span>);
+    <span class="t">u32</span> h = SEED;
+    <span class="t">usize</span> i = <span class="n">0</span>;
+    <span class="k">while</span> (i &lt; slice_len(data))
+    {
+        h = <span class="p">wrapping_mul</span>(h ^ <span class="p">widen</span>&lt;<span class="t">u32</span>&gt;(data[i]), PRIME);
+        i = i + <span class="n">1</span>;
+    }
+    h
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="t">u8</span> b = <span class="n">200</span>;
+    <span class="k">auto</span> d = b + <span class="n">1</span>;                   <span class="c">// a variable: checked when the program runs</span>
+    assert(d == <span class="n">201</span>);
+    <span class="k">const</span> <span class="t">u8</span> B = <span class="n">200</span>;
+    <span class="k">const</span> <span class="t">u8</span> D = B + <span class="n">1</span>;               <span class="c">// constants: checked before it runs</span>
+    static_assert(D == <span class="n">201</span>);
+    <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">3</span>&gt; abc = [<span class="n">97</span>, <span class="n">98</span>, <span class="n">99</span>];
+    assert(checksum(&amp;abc[<span class="n">0</span>..$]) == <span class="n">440920331</span>);
+}</code></pre></figure>
 <h3>Static assertions</h3>
 <p><code>static_assert(c)</code> and <code>static_assert(c, &quot;why&quot;)</code> check a constant condition when the program
 is compiled, not when it runs: a false one stops it with <code>diag.static-assert-failed</code> and shows the
