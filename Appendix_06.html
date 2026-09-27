@@ -593,20 +593,7 @@ one too large for its type (<code>1e400</code>) is a static error, not infinity.
 is always a <code>u8</code>: one ASCII character or an escape (<code>b&#x27;\n&#x27;</code>, <code>b&#x27;\&#x27;&#x27;</code>, <code>b&#x27;\x7f&#x27;</code>), for writing
 bytes readably in code that parses. A string literal <code>&quot;…&quot;</code> is always a <code>str</code> and a byte literal
 <code>b&quot;…&quot;</code> always an <code>array&lt;u8, N&gt;</code> (§21, §22); neither takes an expected type.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Literal typing</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
+<figure class="code"><div class="code-head"><span class="code-title">Literal typing</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> main()
 {
@@ -623,13 +610,13 @@ bytes readably in code that parses. A string literal <code>&quot;…&quot;</code
     <span class="t">u64</span> sixteen_gib = <span class="n">16</span> * <span class="n">1024</span> * <span class="n">1024</span> * <span class="n">1024</span>;   <span class="c">// literals only: computed in u64</span>
     <span class="t">i64</span> g = -<span class="n">1</span>;                       <span class="c">// the expected type reaches through unary minus</span>
     <span class="t">i32</span> lo = -<span class="n">2147483648</span>;             <span class="c">// min(i32): 2147483648 alone would not fit</span>
-    check(d == <span class="n">201</span>);
-    check(g &lt; <span class="n">0</span>);
-    check(lo + <span class="n">2147483647</span> == -<span class="n">1</span>);
-    check(tiny == <span class="n">0.0015</span> &amp;&amp; comma == <span class="n">44</span> &amp;&amp; mask == <span class="n">65280</span>);
-    check(sixteen_gib == <span class="n">17</span>_179_869_184 &amp;&amp; ns == <span class="n">1000000000</span>);
-    check(<span class="p">sizeof</span>&lt;<span class="t">u64</span>&gt;() == <span class="n">8</span>);        <span class="c">// sizeof and alignof are intrinsics returning usize</span>
-    check(<span class="p">alignof</span>&lt;<span class="t">u16</span>&gt;() == <span class="n">2</span>);
+    assert(d == <span class="n">201</span>);
+    assert(g &lt; <span class="n">0</span>);
+    assert(lo + <span class="n">2147483647</span> == -<span class="n">1</span>);
+    assert(tiny == <span class="n">0.0015</span> &amp;&amp; comma == <span class="n">44</span> &amp;&amp; mask == <span class="n">65280</span>);
+    assert(sixteen_gib == <span class="n">17</span>_179_869_184 &amp;&amp; ns == <span class="n">1000000000</span>);
+    static_assert(<span class="p">sizeof</span>&lt;<span class="t">u64</span>&gt;() == <span class="n">8</span>);        <span class="c">// sizeof and alignof are intrinsics returning usize</span>
+    static_assert(<span class="p">alignof</span>&lt;<span class="t">u16</span>&gt;() == <span class="n">2</span>);
 }</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">A literal that does not fit</span><span class="badge bad">rejected: diag.literal-out-of-range</span></div><pre><code><span class="k">fn</span> main()
 {
@@ -678,31 +665,16 @@ decide. These are ordinary generic calls with the operand type inferred from the
 </table>
 <figure class="code"><div class="code-head"><span class="code-title">Explicit overflow policies</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
-
 <span class="k">fn</span> main()
 {
     <span class="t">u8</span> top = <span class="n">255</span>;
-    check(<span class="p">wrapping_add</span>(top, <span class="n">1</span>: <span class="t">u8</span>) == <span class="n">0</span>);          <span class="c">// 255 + 1 wraps to 0</span>
-    check(<span class="p">saturating_add</span>(top, <span class="n">9</span>: <span class="t">u8</span>) == <span class="n">255</span>);      <span class="c">// clamps at the maximum</span>
+    assert(<span class="p">wrapping_add</span>(top, <span class="n">1</span>: <span class="t">u8</span>) == <span class="n">0</span>);          <span class="c">// 255 + 1 wraps to 0</span>
+    assert(<span class="p">saturating_add</span>(top, <span class="n">9</span>: <span class="t">u8</span>) == <span class="n">255</span>);      <span class="c">// clamps at the maximum</span>
     <span class="k">match</span> (<span class="p">checked_add</span>(top, <span class="n">1</span>: <span class="t">u8</span>))
     {
         <span class="p">Some</span>(_) :                 <span class="c">// must not happen</span>
         {
-            check(<span class="k">false</span>);
+            assert(<span class="k">false</span>, <span class="s">&quot;unreachable&quot;</span>);
         },
         <span class="p">None</span>    : {},                              <span class="c">// overflow reported as None</span>
     }
@@ -710,11 +682,11 @@ decide. These are ordinary generic calls with the operand type inferred from the
     {
         <span class="p">Some</span>(v) :
         {
-            check(v == <span class="n">2</span>);
+            assert(v == <span class="n">2</span>);
         },
         <span class="p">None</span> :
         {
-            check(<span class="k">false</span>);
+            assert(<span class="k">false</span>, <span class="s">&quot;unreachable&quot;</span>);
         },
     }
 }</code></pre></figure>
@@ -724,34 +696,21 @@ decide. These are ordinary generic calls with the operand type inferred from the
 <li><code>&amp;</code>, <code>|</code>, <code>^</code> and <code>~</code> work on any integer type; <code>!</code> is boolean not.</li>
 <li><code>== != &lt; &lt;= &gt; &gt;=</code> compare two operands of the <em>same</em> type and yield <code>bool</code>. Floats follow IEEE rules: every comparison involving <code>NaN</code> is false except <code>!=</code>.</li>
 </ul>
-<figure class="code"><div class="code-head"><span class="code-title">Bits and comparisons</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
+<figure class="code"><div class="code-head"><span class="code-title">Bits and comparisons</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> main()
 {
     <span class="t">u32</span> one = <span class="n">1</span>;
-    check(one &lt;&lt; <span class="n">4</span> == <span class="n">16</span>);
-    check(-<span class="n">8</span> &gt;&gt; <span class="n">1</span> == -<span class="n">4</span>);                          <span class="c">// arithmetic shift keeps the sign</span>
-    check((<span class="n">12</span> &amp; <span class="n">10</span>) == <span class="n">8</span>);
-    check((<span class="n">12</span> | <span class="n">3</span>) == <span class="n">15</span>);
-    check((<span class="n">6</span> ^ <span class="n">3</span>) == <span class="n">5</span>);
-    check(~<span class="n">0</span> == -<span class="n">1</span>);
+    assert(one &lt;&lt; <span class="n">4</span> == <span class="n">16</span>);
+    static_assert(-<span class="n">8</span> &gt;&gt; <span class="n">1</span> == -<span class="n">4</span>);                          <span class="c">// arithmetic shift keeps the sign</span>
+    static_assert((<span class="n">12</span> &amp; <span class="n">10</span>) == <span class="n">8</span>);
+    static_assert((<span class="n">12</span> | <span class="n">3</span>) == <span class="n">15</span>);
+    static_assert((<span class="n">6</span> ^ <span class="n">3</span>) == <span class="n">5</span>);
+    static_assert(~<span class="n">0</span> == -<span class="n">1</span>);
     <span class="t">f64</span> zero = <span class="n">0.0</span>;
     <span class="k">auto</span> nan = zero / zero;                        <span class="c">// floats do not fault</span>
-    check(!(nan == nan));
-    check(nan != nan);
+    assert(!(nan == nan));
+    assert(nan != nan);
 }</code></pre></figure>
 <h3>Conversions are explicit</h3>
 <p>There is exactly one way to change a number's type: call the intrinsic that names the
@@ -767,65 +726,39 @@ conversion. Each takes the target type as a type argument.</p>
 <tr><td><code>to_int&lt;U&gt;(x)</code></td><td>float to integer</td><td>truncates toward zero; checked: infinities, <code>NaN</code> and out-of-range values fault</td></tr>
 </tbody>
 </table>
-<figure class="code"><div class="code-head"><span class="code-title">Named conversions</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
+<figure class="code"><div class="code-head"><span class="code-title">Named conversions</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> main()
 {
     <span class="t">u8</span> small = <span class="n">200</span>;
     <span class="t">i32</span> wide = <span class="p">widen</span>&lt;<span class="t">i32</span>&gt;(small);                  <span class="c">// always safe</span>
-    check(wide == <span class="n">200</span>);
-    check(<span class="p">narrow</span>&lt;<span class="t">u8</span>&gt;(wide) == <span class="n">200</span>);                <span class="c">// fits, so it succeeds</span>
-    check(<span class="p">narrow_wrapping</span>&lt;<span class="t">u8</span>&gt;(<span class="n">300</span>) == <span class="n">44</span>);         <span class="c">// 300 mod 256</span>
-    check(<span class="p">reinterpret</span>&lt;<span class="t">i32</span>&gt;(<span class="n">4294967295</span>: <span class="t">u32</span>) == -<span class="n">1</span>);
+    assert(wide == <span class="n">200</span>);
+    assert(<span class="p">narrow</span>&lt;<span class="t">u8</span>&gt;(wide) == <span class="n">200</span>);                <span class="c">// fits, so it succeeds</span>
+    assert(<span class="p">narrow_wrapping</span>&lt;<span class="t">u8</span>&gt;(<span class="n">300</span>) == <span class="n">44</span>);         <span class="c">// 300 mod 256</span>
+    assert(<span class="p">reinterpret</span>&lt;<span class="t">i32</span>&gt;(<span class="n">4294967295</span>: <span class="t">u32</span>) == -<span class="n">1</span>);
     <span class="t">f64</span> f = <span class="p">to_float</span>&lt;<span class="t">f64</span>&gt;(wide);
-    check(<span class="p">to_int</span>&lt;<span class="t">i32</span>&gt;(f * <span class="n">1.5</span>) == <span class="n">300</span>);
+    assert(<span class="p">to_int</span>&lt;<span class="t">i32</span>&gt;(f * <span class="n">1.5</span>) == <span class="n">300</span>);
     <span class="t">usize</span> n = <span class="n">12</span>;
-    check(<span class="p">narrow</span>&lt;<span class="t">i32</span>&gt;(n) == <span class="n">12</span>);                   <span class="c">// usize → i32 is a narrowing, so it is checked</span>
+    assert(<span class="p">narrow</span>&lt;<span class="t">i32</span>&gt;(n) == <span class="n">12</span>);                   <span class="c">// usize → i32 is a narrowing, so it is checked</span>
 }</code></pre></figure>
 <p>Between the two float types: <code>widen&lt;f64&gt;(x)</code> takes an <code>f32</code> to an <code>f64</code> exactly, and
 <code>to_float&lt;f32&gt;(x)</code> takes an <code>f64</code> to the nearest <code>f32</code>, rounding as float arithmetic does. There
 is no <code>widen&lt;f32&gt;</code> of an <code>f64</code>, since most <code>f64</code> values have no exact <code>f32</code>. <code>reinterpret</code> gives
 a float's IEEE-754 bits as an integer of the same width, and turns such an integer back into a
 float, with no <code>unsafe</code>.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Between f32 and f64, and a float's bits</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
+<figure class="code"><div class="code-head"><span class="code-title">Between f32 and f64, and a float's bits</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> main()
 {
     <span class="t">f32</span> sample = <span class="n">0.1</span>;
     <span class="t">f64</span> d = <span class="p">widen</span>&lt;<span class="t">f64</span>&gt;(sample);                    <span class="c">// exact: 0.100000001490116...</span>
-    check(<span class="p">to_float</span>&lt;<span class="t">f32</span>&gt;(d) == sample);             <span class="c">// and back, rounded, to the same f32</span>
-    check(<span class="p">to_float</span>&lt;<span class="t">f32</span>&gt;(<span class="n">1.0</span> / <span class="n">3.0</span>) == <span class="n">0.33333334</span>: <span class="t">f32</span>);
+    assert(<span class="p">to_float</span>&lt;<span class="t">f32</span>&gt;(d) == sample);             <span class="c">// and back, rounded, to the same f32</span>
+    assert(<span class="p">to_float</span>&lt;<span class="t">f32</span>&gt;(<span class="n">1.0</span> / <span class="n">3.0</span>) == <span class="n">0.33333334</span>: <span class="t">f32</span>);
     <span class="t">u64</span> bits = <span class="p">reinterpret</span>&lt;<span class="t">u64</span>&gt;(-<span class="n">2.0</span>);
-    check(bits &gt;&gt; <span class="n">63</span> == <span class="n">1</span>);                        <span class="c">// the sign bit</span>
-    check(<span class="p">reinterpret</span>&lt;<span class="t">f64</span>&gt;(bits) == -<span class="n">2.0</span>);
-    check(<span class="p">reinterpret</span>&lt;<span class="t">u32</span>&gt;(<span class="n">1.0</span>: <span class="t">f32</span>) == <span class="n">0</span>x3f80_0000: <span class="t">u32</span>);
-    check(<span class="p">max_value</span>&lt;<span class="t">f32</span>&gt;() == <span class="n">3.4028235</span>e38: <span class="t">f32</span>);  <span class="c">// the largest finite f32</span>
+    assert(bits &gt;&gt; <span class="n">63</span> == <span class="n">1</span>);                        <span class="c">// the sign bit</span>
+    assert(<span class="p">reinterpret</span>&lt;<span class="t">f64</span>&gt;(bits) == -<span class="n">2.0</span>);
+    assert(<span class="p">reinterpret</span>&lt;<span class="t">u32</span>&gt;(<span class="n">1.0</span>: <span class="t">f32</span>) == <span class="n">0</span>x3f80_0000: <span class="t">u32</span>);
+    assert(<span class="p">max_value</span>&lt;<span class="t">f32</span>&gt;() == <span class="n">3.4028235</span>e38: <span class="t">f32</span>);  <span class="c">// the largest finite f32</span>
 }</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">A narrowing that does not fit</span><span class="badge bad">rejected: diag.narrowing-overflow</span></div><pre><code><span class="k">fn</span> to_byte(<span class="t">i32</span> x) : <span class="t">u8</span>
 {
@@ -867,20 +800,7 @@ argument, written explicitly, and no other arguments.</p>
 width, which each implementation documents, so for them the intrinsics are the portable way to
 write a size or limit, where a literal is not. A struct's size and alignment follow from its
 fields (§16): each field is aligned, and the struct's alignment is its largest field's.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Sizes and limits</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
+<figure class="code"><div class="code-head"><span class="code-title">Sizes and limits</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">struct</span> Pair
 {
@@ -890,40 +810,25 @@ fields (§16): each field is aligned, and the struct's alignment is its largest 
 
 <span class="k">fn</span> main()
 {
-    check(<span class="p">sizeof</span>&lt;<span class="t">i32</span>&gt;() == <span class="n">4</span>);
-    check(<span class="p">sizeof</span>&lt;<span class="t">u64</span>&gt;() == <span class="n">8</span>);
-    check(<span class="p">alignof</span>&lt;<span class="t">u64</span>&gt;() == <span class="n">8</span>);                      <span class="c">// a number is aligned to its own size</span>
-    check(<span class="p">sizeof</span>&lt;<span class="t">bool</span>&gt;() == <span class="n">1</span>);
-    check(<span class="p">sizeof</span>&lt;<span class="t">array</span>&lt;<span class="t">u16</span>, <span class="n">10</span>&gt;&gt;() == <span class="n">20</span>);           <span class="c">// an array has no padding</span>
-    check(<span class="p">alignof</span>&lt;Pair&gt;() == <span class="n">4</span>);                     <span class="c">// its largest field&#x27;s alignment</span>
-    check(<span class="p">sizeof</span>&lt;Pair&gt;() == <span class="n">8</span>);                      <span class="c">// tag, 3 bytes of padding, value</span>
-    check(<span class="p">sizeof</span>&lt;<span class="t">usize</span>&gt;() == <span class="p">sizeof</span>&lt;<span class="t">isize</span>&gt;());       <span class="c">// the address width, whatever it is</span>
+    static_assert(<span class="p">sizeof</span>&lt;<span class="t">i32</span>&gt;() == <span class="n">4</span>);
+    static_assert(<span class="p">sizeof</span>&lt;<span class="t">u64</span>&gt;() == <span class="n">8</span>);
+    static_assert(<span class="p">alignof</span>&lt;<span class="t">u64</span>&gt;() == <span class="n">8</span>);                      <span class="c">// a number is aligned to its own size</span>
+    static_assert(<span class="p">sizeof</span>&lt;<span class="t">bool</span>&gt;() == <span class="n">1</span>);
+    static_assert(<span class="p">sizeof</span>&lt;<span class="t">array</span>&lt;<span class="t">u16</span>, <span class="n">10</span>&gt;&gt;() == <span class="n">20</span>);           <span class="c">// an array has no padding</span>
+    static_assert(<span class="p">alignof</span>&lt;Pair&gt;() == <span class="n">4</span>);                     <span class="c">// its largest field&#x27;s alignment</span>
+    static_assert(<span class="p">sizeof</span>&lt;Pair&gt;() == <span class="n">8</span>);                      <span class="c">// tag, 3 bytes of padding, value</span>
+    static_assert(<span class="p">sizeof</span>&lt;<span class="t">usize</span>&gt;() == <span class="p">sizeof</span>&lt;<span class="t">isize</span>&gt;());       <span class="c">// the address width, whatever it is</span>
 
-    check(<span class="p">min_value</span>&lt;<span class="t">i8</span>&gt;() == -<span class="n">128</span>);
-    check(<span class="p">max_value</span>&lt;<span class="t">u8</span>&gt;() == <span class="n">255</span>);
-    check(<span class="p">max_value</span>&lt;<span class="t">i32</span>&gt;() == <span class="n">2147483647</span>);
-    check(<span class="p">min_value</span>&lt;<span class="t">u64</span>&gt;() == <span class="n">0</span>);
-    check(<span class="p">max_value</span>&lt;<span class="t">usize</span>&gt;() == ~(<span class="n">0</span>: <span class="t">usize</span>));        <span class="c">// every bit set, at any address width</span>
-    check(<span class="p">wrapping_add</span>(<span class="p">max_value</span>&lt;<span class="t">i32</span>&gt;(), <span class="n">1</span>) == <span class="p">min_value</span>&lt;<span class="t">i32</span>&gt;());
+    static_assert(<span class="p">min_value</span>&lt;<span class="t">i8</span>&gt;() == -<span class="n">128</span>);
+    static_assert(<span class="p">max_value</span>&lt;<span class="t">u8</span>&gt;() == <span class="n">255</span>);
+    static_assert(<span class="p">max_value</span>&lt;<span class="t">i32</span>&gt;() == <span class="n">2147483647</span>);
+    static_assert(<span class="p">min_value</span>&lt;<span class="t">u64</span>&gt;() == <span class="n">0</span>);
+    static_assert(<span class="p">max_value</span>&lt;<span class="t">usize</span>&gt;() == ~(<span class="n">0</span>: <span class="t">usize</span>));        <span class="c">// every bit set, at any address width</span>
+    assert(<span class="p">wrapping_add</span>(<span class="p">max_value</span>&lt;<span class="t">i32</span>&gt;(), <span class="n">1</span>) == <span class="p">min_value</span>&lt;<span class="t">i32</span>&gt;());
 }</code></pre></figure>
 <p>Limits are most often the starting value of a search, a bound to clamp against, or a
 value that means "none". Here are all three:</p>
 <figure class="code"><div class="code-head"><span class="code-title">Limits as sentinels and bounds</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
-
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
 
 <span class="c">// The spread of a list: start the minimum at the largest i64 and the</span>
 <span class="c">// maximum at the smallest, so the first element replaces both.</span>
@@ -982,38 +887,23 @@ value that means "none". Here are all three:</p>
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">7</span>);
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, -<span class="n">3</span>);
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">12</span>);
-    check(spread(&amp;v) == <span class="n">15</span>);
+    assert(spread(&amp;v) == <span class="n">15</span>);
 
-    check(clamp_to_i32(<span class="n">5000000000</span>) == <span class="n">2147483647</span>);
-    check(clamp_to_i32(-<span class="n">5000000000</span>) == -<span class="n">2147483648</span>);
-    check(clamp_to_i32(<span class="n">42</span>) == <span class="n">42</span>);
+    assert(clamp_to_i32(<span class="n">5000000000</span>) == <span class="n">2147483647</span>);
+    assert(clamp_to_i32(-<span class="n">5000000000</span>) == -<span class="n">2147483648</span>);
+    assert(clamp_to_i32(<span class="n">42</span>) == <span class="n">42</span>);
 
     <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; bytes = <span class="p">Vec</span>::new();
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> bytes, <span class="n">10</span>);
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> bytes, <span class="n">20</span>);
-    check(find(&amp;bytes, <span class="n">20</span>) == <span class="n">1</span>);
-    check(find(&amp;bytes, <span class="n">99</span>) == <span class="p">max_value</span>&lt;<span class="t">usize</span>&gt;());
+    assert(find(&amp;bytes, <span class="n">20</span>) == <span class="n">1</span>);
+    assert(find(&amp;bytes, <span class="n">99</span>) == <span class="p">max_value</span>&lt;<span class="t">usize</span>&gt;());
 }</code></pre></figure>
 <p>A generic function may use the limits of its own type parameter. It cannot do arithmetic
 on a <code>T</code> (§12: there are no bounds), but it can produce a <code>T</code>'s limit and pass it on. Each use is
 checked when the function is instantiated, so a <code>T</code> that is not an integer type is rejected before
 the program runs.</p>
 <figure class="code"><div class="code-head"><span class="code-title">A limit in a generic function</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
-
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
 
 <span class="c">// The value inside, or T&#x27;s maximum if there is none.</span>
 <span class="k">fn</span> or_max&lt;T&gt;(<span class="p">Option</span>&lt;T&gt; r) : T
@@ -1028,8 +918,8 @@ the program runs.</p>
 <span class="k">fn</span> main()
 {
     <span class="t">u64</span> big = <span class="n">5000000000</span>;
-    check(or_max(<span class="p">checked_mul</span>(big, big)) == <span class="p">max_value</span>&lt;<span class="t">u64</span>&gt;());   <span class="c">// the product overflows u64</span>
-    check(or_max(<span class="p">checked_add</span>(<span class="n">2</span>: <span class="t">i32</span>, <span class="n">3</span>)) == <span class="n">5</span>);
+    assert(or_max(<span class="p">checked_mul</span>(big, big)) == <span class="p">max_value</span>&lt;<span class="t">u64</span>&gt;());   <span class="c">// the product overflows u64</span>
+    assert(or_max(<span class="p">checked_add</span>(<span class="n">2</span>: <span class="t">i32</span>, <span class="n">3</span>)) == <span class="n">5</span>);
 }</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">Limits are for number types</span><span class="badge bad">rejected: diag.type-mismatch</span></div><pre><code><span class="k">fn</span> main()
 {
@@ -1270,21 +1160,6 @@ ends. This is why consecutive calls that each borrow the same variable are fine,
 borrow in a block is the usual way to end it early.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Borrows end with their holder</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
-
 <span class="k">fn</span> main()
 {
     <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; nums = <span class="p">Vec</span>::new();
@@ -1296,27 +1171,14 @@ borrow in a block is the usual way to end it early.</p>
         *r = <span class="n">5</span>;
     }
     x = x + <span class="n">1</span>;                        <span class="c">// <span class="ok">✓</span> r is gone</span>
-    check(x == <span class="n">6</span>);
+    assert(x == <span class="n">6</span>);
 }</code></pre></figure>
 <h3>Reborrowing and ancestors</h3>
 <p>A path derived from another (a reborrow <code>&amp;*r</code>, or a field projection <code>r.a</code>) has that path
 as its ancestor. Ancestors never conflict with their descendants, but the ancestor cannot be used in
 a conflicting way while a descendant lives. Once the descendants are gone, the ancestor is usable
 again.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Reborrow</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
+<figure class="code"><div class="code-head"><span class="code-title">Reborrow</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> main()
 {
@@ -1325,30 +1187,17 @@ again.</p>
         <span class="k">auto</span> r1 = &amp;<span class="k">mut</span> x;
         {
             <span class="k">auto</span> r2 = &amp;*r1;           <span class="c">// <span class="ok">✓</span> a shared reborrow, child of r1</span>
-            check(*r2 == <span class="n">1</span>);          <span class="c">// writing through r1 here would be <span class="dg">diag.aliasing-conflict</span></span>
+            assert(*r2 == <span class="n">1</span>);          <span class="c">// writing through r1 here would be <span class="dg">diag.aliasing-conflict</span></span>
         }
         *r1 = <span class="n">3</span>;                      <span class="c">// <span class="ok">✓</span> r2 is gone, the parent is usable again</span>
     }
-    check(x == <span class="n">3</span>);                    <span class="c">// <span class="ok">✓</span> r1 is gone, the owner is usable again</span>
+    assert(x == <span class="n">3</span>);                    <span class="c">// <span class="ok">✓</span> r1 is gone, the owner is usable again</span>
 }</code></pre></figure>
 <h3>Disjoint fields</h3>
 <p>Conflicts are decided by <em>overlap of storage</em>, not by which variable the paths
 come from. Two exclusive borrows of different fields of the same struct do not overlap and may
 coexist.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Disjoint fields (with a mistake)</span><span class="badge bad">rejected: diag.aliasing-conflict</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
+<figure class="code"><div class="code-head"><span class="code-title">Disjoint fields (with a mistake)</span><span class="badge bad">rejected: diag.aliasing-conflict</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">struct</span> Pair
 {
@@ -1369,20 +1218,7 @@ coexist.</p>
 storage, still exists until the block ends. The same applies to reading <code>p.b</code> through the owner: an
 exclusive child excludes every non-ancestor access, reads included, until it is gone. Confine the
 borrows to a block and the owner is free again:</p>
-<figure class="code"><div class="code-head"><span class="code-title">Disjoint fields</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
+<figure class="code"><div class="code-head"><span class="code-title">Disjoint fields</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">struct</span> Pair
 {
@@ -1399,8 +1235,8 @@ borrows to a block and the owner is free again:</p>
         *ra = <span class="n">10</span>;
         *rb = <span class="n">20</span>;                     <span class="c">// reading p.a or p.b here would conflict with the live exclusive borrows</span>
     }
-    check(p.a == <span class="n">10</span>);                 <span class="c">// <span class="ok">✓</span> both borrows ended with the block</span>
-    check(p.b == <span class="n">20</span>);
+    assert(p.a == <span class="n">10</span>);                 <span class="c">// <span class="ok">✓</span> both borrows ended with the block</span>
+    assert(p.b == <span class="n">20</span>);
 }</code></pre></figure>
 <h3>Shared means read-only, all the way down</h3>
 <p>An exclusive path can only be derived from an exclusive path. Given a <code>ref&lt;T, shared&gt;</code>
@@ -1477,20 +1313,7 @@ type. Raw pointers are a different thing entirely and live in §20.</p>
 You cannot borrow a temporary such as a call result or a literal (<code>&amp;make()</code>); bind it to a variable
 first. This is rejected rather than given a lifetime because the temporary would end at the
 semicolon and take the reference with it.</p>
-<figure class="code"><div class="code-head"><span class="code-title">References in use</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
+<figure class="code"><div class="code-head"><span class="code-title">References in use</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">struct</span> Pair
 {
@@ -1505,19 +1328,19 @@ semicolon and take the reference with it.</p>
         <span class="k">auto</span> r = &amp;<span class="k">mut</span> x;
         *r = *r + <span class="n">1</span>;                  <span class="c">// read and write through the same reference</span>
     }
-    check(x == <span class="n">6</span>);
+    assert(x == <span class="n">6</span>);
 
     Pair p = Pair { .a = <span class="n">1</span>, .b = <span class="n">2</span> };
     <span class="k">auto</span> rp = &amp;p;
-    check(rp.a == <span class="n">1</span>);                 <span class="c">// auto-deref: rp.a means (*rp).a</span>
+    assert(rp.a == <span class="n">1</span>);                 <span class="c">// auto-deref: rp.a means (*rp).a</span>
     <span class="k">auto</span> ra = &amp;p.a;
     <span class="k">auto</span> rb = &amp;p.b;
-    check(!(ra == rb));               <span class="c">// different fields, so different identities</span>
+    assert(!(ra == rb));               <span class="c">// different fields, so different identities</span>
     <span class="k">auto</span> ra2 = &amp;p.a;
-    check(ra == ra2);                 <span class="c">// same field of the same object</span>
+    assert(ra == ra2);                 <span class="c">// same field of the same object</span>
 
     <span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt; copy = ra;       <span class="c">// references are plain values: copying is fine</span>
-    check(*copy == <span class="n">1</span>);
+    assert(*copy == <span class="n">1</span>);
 }</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">Borrowing a temporary</span><span class="badge bad">rejected: diag.borrow-of-non-place</span></div><pre><code><span class="k">fn</span> make() : <span class="t">i32</span>
 {
@@ -1531,20 +1354,7 @@ semicolon and take the reference with it.</p>
 <h3>References inside structs</h3>
 <p>A reference may be stored in a field. It then lives as long as the struct that holds it,
 which in turn may not outlive the referent (§10).</p>
-<figure class="code"><div class="code-head"><span class="code-title">A reference field</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
+<figure class="code"><div class="code-head"><span class="code-title">A reference field</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">struct</span> View
 {
@@ -1555,27 +1365,14 @@ which in turn may not outlive the referent (§10).</p>
 {
     <span class="t">i32</span> x = <span class="n">1</span>;
     <span class="k">auto</span> v = View { .r = &amp;x };        <span class="c">// the borrow is held by v&#x27;s object</span>
-    check(*v.r == <span class="n">1</span>);                 <span class="c">// <span class="ok">✓</span> valid as long as v lives</span>
+    assert(*v.r == <span class="n">1</span>);                 <span class="c">// <span class="ok">✓</span> valid as long as v lives</span>
 }</code></pre></figure>
 <h3>References as parameters</h3>
 <p>Passing <code>&amp;x</code> or <code>&amp;mut x</code> to a function creates a borrow that the parameter holds for the
 duration of the call and releases when the call returns. Inside the function the parameter is an
 ordinary reference. A parameter of type <code>ref&lt;T, exclusive&gt;</code> can be passed on to another call
 directly, without a new <code>&amp;mut</code>, because it already is an exclusive reference.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Reference parameters</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
+<figure class="code"><div class="code-head"><span class="code-title">Reference parameters</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> bump(<span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">exclusive</span>&gt; counter) : <span class="t">i32</span>
 {
@@ -1592,9 +1389,9 @@ directly, without a new <code>&amp;mut</code>, because it already is an exclusiv
 <span class="k">fn</span> main()
 {
     <span class="t">i32</span> n = <span class="n">0</span>;
-    check(bump(&amp;<span class="k">mut</span> n) == <span class="n">1</span>);         <span class="c">// the borrow lives for the call only</span>
-    check(bump_twice(&amp;<span class="k">mut</span> n) == <span class="n">3</span>);
-    check(n == <span class="n">3</span>);
+    assert(bump(&amp;<span class="k">mut</span> n) == <span class="n">1</span>);         <span class="c">// the borrow lives for the call only</span>
+    assert(bump_twice(&amp;<span class="k">mut</span> n) == <span class="n">3</span>);
+    assert(n == <span class="n">3</span>);
 }</code></pre></figure>
 <div class="callout rule"><div class="callout-title">Rules of thumb</div><ul>
 <li>Use <code>&amp;x</code> to lend, <code>&amp;mut x</code> to lend for writing. The callee's signature tells you which it needs.</li>
@@ -1655,20 +1452,7 @@ checked accordingly. This is the shape of every library accessor (<code>Vec::ind
 <code>Rc::get</code>). A function with zero or several reference parameters may not return a reference
 (<code>diag.lifetime-elision-ambiguous</code>); compose single-reference helpers instead, or return an owned
 value.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Single-parameter elision</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
+<figure class="code"><div class="code-head"><span class="code-title">Single-parameter elision</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">struct</span> Pair
 {
@@ -1685,7 +1469,7 @@ value.</p>
 {
     Pair pr = Pair { .a = <span class="n">1</span>, .b = <span class="n">2</span> };
     <span class="k">auto</span> y = first(&amp;pr);              <span class="c">// y is a shared borrow of pr.a, held by y</span>
-    check(*y == <span class="n">1</span>);
+    assert(*y == <span class="n">1</span>);
 }</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">Two reference parameters, one reference result</span></div><pre><code><span class="k">fn</span> pick(<span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt; p1, <span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt; p2) : <span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt;
 {
@@ -1739,20 +1523,7 @@ whole.</p>
 such as a struct literal or a call result, adopts it. Redeclaring a name in the same block shadows
 the earlier binding.</p>
 <h3>Definite assignment</h3>
-<figure class="code"><div class="code-head"><span class="code-title">Assigned on every path</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
+<figure class="code"><div class="code-head"><span class="code-title">Assigned on every path</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> main()
 {
@@ -1766,7 +1537,7 @@ the earlier binding.</p>
     {
         x = <span class="n">2</span>;
     }
-    check(x == <span class="n">1</span>);                    <span class="c">// <span class="ok">✓</span> assigned on both paths</span>
+    assert(x == <span class="n">1</span>);                    <span class="c">// <span class="ok">✓</span> assigned on both paths</span>
 }</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">A path with no write</span><span class="badge bad">rejected: diag.use-of-uninitialized</span></div><pre><code><span class="k">fn</span> main()
 {
@@ -1784,20 +1555,7 @@ of the few checks where "unknown" means rejected rather than "check at run time"
 <h3>Aggregates are initialised whole</h3>
 <p>You cannot declare a struct uninitialised and then fill its fields one by one. A struct
 literal supplies every field at once; after that, individual fields can be assigned freely.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Whole initialisation</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
+<figure class="code"><div class="code-head"><span class="code-title">Whole initialisation</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">struct</span> Pair
 {
@@ -1809,26 +1567,11 @@ literal supplies every field at once; after that, individual fields can be assig
 {
     Pair p = Pair { .a = <span class="n">1</span>, .b = <span class="n">2</span> };  <span class="c">// every field, exactly once, in any order</span>
     p.a = <span class="n">10</span>;                          <span class="c">// <span class="ok">✓</span> a field write on an initialised object</span>
-    check(p.a == <span class="n">10</span>);
-    check(p.b == <span class="n">2</span>);
+    assert(p.a == <span class="n">10</span>);
+    assert(p.b == <span class="n">2</span>);
 }</code></pre></figure>
 <h3>Destructuring a struct</h3>
 <figure class="code"><div class="code-head"><span class="code-title">Destructuring</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
-
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
 
 <span class="k">struct</span> Entry
 {
@@ -1840,7 +1583,7 @@ literal supplies every field at once; after that, individual fields can be assig
 {
     Entry e = Entry { .item = <span class="p">String</span>::from_str(<span class="s">&quot;pens&quot;</span>), .change = -<span class="n">3</span> };
     Entry { item, change } = e;       <span class="c">// binds `item` and `change`; e is consumed</span>
-    check(<span class="p">String</span>::len(&amp;item) == <span class="n">4</span> &amp;&amp; change == -<span class="n">3</span>);
+    assert(<span class="p">String</span>::len(&amp;item) == <span class="n">4</span> &amp;&amp; change == -<span class="n">3</span>);
 }</code></pre></figure>
 <p>This is the only pattern form beyond <code>match</code> on enums. It names every field of the
 struct, each once, in any order, and consumes the struct: a resource field moves out to its new
@@ -1911,21 +1654,6 @@ stored, passed, returned, referenced and moved, but not added, compared, indexed
 need arithmetic, take a concrete type.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Generic declarations</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
-
 <span class="k">struct</span> Box&lt;T&gt;
 {
     T value;
@@ -1949,12 +1677,12 @@ need arithmetic, take a concrete type.</p>
 
 <span class="k">fn</span> main()
 {
-    check(identity(<span class="n">5</span>) == <span class="n">5</span>);          <span class="c">// T := i32, from the argument</span>
-    check(identity&lt;<span class="t">i64</span>&gt;(<span class="n">5</span>) == <span class="n">5</span>);     <span class="c">// T given explicitly: name&lt;Type&gt;(...)</span>
+    assert(identity(<span class="n">5</span>) == <span class="n">5</span>);          <span class="c">// T := i32, from the argument</span>
+    assert(identity&lt;<span class="t">i64</span>&gt;(<span class="n">5</span>) == <span class="n">5</span>);     <span class="c">// T given explicitly: name&lt;Type&gt;(...)</span>
     Box&lt;<span class="t">i32</span>&gt; b = Box { .value = <span class="n">7</span> };  <span class="c">// Box&#x27;s T from the declared type</span>
-    check(b.value == <span class="n">7</span>);
+    assert(b.value == <span class="n">7</span>);
     Box&lt;<span class="p">Vec</span>&lt;<span class="t">u8</span>&gt;&gt; c = boxed(<span class="p">Vec</span>::new());   <span class="c">// both T&#x27;s from the declared type of c</span>
-    check(<span class="p">Vec</span>::len(&amp;c.value) == <span class="n">0</span>);
+    assert(<span class="p">Vec</span>::len(&amp;c.value) == <span class="n">0</span>);
 }</code></pre></figure>
 <p>Inference is <em>local and downward</em>. A type parameter is found from, in order: an
 explicit type argument (<code>identity&lt;i64&gt;(5)</code>), the type of an argument in the same call, or the
@@ -1973,26 +1701,11 @@ one: with <code>auto</code> nothing reaches it, so nothing reaches the <code>Vec
 outer binding its type and both are fixed.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Inference through Mutex::new</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
-
 <span class="k">fn</span> main()
 {
     <span class="t">mutex</span>&lt;<span class="p">Vec</span>&lt;<span class="t">u8</span>&gt;&gt; m = <span class="p">Mutex</span>::new(<span class="p">Vec</span>::new());   <span class="c">// T of Mutex::new, then T of Vec::new, from the declaration</span>
     <span class="t">mutex</span>&lt;<span class="t">i64</span>&gt; big = <span class="p">Mutex</span>::new(<span class="n">5000000000</span>);     <span class="c">// and the literal is an i64 for the same reason</span>
-    check(<span class="p">Vec</span>::len(&amp;*<span class="p">lock</span>(&amp;m)) == <span class="n">0</span>);
+    assert(<span class="p">Vec</span>::len(&amp;*<span class="p">lock</span>(&amp;m)) == <span class="n">0</span>);
 }</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">Nothing to infer from</span><span class="badge bad">rejected: diag.cannot-infer-type-parameter</span></div><pre><code><span class="k">import</span> std;
 
@@ -2001,21 +1714,6 @@ outer binding its type and both are fixed.</p>
     <span class="k">auto</span> m = <span class="p">Mutex</span>::new(<span class="p">Vec</span>::new());  <span class="c">// <span class="bad">✗</span> <span class="dg">diag.cannot-infer-type-parameter</span>: nothing fixes Vec&#x27;s T</span>
 }</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">Where inferred types come from</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
-
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
 
 <span class="k">struct</span> Box&lt;T&gt;
 {
@@ -2032,10 +1730,10 @@ outer binding its type and both are fixed.</p>
     <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; a = <span class="p">Vec</span>::new();                  <span class="c">// T from the declaration</span>
     Box&lt;<span class="p">Vec</span>&lt;<span class="t">u8</span>&gt;&gt; c = Box { .value = <span class="p">Vec</span>::new() };   <span class="c">// both T&#x27;s from the declared type</span>
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> c.value, <span class="n">200</span>);             <span class="c">// the literal becomes u8 from the field type</span>
-    check(<span class="p">Vec</span>::len(&amp;c.value) == <span class="n">1</span>);
-    check(<span class="p">Vec</span>::len(&amp;a) == <span class="n">0</span>);
+    assert(<span class="p">Vec</span>::len(&amp;c.value) == <span class="n">1</span>);
+    assert(<span class="p">Vec</span>::len(&amp;a) == <span class="n">0</span>);
     <span class="t">i64</span> w = identity&lt;<span class="t">i64</span>&gt;(<span class="n">3</span>);                 <span class="c">// explicit: name&lt;Type&gt;(...)</span>
-    check(w == <span class="n">3</span>);
+    assert(w == <span class="n">3</span>);
 }</code></pre></figure>
 <h3><code>auto</code> and the expected type</h3>
 <p><code>auto x = e;</code> gives <code>x</code> the type of <code>e</code>. Since inference is downward only, <code>auto</code> works
@@ -2047,30 +1745,15 @@ The branches of an <code>if</code> or <code>match</code> share one type, and a b
 the others: in <code>auto n = if (big) { count } else { 0 };</code> with <code>count : i64</code>, the <code>0</code> is an <code>i64</code>.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Branch types and declared types</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
-
 <span class="k">fn</span> main()
 {
     <span class="t">i64</span> count = <span class="n">5000000000</span>;
     <span class="k">auto</span> n = <span class="k">if</span> (count &gt; <span class="n">10</span>) { count } <span class="k">else</span> { <span class="n">0</span> };     <span class="c">// 0 : i64, from the other branch</span>
     <span class="p">Option</span>&lt;<span class="t">i64</span>&gt; o = <span class="p">None</span>;
     <span class="k">auto</span> m = <span class="k">match</span> (o) { <span class="p">None</span> : -<span class="n">1</span>, <span class="p">Some</span>(v) : v };     <span class="c">// -1 : i64, from the Some arm</span>
-    check(n + m == <span class="n">4999999999</span>);
+    assert(n + m == <span class="n">4999999999</span>);
     <span class="t">mutex</span>&lt;HashMap&lt;<span class="p">String</span>, <span class="t">i64</span>&gt;&gt; totals = <span class="p">Mutex</span>::new(HashMap::new());   <span class="c">// the declaration fixes K and V</span>
-    check(HashMap::len(&amp;*<span class="p">lock</span>(&amp;totals)) == <span class="n">0</span>);
+    assert(HashMap::len(&amp;*<span class="p">lock</span>(&amp;totals)) == <span class="n">0</span>);
 }</code></pre></figure>
 <div class="callout rule"><div class="callout-title">Rules of thumb</div><ul>
 <li>Write the type you mean; the language will not adjust it for you. Convert integers with <code>widen</code>/<code>narrow</code>, and take references explicitly.</li>
@@ -2095,20 +1778,7 @@ dereference <code>*r</code>. A place can be read (yielding its value), written (
 result, a call result or a struct literal, is a value or a temporary. Reading a place that holds a
 resource is not allowed (that would copy the resource, §07); such a place may only be moved,
 borrowed, or destructured.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Places</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
+<figure class="code"><div class="code-head"><span class="code-title">Places</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">struct</span> Pair
 {
@@ -2125,29 +1795,16 @@ borrowed, or destructured.</p>
         <span class="k">auto</span> r = &amp;<span class="k">mut</span> p.items[<span class="n">2</span>];
         *r = <span class="n">300</span>;                     <span class="c">// and so is *r</span>
     }
-    check(p.a == <span class="n">99</span>);
-    check(p.items[<span class="n">1</span>] == <span class="n">200</span>);
-    check(p.items[<span class="n">2</span>] == <span class="n">300</span>);
+    assert(p.a == <span class="n">99</span>);
+    assert(p.items[<span class="n">1</span>] == <span class="n">200</span>);
+    assert(p.items[<span class="n">2</span>] == <span class="n">300</span>);
 }</code></pre></figure>
 <h3>Evaluation order</h3>
 <p>Every expression is evaluated strictly left to right: the left operand before the right,
 the callee before its arguments, arguments in written order, struct-literal fields in written order.
 Assignment evaluates the target place first, then the value. <code>&amp;&amp;</code> and <code>||</code> short-circuit: the right
 operand runs only when needed.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Left to right, and short-circuit</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
+<figure class="code"><div class="code-head"><span class="code-title">Left to right, and short-circuit</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> bump(<span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">exclusive</span>&gt; counter) : <span class="t">i32</span>
 {
@@ -2160,33 +1817,18 @@ operand runs only when needed.</p>
     <span class="t">i32</span> n = <span class="n">0</span>;
     <span class="t">i32</span> left = bump(&amp;<span class="k">mut</span> n);
     <span class="t">i32</span> right = bump(&amp;<span class="k">mut</span> n);
-    check(left == <span class="n">1</span>);                 <span class="c">// the first call ran first</span>
-    check(right == <span class="n">2</span>);
+    assert(left == <span class="n">1</span>);                 <span class="c">// the first call ran first</span>
+    assert(right == <span class="n">2</span>);
     <span class="t">bool</span> touched = <span class="k">false</span>;
     <span class="k">if</span> (<span class="k">true</span> || bump(&amp;<span class="k">mut</span> n) == <span class="n">0</span>)    <span class="c">// the right side is never evaluated</span>
     {
         touched = <span class="k">true</span>;
     }
-    check(touched);
-    check(n == <span class="n">2</span>);
+    assert(touched);
+    assert(n == <span class="n">2</span>);
 }</code></pre></figure>
 <h3>Expressions that produce values</h3>
 <figure class="code"><div class="code-head"><span class="code-title">if, match and blocks as values</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
-
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
 
 <span class="k">fn</span> main()
 {
@@ -2210,12 +1852,12 @@ operand runs only when needed.</p>
         <span class="p">Some</span>(v) : v * <span class="n">10</span>,
         <span class="p">None</span>    : <span class="n">0</span>,
     };
-    check(x == <span class="n">1</span>);
-    check(y == <span class="n">4</span>);
-    check(z == <span class="n">10</span>);
+    assert(x == <span class="n">1</span>);
+    assert(y == <span class="n">4</span>);
+    assert(z == <span class="n">10</span>);
     <span class="t">i32</span> w = <span class="n">0</span>;
     w = <span class="n">5</span>;                                    <span class="c">// assignment is an expression of type void</span>
-    check(w == <span class="n">5</span>);
+    assert(w == <span class="n">5</span>);
 }</code></pre></figure>
 <div class="callout tip"><div class="callout-title">Tip</div>A block, <code>if</code>, <code>while</code> or <code>match</code> used as a statement needs no semicolon after its
 closing brace. When one of them is the right-hand side of a declaration or assignment, the
@@ -2281,21 +1923,6 @@ must appear inside a loop. A body is always a block, so C's trap <code>for (…)
 block that runs once) is a syntax error here, and the message says to remove the <code>;</code>.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Loops</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
-
 <span class="k">fn</span> main()
 {
     <span class="t">i32</span> sum = <span class="n">0</span>;
@@ -2313,7 +1940,7 @@ block that runs once) is a syntax error here, and the message says to remove the
         }
         sum = sum + i;
     }
-    check(sum == <span class="n">1</span> + <span class="n">2</span> + <span class="n">4</span> + <span class="n">5</span> + <span class="n">6</span>);
+    assert(sum == <span class="n">1</span> + <span class="n">2</span> + <span class="n">4</span> + <span class="n">5</span> + <span class="n">6</span>);
     <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v = <span class="p">Vec</span>::new();
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">4</span>);
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">9</span>);
@@ -2322,7 +1949,7 @@ block that runs once) is a syntax error here, and the message says to remove the
     {
         total += *<span class="p">Vec</span>::index_shared(&amp;v, k);
     }
-    check(total == <span class="n">13</span>);
+    assert(total == <span class="n">13</span>);
     <span class="t">u32</span> odd = <span class="n">0</span>;
     <span class="k">for</span> (<span class="t">u32</span> j = <span class="n">0</span>; j &lt; <span class="n">10</span>; j += <span class="n">1</span>)
     {
@@ -2332,7 +1959,7 @@ block that runs once) is a syntax error here, and the message says to remove the
         }
         odd += j;
     }
-    check(odd == <span class="n">25</span>);
+    assert(odd == <span class="n">25</span>);
 }</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">break outside a loop</span><span class="badge bad">rejected: diag.break-outside-loop</span></div><pre><code><span class="k">fn</span> main()
 {
@@ -2491,20 +2118,7 @@ reference escape (§10) reject on "unknown" rather than deferring.</p>
 whether the function takes ownership, may only look, or may modify. Closures are ordinary structs
 that capture what they use, and the capture list is checked, not trusted.</p>
 <h3>Declaring and calling</h3>
-<figure class="code"><div class="code-head"><span class="code-title">Functions</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
+<figure class="code"><div class="code-head"><span class="code-title">Functions</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="c">// Parameters are type-first; the return type follows a colon.</span>
 <span class="k">fn</span> area(<span class="t">i32</span> w, <span class="t">i32</span> h) : <span class="t">i32</span>
@@ -2555,10 +2169,10 @@ that capture what they use, and the capture list is checked, not trusted.</p>
 {
     <span class="t">i32</span> v = <span class="n">50</span>;
     clamp_in_place(&amp;<span class="k">mut</span> v, <span class="n">10</span>);
-    check(v == <span class="n">10</span>);
+    assert(v == <span class="n">10</span>);
     <span class="k">auto</span> sq = Rect::square(<span class="n">4</span>);
-    check(Rect::area(&amp;sq) == <span class="n">16</span>);     <span class="c">// called by qualified name; there is no method syntax</span>
-    check(fact(<span class="n">5</span>) == <span class="n">120</span>);
+    assert(Rect::area(&amp;sq) == <span class="n">16</span>);     <span class="c">// called by qualified name; there is no method syntax</span>
+    assert(fact(<span class="n">5</span>) == <span class="n">120</span>);
 }</code></pre></figure>
 <h3>What a parameter type promises</h3>
 <table>
@@ -2583,21 +2197,6 @@ reference; one the body writes, borrows exclusively, or moves is captured by exc
 Prefix <code>move</code> to capture by value instead, moving resources into the closure.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Capturing</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
-
 <span class="k">fn</span> apply(<span class="k">fn</span>(<span class="t">i32</span>) : <span class="t">i32</span> f, <span class="t">i32</span> x) : <span class="t">i32</span>
 {
     f(x)
@@ -2610,8 +2209,8 @@ Prefix <code>move</code> to capture by value instead, moving resources into the 
     {
         x + k
     };
-    check(add_k(<span class="n">5</span>) == <span class="n">15</span>);
-    check(apply(add_k, <span class="n">4</span>) == <span class="n">14</span>);     <span class="c">// a closure where a fn(i32) : i32 is expected</span>
+    assert(add_k(<span class="n">5</span>) == <span class="n">15</span>);
+    assert(apply(add_k, <span class="n">4</span>) == <span class="n">14</span>);     <span class="c">// a closure where a fn(i32) : i32 is expected</span>
 
     <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v = <span class="p">Vec</span>::new();
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">7</span>);
@@ -2619,8 +2218,8 @@ Prefix <code>move</code> to capture by value instead, moving resources into the 
     {
         *<span class="p">Vec</span>::index_shared(&amp;v, <span class="n">0</span>)
     };
-    check(reader() == <span class="n">7</span>);
-    check(reader() == <span class="n">7</span>);             <span class="c">// calling twice is fine: nothing is consumed</span>
+    assert(reader() == <span class="n">7</span>);
+    assert(reader() == <span class="n">7</span>);             <span class="c">// calling twice is fine: nothing is consumed</span>
 }                                     <span class="c">// reader is destroyed here, and its Vec with it</span></code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">The capture list must match</span><span class="badge bad">rejected: diag.capture-list-mismatch</span></div><pre><code><span class="k">fn</span> main()
 {
@@ -2707,20 +2306,7 @@ A <code>main</code> with parameters, or returning anything other than <code>u8</
 elements) and enums (one of several variants, each with an optional payload). They compose freely
 and generically. <code>match</code> is how you take an enum apart, and it must handle every variant.</p>
 <h3>Structs</h3>
-<figure class="code"><div class="code-head"><span class="code-title">Struct declaration, literal, access</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
+<figure class="code"><div class="code-head"><span class="code-title">Struct declaration, literal, access</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">struct</span> Point
 {
@@ -2738,13 +2324,13 @@ and generically. <code>match</code> is how you take an enum apart, and it must h
 {
     <span class="k">auto</span> a = Point { .x = <span class="n">1</span>, .y = <span class="n">2</span> };           <span class="c">// every field, once, in any order</span>
     Point b = Point { .y = <span class="n">2</span>, .x = <span class="n">1</span> };
-    check(a == b);                                <span class="c">// plain structs compare field by field</span>
+    assert(a == b);                                <span class="c">// plain structs compare field by field</span>
     <span class="k">auto</span> s = Segment { .from = a, .to = Point { .x = <span class="n">4</span>, .y = <span class="n">6</span> } };
     s.to.y = <span class="n">7</span>;                                   <span class="c">// nested fields are places</span>
-    check(s.to.y == <span class="n">7</span>);
+    assert(s.to.y == <span class="n">7</span>);
     Point c = a;                                  <span class="c">// plain structs copy</span>
     c.x = <span class="n">100</span>;
-    check(a.x == <span class="n">1</span>);
+    assert(a.x == <span class="n">1</span>);
 }</code></pre></figure>
 <p>Field initialisers use C99's designated form <code>.name = value</code>. Fields are private to the
 module that declares the struct unless marked <code>export</code> (§17). A struct with no fields is allowed.
@@ -2754,20 +2340,7 @@ Mark a struct <code>resource</code> if it manages something beyond its fields (�
 c]</code>. Indexing takes a <code>usize</code> and is bounds-checked: a literal index out of range is rejected
 statically, a computed one faults at run time with <code>diag.index-out-of-bounds</code>. Arrays of plain
 elements are plain (copied on assignment); an array of resources is a resource.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Fixed-size arrays</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
+<figure class="code"><div class="code-head"><span class="code-title">Fixed-size arrays</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> sum(<span class="t">ref</span>&lt;<span class="t">array</span>&lt;<span class="t">i32</span>, <span class="n">4</span>&gt;, <span class="t">shared</span>&gt; a) : <span class="t">i32</span>
 {
@@ -2785,9 +2358,9 @@ elements are plain (copied on assignment); an array of resources is a resource.<
 {
     <span class="t">array</span>&lt;<span class="t">i32</span>, <span class="n">4</span>&gt; a = [<span class="n">10</span>, <span class="n">20</span>, <span class="n">30</span>, <span class="n">40</span>];
     a[<span class="n">2</span>] = <span class="n">33</span>;
-    check(sum(&amp;a) == <span class="n">103</span>);
+    assert(sum(&amp;a) == <span class="n">103</span>);
     <span class="k">auto</span> grid = [[<span class="n">1</span>, <span class="n">2</span>], [<span class="n">3</span>, <span class="n">4</span>]];     <span class="c">// array&lt;array&lt;i32, 2&gt;, 2&gt;</span>
-    check(grid[<span class="n">1</span>][<span class="n">0</span>] == <span class="n">3</span>);
+    assert(grid[<span class="n">1</span>][<span class="n">0</span>] == <span class="n">3</span>);
 }</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">Out of bounds</span><span class="badge bad">rejected: diag.index-out-of-bounds</span></div><pre><code><span class="k">fn</span> get(<span class="t">array</span>&lt;<span class="t">i32</span>, <span class="n">3</span>&gt; a, <span class="t">usize</span> i) : <span class="t">i32</span>
 {
@@ -2814,21 +2387,6 @@ array length. <code>slice_len(s)</code> is its length; <code>s[i]</code> is boun
 slice is a borrow like a reference: while it lives, what it views cannot be pushed to, popped from,
 or otherwise changed except through it, and a slice of a local cannot be returned.</p>
 <figure class="code"><div class="code-head"><span class="code-title">One function for arrays, Vecs and parts of them</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
-
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
 
 <span class="c">// Sorts any run of i32 in place: an array, a Vec, or part of one.</span>
 <span class="k">fn</span> sort(slice&lt;<span class="t">i32</span>, <span class="t">exclusive</span>&gt; s)
@@ -2860,8 +2418,8 @@ or otherwise changed except through it, and a slice of a local cannot be returne
 {
     <span class="k">auto</span> a = [<span class="n">5</span>, <span class="n">3</span>, <span class="n">9</span>, <span class="n">1</span>, <span class="n">7</span>, <span class="n">2</span>];
     sort(&amp;<span class="k">mut</span> a[<span class="n">0</span>..<span class="n">3</span>]);                     <span class="c">// only the first three: [3, 5, 9, 1, 7, 2]</span>
-    check(a[<span class="n">0</span>] == <span class="n">3</span> &amp;&amp; a[<span class="n">3</span>] == <span class="n">1</span>);
-    check(sum(&amp;a[$ - <span class="n">3</span> .. $]) == <span class="n">10</span>);       <span class="c">// the last three</span>
+    assert(a[<span class="n">0</span>] == <span class="n">3</span> &amp;&amp; a[<span class="n">3</span>] == <span class="n">1</span>);
+    assert(sum(&amp;a[$ - <span class="n">3</span> .. $]) == <span class="n">10</span>);       <span class="c">// the last three</span>
 
     <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v = <span class="p">Vec</span>::new();
     foreach (x in [<span class="n">40</span>, <span class="n">10</span>, <span class="n">30</span>, <span class="n">20</span>])
@@ -2869,9 +2427,9 @@ or otherwise changed except through it, and a slice of a local cannot be returne
         <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, x);
     }
     sort(&amp;<span class="k">mut</span> v[<span class="n">0</span>..$]);                     <span class="c">// the same function, on a Vec</span>
-    check(v[<span class="n">0</span>] == <span class="n">10</span> &amp;&amp; v[$ - <span class="n">1</span>] == <span class="n">40</span>);
+    assert(v[<span class="n">0</span>] == <span class="n">10</span> &amp;&amp; v[$ - <span class="n">1</span>] == <span class="n">40</span>);
     v[<span class="n">0</span>] += <span class="n">1</span>;                              <span class="c">// indexing a Vec, written</span>
-    check(sum(&amp;v[<span class="n">0</span>..$]) == <span class="n">101</span>);
+    assert(sum(&amp;v[<span class="n">0</span>..$]) == <span class="n">101</span>);
 }</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">A slice keeps its source borrowed</span><span class="badge bad">rejected: diag.aliasing-conflict</span></div><pre><code><span class="k">import</span> std;
 
@@ -2891,20 +2449,7 @@ variant with no payload behaves as if it carried <code>()</code>.</p>
 <code>_ : expression,</code> as a catch-all; every arm ends with a comma. The arms must cover every variant
 or include <code>_</code>. Arms are expressions, so a <code>match</code> produces a value; use a block as the arm body
 for statements. Arms are tried in order and the first that fits is taken.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Enums</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
+<figure class="code"><div class="code-head"><span class="code-title">Enums</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">enum</span> Shape
 {
@@ -2934,11 +2479,11 @@ for statements. Arms are tried in order and the first that fits is taken.</p>
 
 <span class="k">fn</span> main()
 {
-    check(area(Circle(<span class="n">2</span>)) == <span class="n">12</span>);
-    check(area(Shape::Dot) == <span class="n">0</span>);
-    check(is_round(Square(<span class="n">1</span>)) == <span class="k">false</span>);
+    assert(area(Circle(<span class="n">2</span>)) == <span class="n">12</span>);
+    assert(area(Shape::Dot) == <span class="n">0</span>);
+    assert(is_round(Square(<span class="n">1</span>)) == <span class="k">false</span>);
     <span class="t">array</span>&lt;Shape, <span class="n">2</span>&gt; shapes = [Circle(<span class="n">1</span>), Square(<span class="n">3</span>)];
-    check(area(shapes[<span class="n">1</span>]) == <span class="n">9</span>);
+    assert(area(shapes[<span class="n">1</span>]) == <span class="n">9</span>);
 }</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">A missing arm</span><span class="badge bad">rejected: diag.non-exhaustive-match</span></div><pre><code><span class="k">enum</span> Sign
 {
@@ -2970,21 +2515,6 @@ it reaches. Every value must reach some arm (the error names one that does not, 
 rejected, since it could never run.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Nested patterns</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
-
 <span class="k">fn</span> classify(<span class="p">Result</span>&lt;<span class="p">Option</span>&lt;<span class="t">i32</span>&gt;, ParseError&gt; r) : <span class="t">i32</span>
 {
     <span class="k">match</span> (r)
@@ -2998,27 +2528,12 @@ rejected, since it could never run.</p>
 
 <span class="k">fn</span> main()
 {
-    check(classify(<span class="p">Ok</span>(<span class="p">Some</span>(<span class="n">7</span>))) == <span class="n">7</span>);
-    check(classify(<span class="p">Ok</span>(<span class="p">None</span>)) == <span class="n">0</span>);
-    check(classify(<span class="p">Err</span>(Invalid(<span class="n">3</span>))) == -<span class="n">103</span>);
-    check(classify(<span class="p">Err</span>(Empty)) == -<span class="n">1</span>);
+    assert(classify(<span class="p">Ok</span>(<span class="p">Some</span>(<span class="n">7</span>))) == <span class="n">7</span>);
+    assert(classify(<span class="p">Ok</span>(<span class="p">None</span>)) == <span class="n">0</span>);
+    assert(classify(<span class="p">Err</span>(Invalid(<span class="n">3</span>))) == -<span class="n">103</span>);
+    assert(classify(<span class="p">Err</span>(Empty)) == -<span class="n">1</span>);
 }</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">An arm that can never run</span><span class="badge bad">rejected: diag.unreachable-arm</span></div><pre><code><span class="k">import</span> std;
-
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
 
 <span class="k">fn</span> main()
 {
@@ -3040,21 +2555,6 @@ can never run, and an integer <code>match</code> needs a <code>_</code> arm, sin
 (<code>true</code> and <code>false</code> do cover a <code>bool</code>). Floats are not patterns. With that, patterns are <code>_</code>, a
 literal, a variant, and a variant with a pattern for its payload; there is nothing else to learn.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Literal patterns</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
-
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
 
 <span class="k">fn</span> step(<span class="t">u8</span> op, <span class="t">i64</span> acc) : <span class="t">i64</span>
 {
@@ -3085,25 +2585,10 @@ literal, a variant, and a variant with a pattern for its payload; there is nothi
     {
         acc = step(op, acc);
     }
-    check(acc == <span class="n">5</span>);
-    check(is_end(<span class="p">Ok</span>(<span class="n">0</span>)) &amp;&amp; !is_end(<span class="p">Ok</span>(<span class="n">16</span>)));
+    assert(acc == <span class="n">5</span>);
+    assert(is_end(<span class="p">Ok</span>(<span class="n">0</span>)) &amp;&amp; !is_end(<span class="p">Ok</span>(<span class="n">16</span>)));
 }</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">A repeated case</span><span class="badge bad">rejected: diag.unreachable-arm</span></div><pre><code><span class="k">import</span> std;
-
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
 
 <span class="k">fn</span> main()
 {
@@ -3124,21 +2609,6 @@ usually the last arm (<code>other : …</code>). A binding of a resource moves i
 Mistaking a constant for a binding cannot go unnoticed: a <code>match</code> on an integer then lacks <code>_</code>.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Constants and a binder in a match</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
-
 <span class="k">const</span> <span class="t">u8</span> PUSH = <span class="n">0</span>x01;
 <span class="k">const</span> <span class="t">u8</span> POP = <span class="n">0</span>x02;
 
@@ -3154,9 +2624,9 @@ Mistaking a constant for a binding cannot go unnoticed: a <code>match</code> on 
 
 <span class="k">fn</span> main()
 {
-    check(describe(<span class="n">1</span>) == <span class="n">1</span>);
-    check(describe(<span class="n">2</span>) == <span class="n">2</span>);
-    check(describe(<span class="n">9</span>) == <span class="n">109</span>);
+    assert(describe(<span class="n">1</span>) == <span class="n">1</span>);
+    assert(describe(<span class="n">2</span>) == <span class="n">2</span>);
+    assert(describe(<span class="n">9</span>) == <span class="n">109</span>);
 }</code></pre></figure>
 <h4>Matching through a reference</h4>
 <p><code>match (e)</code> binds each payload by value: a plain one is copied, and a resource one (a
@@ -3168,21 +2638,6 @@ The enum is not consumed, and the usual borrow rules apply to what is bound: not
 the enum while a payload reference is still in use. This is how a tree built from <code>Box</code>es (§21)
 is walked.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Looking inside without taking apart</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
-
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
 
 <span class="k">enum</span> Expr
 {
@@ -3202,7 +2657,7 @@ is walked.</p>
 <span class="k">fn</span> main()
 {
     Expr e = Neg(Box::new(Neg(Box::new(Num(<span class="n">7</span>)))));
-    check(eval(&amp;e) == <span class="n">7</span>);
+    assert(eval(&amp;e) == <span class="n">7</span>);
 
     <span class="p">Option</span>&lt;<span class="p">String</span>&gt; name = <span class="p">Some</span>(<span class="p">String</span>::from_str(<span class="s">&quot;ada&quot;</span>));
     <span class="k">match</span> (&amp;<span class="k">mut</span> name)                 <span class="c">// change the payload in place</span>
@@ -3215,9 +2670,9 @@ is walked.</p>
         <span class="p">Some</span>(s) : <span class="p">String</span>::len(s),
         <span class="p">None</span> : <span class="n">0</span>,
     };
-    check(len == <span class="n">4</span>);
+    assert(len == <span class="n">4</span>);
     <span class="p">String</span> kept = <span class="p">Option</span>::unwrap_or(name, <span class="p">String</span>::new());   <span class="c">// name still owns its String</span>
-    check(<span class="p">String</span>::len(&amp;kept) == <span class="n">4</span>);
+    assert(<span class="p">String</span>::len(&amp;kept) == <span class="n">4</span>);
 }</code></pre></figure>
 <h4>An arm that takes the payload consumes the enum</h4>
 <p>If the enum carries a resource payload, an arm that binds that payload by value
@@ -3227,21 +2682,6 @@ popped element. An arm that takes nothing out — <code>_</code>, a payload-less
 the scrutinee alone, so <code>match (o) { None : …, _ : use(o) }</code> is fine. To look inside and keep the
 enum whatever the arm, match on a reference to it (above).</p>
 <figure class="code"><div class="code-head"><span class="code-title">A resource payload moves out</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
-
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
 
 <span class="k">enum</span> Slot
 {
@@ -3259,7 +2699,7 @@ enum whatever the arm, match on a reference to it (above).</p>
         Full(v) : <span class="p">Vec</span>::len(&amp;v),       <span class="c">// v owns the Vec for the arm, and destroys it at the arm&#x27;s end</span>
         Empty   : <span class="n">0</span>,
     };
-    check(n == <span class="n">1</span>);
+    assert(n == <span class="n">1</span>);
 
     <span class="p">Option</span>&lt;<span class="p">String</span>&gt; o = <span class="p">Some</span>(<span class="p">String</span>::from_str(<span class="s">&quot;kept&quot;</span>));
     <span class="k">match</span> (o)
@@ -3268,7 +2708,7 @@ enum whatever the arm, match on a reference to it (above).</p>
         _ :                           <span class="c">// takes nothing out: o is still here</span>
         {
             <span class="p">String</span> t = <span class="p">Option</span>::unwrap_or(o, <span class="p">String</span>::new());
-            check(<span class="p">String</span>::len(&amp;t) == <span class="n">4</span>);
+            assert(<span class="p">String</span>::len(&amp;t) == <span class="n">4</span>);
         },
     }
 }</code></pre></figure>
@@ -3309,22 +2749,7 @@ reachable where that module is.</p>
 associated function <code>fn T::name</code> belongs in the module that declares <code>T</code>; anywhere else it is
 <code>diag.foreign-associated-fn</code>, so no program can add to, or replace, the functions of <code>std</code>'s
 <code>Vec</code>.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Modules and visibility</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
-
-<span class="k">module</span> bank
+<figure class="code"><div class="code-head"><span class="code-title">Modules and visibility</span><span class="badge ok">runs</span></div><pre><code><span class="k">module</span> bank
 {
     <span class="k">export</span> <span class="k">fn</span> fee(<span class="t">i32</span> amount) : <span class="t">i32</span>
     {
@@ -3347,8 +2772,8 @@ associated function <code>fn T::name</code> belongs in the module that declares 
 
 <span class="k">fn</span> main()
 {
-    check(bank::fee(<span class="n">1000</span>) == <span class="n">20</span>);      <span class="c">// qualified with ::</span>
-    check(bank::audit::twice(<span class="n">1000</span>) == <span class="n">40</span>);
+    std::assert(bank::fee(<span class="n">1000</span>) == <span class="n">20</span>);      <span class="c">// qualified with ::</span>
+    std::assert(bank::audit::twice(<span class="n">1000</span>) == <span class="n">40</span>);
 }</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">Private by default</span><span class="badge bad">rejected: diag.name-not-visible</span></div><pre><code><span class="k">module</span> inner
 {
@@ -3366,22 +2791,7 @@ associated function <code>fn T::name</code> belongs in the module that declares 
 <p><code>import a::b::name;</code> lets <code>name</code> be used unqualified in the importing module. It creates no
 alias and no copy; it only extends name lookup. There is no <code>import … as</code> renaming: if two
 imports would give one name two meanings, qualify.</p>
-<figure class="code"><div class="code-head"><span class="code-title">import</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
-
-<span class="k">module</span> maths
+<figure class="code"><div class="code-head"><span class="code-title">import</span><span class="badge ok">runs</span></div><pre><code><span class="k">module</span> maths
 {
     <span class="k">export</span> <span class="k">fn</span> square(<span class="t">i32</span> v) : <span class="t">i32</span>
     {
@@ -3393,8 +2803,8 @@ imports would give one name two meanings, qualify.</p>
 
 <span class="k">fn</span> main()
 {
-    check(square(<span class="n">6</span>) == <span class="n">36</span>);           <span class="c">// resolves through the import</span>
-    check(maths::square(<span class="n">7</span>) == <span class="n">49</span>);    <span class="c">// the qualified form still works</span>
+    std::assert(square(<span class="n">6</span>) == <span class="n">36</span>);           <span class="c">// resolves through the import</span>
+    std::assert(maths::square(<span class="n">7</span>) == <span class="n">49</span>);    <span class="c">// the qualified form still works</span>
 }</code></pre></figure>
 <p><code>import m;</code> naming a module does two things: <code>m</code> itself resolves, as with any import, and
 every item <code>m</code> exports, including the variants of its exported enums, can be used unqualified. This
@@ -3406,21 +2816,6 @@ full name. If two imported modules both export a name, using that name unqualifi
 program that does not use it. An import acts only in the module that writes it: a nested module, or
 a module in a file of its own, writes its own <code>import std;</code>.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Importing a module</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
-
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
 
 <span class="k">module</span> shapes
 {
@@ -3468,21 +2863,6 @@ program runs. Integer, float, <code>bool</code> and <code>str</code> constants c
 the literal.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Constants</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
-
 <span class="k">const</span> <span class="t">u64</span> KIB = <span class="n">1024</span>;
 <span class="k">const</span> <span class="t">u64</span> MIB = KIB * KIB;
 <span class="k">const</span> <span class="t">u32</span> READ = <span class="n">0</span>x1;
@@ -3500,10 +2880,10 @@ the literal.</p>
 
 <span class="k">fn</span> main()
 {
-    check(MIB == <span class="n">1048576</span>);
-    check(READ_WRITE == <span class="n">3</span>);
-    check(LOWEST &lt; <span class="n">0</span>);
-    check(SCREEN.w * SCREEN.h == <span class="n">307200</span>);
+    static_assert(MIB == <span class="n">1048576</span>);
+    static_assert(READ_WRITE == <span class="n">3</span>);
+    static_assert(LOWEST &lt; <span class="n">0</span>);
+    assert(SCREEN.w * SCREEN.h == <span class="n">307200</span>);
 }</code></pre></figure>
 <p>A constant is typed exactly as a declaration <code>τ x = e;</code> would be: in
 <code>const u64 MIB = 1024 * 1024;</code> the literals are <code>u64</code>s, and an initializer that overflows its type,
@@ -3514,23 +2894,9 @@ is compiled, not when it runs: a false one stops it with <code>diag.static-asser
 message. The condition is a constant expression (the same kind a <code>const</code> has), so it can use
 constants, <code>sizeof</code>, <code>alignof</code>, the limits and the conversions. It is checked in every function,
 called or not, and in a generic function once for each type it is used with, so
-<code>static_assert(sizeof&lt;T&gt;() &lt;= 8, &quot;…&quot;)</code> limits what <code>T</code> may be. At run time it does nothing.</p>
+<code>static_assert(sizeof&lt;T&gt;() &lt;= 8, &quot;…&quot;)</code> limits what <code>T</code> may be. At run time it does nothing. For a
+condition only known as the program runs, use <code>assert</code> (§18).</p>
 <figure class="code"><div class="code-head"><span class="code-title">Checked before the program runs</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
-
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
 
 <span class="k">struct</span> Header
 {
@@ -3553,7 +2919,7 @@ called or not, and in a generic function once for each type it is used with, so
 {
     static_assert(<span class="p">sizeof</span>&lt;Header&gt;() == <span class="n">16</span>, <span class="s">&quot;Header must match the C struct&quot;</span>);
     static_assert(BUF &amp; (BUF - <span class="n">1</span>) == <span class="n">0</span>, <span class="s">&quot;BUF must be a power of two&quot;</span>);
-    check(word(<span class="n">5</span>: <span class="t">i64</span>) == <span class="n">5</span> &amp;&amp; word(<span class="n">2.5</span>) == <span class="n">2.5</span>);
+    assert(word(<span class="n">5</span>: <span class="t">i64</span>) == <span class="n">5</span> &amp;&amp; word(<span class="n">2.5</span>) == <span class="n">2.5</span>);
 }</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">A failed assertion</span><span class="badge bad">rejected: diag.static-assert-failed</span></div><pre><code><span class="k">fn</span> word&lt;T&gt;(T x) : T
 {
@@ -3590,22 +2956,7 @@ location, and a library moves as a unit. Use forward slashes and stay inside the
 {
     <span class="n">1.0</span>
 }</code></pre></figure>
-<figure class="code"><div class="code-head"><span class="code-title">main.cb</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
-
-<span class="c">// main.cb -- run this one: `coby main.cb`</span>
+<figure class="code"><div class="code-head"><span class="code-title">main.cb</span><span class="badge ok">runs</span></div><pre><code><span class="c">// main.cb -- run this one: `coby main.cb`</span>
 <span class="k">module</span> geo <span class="s">&quot;./geometry.cb&quot;</span>;           <span class="c">// module geo { … } with geometry.cb&#x27;s items as the body</span>
 
 <span class="k">import</span> geo::Rect;
@@ -3613,7 +2964,7 @@ location, and a library moves as a unit. Use forward slashes and stay inside the
 <span class="k">fn</span> main()
 {
     Rect r = Rect { .w = <span class="n">3.0</span>, .h = <span class="n">4.0</span> };
-    check(geo::area(r) == <span class="n">12.0</span>);      <span class="c">// qualified, as with any module</span>
+    std::assert(geo::area(r) == <span class="n">12.0</span>);      <span class="c">// qualified, as with any module</span>
     <span class="c">// geo::scale_factor();           // <span class="bad">✗</span> <span class="dg">diag.name-not-visible</span>: private, exactly as in one file</span>
 }</code></pre></figure>
 <p>Three things are rejected before anything runs: a path that names no file
@@ -3716,6 +3067,38 @@ rule.</p>
     <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v = <span class="p">Vec</span>::new();
     divide(<span class="n">1</span>, <span class="n">0</span>);                     <span class="c">// <span class="bad">✗</span> <span class="dg">diag.div-by-zero</span> (dynamic): v and g are destroyed, then the program ends</span>
 }</code></pre></figure>
+<h3>Assertions: <code>assert</code></h3>
+<p><code>assert(c)</code> states something the program relies on at that point: when <code>c</code> is false, the
+program stops with the checked fault <code>diag.assert-failed</code>, naming the line, and unwinds like any
+other fault. <code>assert(c, &quot;format&quot;, args…)</code> adds a message, formatted as <code>printf</code> formats, so the
+failure can say which values were wrong. The condition is always evaluated, exactly once: there is
+no build in which assertions are left out. The message, and its arguments, are only evaluated when
+the condition is false, so they cost nothing while it holds. Every example in this guide checks its
+own results with <code>assert</code>; a condition that is constant is checked with <code>static_assert</code> (§17)
+before the program runs.</p>
+<figure class="code"><div class="code-head"><span class="code-title">An assertion that fails, with its message</span><span class="badge bad">rejected: diag.assert-failed</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> average(<span class="t">ref</span>&lt;<span class="p">Vec</span>&lt;<span class="t">u32</span>&gt;, <span class="t">shared</span>&gt; v) : <span class="t">u32</span>
+{
+    assert(<span class="p">Vec</span>::len(v) &gt; <span class="n">0</span>, <span class="s">&quot;average of an empty list&quot;</span>);
+    <span class="t">u32</span> sum = <span class="n">0</span>;
+    foreach (x in v)
+    {
+        sum = sum + *x;
+    }
+    sum / <span class="p">narrow</span>&lt;<span class="t">u32</span>&gt;(<span class="p">Vec</span>::len(v))
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="p">Vec</span>&lt;<span class="t">u32</span>&gt; v = <span class="p">Vec</span>::new();
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">4</span>);
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">8</span>);
+    assert(average(&amp;v) == <span class="n">6</span>);
+    <span class="t">usize</span> cap = <span class="n">1</span>;
+    assert(<span class="p">Vec</span>::len(&amp;v) &lt;= cap, <span class="s">&quot;%v items exceed the capacity %v&quot;</span>, <span class="p">Vec</span>::len(&amp;v), cap);
+    <span class="c">// <span class="bad">✗</span> <span class="dg">diag.assert-failed</span> (dynamic), reporting &quot;2 items exceed the capacity 1&quot;</span>
+}</code></pre></figure>
 <p>Faults are named <code>diag.…</code> and listed in the appendix. Both the interpreter and a compiled
 program print the name, the rule that fired, what was required and what was observed, and a repair
 hint.</p>
@@ -3728,21 +3111,6 @@ must therefore return <code>Result&lt;_, E&gt;</code> with exactly the same <cod
 <code>Result::unwrap_or(r, d)</code> give the value, or <code>d</code> when there is none; the default is evaluated
 either way, and one that goes unused is destroyed.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Result and ?</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
-
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
 
 <span class="k">fn</span> digit(<span class="t">u8</span> b) : <span class="p">Result</span>&lt;<span class="t">i32</span>, <span class="t">u8</span>&gt;
 {
@@ -3766,22 +3134,22 @@ either way, and one that goes unused is destroyed.</p>
     {
         <span class="p">Ok</span>(v) :
         {
-            check(v == <span class="n">42</span>);
+            assert(v == <span class="n">42</span>);
         },
         <span class="p">Err</span>(_) :
         {
-            check(<span class="k">false</span>);
+            assert(<span class="k">false</span>, <span class="s">&quot;unreachable&quot;</span>);
         },
     }
     <span class="k">match</span> (two_digits(b&#x27;<span class="n">4</span>&#x27;, b&#x27;x&#x27;))
     {
         <span class="p">Ok</span>(_) :
         {
-            check(<span class="k">false</span>);
+            assert(<span class="k">false</span>, <span class="s">&quot;unreachable&quot;</span>);
         },
         <span class="p">Err</span>(e) :
         {
-            check(e == b&#x27;x&#x27;);
+            assert(e == b&#x27;x&#x27;);
         },
     }
 }</code></pre></figure>
@@ -3837,21 +3205,6 @@ or an element released by a reallocating <code>Vec::push</code>), the thread's n
 <code>diag.stale-binding</code>.</p>
 <figure class="code"><div class="code-head"><span class="code-title">spawn and join</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
-
 <span class="k">fn</span> work(<span class="t">i32</span> n) : <span class="t">i32</span>
 {
     n * <span class="n">2</span>
@@ -3860,7 +3213,7 @@ or an element released by a reallocating <code>Vec::push</code>), the thread's n
 <span class="k">fn</span> main()
 {
     <span class="k">auto</span> h = <span class="p">spawn</span>(work, <span class="n">21</span>);         <span class="c">// the handle owns the thread</span>
-    check(<span class="p">join</span>(h) == <span class="n">42</span>);             <span class="c">// wait and take the result</span>
+    assert(<span class="p">join</span>(h) == <span class="n">42</span>);             <span class="c">// wait and take the result</span>
 
     <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; data = <span class="p">Vec</span>::new();
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> data, <span class="n">5</span>);
@@ -3868,7 +3221,7 @@ or an element released by a reallocating <code>Vec::push</code>), the thread's n
     {
         <span class="p">Vec</span>::len(&amp;data)
     });
-    check(<span class="p">join</span>(h2) == <span class="n">1</span>);
+    assert(<span class="p">join</span>(h2) == <span class="n">1</span>);
 
     {
         <span class="k">auto</span> h3 = <span class="p">spawn</span>(work, <span class="n">1</span>);
@@ -3894,20 +3247,7 @@ deadlock.</p>
 of threads may hold that shared reference; it is the one case where an exclusive path (the lock
 guard) is allowed to coexist with shared references to the same object, because the lock itself
 serialises access.</p>
-<figure class="code"><div class="code-head"><span class="code-title">A counter shared by two threads</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
+<figure class="code"><div class="code-head"><span class="code-title">A counter shared by two threads</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> worker(<span class="t">ref</span>&lt;<span class="t">mutex</span>&lt;<span class="t">i32</span>&gt;, <span class="t">shared</span>&gt; m, <span class="t">i32</span> n) : <span class="t">i32</span>
 {
@@ -3928,9 +3268,9 @@ serialises access.</p>
     <span class="k">auto</span> h2 = <span class="p">spawn</span>(worker, &amp;m, <span class="n">4</span>);
     <span class="t">i32</span> a = <span class="p">join</span>(h1);
     <span class="t">i32</span> b = <span class="p">join</span>(h2);
-    check(a + b == <span class="n">7</span>);
+    assert(a + b == <span class="n">7</span>);
     <span class="t">i32</span> total = *<span class="p">lock</span>(&amp;m);            <span class="c">// a temporary guard: it lives until the semicolon</span>
-    check(total == <span class="n">7</span>);                <span class="c">// whatever the interleaving, every increment was serialised</span>
+    assert(total == <span class="n">7</span>);                <span class="c">// whatever the interleaving, every increment was serialised</span>
 }</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">Locking twice on one thread</span><span class="badge bad">rejected: diag.mutex-reentrant-lock</span></div><pre><code><span class="k">fn</span> main()
 {
@@ -3938,9 +3278,49 @@ serialises access.</p>
     <span class="k">auto</span> g1 = <span class="p">lock</span>(&amp;m);
     <span class="k">auto</span> g2 = <span class="p">lock</span>(&amp;m);               <span class="c">// <span class="bad">✗</span> <span class="dg">diag.mutex-reentrant-lock</span>: this thread already holds it</span>
 }</code></pre></figure>
+<p>Through a guard, a field or element of the locked value is reached directly, as through a
+reference: <code>g.count</code>, <code>g.items[0]</code>, <code>Vec::push(&amp;mut g.items, x)</code> mean <code>(*g).count</code> and so on. <code>*g</code>
+is how you name the whole value.</p>
 <p>A <code>mutex</code> may also be a field: a struct holding one or more mutexes is shared by
 reference like a bare one, each thread locking the field it needs (<code>lock(&amp;board.scores)</code>). Each
 mutex field is its own lock.</p>
+<figure class="code"><div class="code-head"><span class="code-title">A struct of mutexes shared by two threads</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">struct</span> Stats
+{
+    <span class="t">u32</span> hits;
+    <span class="p">Vec</span>&lt;<span class="t">u32</span>&gt; seen;
+}
+
+<span class="k">struct</span> Board
+{
+    <span class="t">mutex</span>&lt;Stats&gt; stats;
+    <span class="t">mutex</span>&lt;<span class="t">u32</span>&gt; rounds;
+}
+
+<span class="k">fn</span> play(<span class="t">ref</span>&lt;Board, <span class="t">shared</span>&gt; b, <span class="t">u32</span> me) : <span class="t">u32</span>
+{
+    {
+        <span class="k">auto</span> g = <span class="p">lock</span>(&amp;b.stats);          <span class="c">// one mutex field...</span>
+        g.hits = g.hits + <span class="n">1</span>;              <span class="c">// g.hits is (*g).hits</span>
+        <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> g.seen, me);
+    }
+    <span class="k">auto</span> r = <span class="p">lock</span>(&amp;b.rounds);             <span class="c">// ...and another, locked independently</span>
+    *r = *r + <span class="n">1</span>;
+    me
+}
+
+<span class="k">fn</span> main()
+{
+    Board b = Board { .stats = <span class="p">Mutex</span>::new(Stats { .hits = <span class="n">0</span>, .seen = <span class="p">Vec</span>::new() }), .rounds = <span class="p">Mutex</span>::new(<span class="n">0</span>: <span class="t">u32</span>) };
+    {
+        <span class="k">auto</span> x = <span class="p">spawn</span>(play, &amp;b, <span class="n">1</span>);
+        <span class="k">auto</span> y = <span class="p">spawn</span>(play, &amp;b, <span class="n">2</span>);
+        assert(<span class="p">join</span>(x) + <span class="p">join</span>(y) == <span class="n">3</span>);
+    }
+    <span class="k">auto</span> g = <span class="p">lock</span>(&amp;b.stats);
+    assert(g.hits == <span class="n">2</span> &amp;&amp; <span class="p">Vec</span>::len(&amp;g.seen) == <span class="n">2</span> &amp;&amp; *<span class="p">lock</span>(&amp;b.rounds) == <span class="n">2</span>);
+}</code></pre></figure>
 <h3>Passing values: <code>Channel</code></h3>
 <p>A <code>Channel&lt;T&gt;</code> from <code>std</code> is a queue between threads, shared by reference as a mutex is.
 <code>Channel::new(cap)</code> holds at most <code>cap</code> values (at least 1). <code>Channel::send(&amp;ch, v)</code> moves <code>v</code> in,
@@ -3954,21 +3334,6 @@ received, and then <code>recv</code> gives <code>None</code>, which is what ends
 values left in it, oldest first. The usual shape is a pool of workers: the main thread sends the
 jobs, closes the channel, and joins the workers, each of which stops at <code>None</code>.</p>
 <figure class="code"><div class="code-head"><span class="code-title">A pool of workers</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
-
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
 
 <span class="k">fn</span> worker(<span class="t">ref</span>&lt;Channel&lt;<span class="t">u64</span>&gt;, <span class="t">shared</span>&gt; jobs, <span class="t">ref</span>&lt;Channel&lt;<span class="t">u64</span>&gt;, <span class="t">shared</span>&gt; results)
 {
@@ -4009,14 +3374,14 @@ jobs, closes the channel, and joins the workers, each of which stops at <code>No
             <span class="p">None</span> : <span class="k">break</span>,
         }
     }
-    check(total == <span class="n">385</span>);                        <span class="c">// 1 + 4 + … + 100, whichever worker did which</span>
+    assert(total == <span class="n">385</span>);                        <span class="c">// 1 + 4 + … + 100, whichever worker did which</span>
 
     Channel&lt;<span class="p">String</span>&gt; names = Channel::new(<span class="n">1</span>);
     Channel::close(&amp;names);
     <span class="k">match</span> (Channel::send(&amp;names, <span class="p">String</span>::from_str(<span class="s">&quot;late&quot;</span>)))
     {
-        <span class="p">Ok</span>(_) : check(<span class="k">false</span>),
-        <span class="p">Err</span>(s) : check(<span class="p">String</span>::len(&amp;s) == <span class="n">4</span>),   <span class="c">// closed: the value comes back</span>
+        <span class="p">Ok</span>(_) : assert(<span class="k">false</span>, <span class="s">&quot;unreachable&quot;</span>),
+        <span class="p">Err</span>(s) : assert(<span class="p">String</span>::len(&amp;s) == <span class="n">4</span>),   <span class="c">// closed: the value comes back</span>
     }
 }</code></pre></figure>
 <p>A wait that can never end because no other thread exists — the main thread receiving
@@ -4078,20 +3443,7 @@ rules still apply to every ordinary access inside an <code>unsafe</code> block.<
 copyable. Getting one is safe: <code>rawptr_of(&amp;x)</code> (or <code>rawptr_of(&amp;mut x)</code>) takes the address of a
 place, and <code>reinterpret_ptr&lt;U&gt;(p)</code> changes the pointee type without changing the address. Using one
 to reach memory is trusted.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Raw reads, writes and offsets</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
+<figure class="code"><div class="code-head"><span class="code-title">Raw reads, writes and offsets</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> read_through(<span class="t">rawptr</span>&lt;<span class="t">i32</span>&gt; p) : <span class="t">i32</span>
 {
@@ -4104,12 +3456,12 @@ to reach memory is trusted.</p>
 <span class="k">fn</span> main()
 {
     <span class="t">i32</span> x = <span class="n">7</span>;
-    check(read_through(<span class="p">rawptr_of</span>(&amp;x)) == <span class="n">7</span>);
+    assert(read_through(<span class="p">rawptr_of</span>(&amp;x)) == <span class="n">7</span>);
     <span class="k">auto</span> bytes = [<span class="n">1</span>: <span class="t">u8</span>, <span class="n">2</span>: <span class="t">u8</span>, <span class="n">3</span>: <span class="t">u8</span>];
     <span class="t">rawptr</span>&lt;<span class="t">u8</span>&gt; b = <span class="p">reinterpret_ptr</span>&lt;<span class="t">u8</span>&gt;(<span class="p">rawptr_of</span>(&amp;bytes));
     <span class="k">unsafe</span>
     {
-        check(*(b + <span class="n">2</span>) == <span class="n">3</span>);         <span class="c">// pointer offset, in units of the pointee size</span>
+        assert(*(b + <span class="n">2</span>) == <span class="n">3</span>);         <span class="c">// pointer offset, in units of the pointee size</span>
     }
 }</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">No unsafe block</span><span class="badge bad">rejected: diag.trusted-outside-unsafe</span></div><pre><code><span class="k">fn</span> bad(<span class="t">rawptr</span>&lt;<span class="t">i32</span>&gt; p) : <span class="t">i32</span>
@@ -4131,21 +3483,6 @@ obtained that way are checked against each other like any two references. This i
 hands out references to its elements.</p>
 <figure class="code"><div class="code-head"><span class="code-title">reclaim</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
-
 <span class="k">fn</span> main()
 {
     <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v = <span class="p">Vec</span>::new();
@@ -4154,7 +3491,7 @@ hands out references to its elements.</p>
     <span class="k">unsafe</span>
     {
         <span class="k">auto</span> r = &amp;<span class="p">reclaim</span>&lt;<span class="t">i32</span>&gt;(p);    <span class="c">// a checked reference to the element, via its address</span>
-        check(*r == <span class="n">7</span>);
+        assert(*r == <span class="n">7</span>);
     }
 }</code></pre></figure>
 <h3>Manual allocation</h3>
@@ -4180,20 +3517,7 @@ and documented by each implementation; a program names the C code it needs with 
 function in the C library or the maths library by its declared name. The compiler passes any
 FfiType, pointers included. The interpreter's memory is simulated, so it can pass only integers,
 <code>bool</code> and floats, and reports a call that needs a pointer as unsupported rather than guessing.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Calling C functions</span><span class="badge ok">runs</span></div><pre><code><span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
+<figure class="code"><div class="code-head"><span class="code-title">Calling C functions</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">extern</span> <span class="k">fn</span> sqrt(<span class="t">f64</span> x) : <span class="t">f64</span>;          <span class="c">// from the maths library</span>
 <span class="k">extern</span> <span class="k">fn</span> labs(<span class="t">i64</span> x) : <span class="t">i64</span>;          <span class="c">// from the C library</span>
@@ -4205,13 +3529,13 @@ FfiType, pointers included. The interpreter's memory is simulated, so it can pas
     {
         sqrt(<span class="n">2.0</span>)
     };
-    check(root * root &gt; <span class="n">1.9999</span> &amp;&amp; root * root &lt; <span class="n">2.0001</span>);   <span class="c">// a claim, checked before it is trusted</span>
+    assert(root * root &gt; <span class="n">1.9999</span> &amp;&amp; root * root &lt; <span class="n">2.0001</span>);   <span class="c">// a claim, checked before it is trusted</span>
     <span class="t">i64</span> distance = <span class="k">unsafe</span>
     {
         labs(<span class="n">3</span> - <span class="n">10</span>)
     };
-    check(distance == <span class="n">7</span>);
-    check(<span class="k">unsafe</span> { toupper(<span class="n">99</span>) } == <span class="n">67</span>);                   <span class="c">// &#x27;c&#x27; -&gt; &#x27;C&#x27;</span>
+    assert(distance == <span class="n">7</span>);
+    assert(<span class="k">unsafe</span> { toupper(<span class="n">99</span>) } == <span class="n">67</span>);                   <span class="c">// &#x27;c&#x27; -&gt; &#x27;C&#x27;</span>
 }</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">Calling the write extern</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
@@ -4424,6 +3748,8 @@ intrinsic is used only where there is none.</p>
 <tr><td><code>write(buf, len)</code></td><td>an extern of <code>std</code>: write bytes to standard output (unsafe)</td><td>§20</td></tr>
 <tr><td><code>read(buf, len)</code></td><td>an extern of <code>std</code>: read bytes from standard input (unsafe; <code>cobc</code> only)</td><td>§21</td></tr>
 <tr><td><code>str_len(s)</code>, <code>str_byte(s, i)</code>, <code>str_ptr(s)</code></td><td>a <code>str</code>'s byte count, one byte (bounds-checked), and the address of its bytes (safe)</td><td>§21</td></tr>
+<tr><td><code>assert(c)</code>, <code>assert(c, fmt, args…)</code></td><td>fault with <code>diag.assert-failed</code> (and the formatted message) when <code>c</code> is false; a function of <code>std</code></td><td>§18</td></tr>
+<tr><td><code>static_assert(c)</code>, <code>static_assert(c, &quot;why&quot;)</code></td><td>reject the program when the constant <code>c</code> is false</td><td>§17</td></tr>
 <tr><td><code>printf(&quot;%v&quot;, x)</code></td><td>write a <code>str</code>, a number, a <code>bool</code> or a <code>String</code> (through <code>&amp;</code>) to standard output; a function of <code>std</code></td><td>§21</td></tr>
 <tr><td><code>printf(fmt, args…)</code>, <code>eprintf(fmt, args…)</code>, <code>sprintf(fmt, args…)</code>, <code>String::appendf(&amp;mut s, fmt, args…)</code></td><td>C-style formatted output, to standard output, to standard error, as a new <code>String</code> or into one, checked when compiled (functions of <code>std</code>)</td><td>§21</td></tr>
 <tr><td><code>read_line()</code></td><td>read the next line of standard input as a <code>String</code> (a function of <code>std</code>; <code>cobc</code> only)</td><td>§21</td></tr>
@@ -4452,21 +3778,6 @@ too (see "Printing: <code>printf</code>" below). The <code>unsafe</code> block t
 program that only prints never writes <code>unsafe</code> itself.</p>
 <figure class="code"><div class="code-head"><span class="code-title">str values</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
-
 <span class="k">struct</span> Named
 {
     <span class="t">str</span> name;
@@ -4482,14 +3793,14 @@ program that only prints never writes <code>unsafe</code> itself.</p>
 {
     <span class="t">str</span> greeting = <span class="s">&quot;hello&quot;</span>;
     <span class="t">str</span> again = greeting;             <span class="c">// copied, not moved: greeting stays valid</span>
-    check(<span class="p">str_len</span>(greeting) == <span class="n">5</span>);
-    check(<span class="p">str_byte</span>(greeting, <span class="n">0</span>) == <span class="n">104</span>);
-    check(greeting == again);
-    check(<span class="s">&quot;caf\u{e9}&quot;</span> != <span class="s">&quot;cafe&quot;</span>);     <span class="c">// \u{e9} is é, two bytes</span>
-    check(<span class="p">str_len</span>(<span class="s">&quot;caf\u{e9}&quot;</span>) == <span class="n">5</span>);
+    assert(<span class="p">str_len</span>(greeting) == <span class="n">5</span>);
+    assert(<span class="p">str_byte</span>(greeting, <span class="n">0</span>) == <span class="n">104</span>);
+    assert(greeting == again);
+    static_assert(<span class="s">&quot;caf\u{e9}&quot;</span> != <span class="s">&quot;cafe&quot;</span>);     <span class="c">// \u{e9} is é, two bytes</span>
+    assert(<span class="p">str_len</span>(<span class="s">&quot;caf\u{e9}&quot;</span>) == <span class="n">5</span>);
     <span class="k">auto</span> named = Named { .name = greeting, .n = <span class="n">1</span> };
     <span class="k">auto</span> copy = named;                <span class="c">// a struct of plain values is plain</span>
-    check(copy.name == <span class="s">&quot;hello&quot;</span>);
+    assert(copy.name == <span class="s">&quot;hello&quot;</span>);
     <span class="p">Vec</span>&lt;<span class="t">str</span>&gt; words = <span class="p">Vec</span>::new();
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> words, greeting);
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> words, <span class="s">&quot;world&quot;</span>);
@@ -4526,21 +3837,6 @@ copied out (so <code>Vec&lt;Vec&lt;i32&gt;&gt;</code> works without any special 
 </table>
 <figure class="code"><div class="code-head"><span class="code-title">Using Vec</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
-
 <span class="k">fn</span> main()
 {
     <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v = <span class="p">Vec</span>::new();
@@ -4550,27 +3846,27 @@ copied out (so <code>Vec&lt;Vec&lt;i32&gt;&gt;</code> works without any special 
         <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, i * i);
         i = i + <span class="n">1</span>;
     }
-    check(<span class="p">Vec</span>::len(&amp;v) == <span class="n">9</span>);
-    check(*<span class="p">Vec</span>::index_shared(&amp;v, <span class="n">8</span>) == <span class="n">64</span>);
+    assert(<span class="p">Vec</span>::len(&amp;v) == <span class="n">9</span>);
+    assert(*<span class="p">Vec</span>::index_shared(&amp;v, <span class="n">8</span>) == <span class="n">64</span>);
     {
         <span class="k">auto</span> slot = <span class="p">Vec</span>::index_exclusive(&amp;<span class="k">mut</span> v, <span class="n">0</span>);
         *slot = <span class="n">100</span>;                  <span class="c">// write through an exclusive element reference</span>
     }                                 <span class="c">// slot must be gone before v is borrowed again</span>
-    check(*<span class="p">Vec</span>::index_shared(&amp;v, <span class="n">0</span>) == <span class="n">100</span>);
+    assert(*<span class="p">Vec</span>::index_shared(&amp;v, <span class="n">0</span>) == <span class="n">100</span>);
     <span class="k">match</span> (<span class="p">Vec</span>::pop(&amp;<span class="k">mut</span> v))
     {
         <span class="p">Some</span>(x) :
         {
-            check(x == <span class="n">64</span>);
+            assert(x == <span class="n">64</span>);
         },
         <span class="p">None</span> :
         {
-            check(<span class="k">false</span>);
+            assert(<span class="k">false</span>, <span class="s">&quot;unreachable&quot;</span>);
         },
     }
     <span class="p">Vec</span>&lt;<span class="p">Vec</span>&lt;<span class="t">i32</span>&gt;&gt; nested = <span class="p">Vec</span>::new();
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> nested, v);        <span class="c">// v moves into the outer Vec</span>
-    check(<span class="p">Vec</span>::len(<span class="p">Vec</span>::index_shared(&amp;nested, <span class="n">0</span>)) == <span class="n">8</span>);
+    assert(<span class="p">Vec</span>::len(<span class="p">Vec</span>::index_shared(&amp;nested, <span class="n">0</span>)) == <span class="n">8</span>);
 }                                     <span class="c">// nested is destroyed: each inner Vec, then the outer buffer</span></code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">Vec bounds</span><span class="badge bad">rejected: diag.index-out-of-bounds</span></div><pre><code><span class="k">import</span> std;
 
@@ -4585,34 +3881,19 @@ cannot be written past them, and a stored <code>&amp;mut</code> is the only way 
 the <code>Vec</code> is destroyed.</p>
 <figure class="code"><div class="code-head"><span class="code-title">A Vec of references</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
-
 <span class="k">fn</span> main()
 {
     <span class="t">i32</span> a = <span class="n">10</span>;
     <span class="t">i32</span> x = <span class="n">1</span>;
     <span class="p">Vec</span>&lt;<span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt;&gt; readers = <span class="p">Vec</span>::new();
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> readers, &amp;a);
-    check(**<span class="p">Vec</span>::index_shared(&amp;readers, <span class="n">0</span>) == <span class="n">10</span>);
+    assert(**<span class="p">Vec</span>::index_shared(&amp;readers, <span class="n">0</span>) == <span class="n">10</span>);
 
     <span class="p">Vec</span>&lt;<span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">exclusive</span>&gt;&gt; writers = <span class="p">Vec</span>::new();
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> writers, &amp;<span class="k">mut</span> x);
     **<span class="p">Vec</span>::index_exclusive(&amp;<span class="k">mut</span> writers, <span class="n">0</span>) = <span class="n">7</span>;   <span class="c">// write through the stored reference</span>
     <span class="p">Vec</span>::pop(&amp;<span class="k">mut</span> writers);                          <span class="c">// the Vec lets go of it</span>
-    check(x == <span class="n">7</span>);
+    assert(x == <span class="n">7</span>);
     x = <span class="n">8</span>;                                           <span class="c">// x is free again</span>
 }</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">Writing past a stored borrow</span><span class="badge bad">rejected: diag.aliasing-conflict</span></div><pre><code><span class="k">import</span> std;
@@ -4652,25 +3933,10 @@ miniature.</p>
 </table>
 <figure class="code"><div class="code-head"><span class="code-title">Validating bytes into a String</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
-
 <span class="k">fn</span> main()
 {
     <span class="p">String</span> owned = <span class="p">String</span>::from_str(<span class="s">&quot;caf\u{e9}&quot;</span>);   <span class="c">// a str&#x27;s bytes, copied; no validation needed</span>
-    check(<span class="p">String</span>::len(&amp;owned) == <span class="n">5</span>);
+    assert(<span class="p">String</span>::len(&amp;owned) == <span class="n">5</span>);
 
     <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; good = <span class="p">Vec</span>::new();
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> good, <span class="n">226</span>);        <span class="c">// the three bytes of U+20AC, the euro sign</span>
@@ -4684,9 +3950,9 @@ miniature.</p>
             <span class="k">return</span>;
         },
     };
-    check(<span class="p">String</span>::len(&amp;s) == <span class="n">3</span>);
+    assert(<span class="p">String</span>::len(&amp;s) == <span class="n">3</span>);
     <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; back = <span class="p">String</span>::into_bytes(s);          <span class="c">// and out again</span>
-    check(<span class="p">Vec</span>::len(&amp;back) == <span class="n">3</span>);
+    assert(<span class="p">Vec</span>::len(&amp;back) == <span class="n">3</span>);
 
     <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; bad = <span class="p">Vec</span>::new();
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> bad, <span class="n">226</span>);         <span class="c">// a truncated sequence</span>
@@ -4695,11 +3961,11 @@ miniature.</p>
     {
         <span class="p">Ok</span>(_) :
         {
-            check(<span class="k">false</span>);
+            assert(<span class="k">false</span>, <span class="s">&quot;unreachable&quot;</span>);
         },
         <span class="p">Err</span>(e) :
         {
-            check(e.offset == <span class="n">0</span>);
+            assert(e.offset == <span class="n">0</span>);
         },
     }
 }</code></pre></figure>
@@ -4725,21 +3991,6 @@ prints with <code>%s</code>, compares with <code>==</code> to another view or a 
 </table>
 <figure class="code"><div class="code-head"><span class="code-title">Reading fields out of a line</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
-
 <span class="c">// The first word of a line: a view into the line itself.</span>
 <span class="k">fn</span> first_word(<span class="t">ref</span>&lt;<span class="p">String</span>, <span class="t">shared</span>&gt; s) : StringView
 {
@@ -4754,7 +4005,7 @@ prints with <code>%s</code>, compares with <code>==</code> to another view or a 
 <span class="k">fn</span> main()
 {
     <span class="p">String</span> line = <span class="p">String</span>::from_str(<span class="s">&quot;  set width=80, height = 24  &quot;</span>);
-    check(first_word(&amp;line) == <span class="s">&quot;set&quot;</span>);
+    assert(first_word(&amp;line) == <span class="s">&quot;set&quot;</span>);
 
     StringView args = StringView::trim(&amp;line[<span class="n">6</span>..$]);     <span class="c">// &quot;width=80, height = 24&quot;</span>
     <span class="t">i64</span> area = <span class="n">1</span>;
@@ -4768,39 +4019,24 @@ prints with <code>%s</code>, compares with <code>==</code> to another view or a 
                 <span class="k">match</span> (StringView::parse&lt;<span class="t">i64</span>&gt;(value))
                 {
                     <span class="p">Ok</span>(n) : { area *= n; },
-                    <span class="p">Err</span>(_) : { check(<span class="k">false</span>); },
+                    <span class="p">Err</span>(_) : { assert(<span class="k">false</span>, <span class="s">&quot;unreachable&quot;</span>); },
                 }
             },
-            <span class="p">None</span> : { check(<span class="k">false</span>); },
+            <span class="p">None</span> : { assert(<span class="k">false</span>, <span class="s">&quot;unreachable&quot;</span>); },
         }
     }
-    check(area == <span class="n">1920</span>);
+    assert(area == <span class="n">1920</span>);
     printf(<span class="s">&quot;%s -&gt; %d\n&quot;</span>, args, area);
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>width=80, height = 24 -&gt; 1920
 </pre></div></figure>
 <figure class="code"><div class="code-head"><span class="code-title">The viewed String cannot change</span><span class="badge bad">rejected: diag.aliasing-conflict</span></div><pre><code><span class="k">import</span> std;
-
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
 
 <span class="k">fn</span> main()
 {
     <span class="p">String</span> name = <span class="p">String</span>::from_str(<span class="s">&quot;ada&quot;</span>);
     StringView v = &amp;name[<span class="n">0</span>..$];
     <span class="p">String</span>::push_ascii(&amp;<span class="k">mut</span> name, b&#x27;!&#x27;);   <span class="c">// <span class="bad">✗</span> <span class="dg">diag.aliasing-conflict</span> (static): v still views name</span>
-    check(v == <span class="s">&quot;ada&quot;</span>);
+    assert(v == <span class="s">&quot;ada&quot;</span>);
 }</code></pre></figure>
 <h3>Which text type?</h3>
 <p>Rust programmers will recognise the pair, and C programmers may wonder why there are two
@@ -4986,21 +4222,6 @@ a <code>u8</code> prints as a number. To write bytes, use the <code>write</code>
 <code>unsafe</code> block. <code>put</code> writes one byte and <code>print_bytes</code> a whole <code>Vec&lt;u8&gt;</code>:</p>
 <figure class="code"><div class="code-head"><span class="code-title">Printing bytes</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
-
 <span class="c">// Write one byte to standard output.</span>
 <span class="k">fn</span> put(<span class="t">u8</span> b)
 {
@@ -5041,25 +4262,10 @@ ok
 }</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">The bridge is explicit</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
-
 <span class="k">fn</span> main()
 {
     <span class="p">String</span> s = <span class="p">String</span>::from_str(<span class="s">&quot;hi&quot;</span>);   <span class="c">// <span class="ok">✓</span> the explicit, allocating bridge</span>
-    check(<span class="p">String</span>::len(&amp;s) == <span class="n">2</span>);
+    assert(<span class="p">String</span>::len(&amp;s) == <span class="n">2</span>);
 }</code></pre></figure>
 <h3>Reading input</h3>
 <p><code>read_line()</code> reads the next line of standard input. It returns a
@@ -5443,21 +4649,6 @@ that are equal keep the order they had. In a sorted <code>Vec</code>, <code>Vec:
 (<code>binary_search_by</code> takes the same <code>less</code>).</p>
 <figure class="code"><div class="code-head"><span class="code-title">Sorting and searching</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
-
 <span class="k">struct</span> Player
 {
     <span class="p">String</span> name;
@@ -5476,11 +4667,11 @@ that are equal keep the order they had. In a sorted <code>Vec</code>, <code>Vec:
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> names, <span class="p">String</span>::from_str(<span class="s">&quot;ada&quot;</span>));
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> names, <span class="p">String</span>::from_str(<span class="s">&quot;lin&quot;</span>));
     <span class="p">Vec</span>::sort(&amp;<span class="k">mut</span> names);
-    check(&amp;names[<span class="n">0</span>][<span class="n">0</span>..$] == <span class="s">&quot;ada&quot;</span> &amp;&amp; &amp;names[<span class="n">2</span>][<span class="n">0</span>..$] == <span class="s">&quot;mira&quot;</span>);
+    assert(&amp;names[<span class="n">0</span>][<span class="n">0</span>..$] == <span class="s">&quot;ada&quot;</span> &amp;&amp; &amp;names[<span class="n">2</span>][<span class="n">0</span>..$] == <span class="s">&quot;mira&quot;</span>);
     <span class="p">String</span> who = <span class="p">String</span>::from_str(<span class="s">&quot;lin&quot;</span>);
-    check(<span class="p">Result</span>::unwrap_or(<span class="p">Vec</span>::binary_search(&amp;names, &amp;who), <span class="n">99</span>) == <span class="n">1</span>);
+    assert(<span class="p">Result</span>::unwrap_or(<span class="p">Vec</span>::binary_search(&amp;names, &amp;who), <span class="n">99</span>) == <span class="n">1</span>);
     <span class="p">String</span> bob = <span class="p">String</span>::from_str(<span class="s">&quot;bob&quot;</span>);
-    check(<span class="k">match</span> (<span class="p">Vec</span>::binary_search(&amp;names, &amp;bob))
+    assert(<span class="k">match</span> (<span class="p">Vec</span>::binary_search(&amp;names, &amp;bob))
     {
         <span class="p">Ok</span>(_) : <span class="k">false</span>,
         <span class="p">Err</span>(i) : i == <span class="n">1</span>,              <span class="c">// between &quot;ada&quot; and &quot;lin&quot;</span>
@@ -5491,8 +4682,8 @@ that are equal keep the order they had. In a sorted <code>Vec</code>, <code>Vec:
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> ps, Player { .name = <span class="p">String</span>::from_str(<span class="s">&quot;b&quot;</span>), .score = <span class="n">9</span> });
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> ps, Player { .name = <span class="p">String</span>::from_str(<span class="s">&quot;c&quot;</span>), .score = <span class="n">3</span> });
     <span class="p">Vec</span>::sort_by(&amp;<span class="k">mut</span> ps, higher);
-    check(ps[<span class="n">0</span>].score == <span class="n">9</span>);
-    check(&amp;ps[<span class="n">1</span>].name[<span class="n">0</span>..$] == <span class="s">&quot;a&quot;</span> &amp;&amp; &amp;ps[<span class="n">2</span>].name[<span class="n">0</span>..$] == <span class="s">&quot;c&quot;</span>);   <span class="c">// equal scores keep their order</span>
+    assert(ps[<span class="n">0</span>].score == <span class="n">9</span>);
+    assert(&amp;ps[<span class="n">1</span>].name[<span class="n">0</span>..$] == <span class="s">&quot;a&quot;</span> &amp;&amp; &amp;ps[<span class="n">2</span>].name[<span class="n">0</span>..$] == <span class="s">&quot;c&quot;</span>);   <span class="c">// equal scores keep their order</span>
 }</code></pre></figure>
 <h3><code>HashMap&lt;K, V&gt;</code> and <code>HashSet&lt;K&gt;</code></h3>
 <p><code>HashMap&lt;K, V&gt;</code> maps keys to values; <code>HashSet&lt;K&gt;</code> holds a set of keys. A key is an integer,
@@ -5575,30 +4766,15 @@ shared reference); put a <code>mutex</code> inside if you need mutation. <code>R
 </table>
 <figure class="code"><div class="code-head"><span class="code-title">Reference counting</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
-
 <span class="k">fn</span> main()
 {
     <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; payload = <span class="p">Vec</span>::new();
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> payload, <span class="n">42</span>);
     <span class="k">auto</span> a = <span class="p">Rc</span>::new(payload);        <span class="c">// payload moves into the box; count = 1</span>
     <span class="k">auto</span> b = <span class="p">Rc</span>::clone(&amp;a);           <span class="c">// count = 2</span>
-    check(<span class="p">Vec</span>::len(<span class="p">Rc</span>::get(&amp;b)) == <span class="n">1</span>);
+    assert(<span class="p">Vec</span>::len(<span class="p">Rc</span>::get(&amp;b)) == <span class="n">1</span>);
     <span class="p">drop</span>(a);                          <span class="c">// count = 1; the box survives</span>
-    check(*<span class="p">Vec</span>::index_shared(<span class="p">Rc</span>::get(&amp;b), <span class="n">0</span>) == <span class="n">42</span>);
+    assert(*<span class="p">Vec</span>::index_shared(<span class="p">Rc</span>::get(&amp;b), <span class="n">0</span>) == <span class="n">42</span>);
     <span class="p">drop</span>(b);                          <span class="c">// count = 0: the Vec is destroyed, then the box is freed</span>
 }</code></pre></figure>
 <h3><code>Box&lt;T&gt;</code></h3>
@@ -5608,21 +4784,6 @@ destroying the <code>Box</code> destroys the value. Its main use is a type that 
 something holding a pointer between it and itself: a struct that contains itself directly has no
 size, and is rejected with <code>diag.recursive-type</code>.</p>
 <figure class="code"><div class="code-head"><span class="code-title">A list that owns its nodes</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
-
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
 
 <span class="k">struct</span> Node
 {
@@ -5638,9 +4799,9 @@ size, and is rejected with <code>diag.recursive-type</code>.</p>
 
     Box&lt;<span class="t">i32</span>&gt; counter = Box::new(<span class="n">41</span>);
     *Box::get_mut(&amp;<span class="k">mut</span> counter) += <span class="n">1</span>;
-    check(*Box::get(&amp;counter) == <span class="n">42</span>);
+    assert(*Box::get(&amp;counter) == <span class="n">42</span>);
     <span class="t">i32</span> n = Box::into_inner(counter);  <span class="c">// the value back; the Box&#x27;s memory is freed</span>
-    check(n == <span class="n">42</span>);
+    assert(n == <span class="n">42</span>);
 }                                     <span class="c">// list: both nodes destroyed, the outer one first</span></code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">A type cannot contain itself</span><span class="badge bad">rejected: diag.recursive-type</span></div><pre><code><span class="k">import</span> std;
 
@@ -5660,21 +4821,6 @@ exchanged for a new value by <code>replace(&amp;mut r, v)</code>, which returns 
 same <code>Vec</code> or slice are exchanged by <code>Vec::swap(&amp;mut v, i, j)</code> or <code>slice_swap(s, i, j)</code>, which also
 handle <code>i == j</code>. Nothing is copied or destroyed: each value just changes place.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Sorting Strings, and exchanging fields</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
-
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
 
 <span class="c">// Sorts any run of Strings by length: the elements are resources, so</span>
 <span class="c">// they are exchanged, never copied out.</span>
@@ -5705,32 +4851,17 @@ handle <code>i == j</code>. Nothing is copied or destroyed: each value just chan
         <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> words, <span class="p">String</span>::from_str(w));
     }
     sort_by_len(&amp;<span class="k">mut</span> words[<span class="n">0</span>..$]);
-    check(<span class="p">String</span>::len(&amp;words[<span class="n">0</span>]) == <span class="n">3</span> &amp;&amp; <span class="p">String</span>::len(&amp;words[$ - <span class="n">1</span>]) == <span class="n">6</span>);
+    assert(<span class="p">String</span>::len(&amp;words[<span class="n">0</span>]) == <span class="n">3</span> &amp;&amp; <span class="p">String</span>::len(&amp;words[$ - <span class="n">1</span>]) == <span class="n">6</span>);
 
     Pair p = Pair { .left = <span class="p">String</span>::from_str(<span class="s">&quot;L&quot;</span>), .right = <span class="p">String</span>::from_str(<span class="s">&quot;RR&quot;</span>) };
     swap(&amp;<span class="k">mut</span> p.left, &amp;<span class="k">mut</span> p.right);
     <span class="p">String</span> old = replace(&amp;<span class="k">mut</span> p.left, <span class="p">String</span>::from_str(<span class="s">&quot;new&quot;</span>));   <span class="c">// old is &quot;RR&quot;</span>
-    check(<span class="p">String</span>::len(&amp;old) == <span class="n">2</span> &amp;&amp; <span class="p">String</span>::len(&amp;p.left) == <span class="n">3</span>);
+    assert(<span class="p">String</span>::len(&amp;old) == <span class="n">2</span> &amp;&amp; <span class="p">String</span>::len(&amp;p.left) == <span class="n">3</span>);
 }</code></pre></figure>
 <p>An empty slot is filled by plain assignment: a <code>None</code> owns nothing, so <code>*slot = Some(...)</code>
 writes over it (§07). To put a value where one may already be, use <code>replace</code>, which hands the old
 one back to you.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Filling an empty link</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
-
-<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
-<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
-<span class="k">fn</span> check(<span class="t">bool</span> ok)
-{
-    <span class="t">i32</span> z = <span class="k">if</span> (ok)
-    {
-        <span class="n">1</span>
-    }
-    <span class="k">else</span>
-    {
-        <span class="n">0</span>
-    };
-    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
-}
 
 <span class="k">struct</span> Node
 {
@@ -5768,7 +4899,7 @@ one back to you.</p>
             <span class="p">None</span> : { <span class="k">break</span>; },
         }
     }
-    check(sum == <span class="n">3</span>);
+    assert(sum == <span class="n">3</span>);
 }</code></pre></figure>
 <div class="callout rule"><div class="callout-title">Rules of thumb</div><ul>
 <li><code>Vec&lt;T&gt;</code> for sequences, <code>Option&lt;T&gt;</code> for maybe-absent values, <code>Result&lt;T, E&gt;</code> for fallible calls, <code>Box&lt;T&gt;</code> for one value on the heap (a recursive type's link), <code>Rc&lt;T&gt;</code> when two owners are genuinely needed.</li>
