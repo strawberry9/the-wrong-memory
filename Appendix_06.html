@@ -176,6 +176,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 </aside>
 <main>
 
+
 <div style="text-align: center;">
   <img src="CobaltC_Cyber_Guardian_Poster_small.png" alt="CobaltC">
 </div>
@@ -275,8 +276,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
         here
     </a>
 </p>
-<p>------------------------------------------------------------------------</p>
-
+<p>
 
 <section id="intro">
 <h2>Introduction</h2>
@@ -3034,6 +3034,133 @@ rejected, since it could never run.</p>
         <span class="p">None</span> : <span class="n">0</span>,
     };
 }</code></pre></figure>
+<h4>Literal patterns</h4>
+<p>A pattern can also be a literal: an integer (<code>3</code>, <code>-1</code>, <code>0x10</code>), a byte (<code>b&#x27;x&#x27;</code>), <code>true</code> or
+<code>false</code>. It can stand alone, when the value being matched is an integer or a <code>bool</code>, or at the end
+of a nested pattern: <code>Ok(0)</code>, <code>Some(b&#x27;\n&#x27;)</code>. This is CobaltC's multi-way branch in place of <code>switch</code>,
+and it is checked: a literal must be of the type it is compared with, a repeated case is an arm that
+can never run, and an integer <code>match</code> needs a <code>_</code> arm, since literals never list every value
+(<code>true</code> and <code>false</code> do cover a <code>bool</code>). Floats are not patterns. With that, patterns are <code>_</code>, a
+literal, a variant, and a variant with a pattern for its payload; there is nothing else to learn.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Literal patterns</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
+<span class="k">fn</span> check(<span class="t">bool</span> ok)
+{
+    <span class="t">i32</span> z = <span class="k">if</span> (ok)
+    {
+        <span class="n">1</span>
+    }
+    <span class="k">else</span>
+    {
+        <span class="n">0</span>
+    };
+    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
+}
+
+<span class="k">fn</span> step(<span class="t">u8</span> op, <span class="t">i64</span> acc) : <span class="t">i64</span>
+{
+    <span class="k">match</span> (op)
+    {
+        <span class="n">0</span>x01 : acc + <span class="n">1</span>,               <span class="c">// a byte from an instruction stream</span>
+        <span class="n">0</span>x02 : acc * <span class="n">2</span>,
+        <span class="n">0</span>x10 : <span class="n">0</span>,
+        _ : acc,                      <span class="c">// any other opcode: no effect</span>
+    }
+}
+
+<span class="k">fn</span> is_end(<span class="p">Result</span>&lt;<span class="t">usize</span>, FileError&gt; r) : <span class="t">bool</span>
+{
+    <span class="k">match</span> (r)
+    {
+        <span class="p">Ok</span>(<span class="n">0</span>) : <span class="k">true</span>,                 <span class="c">// a read of 0 bytes: the end of the file</span>
+        <span class="p">Ok</span>(_) : <span class="k">false</span>,
+        <span class="p">Err</span>(_) : <span class="k">true</span>,
+    }
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">5</span>&gt; program = [<span class="n">0</span>x01, <span class="n">0</span>x02, <span class="n">0</span>x02, <span class="n">0</span>x7f, <span class="n">0</span>x01];
+    <span class="t">i64</span> acc = <span class="n">0</span>;
+    foreach (op in program)
+    {
+        acc = step(op, acc);
+    }
+    check(acc == <span class="n">5</span>);
+    check(is_end(<span class="p">Ok</span>(<span class="n">0</span>)) &amp;&amp; !is_end(<span class="p">Ok</span>(<span class="n">16</span>)));
+}</code></pre></figure>
+<figure class="code"><div class="code-head"><span class="code-title">A repeated case</span><span class="badge bad">rejected: diag.unreachable-arm</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
+<span class="k">fn</span> check(<span class="t">bool</span> ok)
+{
+    <span class="t">i32</span> z = <span class="k">if</span> (ok)
+    {
+        <span class="n">1</span>
+    }
+    <span class="k">else</span>
+    {
+        <span class="n">0</span>
+    };
+    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="t">u8</span> op = <span class="n">2</span>;
+    <span class="t">i32</span> cycles = <span class="k">match</span> (op)
+    {
+        <span class="n">1</span> : <span class="n">3</span>,
+        <span class="n">2</span> : <span class="n">5</span>,
+        <span class="n">1</span> : <span class="n">4</span>,                        <span class="c">// <span class="bad">✗</span> <span class="dg">diag.unreachable-arm</span>: 1 is taken by the first arm</span>
+        _ : <span class="n">1</span>,
+    };
+}</code></pre></figure>
+<h4>Binders and named constants</h4>
+<p>A name on its own is a pattern too. If it names a constant of integer or <code>bool</code> type, it is
+that constant's value, a literal by name (<code>PUSH : …</code>); if it names a variant, it is that variant;
+otherwise it is a new binding for the whole value, which matches anything, like <code>_</code>, and is
+usually the last arm (<code>other : …</code>). A binding of a resource moves it, as a payload binding does.
+Mistaking a constant for a binding cannot go unnoticed: a <code>match</code> on an integer then lacks <code>_</code>.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Constants and a binder in a match</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
+<span class="k">fn</span> check(<span class="t">bool</span> ok)
+{
+    <span class="t">i32</span> z = <span class="k">if</span> (ok)
+    {
+        <span class="n">1</span>
+    }
+    <span class="k">else</span>
+    {
+        <span class="n">0</span>
+    };
+    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
+}
+
+<span class="k">const</span> <span class="t">u8</span> PUSH = <span class="n">0</span>x01;
+<span class="k">const</span> <span class="t">u8</span> POP = <span class="n">0</span>x02;
+
+<span class="k">fn</span> describe(<span class="t">u8</span> op) : <span class="t">i32</span>
+{
+    <span class="k">match</span> (op)
+    {
+        PUSH : <span class="n">1</span>,
+        POP : <span class="n">2</span>,
+        other : <span class="n">100</span> + <span class="p">widen</span>&lt;<span class="t">i32</span>&gt;(other),      <span class="c">// every other opcode, bound to `other`</span>
+    }
+}
+
+<span class="k">fn</span> main()
+{
+    check(describe(<span class="n">1</span>) == <span class="n">1</span>);
+    check(describe(<span class="n">2</span>) == <span class="n">2</span>);
+    check(describe(<span class="n">9</span>) == <span class="n">109</span>);
+}</code></pre></figure>
 <h4>Matching through a reference</h4>
 <p><code>match (e)</code> binds each payload by value: a plain one is copied, and a resource one (a
 <code>String</code>, a <code>Vec</code>, a <code>Box</code>) is moved out, which consumes the enum. To look at an enum without
@@ -5083,13 +5210,15 @@ so it cannot be used again. Every operation returns a <code>Result</code> whose 
 <tr><td><code>File::read(&amp;mut f, &amp;mut buf, max)</code></td><td>append up to <code>max</code> bytes to a <code>Vec&lt;u8&gt;</code>; how many, 0 at the end</td></tr>
 <tr><td><code>File::read_to_end(&amp;mut f, &amp;mut buf)</code></td><td>append the rest of the file to a <code>Vec&lt;u8&gt;</code></td></tr>
 <tr><td><code>File::write(&amp;mut f, &amp;bytes[i..j])</code>, <code>File::write_str(&amp;mut f, &amp;text)</code></td><td>write all of a slice of bytes, or a <code>String</code>'s text</td></tr>
+<tr><td><code>File::printf(&amp;mut f, &quot;format&quot;, …)</code></td><td>write formatted text, as <code>printf</code> formats it</td></tr>
 <tr><td><code>File::seek(&amp;mut f, pos)</code>, <code>File::len(&amp;f)</code></td><td>move to byte <code>pos</code> (a <code>u64</code>); the length in bytes</td></tr>
 <tr><td><code>File::close(f)</code></td><td>close it and say whether that worked</td></tr>
 <tr><td><code>read_bytes(&amp;path)</code>, <code>write_bytes(&amp;path, &amp;bytes[i..j])</code></td><td><code>read_file</code> and <code>write_file</code> for bytes: a <code>Vec&lt;u8&gt;</code></td></tr>
 </tbody>
 </table>
-<p>Reading is buffered, so <code>read_line</code> is quick; each write reaches the file before it returns,
-so gather many small pieces in a <code>String</code> or <code>Vec&lt;u8&gt;</code> first when speed matters.</p>
+<p>Reading is buffered, so <code>read_line</code> is quick, and <code>read</code> fills up to what was asked for; each
+write reaches the file before it returns, so gather many small pieces in a <code>String</code> or <code>Vec&lt;u8&gt;</code>
+first when speed matters.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Writing a log, reading it line by line, and seeking</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> opened(<span class="p">Result</span>&lt;File, FileError&gt; r) : File
@@ -5108,8 +5237,7 @@ so gather many small pieces in a <code>String</code> or <code>Vec&lt;u8&gt;</cod
     <span class="t">usize</span> i = <span class="n">1</span>;
     <span class="k">while</span> (i &lt;= <span class="n">3</span>)
     {
-        <span class="p">String</span> line = sprintf(<span class="s">&quot;event %v\n&quot;</span>, i);
-        <span class="p">Result</span>::unwrap_or(File::write_str(&amp;<span class="k">mut</span> log, &amp;line), ());
+        <span class="p">Result</span>::unwrap_or(File::printf(&amp;<span class="k">mut</span> log, <span class="s">&quot;event %v\n&quot;</span>, i), ());
         i = i + <span class="n">1</span>;
     }
     <span class="p">Result</span>::unwrap_or(File::close(log), ());
@@ -5600,9 +5728,9 @@ of a declaration or the right side of an assignment, the enclosing statement sti
 <p>Things the grammar does not provide, each a considered decision recorded in the
 specification:</p>
 <ul>
-<li>no character literals (<code>b&#x27;x&#x27;</code> is a byte, a <code>u8</code>), no indexing or slicing of a <code>str</code>; no <code>switch</code>; no <code>goto</code></li>
+<li>no character literals (<code>b&#x27;x&#x27;</code> is a byte, a <code>u8</code>), no indexing or slicing of a <code>str</code>; no <code>switch</code> (a <code>match</code> on an integer, §16, is the checked form); no <code>goto</code></li>
 <li>no <code>import … as</code> renaming; no method-call syntax (<code>v.push(x)</code>); no operator overloading</li>
-<li>patterns in <code>match</code> are variants only, nested as deep as needed (no literal or struct patterns); destructuring takes a struct apart whole, every field at once</li>
+<li>patterns in <code>match</code> are <code>_</code>, a name (a binder or a constant), a literal, a variant, and a variant with a pattern for its payload, nothing else (no ranges, alternatives, struct patterns or guards); destructuring takes a struct apart whole, every field at once</li>
 <li>no partial initialisation of aggregates</li>
 <li>no lifetime annotations: a function returning a reference must have exactly one reference parameter</li>
 <li>no bounds on generic type parameters</li>
@@ -5688,6 +5816,7 @@ rule is applied statically where the checker can see the problem and dynamically
     </a>.
   </p>
 </footer>
+
 
 </main>
 </div>
