@@ -277,6 +277,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
     </a>
 </p>
 <p>
+<p>------------------------------------------------------------------------</p>
 
 <section id="intro">
 <h2>Introduction</h2>
@@ -5275,6 +5276,134 @@ read: event 2
 read: event 3
 byte 6 is 49
 </pre></div></figure>
+<h3>Directories, the environment and the clocks</h3>
+<p>Files live in directories, which a program can make, list and clean up; it can also read its
+environment and measure time. Paths are <code>String</code>s, as for files, and failures are <code>FileError</code>s.</p>
+<table>
+<thead><tr><th>Function</th><th>Does</th></tr></thead>
+<tbody>
+<tr><td><code>make_dir(&amp;path)</code></td><td>make a directory: <code>Ok(true)</code> made, <code>Ok(false)</code> one was already there</td></tr>
+<tr><td><code>remove_file(&amp;path)</code>, <code>remove_dir(&amp;path)</code></td><td>remove a file, or an empty directory</td></tr>
+<tr><td><code>rename(&amp;from, &amp;to)</code></td><td>move a file or directory, replacing a file at <code>to</code></td></tr>
+<tr><td><code>list_dir(&amp;path)</code></td><td>the names in a directory, sorted: a <code>Vec&lt;String&gt;</code></td></tr>
+<tr><td><code>path_kind(&amp;path)</code></td><td><code>File(len)</code>, <code>Dir</code> or <code>Other</code>; <code>Err(NotFound)</code> when nothing is there</td></tr>
+<tr><td><code>env_var(&amp;name)</code></td><td><code>Ok(Some(value))</code>, or <code>Ok(None)</code> when the variable is not set</td></tr>
+<tr><td><code>current_dir()</code></td><td>the working directory, which relative paths start from</td></tr>
+<tr><td><code>monotonic_ns()</code>, <code>unix_seconds()</code></td><td>a clock for measuring time (never goes back), and the date</td></tr>
+</tbody>
+</table>
+<figure class="code"><div class="code-head"><span class="code-title">Making, listing and removing</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> kind(<span class="t">ref</span>&lt;<span class="p">String</span>, <span class="t">shared</span>&gt; p) : <span class="t">str</span>
+{
+    <span class="k">match</span> (path_kind(p))
+    {
+        <span class="p">Ok</span>(File(_)) : <span class="s">&quot;file&quot;</span>,
+        <span class="p">Ok</span>(Dir) : <span class="s">&quot;directory&quot;</span>,
+        <span class="p">Ok</span>(Other) : <span class="s">&quot;other&quot;</span>,
+        <span class="p">Err</span>(NotFound) : <span class="s">&quot;missing&quot;</span>,
+        <span class="p">Err</span>(_) : <span class="s">&quot;error&quot;</span>,
+    }
+}
+
+<span class="k">fn</span> main() : <span class="t">u8</span>
+{
+    <span class="p">String</span> dir = <span class="p">String</span>::from_str(<span class="s">&quot;work&quot;</span>);
+    <span class="k">match</span> (make_dir(&amp;dir))
+    {
+        <span class="p">Ok</span>(_) :
+        {
+        },
+        <span class="p">Err</span>(_) : <span class="k">return</span> <span class="n">1</span>,
+    }
+    <span class="p">String</span> a = <span class="p">String</span>::from_str(<span class="s">&quot;work/notes.txt&quot;</span>);
+    <span class="p">String</span> b = <span class="p">String</span>::from_str(<span class="s">&quot;work/old.txt&quot;</span>);
+    <span class="p">String</span> text = <span class="p">String</span>::from_str(<span class="s">&quot;remember\n&quot;</span>);
+    <span class="p">Result</span>::unwrap_or(write_file(&amp;a, &amp;text), ());
+    <span class="p">Result</span>::unwrap_or(rename(&amp;a, &amp;b), ());
+    <span class="k">match</span> (list_dir(&amp;dir))
+    {
+        <span class="p">Ok</span>(names) :
+        {
+            foreach (n in &amp;names)
+            {
+                printf(<span class="s">&quot;%s\n&quot;</span>, n);
+            }
+        },
+        <span class="p">Err</span>(_) : <span class="k">return</span> <span class="n">1</span>,
+    }
+    printf(<span class="s">&quot;notes.txt: %s, old.txt: %s\n&quot;</span>, kind(&amp;a), kind(&amp;b));
+    <span class="p">Result</span>::unwrap_or(remove_file(&amp;b), ());
+    <span class="p">Result</span>::unwrap_or(remove_dir(&amp;dir), ());
+    printf(<span class="s">&quot;work: %s\n&quot;</span>, kind(&amp;dir));
+    <span class="t">u64</span> t0 = monotonic_ns();
+    printf(<span class="s">&quot;time goes forward: %v\n&quot;</span>, monotonic_ns() &gt;= t0);
+    <span class="n">0</span>
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>old.txt
+notes.txt: missing, old.txt: file
+work: missing
+time goes forward: true
+</pre></div></figure>
+<h3>Sorting and searching</h3>
+<p><code>Vec::sort(&amp;mut v)</code> puts a <code>Vec</code> in order: integers by value, <code>false</code> before <code>true</code>, text by
+its bytes. For any other order, or any other element type, <code>Vec::sort_by(&amp;mut v, less)</code> takes a
+function that says whether its first argument goes before its second. Both are stable: elements
+that are equal keep the order they had. In a sorted <code>Vec</code>, <code>Vec::binary_search(&amp;v, &amp;key)</code> gives
+<code>Ok(i)</code>, the first position holding the key, or <code>Err(i)</code>, where it would go
+(<code>binary_search_by</code> takes the same <code>less</code>).</p>
+<figure class="code"><div class="code-head"><span class="code-title">Sorting and searching</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Fault deliberately when a check fails: a checked division by a</span>
+<span class="c">// run-time zero. Used throughout this guide as a tiny assertion.</span>
+<span class="k">fn</span> check(<span class="t">bool</span> ok)
+{
+    <span class="t">i32</span> z = <span class="k">if</span> (ok)
+    {
+        <span class="n">1</span>
+    }
+    <span class="k">else</span>
+    {
+        <span class="n">0</span>
+    };
+    <span class="n">1</span> / z;                            <span class="c">// <span class="dg">diag.div-by-zero</span> when ok is false</span>
+}
+
+<span class="k">struct</span> Player
+{
+    <span class="p">String</span> name;
+    <span class="t">u32</span> score;
+}
+
+<span class="k">fn</span> higher(<span class="t">ref</span>&lt;Player, <span class="t">shared</span>&gt; a, <span class="t">ref</span>&lt;Player, <span class="t">shared</span>&gt; b) : <span class="t">bool</span>
+{
+    a.score &gt; b.score                 <span class="c">// higher scores first</span>
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="p">Vec</span>&lt;<span class="p">String</span>&gt; names = <span class="p">Vec</span>::new();
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> names, <span class="p">String</span>::from_str(<span class="s">&quot;mira&quot;</span>));
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> names, <span class="p">String</span>::from_str(<span class="s">&quot;ada&quot;</span>));
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> names, <span class="p">String</span>::from_str(<span class="s">&quot;lin&quot;</span>));
+    <span class="p">Vec</span>::sort(&amp;<span class="k">mut</span> names);
+    check(&amp;names[<span class="n">0</span>][<span class="n">0</span>..$] == <span class="s">&quot;ada&quot;</span> &amp;&amp; &amp;names[<span class="n">2</span>][<span class="n">0</span>..$] == <span class="s">&quot;mira&quot;</span>);
+    <span class="p">String</span> who = <span class="p">String</span>::from_str(<span class="s">&quot;lin&quot;</span>);
+    check(<span class="p">Result</span>::unwrap_or(<span class="p">Vec</span>::binary_search(&amp;names, &amp;who), <span class="n">99</span>) == <span class="n">1</span>);
+    <span class="p">String</span> bob = <span class="p">String</span>::from_str(<span class="s">&quot;bob&quot;</span>);
+    check(<span class="k">match</span> (<span class="p">Vec</span>::binary_search(&amp;names, &amp;bob))
+    {
+        <span class="p">Ok</span>(_) : <span class="k">false</span>,
+        <span class="p">Err</span>(i) : i == <span class="n">1</span>,              <span class="c">// between &quot;ada&quot; and &quot;lin&quot;</span>
+    });
+
+    <span class="p">Vec</span>&lt;Player&gt; ps = <span class="p">Vec</span>::new();
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> ps, Player { .name = <span class="p">String</span>::from_str(<span class="s">&quot;a&quot;</span>), .score = <span class="n">3</span> });
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> ps, Player { .name = <span class="p">String</span>::from_str(<span class="s">&quot;b&quot;</span>), .score = <span class="n">9</span> });
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> ps, Player { .name = <span class="p">String</span>::from_str(<span class="s">&quot;c&quot;</span>), .score = <span class="n">3</span> });
+    <span class="p">Vec</span>::sort_by(&amp;<span class="k">mut</span> ps, higher);
+    check(ps[<span class="n">0</span>].score == <span class="n">9</span>);
+    check(&amp;ps[<span class="n">1</span>].name[<span class="n">0</span>..$] == <span class="s">&quot;a&quot;</span> &amp;&amp; &amp;ps[<span class="n">2</span>].name[<span class="n">0</span>..$] == <span class="s">&quot;c&quot;</span>);   <span class="c">// equal scores keep their order</span>
+}</code></pre></figure>
 <h3><code>HashMap&lt;K, V&gt;</code> and <code>HashSet&lt;K&gt;</code></h3>
 <p><code>HashMap&lt;K, V&gt;</code> maps keys to values; <code>HashSet&lt;K&gt;</code> holds a set of keys. A key is an integer,
 a <code>bool</code>, a <code>str</code> or a <code>String</code>; any other key type (a float, a struct) is a static type error, since
@@ -5816,7 +5945,6 @@ rule is applied statically where the checker can see the problem and dynamically
     </a>.
   </p>
 </footer>
-
 
 </main>
 </div>
