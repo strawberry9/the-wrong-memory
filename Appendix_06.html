@@ -3645,7 +3645,9 @@ starts. What the primitives add is a way to <em>share mutable state on purpose</
 <code>f</code>'s return type. <code>f</code> must be a named function or a <code>move</code> closure (a closure borrowing locals of
 the spawning thread is rejected: <code>diag.spawn-borrow-closure</code>). Arguments are passed exactly as for a
 call: plain values are copied, resources move to the new thread, references are lent. <code>join(h)</code>
-waits for the thread and returns its result, consuming the handle. A handle is a resource: if it is
+waits for the thread and returns its result, consuming the handle. The result may itself be a
+reference (or carry one, in a struct or an <code>Option</code>): the handle then holds the borrow until the
+<code>join</code> hands it over, so the source cannot be written meanwhile. A handle is a resource: if it is
 still alive when its scope ends, the thread is joined then and its result discarded, so a thread
 never outlives its handle. What a thread borrows is still checked at every use, as in any call: if
 the referent ends first (a handle kept in a variable declared outside the borrowed local's block,
