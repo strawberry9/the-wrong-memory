@@ -156,7 +156,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.008</div>
+<div class="sub">Specification edition 2026.009</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -322,7 +322,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.008</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.009</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -1099,7 +1099,9 @@ it a new value: once <code>x</code>'s value has gone, moved away or dropped, <co
 is destroyed at the end of <code>x</code>'s own block like its first value. Assigning over a value that is
 still there is an error for a resource (<code>diag.overwrite-of-live-resource</code>): write
 <code>overwrite(&amp;mut x, e)</code>, which destroys the old value and stores the new one, or drop it first. Either
-way the destruction is visible where it happens. What counts is whether the value there owns anything: a <code>None</code> of an
+way the destruction is visible where it happens. The same holds for a field (<code>g.name = s;</code>) and for a
+write through a reference (<code>*r = v;</code>, <code>r.rows = v;</code>): where the compiler can see the old value is still
+there, it rejects the assignment before the program runs; elsewhere, the run does. What counts is whether the value there owns anything: a <code>None</code> of an
 <code>Option&lt;String&gt;</code> owns nothing, so <code>o = Some(s);</code> over it is fine, while a <code>Some</code> must be dropped
 first. A type declared <code>resource</code>, or with a destructor, always owns. Declaring the name again
 (shadowing) works too.</p>
@@ -3968,6 +3970,34 @@ trusted. A resource written into raw memory with <code>*p = v</code> <em>moves</
 <code>*p</code> of a resource type moves it back out. Plain data that holds references is tracked too: the cells
 it is written to hold those references, exactly as a variable would, until they are released. The
 library's <code>Vec::grow</code> in §21 is the reference example of the whole pattern.</p>
+<h3>When a promise is false</h3>
+<p>An <code>unsafe</code> block's promises are not checked; that is what makes them promises. If one is
+false — <code>*p</code> reads bytes that are not a valid <code>T</code>, <code>reclaim</code> claims cells another object owns, a
+foreign function writes past what it was given — the program has left the language's rules at that
+step. Everything it did before that step happened exactly as the rules say. From that step on, no
+rule says what happens: the program may carry on, print nonsense, fault, or crash, and every one of
+those is allowed. None of the guarantees in this guide — no use after free, no data race, no
+out-of-bounds access — covers what comes after. A program with no <code>unsafe</code> block makes no promises,
+so they cover all of it.</p>
+<figure class="code"><pre><code><span class="k">struct</span> Holder
+{
+    <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v;
+}
+
+<span class="k">fn</span> main()
+{
+    Holder h = Holder { .v = <span class="p">Vec</span>::new() };
+    <span class="t">rawptr</span>&lt;<span class="p">Vec</span>&lt;<span class="t">i32</span>&gt;&gt; p = <span class="p">reinterpret_ptr</span>&lt;<span class="p">Vec</span>&lt;<span class="t">i32</span>&gt;&gt;(<span class="p">rawptr_of</span>(&amp;h));
+    <span class="k">unsafe</span>
+    {
+        <span class="k">auto</span> taken = *p;              <span class="c">// false promise: h still owns these bytes</span>
+    }
+    h.v = <span class="p">Vec</span>::new();                 <span class="c">// from the line above on, no rule applies</span>
+}</code></pre></figure>
+<p>The tools do not have to notice a broken promise, and in general they cannot. When one does,
+it is encouraged to stop with a diagnostic rather than crash, since a report names the problem and a
+crash does not; but that is a courtesy, not a rule. Keep <code>unsafe</code> blocks small, so that what each one
+promises can be read and checked by eye.</p>
 <h3>Foreign functions</h3>
 <p><code>extern fn name(params) : ret;</code> declares a function provided from outside. Parameters and
 result may only be integers, floats, <code>bool</code>, <code>void</code> and <code>rawptr&lt;T&gt;</code>; anything else, including a
