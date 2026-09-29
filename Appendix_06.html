@@ -156,12 +156,13 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.009</div>
+<div class="sub">Specification edition 2026.011</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
 <li><a href="#intro">Introduction</a></li>
 <li><a href="#tour">A tour in one program</a></li>
+<li><a href="#parts">Core language and std</a></li>
 <li class="group">Reference, one section per specification chapter</li>
 <li><a href="#s06"><span class="n">§06</span>Arithmetic and numeric types</a></li>
 <li><a href="#s07"><span class="n">§07</span>Resources, ownership and destruction</a></li>
@@ -322,7 +323,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.009</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.011</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -626,7 +627,97 @@ L3
 <a href="https://github.com/strawberry9/CobaltC/blob/main/showcase/README.md">README</a> describes
 them all.</p>
 
-<nav class="pager"><a class="prev" href="#intro">&larr; Introduction</a><a class="top" href="#top">Top</a><a class="next" href="#s06">§06 Arithmetic and numeric types &rarr;</a></nav></section>
+<nav class="pager"><a class="prev" href="#intro">&larr; Introduction</a><a class="top" href="#top">Top</a><a class="next" href="#parts">Core language and std &rarr;</a></nav></section>
+<section id="parts">
+<h2>Core language and std</h2>
+<p class="blurb">Which parts of CobaltC are the language itself, always available, and which come from the standard library and need import std;.</p>
+<p>CobaltC comes in two layers. The <strong>core language</strong> is always there: its
+types, its constructs, and a set of <em>intrinsics</em>, functions defined by a rule of the
+specification rather than by a body. The <strong>standard library</strong>, <code>std</code>, is a module,
+written mostly in CobaltC itself. Nothing of <code>std</code> is in scope until a module writes
+<code>import std;</code>, and each module imports it for itself (<a href="#s17">§17</a>). This page says which
+layer each part belongs to.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Core only: no import</span><span class="badge ok">runs</span></div><pre><code><span class="c">// No `import std;`: only the core language.</span>
+<span class="k">fn</span> main() : <span class="t">u8</span>
+{
+    <span class="t">array</span>&lt;<span class="t">i32</span>, <span class="n">4</span>&gt; a = [<span class="n">3</span>, <span class="n">4</span>, <span class="n">5</span>, <span class="n">6</span>];
+    <span class="t">i32</span> s = <span class="n">0</span>;
+    <span class="k">foreach</span> (x in a)
+    {
+        s += x;
+    }
+    <span class="t">u32</span> m = <span class="p">max_value</span>&lt;<span class="t">u32</span>&gt;();
+    s += <span class="p">narrow</span>&lt;<span class="t">i32</span>&gt;(m % <span class="n">10</span>);            <span class="c">// 4294967295 % 10 is 5</span>
+    <span class="p">narrow</span>&lt;<span class="t">u8</span>&gt;(s)                        <span class="c">// the exit status: 23</span>
+}</code></pre></figure>
+<figure class="code"><div class="code-head"><span class="code-title">printf needs the import</span><span class="badge bad">rejected: diag.unbound-name</span></div><pre><code><span class="k">fn</span> main()
+{
+    <span class="p">printf</span>(<span class="s">&quot;hello\n&quot;</span>);                   <span class="c">// <span class="bad">✗</span> <span class="dg">diag.unbound-name</span> (static): printf is std&#x27;s</span>
+}</code></pre></figure>
+<h3>Core: always available, no import</h3>
+<h4>Types built into the language</h4>
+<ul>
+<li>Integers <code>i8</code>–<code>i128</code>, <code>u8</code>–<code>u128</code>, <code>isize</code>, <code>usize</code>; floats <code>f32</code>, <code>f64</code></li>
+<li><code>bool</code>, <code>str</code> (string literals), <code>void</code> / <code>()</code></li>
+<li><code>array&lt;T, N&gt;</code>, <code>slice&lt;T, shared&gt;</code> and <code>slice&lt;T, exclusive&gt;</code></li>
+<li><code>ref&lt;T, shared&gt;</code> and <code>ref&lt;T, exclusive&gt;</code>, <code>rawptr&lt;T&gt;</code></li>
+<li><code>fn(…) : R</code> values and closures</li>
+<li><code>handle&lt;T&gt;</code> (a thread), <code>mutex&lt;T&gt;</code>, <code>guard&lt;T&gt;</code></li>
+</ul>
+<h4>Language constructs</h4>
+<p><code>struct</code>, <code>enum</code>, <code>resource</code>, destructors (<code>Type::drop</code>), generics with the built-in
+bounds <code>eq</code>, <code>ordered</code>, <code>number</code> and <code>integer</code>, <code>match</code> with nested and literal patterns,
+<code>if</code>, <code>while</code>, <code>for</code>, <code>foreach</code>, <code>break</code>, <code>continue</code>, <code>?</code>, <code>const</code>, modules and <code>import</code>, <code>unsafe</code>,
+<code>extern fn</code> and <code>extern &quot;code&quot;;</code>.</p>
+<h4>Intrinsics</h4>
+<table>
+<thead><tr><th>Group</th><th>Names</th></tr></thead>
+<tbody>
+<tr><td>Resources</td><td><code>drop</code></td></tr>
+<tr><td>Conversions</td><td><code>widen</code>, <code>narrow</code>, <code>narrow_wrapping</code>, <code>reinterpret</code>, <code>to_float</code>, <code>to_int</code></td></tr>
+<tr><td>Arithmetic</td><td><code>wrapping_add</code>/<code>sub</code>/<code>mul</code>, <code>saturating_add</code>/<code>sub</code>/<code>mul</code>, <code>checked_add</code>/<code>sub</code>/<code>mul</code>/<code>div</code>/<code>rem</code>, <code>checked_neg</code></td></tr>
+<tr><td>Numeric limits and float functions</td><td><code>min_value</code>, <code>max_value</code>, <code>sqrt</code>, <code>floor</code>, <code>ceil</code>, <code>round</code>, <code>trunc</code></td></tr>
+<tr><td>Layout</td><td><code>sizeof</code>, <code>alignof</code></td></tr>
+<tr><td><code>str</code></td><td><code>str_len</code>, <code>str_byte</code>, <code>str_ptr</code></td></tr>
+<tr><td>Faults and compile-time checks</td><td><code>fault</code>, <code>static_assert</code></td></tr>
+<tr><td>Threads</td><td><code>spawn</code>, <code>join</code>, <code>Mutex::new</code>, <code>lock</code></td></tr>
+<tr><td>Raw memory (most need <code>unsafe</code>)</td><td><code>rawptr_of</code>, <code>reinterpret_ptr</code>, <code>dangling</code>, <code>allocate</code>, <code>deallocate</code>, <code>reclaim</code>, <code>release</code>, <code>copy_raw</code></td></tr>
+</tbody>
+</table>
+<p><code>allocate</code> returns a <code>Result</code>, which a program can use without the import even though it
+cannot <em>name</em> the <code>Result</code> type without it.</p>
+<h4>Intrinsics private to std</h4>
+<p><code>key_hash</code>, <code>key_eq</code>, <code>key_less</code>, <code>key_less_at</code>, <code>swap_places</code>, <code>append_native</code>,
+<code>text_write</code>, <code>parse_check</code>, <code>parse_value</code>, and the names that begin with <code>$</code>: the machinery
+<code>std</code>'s own code is built on. A program cannot call them.</p>
+<h3>std: needs import std;</h3>
+<p>Mostly written in CobaltC itself; a few parts are provided natively by each
+implementation. <a href="#s21">§21</a> covers it in full.</p>
+<table>
+<thead><tr><th>Area</th><th>Items</th></tr></thead>
+<tbody>
+<tr><td>Core types</td><td><code>Option&lt;T&gt;</code>, <code>Result&lt;T, E&gt;</code>, <code>AllocError</code>, <code>Utf8Error</code>, <code>ParseError</code>; <code>unwrap</code>, <code>unwrap_or</code>, <code>expect</code>, <code>is_some</code>/<code>is_none</code>/<code>is_ok</code>/<code>is_err</code>; <code>map_err</code></td></tr>
+<tr><td>Collections</td><td><code>Vec&lt;T&gt;</code> (push, pop, index, insert, remove, clone, from_slice, truncate, swap, clear, …), <code>HashMap&lt;K, V&gt;</code>, <code>HashSet&lt;K&gt;</code></td></tr>
+<tr><td>Sorting</td><td><code>Vec::sort</code>, <code>sort_by</code>, <code>binary_search</code>, <code>binary_search_by</code></td></tr>
+<tr><td>Ownership helpers</td><td><code>Box&lt;T&gt;</code>, <code>Rc&lt;T&gt;</code>, <code>swap</code>, <code>replace</code>, <code>overwrite</code></td></tr>
+<tr><td>Numeric helpers</td><td><code>min</code>, <code>max</code>, <code>abs</code>, <code>pow</code> (over the built-in bounds)</td></tr>
+<tr><td>Text</td><td><code>String</code>, <code>StringView</code> (split, find, trim, starts/ends_with, parse), <code>parse&lt;T&gt;</code>, <code>String::append</code></td></tr>
+<tr><td>Output</td><td><code>printf</code>, <code>eprintf</code>, <code>sprintf</code>, <code>String::appendf</code>, <code>assert</code></td></tr>
+<tr><td>Input and arguments</td><td><code>read_line</code>, <code>read</code>, <code>arg_count</code>, <code>arg</code></td></tr>
+<tr><td>Files</td><td><code>File</code> (open, create, append, open_rw, read, read_line, write, seek, len, close, …), <code>read_file</code>, <code>write_file</code>, <code>read_bytes</code>, <code>write_bytes</code>, <code>FileError</code></td></tr>
+<tr><td>System</td><td><code>make_dir</code>, <code>remove_file</code>, <code>remove_dir</code>, <code>rename</code>, <code>list_dir</code>, <code>path_kind</code>, <code>env_var</code>, <code>current_dir</code>, <code>monotonic_ns</code>, <code>unix_seconds</code></td></tr>
+<tr><td>Concurrency</td><td><code>Channel&lt;T&gt;</code> (new, send, recv, close)</td></tr>
+</tbody>
+</table>
+<h3>What may surprise you</h3>
+<ul>
+<li><code>printf</code> and <code>assert</code> are <code>std</code>, not core: a program without the import cannot print.</li>
+<li><code>Vec</code>, <code>String</code> and <code>Option</code> are <code>std</code>, but <code>array</code>, <code>str</code>, <code>slice</code>, <code>handle</code> and <code>mutex</code> are core.</li>
+<li><code>swap</code>, the one to use, is <code>std</code>; <code>swap_places</code>, which it is built on, is private to <code>std</code>.</li>
+<li><code>min</code> and <code>max</code> are <code>std</code>; <code>min_value</code> and <code>max_value</code> are core.</li>
+</ul>
+
+<nav class="pager"><a class="prev" href="#tour">&larr; A tour in one program</a><a class="top" href="#top">Top</a><a class="next" href="#s06">§06 Arithmetic and numeric types &rarr;</a></nav></section>
 <section id="s06">
 <h2><span class="secnum">§06</span>Arithmetic and numeric types</h2>
 <div class="spec-ref">Governing specification file: <code>spec/06-arithmetic.md</code></div><p class="blurb">Checked integer arithmetic, explicit conversions, how literals get their types, and the sizes and limits of types.</p>
@@ -1015,7 +1106,7 @@ the program runs.</p>
 </ul>
 </div>
 
-<nav class="pager"><a class="prev" href="#tour">&larr; A tour in one program</a><a class="top" href="#top">Top</a><a class="next" href="#s07">§07 Resources, ownership and destruction &rarr;</a></nav></section>
+<nav class="pager"><a class="prev" href="#parts">&larr; Core language and std</a><a class="top" href="#top">Top</a><a class="next" href="#s07">§07 Resources, ownership and destruction &rarr;</a></nav></section>
 <section id="s07">
 <h2><span class="secnum">§07</span>Resources, ownership and destruction</h2>
 <div class="spec-ref">Governing specification file: <code>spec/07-resource-authority.md</code></div><p class="blurb">Resource types have exactly one owner, move instead of copying, and are destroyed automatically and exactly once.</p>
@@ -2292,6 +2383,46 @@ that loop runs, <code>arr</code> is borrowed by it, so reach the elements throug
 [3] = 30
 [4] = 41
 </pre></div></figure>
+<h3>Counting with a range</h3>
+<p><code>foreach (x in lo..hi)</code> counts from <code>lo</code> up to, <em>not including</em>, <code>hi</code>, the same way
+<code>&amp;a[lo..hi]</code> takes elements <code>lo</code> up to <code>hi</code>. So <code>0..n</code> runs exactly <code>n</code> times, and <code>1..10</code> stops at
+9. A second name gives the position, counted from 0: <code>foreach (i, x in lo..hi)</code>. Both bounds are
+evaluated once, <code>lo</code> first. If <code>hi</code> is not above <code>lo</code>, the body never runs.</p>
+<p><code>x</code> has the bounds' integer type. A plain number takes the other bound's type, so with
+<code>u8 top</code>, <code>0..top</code> counts in <code>u8</code>. Two plain numbers are <code>usize</code>, so the counter can index an
+array or a <code>Vec</code> directly; for a negative range, give one bound a type: <code>-3..0: i32</code>. Bounds of two different types are
+rejected rather than converted. A range can end at its type's largest value without overflowing,
+because the counter never passes <code>hi</code>.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Ranges</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    <span class="k">foreach</span> (v in <span class="n">1</span>..<span class="n">10</span>)
+    {
+        <span class="p">printf</span>(<span class="s">&quot;%v &quot;</span>, v);
+    }
+    <span class="p">printf</span>(<span class="s">&quot;\n&quot;</span>);
+
+    <span class="k">auto</span> names = [<span class="s">&quot;ada&quot;</span>, <span class="s">&quot;lin&quot;</span>, <span class="s">&quot;kay&quot;</span>];
+    <span class="k">foreach</span> (i in <span class="n">0</span>..<span class="n">3</span>)                        <span class="c">// i : usize, so it can index</span>
+    {
+        <span class="p">printf</span>(<span class="s">&quot;%v: %v\n&quot;</span>, i, names[i]);
+    }
+
+    <span class="t">u8</span> top = <span class="n">255</span>;
+    <span class="k">foreach</span> (i, b in <span class="n">253</span>..top)                <span class="c">// b : u8; i is the position</span>
+    {
+        <span class="p">printf</span>(<span class="s">&quot;step %v is %v\n&quot;</span>, i, b);
+    }
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>1 2 3 4 5 6 7 8 9 
+0: ada
+1: lin
+2: kay
+step 0 is 253
+step 1 is 254
+</pre></div></figure>
+<p>A range is written only in a <code>foreach</code>. It is not a value you can store, and it has no
+inclusive form or step. To count down or in steps, use a <code>for</code> loop.</p>
 <h3>Early exit and unwinding</h3>
 <p><code>return</code>, <code>break</code>, <code>continue</code>, and a run-time fault all leave scopes the same way: every
 statement scope and block between here and the target is exited in order, destroying what each one
