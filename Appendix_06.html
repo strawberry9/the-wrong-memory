@@ -156,7 +156,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.011</div>
+<div class="sub">Specification edition 2026.093001</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -323,7 +323,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.011</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.093001</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -754,8 +754,10 @@ with it, as one negative value, so <code>-2147483648</code> is the smallest <cod
 have names, <code>min_value&lt;i32&gt;()</code> and <code>max_value&lt;i32&gt;()</code> (below). Float literals are <code>digits . digits</code>, with an
 optional exponent (<code>1.5e-3</code>, <code>2.5E3</code>, or <code>1e5</code> with no fraction), optionally suffixed <code>: f32</code>;
 one too large for its type (<code>1e400</code>) is a static error, not infinity. A byte character <code>b&#x27;a&#x27;</code>
-is always a <code>u8</code>: one ASCII character or an escape (<code>b&#x27;\n&#x27;</code>, <code>b&#x27;\&#x27;&#x27;</code>, <code>b&#x27;\x7f&#x27;</code>), for writing
-bytes readably in code that parses. A string literal <code>&quot;…&quot;</code> is always a <code>str</code> and a byte literal
+is one ASCII character or an escape (<code>b&#x27;\n&#x27;</code>, <code>b&#x27;\&#x27;&#x27;</code>, <code>b&#x27;\x7f&#x27;</code>), for writing bytes readably
+in code that parses. It is a number like any other literal and takes an unsigned type from its
+context (<code>u32 c = …; c == b&#x27;|&#x27;</code> compares two <code>u32</code>s), and is a <code>u8</code> when nothing fixes its type;
+a signed context is a type error. A string literal <code>&quot;…&quot;</code> is always a <code>str</code> and a byte literal
 <code>b&quot;…&quot;</code> always an <code>array&lt;u8, N&gt;</code> (§21, §22); neither takes an expected type.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Literal typing</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
@@ -1354,10 +1356,42 @@ see, like the call above, is reported when the conflicting access runs, marked <
     bump(&amp;<span class="k">mut</span> k);
 }</code></pre></figure>
 <h3>When does a borrow end?</h3>
-<p>A reference lives as long as something holds it. A reference stored in a variable lives
-until that variable's block ends; a reference passed straight to a call dies when the statement
-ends. This is why consecutive calls that each borrow the same variable are fine, and why wrapping a
-borrow in a block is the usual way to end it early.</p>
+<p>A reference lives as long as something holds it. A reference passed straight to a call
+dies when the statement ends, which is why consecutive calls that each borrow the same variable are
+fine. A reference, slice or <code>StringView</code> kept in a local variable lives until the <em>last statement
+of its block that uses it</em>, and ends there. Using it inside a loop, a branch or a nested block
+counts as a use by that whole statement, so a reference used in a loop lives through the loop.
+A reference variable lives to the end of its block, as before, when a closure captures it, when
+another reference was borrowed through it, or when a variable that can hold references (a
+<code>Vec&lt;StringView&gt;</code>, say) shares a statement with it and is used later, since that variable may
+keep a reference derived from it.</p>
+<figure class="code"><div class="code-head"><span class="code-title">A reference ends at its last use</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    <span class="p">String</span> cur = <span class="p">String</span>::from_str(<span class="s">&quot;abc&quot;</span>);
+    <span class="t">ref</span>&lt;<span class="p">Vec</span>&lt;<span class="t">u8</span>&gt;, <span class="t">shared</span>&gt; b = <span class="p">String</span>::as_bytes(&amp;cur);
+    <span class="p">assert</span>(<span class="p">Vec</span>::len(b) == <span class="n">3</span>);         <span class="c">// the last use of b: it ends after this statement</span>
+    <span class="p">String</span>::clear(&amp;<span class="k">mut</span> cur);          <span class="c">// <span class="ok">✓</span> nothing borrows cur any more</span>
+    <span class="p">assert</span>(<span class="p">String</span>::len(&amp;cur) == <span class="n">0</span>);
+}</code></pre></figure>
+<figure class="code"><div class="code-head"><span class="code-title">A use in a loop keeps the reference for the whole loop</span><span class="badge bad">rejected: diag.aliasing-conflict</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v = <span class="p">Vec</span>::new();
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">1</span>);
+    <span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt; first = &amp;v[<span class="n">0</span>];
+    <span class="t">i32</span> k = <span class="n">0</span>;
+    <span class="k">while</span> (k &lt; <span class="n">2</span>)
+    {
+        <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, *first);      <span class="c">// used in the loop: first lives through the whole loop</span>
+        <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, k);         <span class="c">// <span class="bad">✗</span> <span class="dg">diag.aliasing-conflict</span>: first still borrows v</span>
+        k = k + <span class="n">1</span>;
+    }
+}</code></pre></figure>
+<p>A block ends every borrow it holds, so wrapping a borrow in a block still works, and
+reads well when a borrow should visibly end.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Borrows end with their holder</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> main()
@@ -1470,6 +1504,7 @@ path to it exists at all. Otherwise a reference would be left pointing at nothin
     <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v = <span class="p">Vec</span>::new();
     <span class="k">auto</span> r = &amp;v;
     <span class="p">drop</span>(v);                          <span class="c">// <span class="bad">✗</span> <span class="dg">diag.destroy-while-aliased</span>: r is still live</span>
+    <span class="t">usize</span> n = <span class="p">Vec</span>::len(r);            <span class="c">// (because r is used here)</span>
 }</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">Moving while borrowed</span><span class="badge bad">rejected: diag.move-while-aliased</span></div><pre><code><span class="k">import</span> std;
 
@@ -1482,6 +1517,7 @@ path to it exists at all. Otherwise a reference would be left pointing at nothin
     <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v = <span class="p">Vec</span>::new();
     <span class="k">auto</span> r = &amp;v;
     take(v);                          <span class="c">// <span class="bad">✗</span> <span class="dg">diag.move-while-aliased</span>: r still reaches v</span>
+    <span class="t">usize</span> n = <span class="p">Vec</span>::len(r);            <span class="c">// (because r is used here)</span>
 }</code></pre></figure>
 <div class="callout rule"><div class="callout-title">Rules of thumb</div><ul>
 <li>Borrow shared (<code>&amp;x</code>) by default; borrow exclusively (<code>&amp;mut x</code>) only for the duration of the change.</li>
@@ -1590,6 +1626,41 @@ may be borrowed there too: <code>HashMap::get(&amp;m, &amp;(k + 1))</code>, <cod
     <span class="t">u64</span> k = <span class="n">2</span>;
     <span class="p">assert</span>(<span class="p">HashMap</span>::contains(&amp;names, &amp;(k + <span class="n">1</span>)));     <span class="c">// an operator&#x27;s result</span>
     <span class="p">printf</span>(<span class="s">&quot;%s\n&quot;</span>, *<span class="p">Option</span>::unwrap(<span class="p">HashMap</span>::get(&amp;names, &amp;<span class="n">3</span>)));   <span class="c">// a literal, as a u64</span>
+}</code></pre></figure>
+<p>Part of a temporary may be borrowed there too: a field (<code>String::len(&amp;person().name)</code>),
+an element, or a slice of an array literal or a call's result (<code>sum(&amp;[1, 2, 3][0..2])</code>). It lives as
+long as the temporary does, to the end of the statement. A field can also be moved out of a
+temporary, <code>String n = person().name;</code>: the rest of the temporary ends at once, as if the struct had
+been destructured. That needs a struct without a destructor of its own.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Parts of a temporary</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">struct</span> Person
+{
+    <span class="p">String</span> name;
+    <span class="p">String</span> city;
+}
+
+<span class="k">fn</span> person() : Person
+{
+    Person { .name = <span class="p">String</span>::from_str(<span class="s">&quot;Ada&quot;</span>), .city = <span class="p">String</span>::from_str(<span class="s">&quot;London&quot;</span>) }
+}
+
+<span class="k">fn</span> sum(<span class="t">slice</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt; xs) : <span class="t">i32</span>
+{
+    <span class="t">i32</span> t = <span class="n">0</span>;
+    <span class="k">foreach</span> (x in xs)
+    {
+        t += *x;
+    }
+    t
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="p">assert</span>(<span class="p">String</span>::len(&amp;person().name) == <span class="n">3</span>);        <span class="c">// a field of a temporary, borrowed</span>
+    <span class="p">assert</span>(sum(&amp;[<span class="n">1</span>, <span class="n">2</span>, <span class="n">3</span>][<span class="n">0</span>..<span class="n">2</span>]) == <span class="n">3</span>);              <span class="c">// a slice of an array literal</span>
+    <span class="p">String</span> n = person().name;                        <span class="c">// moved out; `city` ends here</span>
+    <span class="p">assert</span>(<span class="p">String</span>::eq_str(&amp;n, <span class="s">&quot;Ada&quot;</span>));
 }</code></pre></figure>
 <h3>References inside structs</h3>
 <p>A reference may be stored in a field. It then lives as long as the struct that holds it,
@@ -1825,13 +1896,33 @@ literal supplies every field at once; after that, individual fields can be assig
     Entry { item, change } = e;       <span class="c">// binds `item` and `change`; e is consumed</span>
     <span class="p">assert</span>(<span class="p">String</span>::len(&amp;item) == <span class="n">4</span> &amp;&amp; change == -<span class="n">3</span>);
 }</code></pre></figure>
-<p>This is the only pattern form beyond <code>match</code> on enums. It names every field of the
-struct, each once, in any order, and consumes the struct: a resource field moves out to its new
-binding, a plain one is copied. It is how a struct gives up a resource it holds (the library's
+<p>This is the only pattern form beyond <code>match</code> on enums. It names fields of the struct,
+each once, in any order, and consumes the struct: a resource field moves out to its new binding, a
+plain one is copied. It is how a struct gives up a resource it holds (the library's
 <code>String::into_bytes</code> uses it to hand back the <code>Vec&lt;u8&gt;</code>), since a resource field cannot otherwise
-be moved out of a struct that lives on. Naming a field twice or leaving one out is a type error,
-and a struct with its own destructor cannot be destructured, since the destructor would then run
-on a struct whose fields had left it (<code>diag.move-out-of-field</code>).</p>
+be moved out of a struct that lives on. <code>field : name</code> binds a field to another name, so two values
+of one type can be taken apart side by side, and a final <code>..</code> stands for the fields not named:
+they are not bound, and those holding resources are destroyed when the block ends. Naming a field
+twice, or leaving one out without <code>..</code>, is a type error, and a struct with its own destructor
+cannot be destructured, since the destructor would then run on a struct whose fields had left it
+(<code>diag.move-out-of-field</code>).</p>
+<figure class="code"><div class="code-head"><span class="code-title">Renaming, and leaving fields out</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">struct</span> Entry
+{
+    <span class="p">String</span> item;
+    <span class="t">i64</span> change;
+    <span class="p">String</span> note;
+}
+
+<span class="k">fn</span> main()
+{
+    Entry a = Entry { .item = <span class="p">String</span>::from_str(<span class="s">&quot;pens&quot;</span>), .change = -<span class="n">3</span>, .note = <span class="p">String</span>::new() };
+    Entry b = Entry { .item = <span class="p">String</span>::from_str(<span class="s">&quot;ink&quot;</span>), .change = <span class="n">5</span>, .note = <span class="p">String</span>::new() };
+    Entry { item : first, change : da, .. } = a;     <span class="c">// renamed; `note` is left and ends with the block</span>
+    Entry { item : second, change : db, .. } = b;
+    <span class="p">assert</span>(<span class="p">String</span>::len(&amp;first) + <span class="p">String</span>::len(&amp;second) == <span class="n">7</span> &amp;&amp; da + db == <span class="n">2</span>);
+}</code></pre></figure>
 <div class="callout rule"><div class="callout-title">Rules of thumb</div><ul>
 <li>Prefer <code>T x = e;</code> or <code>auto x = e;</code>. Declare uninitialised only when the value genuinely comes from a branch, and then assign in every branch.</li>
 <li>Build structs with a literal that names every field. Assign fields afterwards if needed.</li>
@@ -1885,7 +1976,23 @@ literal takes its type from the parameter (§06).</p>
 <p><code>==</code> and <code>!=</code> are defined for numbers, <code>bool</code>, <code>()</code>, <code>str</code> (bytewise), references (identity), raw pointers
 (address), and for structs, arrays and enums whose parts are all comparable (element by element;
 enums must have the same variant and equal payloads). They are not defined for function values or
-for anything that is a resource.</p>
+for anything that is a resource, with one exception: two <code>String</code>s compare by their text.</p>
+<p><code>&lt;</code> <code>&lt;=</code> <code>&gt;</code> <code>&gt;=</code> order numbers, <code>bool</code> (<code>false</code> before <code>true</code>), and text: two <code>str</code>s, two
+<code>String</code>s or two <code>StringView</code>s, by their bytes, a prefix first (for UTF-8 that is code point
+order). A <code>String</code> operand is not copied or moved: it is borrowed for the comparison, as <code>&amp;s</code> would
+be, so it stays usable afterwards.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Comparing text and truth values</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    <span class="p">String</span> a = <span class="p">String</span>::from_str(<span class="s">&quot;app&quot;</span>);
+    <span class="p">String</span> b = <span class="p">String</span>::from_str(<span class="s">&quot;apple&quot;</span>);
+    <span class="p">assert</span>(a != b &amp;&amp; a &lt; b);          <span class="c">// text order: a prefix first</span>
+    <span class="p">assert</span>(<span class="s">&quot;b&quot;</span> &gt; <span class="s">&quot;abc&quot;</span>);
+    <span class="p">assert</span>(<span class="k">false</span> &lt; <span class="k">true</span>);
+    <span class="p">String</span> c = a;                     <span class="c">// a was only borrowed by the comparisons; it can still move</span>
+    <span class="p">assert</span>(c == <span class="p">String</span>::from_str(<span class="s">&quot;app&quot;</span>));
+}</code></pre></figure>
 <h3>Generics</h3>
 <p>Functions, structs and enums can take type parameters. Generics are <em>monomorphic</em>:
 each use with a different set of concrete types is a separate copy of the declaration, compiled
@@ -1933,8 +2040,8 @@ operators every one of them has, and each includes the ones before it:</p>
 <table>
 <thead><tr><th>Bound</th><th>Satisfied by</th><th>Allows on a <code>T</code></th></tr></thead>
 <tbody>
-<tr><td><code>eq</code></td><td>integers, floats, <code>bool</code>, <code>str</code></td><td><code>==</code> <code>!=</code></td></tr>
-<tr><td><code>ordered</code></td><td>integers, floats</td><td>also <code>&lt;</code> <code>&lt;=</code> <code>&gt;</code> <code>&gt;=</code></td></tr>
+<tr><td><code>eq</code></td><td>integers, floats, <code>bool</code>, <code>str</code>, <code>String</code></td><td><code>==</code> <code>!=</code></td></tr>
+<tr><td><code>ordered</code></td><td>integers, floats, <code>bool</code>, <code>str</code>, <code>String</code></td><td>also <code>&lt;</code> <code>&lt;=</code> <code>&gt;</code> <code>&gt;=</code></td></tr>
 <tr><td><code>number</code></td><td>integers, floats</td><td>also <code>+ - * / %</code>, unary <code>-</code>, <code>+=</code> and the like; integer literals</td></tr>
 <tr><td><code>integer</code></td><td>integers</td><td>also <code>&amp; | ^ ~</code>, <code>&lt;&lt;</code> <code>&gt;&gt;</code></td></tr>
 </tbody>
@@ -2527,6 +2634,26 @@ implementation allows at least 10 000 nested calls, and both tools allow far mor
 program and each of its threads on a large stack. A call beyond the limit is not a crash but a
 fault at the call, <code>diag.stack-exhausted</code>, so a recursion that runs away ends with a diagnostic
 like any other failure.</p>
+<p>A parameter list and an argument list may end with a comma, as array and struct literals
+may: handy when a long call is split one argument per line. A comma is never the whole list:
+<code>f(,)</code> is a syntax error.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Trailing commas</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> span(
+    <span class="t">i32</span> from,
+    <span class="t">i32</span> to,
+) : <span class="t">i32</span>
+{
+    to - from
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="p">assert</span>(span(
+        <span class="n">3</span>,
+        <span class="n">10</span>,
+    ) == <span class="n">7</span>);
+}</code></pre></figure>
 <h3>What a parameter type promises</h3>
 <table>
 <thead><tr><th>Parameter type</th><th>The caller writes</th><th>The callee may</th><th>After the call</th></tr></thead>
@@ -2750,7 +2877,8 @@ elements are plain (copied on assignment); an array of resources is a resource.<
 }</code></pre></figure>
 <p><code>[v; N]</code> makes an array of <code>N</code> copies of <code>v</code>, which is evaluated once. <code>N</code> is written as in
 the type <code>array&lt;T, N&gt;</code>: a number, or the name of a constant whose value is written as a number
-(<code>const usize W = 24;</code> then <code>array&lt;u8, W&gt;</code> and <code>[0; W]</code>). Because the value is copied, its type must be plain: a
+(<code>const usize W = 24;</code> then <code>array&lt;u8, W&gt;</code> and <code>[0; W]</code>), in this module or, qualified, a
+visible one of another (<code>array&lt;u8, screen::W&gt;</code>). Because the value is copied, its type must be plain: a
 <code>String</code> or other resource, a reference, or a function value cannot be repeated
 (<code>diag.read-of-resource</code> or <code>diag.type-mismatch</code>); build such arrays element by element, or
 use a <code>Vec</code>.</p>
@@ -2831,6 +2959,7 @@ through it, its source cannot be pushed to or popped from, and a slice of a loca
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">1</span>);
     <span class="k">auto</span> s = &amp;v[<span class="n">0</span>..<span class="n">1</span>];
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">2</span>);             <span class="c">// <span class="bad">✗</span> <span class="dg">diag.aliasing-conflict</span>: s still borrows v</span>
+    <span class="t">i32</span> first = s[<span class="n">0</span>];                 <span class="c">// (because s is used here)</span>
 }</code></pre></figure>
 <p>A slice borrows only its own elements. Two slices of one array or <code>Vec</code> conflict only if their
 ranges share an element, so a buffer can be split into parts that are each written through their
@@ -3143,6 +3272,45 @@ is walked.</p>
     <span class="p">String</span> kept = <span class="p">Option</span>::unwrap_or(name, <span class="p">String</span>::new());   <span class="c">// name still owns its String</span>
     <span class="p">assert</span>(<span class="p">String</span>::len(&amp;kept) == <span class="n">4</span>);
 }</code></pre></figure>
+<p>A nested pattern looks through a reference payload in the same way. <code>HashMap::get</code> gives
+an <code>Option&lt;ref&lt;V, shared&gt;&gt;</code>; when <code>V</code> is an enum, <code>Some(Num(v))</code> matches its variant through the
+reference and binds <code>v</code> as a reference of that mode, so a lookup is taken apart in one <code>match</code>. A
+literal compares through a reference too: <code>Some(0)</code> against an <code>Option&lt;ref&lt;u32, shared&gt;&gt;</code>. The
+binder borrows what the reference borrows, so the map cannot change while <code>v</code> is in use.</p>
+<figure class="code"><div class="code-head"><span class="code-title">A pattern through a lookup's reference</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">enum</span> Cell
+{
+    Num(<span class="t">i64</span>),
+    Text(<span class="p">String</span>),
+    Empty,
+}
+
+<span class="k">fn</span> width(<span class="p">Option</span>&lt;<span class="t">ref</span>&lt;Cell, <span class="t">shared</span>&gt;&gt; c) : <span class="t">i64</span>
+{
+    <span class="k">match</span> (c)
+    {
+        <span class="p">Some</span>(Num(v)) : *v,                                   <span class="c">// v : ref&lt;i64, shared&gt;</span>
+        <span class="p">Some</span>(Text(t)) : <span class="p">narrow</span>&lt;<span class="t">i64</span>&gt;(<span class="p">widen</span>&lt;<span class="t">u64</span>&gt;(<span class="p">String</span>::len(t))),
+        <span class="p">Some</span>(Empty) : <span class="n">0</span>,
+        <span class="p">None</span> : -<span class="n">1</span>,
+    }
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="p">HashMap</span>&lt;<span class="t">u32</span>, Cell&gt; sheet = <span class="p">HashMap</span>::new();
+    <span class="p">HashMap</span>::insert(&amp;<span class="k">mut</span> sheet, <span class="n">1</span>, Num(<span class="n">12</span>));
+    <span class="p">HashMap</span>::insert(&amp;<span class="k">mut</span> sheet, <span class="n">2</span>, Text(<span class="p">String</span>::from_str(<span class="s">&quot;total&quot;</span>)));
+    <span class="p">assert</span>(width(<span class="p">HashMap</span>::get(&amp;sheet, &amp;<span class="n">1</span>)) == <span class="n">12</span> &amp;&amp; width(<span class="p">HashMap</span>::get(&amp;sheet, &amp;<span class="n">2</span>)) == <span class="n">5</span>);
+    <span class="p">assert</span>(width(<span class="p">HashMap</span>::get(&amp;sheet, &amp;<span class="n">9</span>)) == -<span class="n">1</span>);
+    <span class="k">match</span> (<span class="p">HashMap</span>::get_mut(&amp;<span class="k">mut</span> sheet, &amp;<span class="n">1</span>))
+    {
+        <span class="p">Some</span>(Num(v)) : { *v += <span class="n">1</span>; },                         <span class="c">// v : ref&lt;i64, exclusive&gt;</span>
+        _ : {},
+    }
+    <span class="p">assert</span>(width(<span class="p">HashMap</span>::get(&amp;sheet, &amp;<span class="n">1</span>)) == <span class="n">13</span>);
+}</code></pre></figure>
 <h4>An arm that takes the payload consumes the enum</h4>
 <p>If the enum carries a resource payload, an arm that binds that payload by value
 <em>moves</em> it into the binder and consumes the enum: if that arm ran, the scrutinee is stale
@@ -3180,6 +3348,32 @@ enum whatever the arm, match on a reference to it (above).</p>
             <span class="p">assert</span>(<span class="p">String</span>::len(&amp;t) == <span class="n">4</span>);
         },
     }
+}</code></pre></figure>
+<h4>Numeric codes</h4>
+<p>An enum without payloads can carry a number per variant, for a file format, a protocol or
+a C interface: <code>enum Op : u8 { Add = 1, Sub, Mul = 10 }</code>. The type after the colon is the code
+type, any integer type. A variant without <code>= n</code> takes the previous code plus one (the first, 0).
+Two variants may not share a code. The enum then has two associated functions:
+<code>Op::code(e)</code> gives a variant's code, and <code>Op::from_code(n)</code> gives <code>Some(variant)</code> for a code
+in use and <code>None</code> for any other.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Enum codes</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">enum</span> Op : <span class="t">u8</span>
+{
+    Add = <span class="n">1</span>,
+    Sub,                              <span class="c">// 2</span>
+    Mul = <span class="n">10</span>,
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="p">assert</span>(Op::code(Sub) == <span class="n">2</span> &amp;&amp; Op::code(Mul) == <span class="n">10</span>);
+    <span class="k">match</span> (Op::from_code(<span class="n">10</span>))
+    {
+        <span class="p">Some</span>(Mul) : {},
+        _ : { <span class="p">assert</span>(<span class="k">false</span>); },
+    }
+    <span class="p">assert</span>(Op::from_code(<span class="n">3</span>) == <span class="p">None</span>);
 }</code></pre></figure>
 <h3>Generic aggregates</h3>
 <p><code>struct Box&lt;T&gt; { T value; }</code> and <code>enum Maybe&lt;T&gt; { Just(T), Nothing }</code> declare families of
@@ -3748,6 +3942,33 @@ either way, and one that goes unused is destroyed. Where there must be a value,
 }</code></pre></figure>
 <p>Because <code>?</code> is just a <code>match</code> in disguise, it consumes a resource-bearing <code>Result</code> the
 same way a <code>match</code> would, and the early <code>return</code> runs destructors like any other.</p>
+<p>A <code>Result</code> is never dropped silently: an expression statement whose value is a
+<code>Result</code>, such as a bare call <code>write_all(&amp;f, &amp;data);</code>, is <code>diag.result-discarded</code>, since the error it
+may carry would vanish. Handle it (<code>?</code>, <code>match</code>, <code>unwrap</code>), or say that you mean to ignore it with
+<code>_ = e;</code>, which evaluates <code>e</code> and destroys the value at once. <code>_ = e;</code> works for any value.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Ignoring a Result on purpose</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> check(<span class="t">i32</span> n) : <span class="p">Result</span>&lt;<span class="t">i32</span>, <span class="t">str</span>&gt;
+{
+    <span class="k">if</span> (n &lt; <span class="n">0</span>) { <span class="p">Err</span>(<span class="s">&quot;negative&quot;</span>) } <span class="k">else</span> { <span class="p">Ok</span>(n) }
+}
+
+<span class="k">fn</span> main()
+{
+    _ = check(-<span class="n">1</span>);                    <span class="c">// ignored on purpose</span>
+    <span class="p">assert</span>(<span class="p">Result</span>::unwrap(check(<span class="n">2</span>)) == <span class="n">2</span>);
+}</code></pre></figure>
+<figure class="code"><div class="code-head"><span class="code-title">A discarded Result</span><span class="badge bad">rejected: diag.result-discarded</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> check(<span class="t">i32</span> n) : <span class="p">Result</span>&lt;<span class="t">i32</span>, <span class="t">str</span>&gt;
+{
+    <span class="k">if</span> (n &lt; <span class="n">0</span>) { <span class="p">Err</span>(<span class="s">&quot;negative&quot;</span>) } <span class="k">else</span> { <span class="p">Ok</span>(n) }
+}
+
+<span class="k">fn</span> main()
+{
+    check(-<span class="n">1</span>);                        <span class="c">// <span class="bad">✗</span> <span class="dg">diag.result-discarded</span>: the error would vanish unseen</span>
+}</code></pre></figure>
 <h3>Choosing a channel</h3>
 <table>
 <thead><tr><th>Situation</th><th>Use</th></tr></thead>
@@ -3957,7 +4178,7 @@ jobs, closes the channel, and joins the workers, each of which stops at <code>No
         <span class="t">u64</span> i = <span class="n">1</span>;
         <span class="k">while</span> (i &lt;= <span class="n">10</span>)
         {
-            <span class="p">Channel</span>::send(&amp;jobs, i);            <span class="c">// waits while the channel is full</span>
+            _ = <span class="p">Channel</span>::send(&amp;jobs, i);            <span class="c">// waits while the channel is full</span>
             i = i + <span class="n">1</span>;
         }
         <span class="p">Channel</span>::close(&amp;jobs);                  <span class="c">// the workers stop once it is empty</span>
@@ -3992,8 +4213,8 @@ from an empty channel, or sending to a full one, with no spawned thread running 
 <span class="k">fn</span> main()
 {
     <span class="p">Channel</span>&lt;<span class="t">i32</span>&gt; ch = <span class="p">Channel</span>::new(<span class="n">1</span>);
-    <span class="p">Channel</span>::send(&amp;ch, <span class="n">1</span>);
-    <span class="p">Channel</span>::send(&amp;ch, <span class="n">2</span>);            <span class="c">// <span class="bad">✗</span> <span class="dg">diag.channel-deadlock</span>: full, and no one to receive</span>
+    _ = <span class="p">Channel</span>::send(&amp;ch, <span class="n">1</span>);
+    _ = <span class="p">Channel</span>::send(&amp;ch, <span class="n">2</span>);            <span class="c">// <span class="bad">✗</span> <span class="dg">diag.channel-deadlock</span>: full, and no one to receive</span>
 }</code></pre></figure>
 <h3>What is not provided</h3>
 <p>No atomics, no memory orderings, no condition variables, no thread-local storage, and
@@ -4373,6 +4594,7 @@ intrinsic is used only where there is none.</p>
 <tr><td><code>sizeof&lt;T&gt;()</code>, <code>alignof&lt;T&gt;()</code></td><td>layout queries, in bytes</td><td>§06, §16</td></tr>
 <tr><td><code>min_value&lt;T&gt;()</code>, <code>max_value&lt;T&gt;()</code></td><td>an integer type's smallest and largest value</td><td>§06</td></tr>
 <tr><td><code>sqrt(x)</code>, <code>floor(x)</code>, <code>ceil(x)</code>, <code>round(x)</code>, <code>trunc(x)</code></td><td>an <code>f32</code> or <code>f64</code>'s square root and its roundings to an integral value (<code>round</code>: halfway cases away from zero), exact or correctly rounded, so the same bits everywhere</td><td>§06</td></tr>
+<tr><td><code>ln(x)</code>, <code>exp(x)</code>, <code>log2(x)</code>, <code>log10(x)</code>, <code>sin(x)</code>, <code>cos(x)</code>, <code>tan(x)</code>, <code>atan2(y, x)</code>, <code>powf(x, y)</code></td><td>an <code>f32</code> or <code>f64</code>'s logarithms, exponential, trigonometry and power, from the platform's maths library (within one unit in the last place; the two operands of <code>atan2</code> and <code>powf</code> of one type)</td><td>§06</td></tr>
 <tr><td><code>spawn(f, args…)</code>, <code>join(h)</code></td><td>threads</td><td>§19</td></tr>
 <tr><td><code>Mutex::new(v)</code>, <code>lock(&amp;m)</code></td><td>mutual exclusion</td><td>§19</td></tr>
 <tr><td><code>rawptr_of(&amp;x)</code>, <code>reinterpret_ptr&lt;U&gt;(p)</code></td><td>obtain and retype raw pointers (safe)</td><td>§20</td></tr>
@@ -4572,13 +4794,28 @@ miniature.</p>
 <tr><td><code>String::as_bytes</code></td><td><code>(ref&lt;String, shared&gt;) : ref&lt;Vec&lt;u8&gt;, shared&gt;</code> (read the bytes in place)</td></tr>
 <tr><td><code>String::append</code></td><td><code>(ref&lt;String, exclusive&gt;, T)</code> for any <code>T</code> <code>%v</code> takes: adds what <code>printf(&quot;%v&quot;, x)</code> would write</td></tr>
 <tr><td><code>String::clone</code></td><td><code>(ref&lt;String, shared&gt;) : String</code> (a copy with the same bytes)</td></tr>
-<tr><td><code>String::eq</code>, <code>String::eq_str</code></td><td><code>(ref&lt;String, shared&gt;, ref&lt;String, shared&gt;) : bool</code>, <code>(ref&lt;String, shared&gt;, str) : bool</code>: the same text? (<code>==</code> does not read a <code>String</code>)</td></tr>
-<tr><td><code>String::less</code>, <code>StringView::less</code></td><td><code>(ref&lt;String, shared&gt;, ref&lt;String, shared&gt;) : bool</code>: byte order, a prefix first; <code>Vec::sort_by(&amp;mut v, String::less)</code> sorts text</td></tr>
+<tr><td><code>String::eq</code>, <code>String::eq_str</code></td><td><code>(ref&lt;String, shared&gt;, ref&lt;String, shared&gt;) : bool</code>, <code>(ref&lt;String, shared&gt;, str) : bool</code>: the same text? (<code>a == b</code> does the same for two <code>String</code>s, §12)</td></tr>
+<tr><td><code>String::less</code>, <code>StringView::less</code></td><td><code>(ref&lt;String, shared&gt;, ref&lt;String, shared&gt;) : bool</code>: byte order, a prefix first, as <code>a &lt; b</code> (§12); <code>Vec::sort(&amp;mut v)</code> sorts text</td></tr>
+<tr><td><code>String::to_ascii_lower</code>, <code>String::to_ascii_upper</code></td><td><code>(ref&lt;String, shared&gt;) : String</code>: a copy with ASCII letters changed; other bytes as they are</td></tr>
 <tr><td><code>String::truncate</code></td><td><code>(ref&lt;String, exclusive&gt;, usize n)</code>: keeps the first <code>n</code> bytes; <code>n</code> inside a character faults <code>diag.not-char-boundary</code></td></tr>
 <tr><td><code>String::push_ascii</code></td><td><code>(ref&lt;String, exclusive&gt;, u8)</code>: adds one ASCII byte; one of 128 or more faults <code>diag.not-ascii</code></td></tr>
 <tr><td><code>String::clear</code></td><td><code>(ref&lt;String, exclusive&gt;)</code> (empties it, keeping the buffer)</td></tr>
 </tbody>
 </table>
+<p>For bytes, <code>std</code> has the ASCII tests and conversions a parser needs: <code>ascii_is_digit(b)</code>,
+<code>ascii_is_alpha</code>, <code>ascii_is_alnum</code>, <code>ascii_is_upper</code>, <code>ascii_is_lower</code>, <code>ascii_is_space</code> (a space,
+tab, newline, carriage return, vertical tab or form feed) take a <code>u8</code> and give a <code>bool</code>;
+<code>ascii_to_lower(b)</code> and <code>ascii_to_upper(b)</code> give the <code>u8</code> with an ASCII letter's case changed.
+Unicode case is not provided.</p>
+<figure class="code"><div class="code-head"><span class="code-title">ASCII helpers</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    <span class="p">assert</span>(ascii_is_digit(b&#x27;<span class="n">7</span>&#x27;) &amp;&amp; !ascii_is_alpha(b&#x27;<span class="n">7</span>&#x27;) &amp;&amp; ascii_is_space(b&#x27;\t&#x27;));
+    <span class="p">assert</span>(ascii_to_upper(b&#x27;q&#x27;) == b&#x27;Q&#x27;);
+    <span class="p">String</span> shout = <span class="p">String</span>::to_ascii_upper(&amp;<span class="p">String</span>::from_str(<span class="s">&quot;caf\u{e9} au lait&quot;</span>));
+    <span class="p">assert</span>(<span class="p">String</span>::eq_str(&amp;shout, <span class="s">&quot;CAF\u{e9} AU LAIT&quot;</span>));
+}</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">Validating bytes into a String</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> main()
@@ -4740,7 +4977,21 @@ messages that are not the program's output. There is no <code>println</code>; en
 </table>
 <p>Flags, a width and a precision work as in C: <code>%-8s</code> pads on the right, <code>%05d</code> pads with
 zeros, <code>%+d</code> always shows a sign, <code>%.2f</code> rounds to two decimals, <code>%8.3f</code> does both. Widths count
-characters, so text in any language lines up. There is no <code>%c</code>.</p>
+characters, so text in any language lines up. There is no <code>%c</code>. A <code>*</code> in place of the width or
+the precision takes it from the next argument, which must be a <code>usize</code>: <code>printf(&quot;%*d&quot;, w, n)</code>,
+<code>printf(&quot;%.*s&quot;, n, &amp;s)</code>.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Computed widths</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    <span class="t">usize</span> w = <span class="n">6</span>;
+    <span class="p">printf</span>(<span class="s">&quot;[%*d]\n&quot;</span>, w, <span class="n">42</span>);
+    <span class="p">printf</span>(<span class="s">&quot;[%-*s]\n&quot;</span>, w, <span class="s">&quot;ab&quot;</span>);
+    <span class="p">printf</span>(<span class="s">&quot;[%.*f]\n&quot;</span>, <span class="n">2</span>: <span class="t">usize</span>, <span class="n">3.14159</span>);
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>[    42]
+[ab    ]
+[3.14]
+</pre></div></figure>
 <figure class="code"><div class="code-head"><span class="code-title">printf, sprintf and appendf</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> main()
@@ -4789,8 +5040,8 @@ widget x 12 = 42.00
 <h4><code>%v</code>: any value</h4>
 <p><code>%v</code> is not C's: it writes a value the way CobaltC writes it, whatever its type, so
 <code>printf(&quot;%v\n&quot;, x)</code> needs no thought about <code>x</code>. It takes any of the types below, and nothing else:
-a struct, a <code>Vec</code> or an <code>Option</code> is a static type error, so printing a composite value means
-printing its parts. It takes a width and <code>-</code>, but no precision.</p>
+a struct or a <code>Vec</code> is a static type error, so printing a composite value means printing its
+parts; an enum prints its variant's name. It takes a width and <code>-</code>, but no precision.</p>
 <table>
 <thead><tr><th>Argument</th><th>Written as</th><th>Examples</th></tr></thead>
 <tbody>
@@ -4799,6 +5050,7 @@ printing its parts. It takes a width and <code>-</code>, but no precision.</p>
 <tr><td><code>f32</code>, <code>f64</code></td><td>the shortest digits that read back as the same value</td><td><code>0.1</code>, <code>1.0</code>, <code>0.3333333333333333</code>, <code>1.0e21</code>, <code>1.0e-7</code>, <code>NaN</code>, <code>inf</code></td></tr>
 <tr><td><code>bool</code></td><td><code>true</code> or <code>false</code></td><td></td></tr>
 <tr><td><code>ref&lt;String, shared&gt;</code></td><td>the string's bytes</td><td><code>printf(&quot;%v&quot;, &amp;s)</code></td></tr>
+<tr><td>an enum, or a reference to one</td><td>its variant's name (not its payload)</td><td><code>Some</code>, <code>Mul</code>, <code>NotFound</code></td></tr>
 </tbody>
 </table>
 <p>A float prints as few digits as identify it exactly: <code>0.1</code> prints as <code>0.1</code>, even though
@@ -5282,7 +5534,8 @@ time goes forward: true
 </pre></div></figure>
 <h3>Sorting and searching</h3>
 <p><code>Vec::sort(&amp;mut v)</code> puts a <code>Vec</code> in order: integers by value, <code>false</code> before <code>true</code>, text by
-its bytes. For any other order, or any other element type, <code>Vec::sort_by(&amp;mut v, less)</code> takes a
+its bytes, and a struct or enum of these field by field in declaration order (an enum by the order
+its variants are declared in, then by payload). For any other order, or any other element type, <code>Vec::sort_by(&amp;mut v, less)</code> takes a
 function that says whether its first argument goes before its second. Both are stable: elements
 that are equal keep the order they had. In a sorted <code>Vec</code>, <code>Vec::binary_search(&amp;v, &amp;key)</code> gives
 <code>Ok(i)</code>, the first position holding the key, or <code>Err(i)</code>, where it would go
@@ -5327,8 +5580,10 @@ that are equal keep the order they had. In a sorted <code>Vec</code>, <code>Vec:
 }</code></pre></figure>
 <h3><code>HashMap&lt;K, V&gt;</code> and <code>HashSet&lt;K&gt;</code></h3>
 <p><code>HashMap&lt;K, V&gt;</code> maps keys to values; <code>HashSet&lt;K&gt;</code> holds a set of keys. A key is an integer,
-a <code>bool</code>, a <code>str</code> or a <code>String</code>; any other key type (a float, a struct) is a static type error, since
-CobaltC has no way to ask an arbitrary type for a hash. The map owns its keys and values. Lookups
+a <code>bool</code>, a <code>str</code>, a <code>String</code>, or a struct whose fields (an enum whose payloads) are all keys:
+<code>struct Pos { i32 x; i32 y; }</code> keys a grid. Any other key type (a float, an array, a struct with a
+float field) is a static type error, and the message names the field that is not a key. The map
+owns its keys and values. Lookups
 take the key by reference, so they copy nothing.</p>
 <table>
 <thead><tr><th>Function</th><th>Does</th></tr></thead>
@@ -5387,6 +5642,35 @@ sat  1
 cat: 1
 3 distinct, back to 1
 </pre></div></figure>
+<figure class="code"><div class="code-head"><span class="code-title">A struct as a key</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">struct</span> Pos
+{
+    <span class="t">i32</span> x;
+    <span class="t">i32</span> y;
+}
+
+<span class="k">enum</span> Tile
+{
+    Wall,
+    Door(<span class="t">u8</span>),
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="p">HashMap</span>&lt;Pos, Tile&gt; grid = <span class="p">HashMap</span>::new();
+    <span class="p">HashMap</span>::insert(&amp;<span class="k">mut</span> grid, Pos { .x = <span class="n">0</span>, .y = -<span class="n">1</span> }, Wall);
+    <span class="p">HashMap</span>::insert(&amp;<span class="k">mut</span> grid, Pos { .x = <span class="n">2</span>, .y = <span class="n">3</span> }, Door(<span class="n">7</span>));
+    Pos at = Pos { .x = <span class="n">2</span>, .y = <span class="n">3</span> };
+    <span class="k">match</span> (<span class="p">HashMap</span>::get(&amp;grid, &amp;at))
+    {
+        <span class="p">Some</span>(Door(k)) : <span class="p">assert</span>(*k == <span class="n">7</span>),
+        _ : <span class="p">assert</span>(<span class="k">false</span>),
+    }
+    <span class="p">HashSet</span>&lt;Tile&gt; seen = <span class="p">HashSet</span>::new();      <span class="c">// an enum of keys is a key too</span>
+    <span class="p">HashSet</span>::insert(&amp;<span class="k">mut</span> seen, Door(<span class="n">7</span>));
+    <span class="p">assert</span>(<span class="p">HashSet</span>::contains(&amp;seen, &amp;Door(<span class="n">7</span>)) &amp;&amp; !<span class="p">HashSet</span>::contains(&amp;seen, &amp;Wall));
+}</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">A float is not a key</span><span class="badge bad">rejected: diag.type-mismatch</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> main()
@@ -5444,6 +5728,10 @@ size, and is rejected with <code>diag.recursive-type</code>.</p>
     <span class="t">i32</span> n = <span class="p">Box</span>::into_inner(counter);  <span class="c">// the value back; the Box&#x27;s memory is freed</span>
     <span class="p">assert</span>(n == <span class="n">42</span>);
 }                                     <span class="c">// list: both nodes destroyed, the outer one first</span></code></pre></figure>
+<p>Destroying a chain of <code>Box</code>es does not use a stack frame per node when each <code>Box</code> is the
+last thing its node destroys (its first-declared resource field, as <code>next</code> above): the next node is
+destroyed by a loop, in the same order. So a list of a million nodes goes out of scope like any
+other value.</p>
 <figure class="code"><div class="code-head"><span class="code-title">A type cannot contain itself</span><span class="badge bad">rejected: diag.recursive-type</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">struct</span> Node
@@ -5563,7 +5851,7 @@ for looking things up; the semantics are in the earlier sections.</p>
 <li><strong>Comments:</strong> <code>// to end of line</code> and <code>/* block */</code> (block comments do not nest).</li>
 <li><strong>Identifiers:</strong> ASCII letters, digits and <code>_</code>, not starting with a digit.</li>
 <li><strong>Integer literals:</strong> decimal digits, or hexadecimal, octal or binary after <code>0x</code>, <code>0o</code>, <code>0b</code>, optionally <code>: type</code> (<code>255: u8</code>, <code>0xFF: u8</code>). No sign: <code>-</code> is an operator. <strong>Float literals:</strong> <code>1.5</code>, <code>0.25: f32</code>, <code>1.0e-7</code>. <strong>Digit separators:</strong> a <code>_</code> between two digits is ignored (<code>1_000_000</code>, <code>0xFFFF_0000</code>). <strong>Booleans:</strong> <code>true</code>, <code>false</code>. <strong>Unit value:</strong> <code>()</code>.</li>
-<li><strong>String literals:</strong> <code>&quot;…&quot;</code>, type <code>str</code>. Escapes <code>\n \r \t \0 \\ \&quot;</code> and <code>\u{hex}</code>; any other source character stands for itself. A literal must close on its own line. <strong>Byte literals:</strong> <code>b&quot;…&quot;</code>, type <code>array&lt;u8, N&gt;</code>; the same escapes except <code>\xNN</code> in place of <code>\u{…}</code>, ASCII characters only, at least one byte. <strong>Byte character literals:</strong> <code>b&#x27;a&#x27;</code>, type <code>u8</code>, one ASCII character or escape. <strong>No character literals</strong> (a <code>char</code> type).</li>
+<li><strong>String literals:</strong> <code>&quot;…&quot;</code>, type <code>str</code>. Escapes <code>\n \r \t \0 \\ \&quot;</code> and <code>\u{hex}</code>; any other source character stands for itself. A literal must close on its own line. <strong>Byte literals:</strong> <code>b&quot;…&quot;</code>, type <code>array&lt;u8, N&gt;</code>; the same escapes except <code>\xNN</code> in place of <code>\u{…}</code>, ASCII characters only, at least one byte. <strong>Byte character literals:</strong> <code>b&#x27;a&#x27;</code>, one ASCII character or escape: an unsigned integer literal, <code>u8</code> unless its context gives another unsigned type. <strong>No character literals</strong> (a <code>char</code> type).</li>
 <li><strong>Keywords:</strong> <code>fn struct enum resource match if else while return auto module import export unsafe extern break continue move mut true false as void</code>.</li>
 <li><strong>Reserved type names</strong> (cannot be identifiers): <code>i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 isize usize f32 f64 bool str ref rawptr array handle mutex guard</code>. The words <code>shared</code> and <code>exclusive</code> are ordinary identifiers that only have meaning inside <code>ref&lt;…, …&gt;</code>.</li>
 <li>Whitespace and newlines are insignificant between tokens; brace placement is a matter of style.</li>
