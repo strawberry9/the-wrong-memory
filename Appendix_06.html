@@ -156,7 +156,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.093001</div>
+<div class="sub">Specification edition 2026.093002</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -323,7 +323,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.093001</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.093002</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -411,10 +411,11 @@ turn.</p>
 mechanism or would have hidden a semantic fact the language wants to keep visible.</p>
 <ul>
 <li><strong>Implicit conversions and subtyping.</strong> <code>i32</code> and <code>i64</code> never mix silently.</li>
-<li><strong>A trait or bound system.</strong> A generic body can store, pass and return a <code>T</code>, but not add, compare or call it.</li>
+<li><strong>User-defined traits or bounds.</strong> A type parameter's operations come from four built-in bounds — <code>eq</code>, <code>ordered</code>, <code>number</code>, <code>integer</code> (§12) — and nothing else: there is no way to declare a new bound, and no struct or enum satisfies one. To compare or combine values of your own types in generic code, pass the operation in as a function value.</li>
 <li><strong>Exceptions.</strong> A fault terminates the program after running destructors; expected failure is a <code>Result</code>.</li>
 <li><strong>Garbage collection.</strong> Ownership and scope-end destruction are deterministic; <code>Rc&lt;T&gt;</code> is a library type.</li>
-<li><strong>Character literals, string indexing and slicing.</strong> A <code>str</code> is a whole value; its bytes are reached with <code>str_byte</code>, and a single byte is written <code>b&#x27;a&#x27;</code>, a <code>u8</code>. Text that arrives from outside is still bytes until <code>String::from_utf8</code> validates it.</li>
+<li><strong>Character literals, string indexing and slicing.</strong> A <code>str</code> is a whole value; its bytes are reached with <code>str_byte</code>, and a single byte is written <code>b&#x27;a&#x27;</code>: a <code>u8</code>, or the wider unsigned type its context asks for (§06). Text that arrives from outside is still bytes until <code>String::from_utf8</code> validates it.</li>
+<li><strong>Method-call syntax.</strong> A call names the function's owner and writes the borrow it takes: <code>Vec::push(&amp;mut v, x)</code>, never <code>v.push(x)</code>. The mode of every access path is visible where the path is formed, and <code>.</code> means one thing, field access. This is final (<code>CHG-0132</code>): no receiver sugar, no uniform call syntax, no auto-borrowing dot, no chaining.</li>
 <li><strong>A <code>mut</code> qualifier on bindings, <code>switch</code> and <code>goto</code>, <code>import … as</code> renaming, partial initialisation, lifetime annotations, atomics.</strong></li>
 </ul>
 <h3>How to read this guide</h3>
@@ -6009,14 +6010,14 @@ of a declaration or the right side of an assignment, the enclosing statement sti
 <p>Things the grammar does not provide, each a considered decision recorded in the
 specification:</p>
 <ul>
-<li>no character literals (<code>b&#x27;x&#x27;</code> is a byte, a <code>u8</code>), no indexing or slicing of a <code>str</code>; no <code>switch</code> (a <code>match</code> on an integer, §16, is the checked form); no <code>goto</code></li>
-<li>no <code>import … as</code> renaming; no method-call syntax (<code>v.push(x)</code>); no operator overloading</li>
-<li>patterns in <code>match</code> are <code>_</code>, a name (a binder or a constant), a literal, a variant, and a variant with a pattern for its payload, nothing else (no ranges, alternatives, struct patterns or guards); destructuring takes a struct apart whole, every field at once</li>
+<li>no character literals (<code>b&#x27;x&#x27;</code> is a byte: a <code>u8</code>, or the unsigned type its context asks for), no indexing or slicing of a <code>str</code>; no <code>switch</code> (a <code>match</code> on an integer, §16, is the checked form); no <code>goto</code></li>
+<li>no <code>import … as</code> renaming; no method-call syntax (<code>v.push(x)</code> — final, <code>CHG-0132</code>); no operator overloading</li>
+<li>patterns in <code>match</code> are <code>_</code>, a name (a binder or a constant), a literal, a variant, and a variant with a pattern for its payload, nothing else (no ranges, alternatives, struct patterns or guards); destructuring takes a struct apart whole: every field named, or <code>..</code> for the rest (destroyed as usual), and <code>field : name</code> renames one</li>
 <li>no partial initialisation of aggregates</li>
 <li>no lifetime annotations: a function returning a reference must have exactly one reference parameter</li>
-<li>no bounds on generic type parameters</li>
+<li>no user-declared bounds on generic type parameters: only the four built-in ones (<code>eq</code>, <code>ordered</code>, <code>number</code>, <code>integer</code>), on a function's parameters, and no struct or enum satisfies one</li>
 <li>no <code>mut</code> qualifier on bindings (the keyword is reserved for <code>&amp;mut</code>)</li>
-<li>no moving a resource out of a field of a live struct; move the whole struct</li>
+<li>no moving a resource out of a field of a live struct; move the whole struct, or take it apart (a field of a temporary may be moved out; the rest ends with the statement)</li>
 <li>no spawning a closure that borrows; use <code>move</code></li>
 </ul>
 <h3>What an implementation must document</h3>
