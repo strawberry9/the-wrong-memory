@@ -445,8 +445,8 @@ file's previous contents as <code>NAME.cb.format.bak</code>, and <code>cobfmt --
 would change (for a test or a commit hook). It changes layout and nothing else: indentation, braces,
 spacing, blank lines, the <code>:</code> of a <code>match</code>'s arms and of a <code>bitstruct</code>'s fields aligned in one column, and trailing comments kept
 in theirs. Before writing, it checks that the result is the same program token for token, so
-formatting can never change what a program does. It keeps your line breaks: a short
-<code>if (n == 0) { return; }</code> stays on one line, and a long line is broken only when you ask, with
+formatting can never change what a program does. It keeps your line breaks — a short
+<code>if (n == 0) { return; }</code> stays on one line, though a function's body always opens on its own line — and a long line is broken only when you ask, with
 <code>--width N</code>. <code>cobfmt --help</code> lists the rest.</p>
 
 <nav class="pager"><a class="top" href="#top">Top</a><a class="next" href="#tour">A tour in one program &rarr;</a></nav></section>
