@@ -156,7 +156,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.100101</div>
+<div class="sub">Specification edition 2026.100102</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -323,7 +323,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100101</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100102</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -439,6 +439,15 @@ the same way and exit with status 1.</p>
 <p>All code in this guide uses Allman brace style (every opening brace on its own
 line) and four-space indentation. That is a documentation convention: CobaltC ignores whitespace
 between tokens, so any brace placement is equally valid.</p>
+<p><code>cobfmt</code>, the formatter, writes that style for you: <code>cobfmt program.cb</code> rewrites the
+file in place, <code>cobfmt --backup src/</code> does every <code>.cb</code> file under <code>src/</code> and keeps each changed
+file's previous contents as <code>NAME.cb.format.bak</code>, and <code>cobfmt --check src/</code> only lists the files it
+would change (for a test or a commit hook). It changes layout and nothing else: indentation, braces,
+spacing, blank lines, the <code>:</code> of a <code>match</code>'s arms and of a <code>bitstruct</code>'s fields aligned in one column, and trailing comments kept
+in theirs. Before writing, it checks that the result is the same program token for token, so
+formatting can never change what a program does. It keeps your line breaks: a short
+<code>if (n == 0) { return; }</code> stays on one line, and a long line is broken only when you ask, with
+<code>--width N</code>. <code>cobfmt --help</code> lists the rest.</p>
 
 <nav class="pager"><a class="top" href="#top">Top</a><a class="next" href="#tour">A tour in one program &rarr;</a></nav></section>
 <section id="tour">
@@ -558,11 +567,11 @@ and prints the output shown below the code.</p>
             {
                 <span class="p">printf</span>(<span class="s">&quot;C%d&quot;</span>, by);
             },
-            Fine :
+            Fine     :
             {
                 <span class="p">printf</span>(<span class="s">&quot;F&quot;</span>);
             },
-            Hot(by) :             <span class="c">// &quot;H&quot; then the excess</span>
+            Hot(by)  :            <span class="c">// &quot;H&quot; then the excess</span>
             {
                 <span class="p">printf</span>(<span class="s">&quot;H%d&quot;</span>, by);
             },
@@ -575,7 +584,7 @@ and prints the output shown below the code.</p>
     <span class="k">auto</span> digits = <span class="s">b&quot;42&quot;</span>;
     <span class="k">match</span> (parse_two(digits[<span class="n">0</span>], digits[<span class="n">1</span>]))
     {
-        <span class="p">Ok</span>(v) :
+        <span class="p">Ok</span>(v)  :
         {
             <span class="p">printf</span>(<span class="s">&quot;%d&quot;</span>, v);
         },
@@ -858,7 +867,7 @@ decide. These are ordinary generic calls with the operand type inferred from the
         {
             <span class="p">assert</span>(v == <span class="n">2</span>);
         },
-        <span class="p">None</span> :
+        <span class="p">None</span>    :
         {
             <span class="p">assert</span>(<span class="k">false</span>, <span class="s">&quot;unreachable&quot;</span>);
         },
@@ -1090,7 +1099,7 @@ the program runs.</p>
     <span class="k">match</span> (r)
     {
         <span class="p">Some</span>(x) : x,
-        <span class="p">None</span> : <span class="p">max_value</span>&lt;T&gt;(),
+        <span class="p">None</span>    : <span class="p">max_value</span>&lt;T&gt;(),
     }
 }
 
@@ -1205,8 +1214,8 @@ way the destruction is visible where it happens. The same holds for a field (<co
 write through a reference (<code>*r = v;</code>, <code>r.rows = v;</code>): where the compiler can see the old value is still
 there, it rejects the assignment before the program runs; elsewhere, the run does. What counts is whether the value there owns anything: a <code>None</code> of an
 <code>Option&lt;String&gt;</code> owns nothing, so <code>o = Some(s);</code> over it is fine, while a <code>Some</code> must be dropped
-first. A type declared <code>resource</code>, or with a destructor, always owns. Declaring the name again
-(shadowing) works too.</p>
+first. A type declared <code>resource</code>, or with a destructor, always owns. Declaring the name again in
+the same block does not: that is <code>diag.duplicate-local</code> (§11).</p>
 <figure class="code"><div class="code-head"><span class="code-title">Where destruction happens</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> make() : <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt;
@@ -1838,8 +1847,34 @@ whole.</p>
 </tbody>
 </table>
 <p>Initialising from a plain value copies it; from a resource, moves it; from a temporary
-such as a struct literal or a call result, adopts it. Redeclaring a name in the same block shadows
-the earlier binding.</p>
+such as a struct literal or a call result, adopts it.</p>
+<h4>One name, one declaration per block</h4>
+<p>A block declares a name once. A second <code>i32 total</code> further down the same block is
+<code>diag.duplicate-local</code>, which says where the first one is: to change the variable, assign to it
+(<code>total = 10;</code>); for a value of another type, give it another name. A function's parameters count
+as declared in its body, and so do the names a <code>foreach</code>, a <code>for</code> header, a <code>match</code> arm or an
+<code>if</code>-pattern binds for the block they govern, so <code>fn f(i32 n) { i32 n = n * 2; }</code> is rejected
+too: write <code>n = n * 2;</code>.</p>
+<p>A block <em>inside</em> it may reuse the name: the inner variable shadows the outer one
+until the inner block ends, and the outer one is untouched. Separate blocks, successive loops and
+separate <code>match</code> arms each have their own names, and a local may take the name of a function or a
+constant (a program's own names never clash with names added to <code>std</code> later). Languages differ
+here: Rust lets any declaration shadow, Java and C# forbid shadowing a local even from an inner
+block; CobaltC follows C and C++. Every local can already be assigned, so a second declaration in
+the same block would only hide a mistake.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Declared once in its block</span><span class="badge bad">rejected: diag.duplicate-local</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    <span class="t">i32</span> total = <span class="n">0</span>;
+    total += <span class="n">4</span>;                       <span class="c">// <span class="ok">✓</span> change it by assigning</span>
+    {
+        <span class="t">i32</span> total = <span class="n">100</span>;              <span class="c">// <span class="ok">✓</span> an inner block&#x27;s own total</span>
+        <span class="p">assert</span>(total == <span class="n">100</span>);
+    }
+    <span class="p">assert</span>(total == <span class="n">4</span>);               <span class="c">// the outer one is untouched</span>
+    <span class="t">i32</span> total = <span class="n">10</span>;                   <span class="c">// <span class="bad">✗</span> <span class="dg">diag.duplicate-local</span>: declared above, in this block</span>
+}</code></pre></figure>
 <h3>Definite assignment</h3>
 <figure class="code"><div class="code-head"><span class="code-title">Assigned on every path</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
@@ -2900,7 +2935,7 @@ program's name.</p>
             <span class="p">printf</span>(<span class="s">&quot;hello, %v\n&quot;</span>, &amp;name);
             <span class="n">0</span>
         },
-        <span class="p">Err</span>(_) :
+        <span class="p">Err</span>(_)   :
         {
             <span class="p">printf</span>(<span class="s">&quot;the name is not UTF-8\n&quot;</span>);
             <span class="n">1</span>
@@ -2975,14 +3010,14 @@ bitstruct Double : <span class="t">u64</span>
 {
     mantissa : <span class="n">52</span>;                    <span class="c">// bits 0 .. 52</span>
     exponent : <span class="n">11</span>;                    <span class="c">// bits 52 .. 63</span>
-    sign : <span class="n">1</span>;                         <span class="c">// bit 63</span>
+    sign     : <span class="n">1</span>;                     <span class="c">// bit 63</span>
 }
 
 bitstruct Instr : <span class="t">u32</span>
 {
-    op : <span class="n">6</span>;
-    rd : <span class="n">5</span>;
-    rs : <span class="n">5</span>;
+    op  : <span class="n">6</span>;
+    rd  : <span class="n">5</span>;
+    rs  : <span class="n">5</span>;
     imm : <span class="n">16</span>;
 }
 
@@ -3285,10 +3320,10 @@ rejected, since it could never run.</p>
 {
     <span class="k">match</span> (r)
     {
-        <span class="p">Ok</span>(<span class="p">Some</span>(n)) : n,              <span class="c">// two levels tested, the inner payload bound</span>
-        <span class="p">Ok</span>(<span class="p">None</span>) : <span class="n">0</span>,
+        <span class="p">Ok</span>(<span class="p">Some</span>(n))      : n,         <span class="c">// two levels tested, the inner payload bound</span>
+        <span class="p">Ok</span>(<span class="p">None</span>)         : <span class="n">0</span>,
         <span class="p">Err</span>(Invalid(at)) : -<span class="n">100</span> - <span class="p">narrow</span>&lt;<span class="t">i32</span>&gt;(at),
-        <span class="p">Err</span>(_) : -<span class="n">1</span>,
+        <span class="p">Err</span>(_)           : -<span class="n">1</span>,
     }
 }
 
@@ -3307,9 +3342,9 @@ rejected, since it could never run.</p>
     <span class="t">i32</span> v = <span class="k">match</span> (o)
     {
         <span class="p">Some</span>(<span class="p">Some</span>(x)) : x,
-        <span class="p">Some</span>(<span class="p">None</span>) : <span class="n">1</span>,
-        <span class="p">Some</span>(_) : <span class="n">2</span>,                  <span class="c">// <span class="bad">✗</span> <span class="dg">diag.unreachable-arm</span>: every Some went to the arms above</span>
-        <span class="p">None</span> : <span class="n">0</span>,
+        <span class="p">Some</span>(<span class="p">None</span>)    : <span class="n">1</span>,
+        <span class="p">Some</span>(_)       : <span class="n">2</span>,            <span class="c">// <span class="bad">✗</span> <span class="dg">diag.unreachable-arm</span>: every Some went to the arms above</span>
+        <span class="p">None</span>          : <span class="n">0</span>,
     };
 }</code></pre></figure>
 <h4>Literal patterns</h4>
@@ -3332,7 +3367,7 @@ literal, a variant, and a variant with a pattern for its payload; there is nothi
         <span class="n">0</span>x01 : acc + <span class="n">1</span>,               <span class="c">// a byte from an instruction stream</span>
         <span class="n">0</span>x02 : acc * <span class="n">2</span>,
         <span class="n">0</span>x10 : <span class="n">0</span>,
-        _ : acc,                      <span class="c">// any other opcode: no effect</span>
+        _    : acc,                   <span class="c">// any other opcode: no effect</span>
     }
 }
 
@@ -3340,8 +3375,8 @@ literal, a variant, and a variant with a pattern for its payload; there is nothi
 {
     <span class="k">match</span> (r)
     {
-        <span class="p">Ok</span>(<span class="n">0</span>) : <span class="k">true</span>,                 <span class="c">// a read of 0 bytes: the end of the file</span>
-        <span class="p">Ok</span>(_) : <span class="k">false</span>,
+        <span class="p">Ok</span>(<span class="n">0</span>)  : <span class="k">true</span>,                <span class="c">// a read of 0 bytes: the end of the file</span>
+        <span class="p">Ok</span>(_)  : <span class="k">false</span>,
         <span class="p">Err</span>(_) : <span class="k">true</span>,
     }
 }
@@ -3363,10 +3398,10 @@ literal, a variant, and a variant with a pattern for its payload; there is nothi
 {
     <span class="k">match</span> (word)
     {
-        <span class="s">&quot;load&quot;</span> : <span class="n">1</span>,
+        <span class="s">&quot;load&quot;</span>  : <span class="n">1</span>,
         <span class="s">&quot;store&quot;</span> : <span class="n">2</span>,
-        <span class="s">&quot;jump&quot;</span> : <span class="n">3</span>,
-        _ : -<span class="n">1</span>,                       <span class="c">// any other word: not an instruction</span>
+        <span class="s">&quot;jump&quot;</span>  : <span class="n">3</span>,
+        _       : -<span class="n">1</span>,                 <span class="c">// any other word: not an instruction</span>
     }
 }
 
@@ -3376,7 +3411,7 @@ literal, a variant, and a variant with a pattern for its payload; there is nothi
     {
         <span class="s">&quot;quit&quot;</span> : <span class="k">true</span>,
         <span class="s">&quot;exit&quot;</span> : <span class="k">true</span>,
-        _ : <span class="k">false</span>,
+        _      : <span class="k">false</span>,
     }
 }
 
@@ -3401,7 +3436,7 @@ it, so no <code>_</code> arm is needed. Write the bounds as a range would mean t
 {
     <span class="k">match</span> (v &gt;= <span class="n">10</span> &amp;&amp; v &lt; <span class="n">15</span>)         <span class="c">// 10 to 14, as 10..15 would mean</span>
     {
-        <span class="k">true</span> : <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, v),
+        <span class="k">true</span>  : <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, v),
         <span class="k">false</span> : <span class="p">printf</span>(<span class="s">&quot;%v is not in the correct range\n&quot;</span>, v),
     }
 }
@@ -3442,7 +3477,7 @@ list is built at run time. Text works the same way: one arm per word.</p>
 {
     <span class="k">match</span> (v == <span class="n">1</span> || v == <span class="n">4</span> || v == <span class="n">9</span>)   <span class="c">// several values as one test: true and false cover it</span>
     {
-        <span class="k">true</span> : <span class="k">true</span>,
+        <span class="k">true</span>  : <span class="k">true</span>,
         <span class="k">false</span> : <span class="k">false</span>,
     }
 }
@@ -3460,7 +3495,7 @@ list is built at run time. Text works the same way: one arm per word.</p>
     {
         <span class="s">&quot;quit&quot;</span> : <span class="k">true</span>,
         <span class="s">&quot;exit&quot;</span> : <span class="k">true</span>,
-        _ : <span class="k">false</span>,
+        _      : <span class="k">false</span>,
     };
     <span class="p">assert</span>(quit);
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>Sun is a weekend day
@@ -3494,8 +3529,8 @@ Mistaking a constant for a binding cannot go unnoticed: a <code>match</code> on 
 {
     <span class="k">match</span> (op)
     {
-        PUSH : <span class="n">1</span>,
-        POP : <span class="n">2</span>,
+        PUSH  : <span class="n">1</span>,
+        POP   : <span class="n">2</span>,
         other : <span class="n">100</span> + <span class="p">widen</span>&lt;<span class="t">i32</span>&gt;(other),      <span class="c">// every other opcode, bound to `other`</span>
     }
 }
@@ -3541,12 +3576,12 @@ is walked.</p>
     <span class="k">match</span> (&amp;<span class="k">mut</span> name)                 <span class="c">// change the payload in place</span>
     {
         <span class="p">Some</span>(s) : <span class="p">String</span>::push_ascii(s, b&#x27;!&#x27;),
-        <span class="p">None</span> : {},
+        <span class="p">None</span>    : {},
     }
     <span class="t">usize</span> len = <span class="k">match</span> (&amp;name)         <span class="c">// look without consuming</span>
     {
         <span class="p">Some</span>(s) : <span class="p">String</span>::len(s),
-        <span class="p">None</span> : <span class="n">0</span>,
+        <span class="p">None</span>    : <span class="n">0</span>,
     };
     <span class="p">assert</span>(len == <span class="n">4</span>);
     <span class="p">String</span> kept = <span class="p">Option</span>::unwrap_or(name, <span class="p">String</span>::new());   <span class="c">// name still owns its String</span>
@@ -3570,10 +3605,10 @@ binder borrows what the reference borrows, so the map cannot change while <code>
 {
     <span class="k">match</span> (c)
     {
-        <span class="p">Some</span>(Num(v)) : *v,                                   <span class="c">// v : ref&lt;i64, shared&gt;</span>
+        <span class="p">Some</span>(Num(v))  : *v,                                  <span class="c">// v : ref&lt;i64, shared&gt;</span>
         <span class="p">Some</span>(Text(t)) : <span class="p">narrow</span>&lt;<span class="t">i64</span>&gt;(<span class="p">widen</span>&lt;<span class="t">u64</span>&gt;(<span class="p">String</span>::len(t))),
-        <span class="p">Some</span>(Empty) : <span class="n">0</span>,
-        <span class="p">None</span> : -<span class="n">1</span>,
+        <span class="p">Some</span>(Empty)   : <span class="n">0</span>,
+        <span class="p">None</span>          : -<span class="n">1</span>,
     }
 }
 
@@ -3587,7 +3622,7 @@ binder borrows what the reference borrows, so the map cannot change while <code>
     <span class="k">match</span> (<span class="p">HashMap</span>::get_mut(&amp;<span class="k">mut</span> sheet, &amp;<span class="n">1</span>))
     {
         <span class="p">Some</span>(Num(v)) : { *v += <span class="n">1</span>; },                         <span class="c">// v : ref&lt;i64, exclusive&gt;</span>
-        _ : {},
+        _            : {},
     }
     <span class="p">assert</span>(width(<span class="p">HashMap</span>::get(&amp;sheet, &amp;<span class="n">1</span>)) == <span class="n">13</span>);
 }</code></pre></figure>
@@ -3622,7 +3657,7 @@ enum whatever the arm, match on a reference to it (above).</p>
     <span class="k">match</span> (o)
     {
         <span class="p">None</span> : {},
-        _ :                           <span class="c">// takes nothing out: o is still here</span>
+        _    :                        <span class="c">// takes nothing out: o is still here</span>
         {
             <span class="p">String</span> t = <span class="p">Option</span>::unwrap_or(o, <span class="p">String</span>::new());
             <span class="p">assert</span>(<span class="p">String</span>::len(&amp;t) == <span class="n">4</span>);
@@ -3651,7 +3686,7 @@ in use and <code>None</code> for any other.</p>
     <span class="k">match</span> (Op::from_code(<span class="n">10</span>))
     {
         <span class="p">Some</span>(Mul) : {},
-        _ : { <span class="p">assert</span>(<span class="k">false</span>); },
+        _         : { <span class="p">assert</span>(<span class="k">false</span>); },
     }
     <span class="p">assert</span>(Op::from_code(<span class="n">3</span>) == <span class="p">None</span>);
 }</code></pre></figure>
@@ -3775,7 +3810,7 @@ a module in a file of its own, writes its own <code>import std;</code>.</p>
         <span class="k">match</span> (s)
         {
             Square(_) : <span class="p">printf</span>(<span class="s">&quot;square\n&quot;</span>),
-            Dot : <span class="p">printf</span>(<span class="s">&quot;dot\n&quot;</span>),
+            Dot       : <span class="p">printf</span>(<span class="s">&quot;dot\n&quot;</span>),
         }
     }
 }
@@ -3836,8 +3871,9 @@ a bare literal is an <code>i32</code> (or an <code>f64</code>). When <code>e</co
 write the type.</p>
 <p>A constant can also be declared inside a function, as a statement: <code>const u8 LIMIT = 200;</code>. It is
 the same kind of constant, but its name is <em>scoped like a local</em>: it can be used from its
-declaration to the end of its block, an inner block can declare another constant of the same name,
-and a later local variable of that name hides it. A local variable, even one set from a literal, is
+declaration to the end of its block, and an inner block can declare another constant or a variable
+of the same name, which hides it there (in its own block, a second declaration of the name is
+<code>diag.duplicate-local</code>, §11). A local variable, even one set from a literal, is
 not a constant — any later statement could change it — so <code>static_assert</code> cannot use it; name the
 value with <code>const</code> when you want the check made before the program runs. A local constant's
 initializer can use other constants, but not a local variable or the function's type
@@ -3868,13 +3904,26 @@ parameters.</p>
     <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">3</span>&gt; abc = [<span class="n">97</span>, <span class="n">98</span>, <span class="n">99</span>];
     <span class="p">assert</span>(checksum(&amp;abc[<span class="n">0</span>..$]) == <span class="n">440920331</span>);
 }</code></pre></figure>
-<h4><code>const</code> is not "read-only"</h4>
-<p>In C, C++, Java or JavaScript, <code>const</code> (or <code>final</code>) often marks a variable that is set once,
-at run time, and never reassigned. CobaltC's <code>const</code> is not that: it means <em>known before the
-program runs</em>, like <code>constexpr</code> in C++ or <code>const</code> in Rust, Go and C#. <code>const usize N = arg_count();</code>
-is <code>diag.const-not-constant</code>, because the value is only known once the program runs; and a constant
-is not a variable at all, but stands for its value, so assigning to it is like assigning to a
-literal.</p>
+<h4><code>const</code> means known when the program is compiled</h4>
+<p>A <code>const</code> can never change: assigning to it, or borrowing it with <code>&amp;mut</code>, is rejected when
+the program is compiled, as in Rust. A constant is not a variable at all, but stands for its value,
+so assigning to it is like assigning to a literal. Copying its value out is fine: <code>i32 y = LIMIT;</code>
+gives a variable <code>y</code>, which can change, while <code>LIMIT</code> stays as it is.</p>
+<figure class="code"><div class="code-head"><span class="code-title">A constant cannot change</span><span class="badge bad">rejected: diag.type-mismatch</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">const</span> <span class="t">i32</span> LIMIT = <span class="n">10</span>;
+
+<span class="k">fn</span> main()
+{
+    <span class="t">i32</span> y = LIMIT;                    <span class="c">// a copy of the value: y is an ordinary variable</span>
+    y += <span class="n">1</span>;
+    LIMIT = <span class="n">11</span>;                       <span class="c">// <span class="bad">✗</span> <span class="dg">diag.type-mismatch</span>: a constant cannot be assigned</span>
+}</code></pre></figure>
+<p>What makes it a constant is <em>when</em> its value is known: before the program runs, like
+<code>const</code> in Rust, Go and C# or <code>constexpr</code> in C++. That differs from C, C++, Java or JavaScript, where
+<code>const</code> (or <code>final</code>) often marks a variable that is set once, at run time, and never reassigned.
+<code>const usize N = arg_count();</code> is <code>diag.const-not-constant</code>, because the value is only known once
+the program runs.</p>
 <p>CobaltC has no read-only local variables either: every local can be assigned. It does not need
 them for safety, because every change to a variable shows where it happens. Only two things can
 change a local: an assignment to its name in its own function, or an exclusive reference to it,
@@ -4180,9 +4229,12 @@ hint.</p>
 enums of <code>std</code>, taken apart with <code>match</code>. The postfix <code>?</code> operator unwraps a <code>Result</code>: on <code>Ok(v)</code> it
 yields <code>v</code>, on <code>Err(e)</code> it returns <code>Err(e)</code> from the enclosing function immediately. That function
 must therefore return <code>Result&lt;_, E&gt;</code> with exactly the same <code>E</code>; convert first with
-<code>map_err(r, f)</code> if the error types differ. An <code>Option</code> has no <code>?</code> of its own:
-<code>Option::ok_or(o, e)</code> turns it into a <code>Result</code> — <code>Ok(v)</code> from <code>Some(v)</code>, <code>Err(e)</code> from <code>None</code> —
-so <code>u8 c = Option::ok_or(peek(p), fail(p, &quot;expected a value&quot;))?;</code> reads "the byte, or return that
+<code>map_err(r, f)</code> if the error types differ. On an <code>Option</code>, <code>?</code> works the same way inside a
+function that itself returns an <code>Option</code>: <code>Some(v)</code> gives <code>v</code>, <code>None</code> returns <code>None</code> at once, so
+<code>usize end = checked_add(start, n)?;</code> reads "the sum, or give up" (D-0130). Nothing converts between
+the two: in a function returning a <code>Result</code>, <code>Option::ok_or(o, e)</code> turns the <code>Option</code> into a
+<code>Result</code> — <code>Ok(v)</code> from <code>Some(v)</code>, <code>Err(e)</code> from <code>None</code> — so
+<code>u8 c = Option::ok_or(peek(p), fail(p, &quot;expected a value&quot;))?;</code> reads "the byte, or return that
 error". Where a default will do, <code>Option::unwrap_or(o, d)</code> and
 <code>Result::unwrap_or(r, d)</code> give the value, or <code>d</code> when there is none; the default (and <code>ok_or</code>'s
 error) is evaluated either way, and one that goes unused is destroyed. Where there must be a value,
@@ -4225,7 +4277,7 @@ error) is evaluated either way, and one that goes unused is destroyed. Where the
 {
     <span class="k">match</span> (two_digits(b&#x27;<span class="n">4</span>&#x27;, b&#x27;<span class="n">2</span>&#x27;))
     {
-        <span class="p">Ok</span>(v) :
+        <span class="p">Ok</span>(v)  :
         {
             <span class="p">assert</span>(v == <span class="n">42</span>);
         },
@@ -4236,7 +4288,7 @@ error) is evaluated either way, and one that goes unused is destroyed. Where the
     }
     <span class="k">match</span> (two_digits(b&#x27;<span class="n">4</span>&#x27;, b&#x27;x&#x27;))
     {
-        <span class="p">Ok</span>(_) :
+        <span class="p">Ok</span>(_)  :
         {
             <span class="p">assert</span>(<span class="k">false</span>, <span class="s">&quot;unreachable&quot;</span>);
         },
@@ -4479,7 +4531,7 @@ jobs, closes the channel, and joins the workers, each of which stops at <code>No
         <span class="k">match</span> (<span class="p">Channel</span>::recv(jobs))
         {
             <span class="p">Some</span>(n) : <span class="p">Channel</span>::send(results, n * n),
-            <span class="p">None</span> : <span class="k">break</span>,                        <span class="c">// closed and empty: this worker is done</span>
+            <span class="p">None</span>    : <span class="k">break</span>,                     <span class="c">// closed and empty: this worker is done</span>
         }
     }
 }
@@ -4511,7 +4563,7 @@ jobs, closes the channel, and joins the workers, each of which stops at <code>No
     <span class="p">Channel</span>::close(&amp;names);
     <span class="k">match</span> (<span class="p">Channel</span>::send(&amp;names, <span class="p">String</span>::from_str(<span class="s">&quot;late&quot;</span>)))
     {
-        <span class="p">Ok</span>(_) : <span class="p">assert</span>(<span class="k">false</span>, <span class="s">&quot;unreachable&quot;</span>),
+        <span class="p">Ok</span>(_)  : <span class="p">assert</span>(<span class="k">false</span>, <span class="s">&quot;unreachable&quot;</span>),
         <span class="p">Err</span>(s) : <span class="p">assert</span>(<span class="p">String</span>::len(&amp;s) == <span class="n">4</span>),   <span class="c">// closed: the value comes back</span>
     }
 }</code></pre></figure>
@@ -4780,7 +4832,7 @@ and the values are copied into a <code>Vec</code>.</p>
     <span class="t">usize</span> bytes = <span class="p">widen</span>&lt;<span class="t">usize</span>&gt;(n) * <span class="p">sizeof</span>&lt;<span class="t">i64</span>&gt;();
     <span class="t">rawptr</span>&lt;<span class="t">u8</span>&gt; raw = <span class="k">match</span> (<span class="p">allocate</span>(bytes, <span class="p">alignof</span>&lt;<span class="t">i64</span>&gt;()))
     {
-        <span class="p">Ok</span>(p) : p,
+        <span class="p">Ok</span>(p)  : p,
         <span class="p">Err</span>(_) :
         {
             <span class="k">return</span> out;
@@ -5009,6 +5061,7 @@ destructor destroys each element and frees the buffer. A plain element is copied
 <tr><td><code>Vec::new</code></td><td><code>() : Vec&lt;T&gt;</code></td><td><code>T</code> from the expected type or written <code>Vec&lt;i32&gt;::new()</code>; allocates nothing</td></tr>
 <tr><td><code>Vec::len</code></td><td><code>(ref&lt;Vec&lt;T&gt;, shared&gt;) : usize</code></td><td></td></tr>
 <tr><td><code>Vec::push</code></td><td><code>(ref&lt;Vec&lt;T&gt;, exclusive&gt;, T)</code></td><td>moves a resource element in; grows 0 → 4 → 8 → …, which relocates elements</td></tr>
+<tr><td><code>Vec::reserve</code></td><td><code>(ref&lt;Vec&lt;T&gt;, exclusive&gt;, usize n)</code></td><td>room for <code>n</code> more elements, so the next <code>n</code> pushes do not grow it; the elements are unchanged (D-0129)</td></tr>
 <tr><td><code>Vec::pop</code></td><td><code>(ref&lt;Vec&lt;T&gt;, exclusive&gt;) : Option&lt;T&gt;</code></td><td><code>None</code> when empty; moves a resource element out</td></tr>
 <tr><td><code>Vec::insert</code></td><td><code>(ref&lt;Vec&lt;T&gt;, exclusive&gt;, usize i, T)</code></td><td>puts the value at <code>i</code> (<code>i ≤ len</code>), moving the later elements up one</td></tr>
 <tr><td><code>Vec::remove</code></td><td><code>(ref&lt;Vec&lt;T&gt;, exclusive&gt;, usize i) : T</code></td><td>takes the element at <code>i</code> out, moving the later elements down one</td></tr>
@@ -5032,6 +5085,34 @@ destructor destroys each element and frees the buffer. A plain element is copied
 <tr><td><code>crc32(&amp;v[0..$])</code></td><td><code>(slice&lt;u8, shared&gt;) : u32</code></td><td>CRC-32/IEEE, the checksum of zlib, gzip and PNG; <code>crc32</code> of <code>&quot;123456789&quot;</code>'s bytes is <code>0xCBF43926</code> (§21 of the specification writes the algorithm out)</td></tr>
 </tbody>
 </table>
+<p>When you know how many elements are coming, say so first: <code>Vec::reserve(&amp;mut v, n)</code>
+makes room for <code>n</code> more at once, so filling the <code>Vec</code> allocates and copies once instead of every
+time it doubles. <code>String::reserve(&amp;mut s, n)</code> does the same for bytes. Neither changes what the
+program computes: no function reports a capacity, the length and the elements stay as they were,
+and reserving room that is already there does nothing. Like a <code>push</code> that grows, a <code>reserve</code> that
+grows moves the elements, so a reference into the old cells is stale afterwards. <code>std</code>'s own
+builders (<code>String::from_str</code>, <code>String::clone</code>, <code>Vec::from_slice</code>) already reserve what they
+need.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Room in advance</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    <span class="p">Vec</span>&lt;<span class="t">u32</span>&gt; squares = <span class="p">Vec</span>::new();
+    <span class="p">Vec</span>::reserve(&amp;<span class="k">mut</span> squares, <span class="n">1000</span>);         <span class="c">// one allocation for all of them</span>
+    <span class="k">foreach</span> (i in <span class="n">0</span>..<span class="n">1000</span>: <span class="t">u32</span>)
+    {
+        <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> squares, i * i);
+    }
+    <span class="p">assert</span>(<span class="p">Vec</span>::len(&amp;squares) == <span class="n">1000</span> &amp;&amp; squares[<span class="n">999</span>] == <span class="n">998001</span>);
+
+    <span class="p">String</span> line = <span class="p">String</span>::new();
+    <span class="p">String</span>::reserve(&amp;<span class="k">mut</span> line, <span class="n">80</span>);
+    <span class="k">foreach</span> (i in <span class="n">0</span>..<span class="n">10</span>)
+    {
+        <span class="p">String</span>::append(&amp;<span class="k">mut</span> line, <span class="s">&quot;-=-=-=-=&quot;</span>);
+    }
+    <span class="p">assert</span>(<span class="p">String</span>::len(&amp;line) == <span class="n">80</span>);
+}</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">Using Vec</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> main()
@@ -5054,7 +5135,7 @@ destructor destroys each element and frees the buffer. A plain element is copied
         {
             <span class="p">assert</span>(x == <span class="n">64</span>);
         },
-        <span class="p">None</span> :
+        <span class="p">None</span>    :
         {
             <span class="p">assert</span>(<span class="k">false</span>, <span class="s">&quot;unreachable&quot;</span>);
         },
@@ -5115,7 +5196,7 @@ one (D-0113).</p>
         <span class="p">Vec</span>&lt;<span class="p">StringView</span>&gt; kv = <span class="p">StringView</span>::split(part, <span class="s">&quot;=&quot;</span>);
         <span class="k">match</span> (<span class="p">StringView</span>::<span class="p">parse</span>&lt;<span class="t">i64</span>&gt;(<span class="p">StringView</span>::trim(kv[<span class="n">1</span>])))
         {
-            <span class="p">Ok</span>(n) : { <span class="p">HashMap</span>::insert(&amp;<span class="k">mut</span> fields, <span class="p">String</span>::from_view(<span class="p">StringView</span>::trim(kv[<span class="n">0</span>])), n); },
+            <span class="p">Ok</span>(n)  : { <span class="p">HashMap</span>::insert(&amp;<span class="k">mut</span> fields, <span class="p">String</span>::from_view(<span class="p">StringView</span>::trim(kv[<span class="n">0</span>])), n); },
             <span class="p">Err</span>(_) : {},
         }
     }
@@ -5123,7 +5204,7 @@ one (D-0113).</p>
     <span class="k">match</span> (<span class="p">HashMap</span>::get_str(&amp;fields, <span class="s">&quot;born&quot;</span>))
     {
         <span class="p">Some</span>(y) : <span class="p">assert</span>(*y == <span class="n">1815</span>),
-        <span class="p">None</span> : <span class="p">assert</span>(<span class="k">false</span>),
+        <span class="p">None</span>    : <span class="p">assert</span>(<span class="k">false</span>),
     }
     <span class="p">assert</span>(<span class="p">HashMap</span>::remove_str(&amp;<span class="k">mut</span> fields, <span class="s">&quot;born&quot;</span>) == <span class="p">Some</span>(<span class="n">1815</span>) &amp;&amp; <span class="p">HashMap</span>::len(&amp;fields) == <span class="n">0</span>);
 }</code></pre></figure>
@@ -5219,6 +5300,7 @@ miniature.</p>
 <tr><td><code>String::as_bytes</code></td><td><code>(ref&lt;String, shared&gt;) : ref&lt;Vec&lt;u8&gt;, shared&gt;</code> (read the bytes in place)</td></tr>
 <tr><td><code>String::append</code></td><td><code>(ref&lt;String, exclusive&gt;, T)</code> for any <code>T</code> <code>%v</code> takes: adds what <code>printf(&quot;%v&quot;, x)</code> would write</td></tr>
 <tr><td><code>String::clone</code></td><td><code>(ref&lt;String, shared&gt;) : String</code> (a copy with the same bytes)</td></tr>
+<tr><td><code>String::reserve</code></td><td><code>(ref&lt;String, exclusive&gt;, usize n)</code>: room for <code>n</code> more bytes; the text is unchanged (D-0129)</td></tr>
 <tr><td><code>String::eq</code>, <code>String::eq_str</code></td><td><code>(ref&lt;String, shared&gt;, ref&lt;String, shared&gt;) : bool</code>, <code>(ref&lt;String, shared&gt;, str) : bool</code>: the same text? (<code>a == b</code> does the same for two <code>String</code>s, §12)</td></tr>
 <tr><td><code>String::less</code>, <code>StringView::less</code></td><td><code>(ref&lt;String, shared&gt;, ref&lt;String, shared&gt;) : bool</code>: byte order, a prefix first, as <code>a &lt; b</code> (§12); <code>Vec::sort(&amp;mut v)</code> sorts text</td></tr>
 <tr><td><code>String::to_ascii_lower</code>, <code>String::to_ascii_upper</code></td><td><code>(ref&lt;String, shared&gt;) : String</code>: a copy with ASCII letters changed; other bytes as they are</td></tr>
@@ -5270,7 +5352,7 @@ Unicode case is not provided.</p>
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> bad, <span class="n">130</span>);
     <span class="k">match</span> (<span class="p">String</span>::from_utf8(bad))
     {
-        <span class="p">Ok</span>(_) :
+        <span class="p">Ok</span>(_)  :
         {
             <span class="p">assert</span>(<span class="k">false</span>, <span class="s">&quot;unreachable&quot;</span>);
         },
@@ -5311,7 +5393,7 @@ prints with <code>%s</code>, compares with <code>==</code> to another view or a 
     <span class="k">match</span> (<span class="p">StringView</span>::find(t, <span class="s">&quot; &quot;</span>))
     {
         <span class="p">Some</span>(i) : &amp;t[<span class="n">0</span>..i],
-        <span class="p">None</span> : t,
+        <span class="p">None</span>    : t,
     }
 }
 
@@ -5331,11 +5413,11 @@ prints with <code>%s</code>, compares with <code>==</code> to another view or a 
                 <span class="p">StringView</span> value = <span class="p">StringView</span>::trim(&amp;field[eq + <span class="n">1</span>..$]);
                 <span class="k">match</span> (<span class="p">StringView</span>::<span class="p">parse</span>&lt;<span class="t">i64</span>&gt;(value))
                 {
-                    <span class="p">Ok</span>(n) : { area *= n; },
+                    <span class="p">Ok</span>(n)  : { area *= n; },
                     <span class="p">Err</span>(_) : { <span class="p">assert</span>(<span class="k">false</span>, <span class="s">&quot;unreachable&quot;</span>); },
                 }
             },
-            <span class="p">None</span> : { <span class="p">assert</span>(<span class="k">false</span>, <span class="s">&quot;unreachable&quot;</span>); },
+            <span class="p">None</span>     : { <span class="p">assert</span>(<span class="k">false</span>, <span class="s">&quot;unreachable&quot;</span>); },
         }
     }
     <span class="p">assert</span>(area == <span class="n">1920</span>);
@@ -5389,8 +5471,8 @@ protocol for a library to plug into (D-0128 explains). Where that matters, walk
         <span class="k">match</span> (c)
         {
             <span class="s">&quot;\u{e9}&quot;</span> : <span class="p">printf</span>(<span class="s">&quot;\u{e9} is character %v\n&quot;</span>, i),
-            <span class="s">&quot;!&quot;</span> : <span class="p">printf</span>(<span class="s">&quot;! is character %v\n&quot;</span>, i),
-            _ : {},
+            <span class="s">&quot;!&quot;</span>      : <span class="p">printf</span>(<span class="s">&quot;! is character %v\n&quot;</span>, i),
+            _        : {},
         }
     }
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>[c][a][f][é][ ][😀][!]
@@ -5506,7 +5588,7 @@ widget x 12 = 42.00
         {
             <span class="p">printf</span>(<span class="s">&quot;hello, %s\n&quot;</span>, &amp;name);
         },
-        <span class="p">Err</span>(e) :
+        <span class="p">Err</span>(e)   :
         {
             <span class="p">eprintf</span>(<span class="s">&quot;greet: the name is not UTF-8 (byte %d)\n&quot;</span>, e.offset);
             <span class="k">return</span> <span class="n">1</span>;
@@ -5722,7 +5804,7 @@ you can call inside <code>unsafe</code> for an argument's raw bytes.</p>
     {
         <span class="k">match</span> (<span class="p">arg</span>(i))
         {
-            <span class="p">Ok</span>(a) : <span class="p">printf</span>(<span class="s">&quot;%v: %v\n&quot;</span>, i, &amp;a),
+            <span class="p">Ok</span>(a)  : <span class="p">printf</span>(<span class="s">&quot;%v: %v\n&quot;</span>, i, &amp;a),
             <span class="p">Err</span>(e) : <span class="p">printf</span>(<span class="s">&quot;%v: not UTF-8 at byte %v\n&quot;</span>, i, e.offset),
         }
     }
@@ -5760,7 +5842,7 @@ the same value. To take a line apart first, split, trim or search it as views (<
         <span class="p">String</span> a = <span class="p">Result</span>::unwrap_or(<span class="p">arg</span>(i), <span class="p">String</span>::new());
         <span class="k">match</span> (<span class="p">parse</span>&lt;<span class="t">f64</span>&gt;(&amp;a))
         {
-            <span class="p">Ok</span>(v) : total += v,
+            <span class="p">Ok</span>(v)  : total += v,
             <span class="p">Err</span>(_) :
             {
                 <span class="p">String</span> msg = <span class="p">String</span>::new();
@@ -5817,9 +5899,9 @@ value's type says which enum is meant, but building one by hand is written <code
     <span class="p">String</span> gone = <span class="p">String</span>::from_str(<span class="s">&quot;no-such-file.txt&quot;</span>);
     <span class="k">match</span> (<span class="p">read_file</span>(&amp;gone))
     {
-        <span class="p">Ok</span>(_) : <span class="p">printf</span>(<span class="s">&quot;?\n&quot;</span>),
+        <span class="p">Ok</span>(_)         : <span class="p">printf</span>(<span class="s">&quot;?\n&quot;</span>),
         <span class="p">Err</span>(NotFound) : <span class="p">printf</span>(<span class="s">&quot;no-such-file.txt: not found\n&quot;</span>),   <span class="c">// a pattern inside a pattern</span>
-        <span class="p">Err</span>(_) : <span class="p">printf</span>(<span class="s">&quot;no-such-file.txt: cannot read it\n&quot;</span>),
+        <span class="p">Err</span>(_)        : <span class="p">printf</span>(<span class="s">&quot;no-such-file.txt: cannot read it\n&quot;</span>),
     }
     <span class="n">0</span>
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>first line
@@ -5902,11 +5984,11 @@ environment and measure time. Paths are <code>String</code>s, as for files, and 
 {
     <span class="k">match</span> (<span class="p">path_kind</span>(p))
     {
-        <span class="p">Ok</span>(<span class="p">File</span>(_)) : <span class="s">&quot;file&quot;</span>,
-        <span class="p">Ok</span>(Dir) : <span class="s">&quot;directory&quot;</span>,
-        <span class="p">Ok</span>(Other) : <span class="s">&quot;other&quot;</span>,
+        <span class="p">Ok</span>(<span class="p">File</span>(_))   : <span class="s">&quot;file&quot;</span>,
+        <span class="p">Ok</span>(Dir)       : <span class="s">&quot;directory&quot;</span>,
+        <span class="p">Ok</span>(Other)     : <span class="s">&quot;other&quot;</span>,
         <span class="p">Err</span>(NotFound) : <span class="s">&quot;missing&quot;</span>,
-        <span class="p">Err</span>(_) : <span class="s">&quot;error&quot;</span>,
+        <span class="p">Err</span>(_)        : <span class="s">&quot;error&quot;</span>,
     }
 }
 
@@ -5931,7 +6013,7 @@ environment and measure time. Paths are <code>String</code>s, as for files, and 
                 <span class="p">printf</span>(<span class="s">&quot;%s\n&quot;</span>, n);
             }
         },
-        <span class="p">Err</span>(_) : <span class="k">return</span> <span class="n">1</span>,
+        <span class="p">Err</span>(_)    : <span class="k">return</span> <span class="n">1</span>,
     }
     <span class="p">printf</span>(<span class="s">&quot;notes.txt: %s, old.txt: %s\n&quot;</span>, kind(&amp;a), kind(&amp;b));
     _ = <span class="p">remove_file</span>(&amp;b);
@@ -5979,7 +6061,7 @@ that are equal keep the order they had. In a sorted <code>Vec</code>, <code>Vec:
     <span class="p">String</span> bob = <span class="p">String</span>::from_str(<span class="s">&quot;bob&quot;</span>);
     <span class="p">assert</span>(<span class="k">match</span> (<span class="p">Vec</span>::binary_search(&amp;names, &amp;bob))
     {
-        <span class="p">Ok</span>(_) : <span class="k">false</span>,
+        <span class="p">Ok</span>(_)  : <span class="k">false</span>,
         <span class="p">Err</span>(i) : i == <span class="n">1</span>,              <span class="c">// between &quot;ada&quot; and &quot;lin&quot;</span>
     });
 
@@ -6041,7 +6123,7 @@ because it fills the gap with the last entry; use <code>remove_ordered</code> wh
     <span class="k">match</span> (<span class="p">HashMap</span>::get(&amp;counts, &amp;cat))
     {
         <span class="p">Some</span>(n) : <span class="p">printf</span>(<span class="s">&quot;cat: %d\n&quot;</span>, *n),
-        <span class="p">None</span> : <span class="p">printf</span>(<span class="s">&quot;no cat\n&quot;</span>),
+        <span class="p">None</span>    : <span class="p">printf</span>(<span class="s">&quot;no cat\n&quot;</span>),
     }
 
     <span class="p">HashSet</span>&lt;<span class="t">u32</span>&gt; seen = <span class="p">HashSet</span>::new();
@@ -6083,7 +6165,7 @@ cat: 1
     <span class="k">match</span> (<span class="p">HashMap</span>::get(&amp;grid, &amp;at))
     {
         <span class="p">Some</span>(Door(k)) : <span class="p">assert</span>(*k == <span class="n">7</span>),
-        _ : <span class="p">assert</span>(<span class="k">false</span>),
+        _             : <span class="p">assert</span>(<span class="k">false</span>),
     }
     <span class="p">HashSet</span>&lt;Tile&gt; seen = <span class="p">HashSet</span>::new();      <span class="c">// an enum of keys is a key too</span>
     <span class="p">HashSet</span>::insert(&amp;<span class="k">mut</span> seen, Door(<span class="n">7</span>));
@@ -6227,7 +6309,7 @@ one back to you.</p>
         <span class="k">match</span> (&amp;<span class="k">mut</span> *slot)
         {
             <span class="p">Some</span>(b) : { slot = &amp;<span class="k">mut</span> <span class="p">Box</span>::get_mut(b).next; },
-            <span class="p">None</span> : { <span class="k">break</span>; },
+            <span class="p">None</span>    : { <span class="k">break</span>; },
         }
     }
     *slot = <span class="p">Some</span>(<span class="p">Box</span>::new(Node { .val = v, .next = <span class="p">None</span> }));   <span class="c">// slot holds None: nothing to lose</span>
@@ -6245,7 +6327,7 @@ one back to you.</p>
         <span class="k">match</span> (cur)
         {
             <span class="p">Some</span>(b) : { sum += <span class="p">Box</span>::get(b).val; cur = &amp;<span class="p">Box</span>::get(b).next; },
-            <span class="p">None</span> : { <span class="k">break</span>; },
+            <span class="p">None</span>    : { <span class="k">break</span>; },
         }
     }
     <span class="p">assert</span>(sum == <span class="n">3</span>);
@@ -6467,6 +6549,7 @@ rule is applied statically where the checker can see the problem and dynamically
 <tr><td><code>diag.static-assert-failed</code></td><td>static</td><td>a <code>static_assert</code> condition is false, for the program or for one instantiation</td><td>fix what the assertion guards, or the assertion</td></tr>
 <tr><td><code>diag.static-assert-not-constant</code></td><td>static</td><td>a <code>static_assert</code> condition (or message argument) is not a <code>bool</code> constant expression</td><td>check run-time values with <code>assert</code>; name compile-time values with <code>const</code></td></tr>
 <tr><td><code>diag.duplicate-item</code></td><td>static</td><td>two declarations add the same qualified name</td><td>rename one, or move it into a module</td></tr>
+<tr><td><code>diag.duplicate-local</code></td><td>static</td><td>a name declared twice in one block (a function's parameters and a loop's or pattern's names count as declared in the block they govern)</td><td>assign to the existing variable, or choose another name; an inner block may shadow it</td></tr>
 <tr><td><code>diag.foreign-associated-fn</code></td><td>static</td><td><code>fn T::name</code> in a module that does not declare <code>T</code> (for example <code>fn Vec::first_or</code> outside <code>std</code>)</td><td>declare a plain function, or put it in <code>T</code>'s module</td></tr>
 <tr><td><code>diag.no-main</code></td><td>static</td><td>no <code>fn main()</code> at the root module (a <code>main</code> inside a module is just <code>m::main</code>)</td><td>declare <code>fn main()</code> at the root, or run the file that has one</td></tr>
 <tr><td><code>diag.div-overflow</code></td><td>both</td><td><code>min / -1</code> or <code>min % -1</code> for a signed type</td><td><code>checked_div</code>, or widen first</td></tr>
