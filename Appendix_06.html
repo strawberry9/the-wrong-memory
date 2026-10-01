@@ -156,7 +156,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.093003</div>
+<div class="sub">Specification edition 2026.100101</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -323,7 +323,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.093003</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100101</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -394,7 +394,7 @@ turn.</p>
 <tr><td>No conflicting simultaneous access</td><td>Two reference modes: <code>ref&lt;T, shared&gt;</code> (read-only, any number) and <code>ref&lt;T, exclusive&gt;</code> (read and write, alone). Conflicts are checked at every use, so a stale or conflicting reference is always caught. There is no <code>mut</code> on variables: mutability is a property of the access path, not the binding.</td><td>§08, §09</td></tr>
 <tr><td>A reference never outlives what it points at</td><td>References cannot be returned or stored beyond their referent's scope; the obvious cases are rejected at compile time, the rest at run time. Functions with one reference parameter may return a reference without annotations.</td><td>§10</td></tr>
 <tr><td>No read of uninitialised storage</td><td>Definite assignment: a variable must be written on every path before it is read. Aggregates are initialised whole.</td><td>§11</td></tr>
-<tr><td>Types mean what they say</td><td>Nominal typing, no subtyping, no coercions. Generics are monomorphic: each use with concrete types becomes its own copy of the function, so there is no run-time type information; a type parameter's operations come from one of four built-in bounds. Type inference is local: <code>auto</code> infers from the initialiser, and generic arguments come from arguments or the expected type.</td><td>§12</td></tr>
+<tr><td>Types mean what they say</td><td>Nominal typing, no subtyping, no coercions. Generics are monomorphic: each use with concrete types becomes its own copy of the function, so there is no run-time type information; a type parameter's operations come from one of five built-in bounds. Type inference is local: <code>auto</code> infers from the initialiser, and generic arguments come from arguments or the expected type.</td><td>§12</td></tr>
 <tr><td>Evaluation order is defined</td><td>Strict left-to-right evaluation everywhere. Blocks, <code>if</code> and <code>match</code> are expressions.</td><td>§13, §14</td></tr>
 <tr><td>Function interfaces carry the whole contract</td><td>A by-value resource parameter takes ownership; a shared reference can only read; an exclusive reference can mutate but not destroy. Closures declare their captures and the language checks the list.</td><td>§15</td></tr>
 <tr><td>Aggregates are whole and exhaustive</td><td>Structs, fixed arrays and enums with payloads. Array indexing is bounds-checked. <code>match</code> must be exhaustive.</td><td>§16</td></tr>
@@ -414,7 +414,7 @@ mechanism or would have hidden a semantic fact the language wants to keep visibl
 <li><strong>User-defined traits or bounds.</strong> A type parameter's operations come from five built-in bounds — <code>eq</code>, <code>ordered</code>, <code>number</code>, <code>integer</code>, <code>clone</code> (§12) — and nothing else: there is no way to declare a new bound. Your own struct or enum satisfies <code>clone</code> alone, by its fields or its own <code>T::clone</code>; to compare or combine values of your own types in generic code, pass the operation in as a function value.</li>
 <li><strong>Exceptions.</strong> A fault terminates the program after running destructors; expected failure is a <code>Result</code>.</li>
 <li><strong>Garbage collection.</strong> Ownership and scope-end destruction are deterministic; <code>Rc&lt;T&gt;</code> is a library type.</li>
-<li><strong>Character literals, string indexing and slicing.</strong> A <code>str</code> is a whole value; its bytes are reached with <code>str_byte</code>, and a single byte is written <code>b&#x27;a&#x27;</code>: a <code>u8</code>, or the wider unsigned type its context asks for (§06). Text that arrives from outside is still bytes until <code>String::from_utf8</code> validates it.</li>
+<li><strong>Character literals, and indexing or slicing a <code>str</code>.</strong> A <code>str</code> is a whole value; its bytes are reached with <code>str_byte</code>, and a single byte is written <code>b&#x27;a&#x27;</code>: a <code>u8</code>, or the wider unsigned type its context asks for (§06). A <code>String</code> is sliced into views, <code>&amp;s[i..j]</code>, and taken apart by <code>String::split</code>, <code>find</code> and <code>chars</code> (§21). Text that arrives from outside is still bytes until <code>String::from_utf8</code> validates it.</li>
 <li><strong>Method-call syntax.</strong> A call names the function's owner and writes the borrow it takes: <code>Vec::push(&amp;mut v, x)</code>, never <code>v.push(x)</code>. The mode of every access path is visible where the path is formed, and <code>.</code> means one thing, field access. This is final (<code>CHG-0132</code>): no receiver sugar, no uniform call syntax, no auto-borrowing dot, no chaining.</li>
 <li><strong>A <code>mut</code> qualifier on bindings, <code>switch</code> and <code>goto</code>, <code>import … as</code> renaming, partial initialisation, lifetime annotations, atomics.</strong></li>
 </ul>
@@ -666,23 +666,25 @@ layer each part belongs to.</p>
 <li><code>handle&lt;T&gt;</code> (a thread), <code>mutex&lt;T&gt;</code>, <code>guard&lt;T&gt;</code></li>
 </ul>
 <h4>Language constructs</h4>
-<p><code>struct</code>, <code>enum</code>, <code>resource</code>, destructors (<code>Type::drop</code>), generics with the built-in
-bounds <code>eq</code>, <code>ordered</code>, <code>number</code> and <code>integer</code>, <code>match</code> with nested and literal patterns,
-<code>if</code>, <code>while</code>, <code>for</code>, <code>foreach</code>, <code>break</code>, <code>continue</code>, <code>?</code>, <code>const</code>, modules and <code>import</code>, <code>unsafe</code>,
+<p><code>struct</code>, <code>bitstruct</code>, <code>enum</code> (with numeric codes), <code>resource</code>, destructors (<code>Type::drop</code>),
+generics with the built-in bounds <code>eq</code>, <code>ordered</code>, <code>number</code>, <code>integer</code> and <code>clone</code>, <code>match</code> with
+nested, literal and text patterns, <code>if</code> and <code>while</code> (either with a pattern as the condition), <code>for</code>,
+<code>foreach</code> (over collections and ranges), <code>break</code>, <code>continue</code>, <code>?</code>, <code>const</code>, modules and <code>import</code>, <code>unsafe</code>,
 <code>extern fn</code> and <code>extern &quot;code&quot;;</code>.</p>
 <h4>Intrinsics</h4>
 <table>
 <thead><tr><th>Group</th><th>Names</th></tr></thead>
 <tbody>
 <tr><td>Resources</td><td><code>drop</code></td></tr>
-<tr><td>Conversions</td><td><code>widen</code>, <code>narrow</code>, <code>narrow_wrapping</code>, <code>reinterpret</code>, <code>to_float</code>, <code>to_int</code></td></tr>
+<tr><td>Conversions</td><td><code>widen</code>, <code>narrow</code>, <code>checked_narrow</code>, <code>narrow_wrapping</code>, <code>reinterpret</code>, <code>to_float</code>, <code>to_int</code></td></tr>
+<tr><td>Bits</td><td><code>count_ones</code>, <code>leading_zeros</code>, <code>trailing_zeros</code>, <code>rotate_left</code>, <code>rotate_right</code></td></tr>
 <tr><td>Arithmetic</td><td><code>wrapping_add</code>/<code>sub</code>/<code>mul</code>, <code>saturating_add</code>/<code>sub</code>/<code>mul</code>, <code>checked_add</code>/<code>sub</code>/<code>mul</code>/<code>div</code>/<code>rem</code>, <code>checked_neg</code></td></tr>
-<tr><td>Numeric limits and float functions</td><td><code>min_value</code>, <code>max_value</code>, <code>sqrt</code>, <code>floor</code>, <code>ceil</code>, <code>round</code>, <code>trunc</code></td></tr>
+<tr><td>Numeric limits and float functions</td><td><code>min_value</code>, <code>max_value</code>, <code>sqrt</code>, <code>floor</code>, <code>ceil</code>, <code>round</code>, <code>trunc</code>, <code>ln</code>, <code>exp</code>, <code>log2</code>, <code>log10</code>, <code>sin</code>, <code>cos</code>, <code>tan</code>, <code>atan2</code>, <code>powf</code></td></tr>
 <tr><td>Layout</td><td><code>sizeof</code>, <code>alignof</code></td></tr>
 <tr><td><code>str</code></td><td><code>str_len</code>, <code>str_byte</code>, <code>str_ptr</code></td></tr>
 <tr><td>Faults and compile-time checks</td><td><code>fault</code>, <code>static_assert</code></td></tr>
 <tr><td>Threads</td><td><code>spawn</code>, <code>join</code>, <code>Mutex::new</code>, <code>lock</code></td></tr>
-<tr><td>Raw memory (most need <code>unsafe</code>)</td><td><code>rawptr_of</code>, <code>reinterpret_ptr</code>, <code>dangling</code>, <code>allocate</code>, <code>deallocate</code>, <code>reclaim</code>, <code>release</code>, <code>copy_raw</code></td></tr>
+<tr><td>Raw memory (most need <code>unsafe</code>)</td><td><code>rawptr_of</code>, <code>reinterpret_ptr</code>, <code>dangling</code>, <code>allocate</code>, <code>deallocate</code>, <code>reclaim</code>, <code>release</code>, <code>copy_raw</code>, <code>read_volatile</code>, <code>write_volatile</code></td></tr>
 </tbody>
 </table>
 <p><code>allocate</code> returns a <code>Result</code>, which a program can use without the import even though it
@@ -697,16 +699,17 @@ implementation. <a href="#s21">§21</a> covers it in full.</p>
 <table>
 <thead><tr><th>Area</th><th>Items</th></tr></thead>
 <tbody>
-<tr><td>Core types</td><td><code>Option&lt;T&gt;</code>, <code>Result&lt;T, E&gt;</code>, <code>AllocError</code>, <code>Utf8Error</code>, <code>ParseError</code>; <code>unwrap</code>, <code>unwrap_or</code>, <code>expect</code>, <code>is_some</code>/<code>is_none</code>/<code>is_ok</code>/<code>is_err</code>; <code>map_err</code></td></tr>
-<tr><td>Collections</td><td><code>Vec&lt;T&gt;</code> (push, pop, index, insert, remove, clone, from_slice, truncate, swap, clear, …), <code>HashMap&lt;K, V&gt;</code>, <code>HashSet&lt;K&gt;</code></td></tr>
+<tr><td>Core types</td><td><code>Option&lt;T&gt;</code>, <code>Result&lt;T, E&gt;</code>, <code>AllocError</code>, <code>Utf8Error</code>, <code>ParseError</code>; <code>unwrap</code>, <code>unwrap_or</code>, <code>expect</code>, <code>ok_or</code>, <code>is_some</code>/<code>is_none</code>/<code>is_ok</code>/<code>is_err</code>; <code>map_err</code>; each error's <code>text</code></td></tr>
+<tr><td>Collections</td><td><code>Vec&lt;T&gt;</code> (push, pop, index, insert, remove, clone, from_slice, filled, from_fn, append, contains, position, reverse, truncate, swap, clear, …), <code>HashMap&lt;K, V&gt;</code>, <code>HashSet&lt;K&gt;</code></td></tr>
 <tr><td>Sorting</td><td><code>Vec::sort</code>, <code>sort_by</code>, <code>binary_search</code>, <code>binary_search_by</code></td></tr>
-<tr><td>Ownership helpers</td><td><code>Box&lt;T&gt;</code>, <code>Rc&lt;T&gt;</code>, <code>swap</code>, <code>replace</code>, <code>overwrite</code></td></tr>
-<tr><td>Numeric helpers</td><td><code>min</code>, <code>max</code>, <code>abs</code>, <code>pow</code> (over the built-in bounds)</td></tr>
-<tr><td>Text</td><td><code>String</code>, <code>StringView</code> (split, find, trim, starts/ends_with, parse), <code>parse&lt;T&gt;</code>, <code>String::append</code></td></tr>
+<tr><td>Ownership helpers</td><td><code>Box&lt;T&gt;</code>, <code>Rc&lt;T&gt;</code>, <code>Weak&lt;T&gt;</code>, <code>swap</code>, <code>replace</code>, <code>overwrite</code></td></tr>
+<tr><td>Numeric helpers</td><td><code>min</code>, <code>max</code>, <code>abs</code>, <code>pow</code> (over the built-in bounds); <code>Rng</code>, a seeded pseudo-random generator</td></tr>
+<tr><td>Bytes</td><td><code>Vec::push_le</code>, <code>push_be</code>, <code>read_le</code>, <code>read_be</code>, <code>crc32</code></td></tr>
+<tr><td>Text</td><td><code>String</code>, <code>StringView</code> (split, chars, find, trim, starts/ends_with, parse), <code>parse&lt;T&gt;</code>, <code>String::append</code>, the ASCII tests and case changes</td></tr>
 <tr><td>Output</td><td><code>printf</code>, <code>eprintf</code>, <code>sprintf</code>, <code>String::appendf</code>, <code>assert</code></td></tr>
 <tr><td>Input and arguments</td><td><code>read_line</code>, <code>read</code>, <code>arg_count</code>, <code>arg</code></td></tr>
 <tr><td>Files</td><td><code>File</code> (open, create, append, open_rw, read, read_line, write, seek, len, close, …), <code>read_file</code>, <code>write_file</code>, <code>read_bytes</code>, <code>write_bytes</code>, <code>FileError</code></td></tr>
-<tr><td>System</td><td><code>make_dir</code>, <code>remove_file</code>, <code>remove_dir</code>, <code>rename</code>, <code>list_dir</code>, <code>path_kind</code>, <code>env_var</code>, <code>current_dir</code>, <code>monotonic_ns</code>, <code>unix_seconds</code></td></tr>
+<tr><td>System</td><td><code>make_dir</code>, <code>remove_file</code>, <code>remove_dir</code>, <code>rename</code>, <code>list_dir</code>, <code>path_kind</code>, <code>env_var</code>, <code>current_dir</code>, <code>monotonic_ns</code>, <code>unix_seconds</code>, <code>sleep_ms</code></td></tr>
 <tr><td>Concurrency</td><td><code>Channel&lt;T&gt;</code> (new, send, recv, close)</td></tr>
 </tbody>
 </table>
@@ -895,7 +898,7 @@ image, so a negative <code>i8</code> has eight ones, and none of them faults (D-
 <tbody>
 <tr><td><code>widen&lt;U&gt;(x)</code></td><td>integer to a wider integer whose range contains every value; <code>f32</code> to <code>f64</code></td><td>always exact, never faults (<code>u8 → i32</code>, <code>i32 → i64</code>, <code>f32 → f64</code>)</td></tr>
 <tr><td><code>narrow&lt;U&gt;(x)</code></td><td>any integer to any integer</td><td>checked: <code>diag.narrowing-overflow</code> if <code>x</code> does not fit</td></tr>
-<tr><td><code>checked_narrow&lt;T&gt;(x)</code></td><td><code>Option&lt;T&gt;</code>: <code>Some(x)</code> when <code>x</code> fits <code>T</code>, else <code>None</code> — for a value from outside, where a fault would be wrong (D-0122)</td></tr>
+<tr><td><code>checked_narrow&lt;T&gt;(x)</code></td><td>any integer to any integer</td><td><code>Option&lt;T&gt;</code>: <code>Some(x)</code> when <code>x</code> fits <code>T</code>, else <code>None</code> — for a value from outside, where a fault would be wrong (D-0122)</td></tr>
 <tr><td><code>narrow_wrapping&lt;U&gt;(x)</code></td><td>any integer to any integer</td><td>keeps the low bits, never faults</td></tr>
 <tr><td><code>reinterpret&lt;U&gt;(x)</code></td><td>between the signed and unsigned types of one width (and <code>usize</code> ⇄ <code>isize</code>); between a float and an integer of its width (<code>f32</code> ⇄ <code>u32</code>/<code>i32</code>, <code>f64</code> ⇄ <code>u64</code>/<code>i64</code>)</td><td>the same bit pattern read as the other type</td></tr>
 <tr><td><code>to_float&lt;U&gt;(x)</code></td><td>any integer or float to <code>f32</code>/<code>f64</code></td><td>nearest representable value (ties to even); beyond the target's range an infinity, as float arithmetic gives; <code>NaN</code> stays <code>NaN</code></td></tr>
@@ -1278,7 +1281,7 @@ would be left half-owned. Move the whole struct, or take a reference to the fiel
 <li>If a type owns something, it is a resource: mark it <code>resource</code> and give it a <code>drop</code>. Types that merely contain resources become resources automatically.</li>
 <li>Passing a resource by value hands it over. To let a callee look without taking, pass <code>&amp;x</code>; to let it modify, pass <code>&amp;mut x</code>.</li>
 <li>Do not fight scope-end destruction. Put a resource in the smallest block that needs it and let the block end release it.</li>
-<li><code>drop(x)</code> is for early release. After it, <code>x</code> is gone; redeclare if you need the name.</li>
+<li><code>drop(x)</code> is for early release. After it, <code>x</code> is gone until you give it a new value (<code>x = e</code>) or declare the name again.</li>
 </ul>
 </div>
 
@@ -1353,7 +1356,7 @@ see, like the call above, is reported when the conflicting access runs, marked <
     <span class="k">auto</span> n = &amp;<span class="k">mut</span> c.hits;             <span class="c">// a reborrow of c.hits, through c</span>
     c.misses = <span class="n">0</span>;                     <span class="c">// <span class="ok">✓</span> a different field</span>
     c.hits = <span class="n">0</span>;                       <span class="c">// <span class="bad">✗</span> <span class="dg">diag.aliasing-conflict</span> (static): n still borrows c.hits</span>
-    *n = *n + <span class="n">1</span>;
+    *n += <span class="n">1</span>;
 }
 
 <span class="k">fn</span> main()
@@ -1388,12 +1391,10 @@ keep a reference derived from it.</p>
     <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v = <span class="p">Vec</span>::new();
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">1</span>);
     <span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt; first = &amp;v[<span class="n">0</span>];
-    <span class="t">i32</span> k = <span class="n">0</span>;
-    <span class="k">while</span> (k &lt; <span class="n">2</span>)
+    <span class="k">foreach</span> (k in <span class="n">0</span>..<span class="n">2</span>: <span class="t">i32</span>)
     {
         <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, *first);      <span class="c">// used in the loop: first lives through the whole loop</span>
         <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, k);         <span class="c">// <span class="bad">✗</span> <span class="dg">diag.aliasing-conflict</span>: first still borrows v</span>
-        k = k + <span class="n">1</span>;
     }
 }</code></pre></figure>
 <p>A block ends every borrow it holds, so wrapping a borrow in a block still works, and
@@ -1410,7 +1411,7 @@ reads well when a borrow should visibly end.</p>
         <span class="k">auto</span> r = &amp;<span class="k">mut</span> x;              <span class="c">// r lives until the end of this block</span>
         *r = <span class="n">5</span>;
     }
-    x = x + <span class="n">1</span>;                        <span class="c">// <span class="ok">✓</span> r is gone</span>
+    x += <span class="n">1</span>;                           <span class="c">// <span class="ok">✓</span> r is gone</span>
     <span class="p">assert</span>(x == <span class="n">6</span>);
 }</code></pre></figure>
 <h3>Reborrowing and ancestors</h3>
@@ -1568,7 +1569,7 @@ semicolon and take the reference with it.</p>
     <span class="t">i32</span> x = <span class="n">5</span>;
     {
         <span class="k">auto</span> r = &amp;<span class="k">mut</span> x;
-        *r = *r + <span class="n">1</span>;                  <span class="c">// read and write through the same reference</span>
+        *r += <span class="n">1</span>;                      <span class="c">// read and write through the same reference</span>
     }
     <span class="p">assert</span>(x == <span class="n">6</span>);
 
@@ -1693,7 +1694,7 @@ directly, without a new <code>&amp;mut</code>, because it already is an exclusiv
 
 <span class="k">fn</span> bump(<span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">exclusive</span>&gt; counter) : <span class="t">i32</span>
 {
-    *counter = *counter + <span class="n">1</span>;
+    *counter += <span class="n">1</span>;
     *counter
 }
 
@@ -1713,7 +1714,7 @@ directly, without a new <code>&amp;mut</code>, because it already is an exclusiv
 <div class="callout rule"><div class="callout-title">Rules of thumb</div><ul>
 <li>Use <code>&amp;x</code> to lend, <code>&amp;mut x</code> to lend for writing. The callee's signature tells you which it needs.</li>
 <li><code>*r</code> is a place, so <code>*r = v</code>, <code>&amp;*r</code>, and <code>(*r).f</code> all work; for fields, <code>r.f</code> is the same as <code>(*r).f</code>.</li>
-<li>Bind a call result before borrowing it.</li>
+<li>Bind a call result before keeping a borrow of it; borrowing one just for a call, <code>f(&amp;make())</code>, is fine.</li>
 <li><code>==</code> on references asks whether they point at the same thing, not whether the values are equal; compare <code>*a == *b</code> for values.</li>
 </ul>
 </div>
@@ -1902,7 +1903,7 @@ literal supplies every field at once; after that, individual fields can be assig
     Entry { item, change } = e;       <span class="c">// binds `item` and `change`; e is consumed</span>
     <span class="p">assert</span>(<span class="p">String</span>::len(&amp;item) == <span class="n">4</span> &amp;&amp; change == -<span class="n">3</span>);
 }</code></pre></figure>
-<p>This is the only pattern form beyond <code>match</code> on enums. It names fields of the struct,
+<p>This is the only pattern form outside <code>match</code> and the pattern conditions of <code>if</code> and <code>while</code> (§14). It names fields of the struct,
 each once, in any order, and consumes the struct: a resource field moves out to its new binding, a
 plain one is copied. It is how a struct gives up a resource it holds (the library's
 <code>String::into_bytes</code> uses it to hand back the <code>Vec&lt;u8&gt;</code>), since a resource field cannot otherwise
@@ -1939,7 +1940,7 @@ cannot be destructured, since the destructor would then run on a struct whose fi
 <nav class="pager"><a class="prev" href="#s10">&larr; §10 Lifetimes and temporal validity</a><a class="top" href="#top">Top</a><a class="next" href="#s12">§12 The type system &rarr;</a></nav></section>
 <section id="s12">
 <h2><span class="secnum">§12</span>The type system</h2>
-<div class="spec-ref">Governing specification file: <code>spec/12-type-system.md</code></div><p class="blurb">Nominal types, no coercions, monomorphic generics (one copy per use with concrete types) with four built-in bounds, and local inference that only flows downward.</p>
+<div class="spec-ref">Governing specification file: <code>spec/12-type-system.md</code></div><p class="blurb">Nominal types, no coercions, monomorphic generics (one copy per use with concrete types) with five built-in bounds, and local inference that only flows downward.</p>
 <p>CobaltC's type system is deliberately plain: every type is exactly what it is declared to
 be, nothing converts to anything else, and generics are templates instantiated with concrete types.
 What it gives you in return is that the type of every expression is decidable from the text, and
@@ -1954,7 +1955,8 @@ arguments.</p>
 <tr><td><code>void</code> (type) / <code>()</code> (value)</td><td>the unit type; the type of assignments, of <code>if</code> without <code>else</code>, of loops and of functions with no return type. Written <code>void</code> in type position and <code>()</code> as a value.</td><td>no</td></tr>
 <tr><td><code>ref&lt;T, shared&gt;</code>, <code>ref&lt;T, exclusive&gt;</code></td><td>references (§09)</td><td>no</td></tr>
 <tr><td><code>rawptr&lt;T&gt;</code></td><td>raw addresses (§20)</td><td>no</td></tr>
-<tr><td><code>array&lt;T, N&gt;</code></td><td>N values of <code>T</code> in a row, <code>N</code> a literal</td><td>if <code>T</code> is</td></tr>
+<tr><td><code>array&lt;T, N&gt;</code></td><td>N values of <code>T</code> in a row, <code>N</code> a constant expression (§16)</td><td>if <code>T</code> is</td></tr>
+<tr><td><code>slice&lt;T, shared&gt;</code>, <code>slice&lt;T, exclusive&gt;</code></td><td>a borrowed run of elements of an array or <code>Vec</code> (§16)</td><td>no</td></tr>
 <tr><td><code>fn(T1, T2) : R</code></td><td>function values</td><td>no</td></tr>
 <tr><td><code>handle&lt;T&gt;</code>, <code>mutex&lt;T&gt;</code>, <code>guard&lt;T&gt;</code></td><td>threads and locks (§19)</td><td>yes</td></tr>
 <tr><td><code>struct</code>, <code>enum</code></td><td>user-declared aggregates (§16)</td><td>if marked <code>resource</code> or any part is</td></tr>
@@ -2040,9 +2042,10 @@ referenced and moved. To do more with it — compare it, add it — give <code>T
     <span class="p">assert</span>(<span class="p">Vec</span>::len(&amp;c.value) == <span class="n">0</span>);
 }</code></pre></figure>
 <h3>Bounds</h3>
-<p>A function's type parameter may carry one of four bounds, written after a colon:
-<code>fn max&lt;T: ordered&gt;(T a, T b) : T</code>. Each bound names a fixed set of built-in types and the
-operators every one of them has, and each includes the ones before it:</p>
+<p>A function's type parameter may carry one of five bounds, written after a colon:
+<code>fn max&lt;T: ordered&gt;(T a, T b) : T</code>. Each of the first four names a fixed set of built-in types and
+the operators every one of them has, and each includes the ones before it; the fifth, <code>clone</code>, says
+a value of <code>T</code> can be copied (below):</p>
 <table>
 <thead><tr><th>Bound</th><th>Satisfied by</th><th>Allows on a <code>T</code></th></tr></thead>
 <tbody>
@@ -2285,7 +2288,7 @@ operand runs only when needed.</p>
 
 <span class="k">fn</span> bump(<span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">exclusive</span>&gt; counter) : <span class="t">i32</span>
 {
-    *counter = *counter + <span class="n">1</span>;
+    *counter += <span class="n">1</span>;
     *counter
 }
 
@@ -2456,7 +2459,7 @@ that must tell them apart keeps the <code>match</code>.</p>
     <span class="t">i32</span> i = <span class="n">0</span>;
     <span class="k">while</span> (i &lt; <span class="n">10</span>)
     {
-        i = i + <span class="n">1</span>;
+        i += <span class="n">1</span>;
         <span class="k">if</span> (i == <span class="n">3</span>)
         {
             <span class="k">continue</span>;                 <span class="c">// skip 3</span>
@@ -2465,7 +2468,7 @@ that must tell them apart keeps the <code>match</code>.</p>
         {
             <span class="k">break</span>;                    <span class="c">// stop before adding 7</span>
         }
-        sum = sum + i;
+        sum += i;
     }
     <span class="p">assert</span>(sum == <span class="n">1</span> + <span class="n">2</span> + <span class="n">4</span> + <span class="n">5</span> + <span class="n">6</span>);
     <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v = <span class="p">Vec</span>::new();
@@ -2474,7 +2477,7 @@ that must tell them apart keeps the <code>match</code>.</p>
     <span class="t">i32</span> total = <span class="n">0</span>;
     <span class="k">for</span> (<span class="t">usize</span> k = <span class="n">0</span>; k &lt; <span class="p">Vec</span>::len(&amp;v); k += <span class="n">1</span>)   <span class="c">// an index loop; foreach (below) is shorter</span>
     {
-        total += *<span class="p">Vec</span>::index_shared(&amp;v, k);
+        total += v[k];
     }
     <span class="p">assert</span>(total == <span class="n">13</span>);
     <span class="t">u32</span> odd = <span class="n">0</span>;
@@ -2493,7 +2496,7 @@ that must tell them apart keeps the <code>match</code>.</p>
     <span class="k">break</span>;                            <span class="c">// <span class="bad">✗</span> <span class="dg">diag.break-outside-loop</span></span>
 }</code></pre></figure>
 <h3><code>foreach</code></h3>
-<p><code>foreach (x in c) { … }</code> visits every element of a <code>Vec</code>, an array, a <code>HashSet</code> or a
+<p><code>foreach (x in c) { … }</code> visits every element of a <code>Vec</code>, an array, a slice, a <code>HashSet</code> or a
 <code>HashMap</code>, in order: by index for a <code>Vec</code> or an array, in insertion order for a set or a map. How
 the loop holds the collection is written at the loop, the same three ways a function takes a
 value:</p>
@@ -2641,7 +2644,8 @@ because the counter never passes <code>hi</code>.</p>
 step 0 is 253
 step 1 is 254
 </pre></div></figure>
-<p>A range is written only in a <code>foreach</code>. It is not a value you can store, and it has no
+<p>A range to count over is written only in a <code>foreach</code> (a slice's <code>lo..hi</code>, §16, is the same
+notation for elements). It is not a value you can store, and it has no
 inclusive form or step. To count down or in steps, use a <code>for</code> loop.</p>
 <h3>Early exit and unwinding</h3>
 <p><code>return</code>, <code>break</code>, <code>continue</code>, and a run-time fault all leave scopes the same way: every
@@ -2833,7 +2837,7 @@ parameters, as for a function, when neither says enough: <code>[](i64 a) : i64 {
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">7</span>);
     <span class="k">auto</span> reader = <span class="k">move</span> [v]()          <span class="c">// v moves into the closure; the closure owns it now</span>
     {
-        *<span class="p">Vec</span>::index_shared(&amp;v, <span class="n">0</span>)
+        v[<span class="n">0</span>]
     };
     <span class="p">assert</span>(reader() == <span class="n">7</span>);
     <span class="p">assert</span>(reader() == <span class="n">7</span>);             <span class="c">// calling twice is fine: nothing is consumed</span>
@@ -2859,7 +2863,7 @@ closure cannot be called re-entrantly.</p>
     {
         <span class="k">auto</span> add = [total](<span class="t">i32</span> x)     <span class="c">// the body writes total: captured as ref&lt;i32, exclusive&gt;</span>
         {
-            total = total + x;
+            total += x;
         };
         add(<span class="n">5</span>);
         add(<span class="n">7</span>);
@@ -3015,11 +3019,9 @@ elements are plain (copied on assignment); an array of resources is a resource.<
 <span class="k">fn</span> sum(<span class="t">ref</span>&lt;<span class="t">array</span>&lt;<span class="t">i32</span>, <span class="n">4</span>&gt;, <span class="t">shared</span>&gt; a) : <span class="t">i32</span>
 {
     <span class="t">i32</span> t = <span class="n">0</span>;
-    <span class="t">usize</span> i = <span class="n">0</span>;
-    <span class="k">while</span> (i &lt; <span class="n">4</span>)
+    <span class="k">foreach</span> (i in <span class="n">0</span>..<span class="n">4</span>)
     {
-        t = t + a[i];                 <span class="c">// indexing looks through the reference</span>
-        i = i + <span class="n">1</span>;
+        t += a[i];                    <span class="c">// indexing looks through the reference</span>
     }
     t
 }
@@ -3042,9 +3044,9 @@ elements are plain (copied on assignment); an array of resources is a resource.<
     <span class="p">assert</span>(counts[<span class="n">65</span>] == <span class="n">1</span> &amp;&amp; !flags[<span class="n">7</span>] &amp;&amp; names[<span class="n">2</span>] == <span class="s">&quot;cy&quot;</span>);
 }</code></pre></figure>
 <p><code>[v; N]</code> makes an array of <code>N</code> copies of <code>v</code>, which is evaluated once. <code>N</code> is written as in
-the type <code>array&lt;T, N&gt;</code>: a number, or the name of a constant whose value is written as a number
-(<code>const usize W = 24;</code> then <code>array&lt;u8, W&gt;</code> and <code>[0; W]</code>), in this module or, qualified, a
-visible one of another (<code>array&lt;u8, screen::W&gt;</code>). Because the value is copied, its type must be plain: a
+the type <code>array&lt;T, N&gt;</code>, a constant expression: a number, a constant (<code>const usize W = 24;</code> then
+<code>array&lt;u8, W&gt;</code> and <code>[0; W]</code>, in this module or, qualified, a visible one of another,
+<code>array&lt;u8, screen::W&gt;</code>), or arithmetic on them (<code>[0; W * 2]</code>). Because the value is copied, its type must be plain: a
 <code>String</code> or other resource, a reference, or a function value cannot be repeated
 (<code>diag.read-of-resource</code> or <code>diag.type-mismatch</code>); build such arrays element by element, or
 use a <code>Vec</code>.</p>
@@ -3137,10 +3139,10 @@ of it.</p>
 <span class="k">fn</span> sum_into(<span class="t">slice</span>&lt;<span class="t">u64</span>, <span class="t">exclusive</span>&gt; s, <span class="t">u64</span> start) : <span class="t">u64</span>
 {
     <span class="t">u64</span> total = <span class="n">0</span>;
-    <span class="k">for</span> (<span class="t">usize</span> i = <span class="n">0</span>; i &lt; slice_len(s); i += <span class="n">1</span>)
+    <span class="k">foreach</span> (i in <span class="n">0</span>..slice_len(s))
     {
         s[i] = start + <span class="p">widen</span>&lt;<span class="t">u64</span>&gt;(i);
-        total = total + s[i];
+        total += s[i];
     }
     total
 }
@@ -3387,6 +3389,83 @@ literal, a variant, and a variant with a pattern for its payload; there is nothi
     <span class="t">i32</span> k = <span class="k">match</span> (first) { <span class="p">Some</span>(<span class="s">&quot;load&quot;</span>) : <span class="n">1</span>, <span class="p">Some</span>(_) : <span class="n">2</span>, <span class="p">None</span> : <span class="n">0</span>, };
     <span class="p">assert</span>(k == <span class="n">1</span>);
 }</code></pre></figure>
+<h4>Ranges and several values</h4>
+<p>An arm names one pattern: there are no range patterns (<code>10..15 : …</code>) and no lists of
+alternatives (<code>1, 4, 6 : …</code> or <code>1 | 4 | 6 : …</code>); each is a syntax error. Two forms cover these cases.
+To test a range, match on the test itself: the condition is a <code>bool</code>, and <code>true</code> and <code>false</code> cover
+it, so no <code>_</code> arm is needed. Write the bounds as a range would mean them, the upper one left out
+(<code>v &lt; 15</code> for <code>10..15</code>).</p>
+<figure class="code"><div class="code-head"><span class="code-title">A range test</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> check(<span class="t">i32</span> v)
+{
+    <span class="k">match</span> (v &gt;= <span class="n">10</span> &amp;&amp; v &lt; <span class="n">15</span>)         <span class="c">// 10 to 14, as 10..15 would mean</span>
+    {
+        <span class="k">true</span> : <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, v),
+        <span class="k">false</span> : <span class="p">printf</span>(<span class="s">&quot;%v is not in the correct range\n&quot;</span>, v),
+    }
+}
+
+<span class="k">fn</span> main()
+{
+    check(<span class="n">12</span>);
+    check(<span class="n">15</span>);
+    check(<span class="n">9</span>);
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>12
+15 is not in the correct range
+9 is not in the correct range
+</pre></div></figure>
+<p>For several values that share an action, give each value its own arm, and put an action
+longer than a line in a function the arms call: the <code>match</code> still checks every literal's type and
+reports a repeated one. When the values are the whole question, match on the test instead, as for a
+range. For a longer list, keep the values in an array and ask <code>contains</code>, or in a <code>HashSet</code> when the
+list is built at run time. Text works the same way: one arm per word.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Several values in one decision</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> weekend(<span class="t">ref</span>&lt;<span class="t">array</span>&lt;<span class="t">str</span>, <span class="n">7</span>&gt;, <span class="t">shared</span>&gt; names, <span class="t">u32</span> day)
+{
+    <span class="p">printf</span>(<span class="s">&quot;%v is a weekend day\n&quot;</span>, names[<span class="p">widen</span>&lt;<span class="t">usize</span>&gt;(day)]);
+}
+
+<span class="k">fn</span> describe(<span class="t">u32</span> day)
+{
+    <span class="t">array</span>&lt;<span class="t">str</span>, <span class="n">7</span>&gt; names = [<span class="s">&quot;Sun&quot;</span>, <span class="s">&quot;Mon&quot;</span>, <span class="s">&quot;Tue&quot;</span>, <span class="s">&quot;Wed&quot;</span>, <span class="s">&quot;Thu&quot;</span>, <span class="s">&quot;Fri&quot;</span>, <span class="s">&quot;Sat&quot;</span>];
+    <span class="k">match</span> (day)
+    {
+        <span class="n">0</span> : weekend(&amp;names, day),     <span class="c">// one arm per value; the shared action in a function</span>
+        <span class="n">6</span> : weekend(&amp;names, day),
+        _ : <span class="p">printf</span>(<span class="s">&quot;%v is a weekday\n&quot;</span>, names[<span class="p">widen</span>&lt;<span class="t">usize</span>&gt;(day)]),
+    }
+}
+
+<span class="k">fn</span> is_square(<span class="t">u32</span> v) : <span class="t">bool</span>
+{
+    <span class="k">match</span> (v == <span class="n">1</span> || v == <span class="n">4</span> || v == <span class="n">9</span>)   <span class="c">// several values as one test: true and false cover it</span>
+    {
+        <span class="k">true</span> : <span class="k">true</span>,
+        <span class="k">false</span> : <span class="k">false</span>,
+    }
+}
+
+<span class="k">fn</span> main()
+{
+    describe(<span class="n">0</span>);
+    describe(<span class="n">3</span>);
+    <span class="p">assert</span>(is_square(<span class="n">4</span>) &amp;&amp; !is_square(<span class="n">5</span>));
+    <span class="t">array</span>&lt;<span class="t">u32</span>, <span class="n">6</span>&gt; small = [<span class="n">2</span>, <span class="n">3</span>, <span class="n">5</span>, <span class="n">7</span>, <span class="n">11</span>, <span class="n">13</span>];                             <span class="c">// a longer list</span>
+    <span class="p">Vec</span>&lt;<span class="t">u32</span>&gt; primes = <span class="p">Vec</span>::from_slice(&amp;small[<span class="n">0</span> .. $]);
+    <span class="p">assert</span>(<span class="p">Vec</span>::contains(&amp;primes, &amp;<span class="n">7</span>) &amp;&amp; !<span class="p">Vec</span>::contains(&amp;primes, &amp;<span class="n">9</span>));
+    <span class="t">str</span> cmd = <span class="s">&quot;exit&quot;</span>;
+    <span class="t">bool</span> quit = <span class="k">match</span> (cmd)
+    {
+        <span class="s">&quot;quit&quot;</span> : <span class="k">true</span>,
+        <span class="s">&quot;exit&quot;</span> : <span class="k">true</span>,
+        _ : <span class="k">false</span>,
+    };
+    <span class="p">assert</span>(quit);
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>Sun is a weekend day
+Wed is a weekday
+</pre></div></figure>
 <figure class="code"><div class="code-head"><span class="code-title">A repeated case</span><span class="badge bad">rejected: diag.unreachable-arm</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> main()
@@ -3771,11 +3850,9 @@ parameters.</p>
     <span class="k">const</span> <span class="t">u32</span> SEED = <span class="n">2166136261</span>;
     <span class="p">static_assert</span>(PRIME % <span class="n">2</span> == <span class="n">1</span>);
     <span class="t">u32</span> h = SEED;
-    <span class="t">usize</span> i = <span class="n">0</span>;
-    <span class="k">while</span> (i &lt; slice_len(data))
+    <span class="k">foreach</span> (b in data)
     {
-        h = <span class="p">wrapping_mul</span>(h ^ <span class="p">widen</span>&lt;<span class="t">u32</span>&gt;(data[i]), PRIME);
-        i = i + <span class="n">1</span>;
+        h = <span class="p">wrapping_mul</span>(h ^ <span class="p">widen</span>&lt;<span class="t">u32</span>&gt;(*b), PRIME);
     }
     h
 }
@@ -3790,6 +3867,43 @@ parameters.</p>
     <span class="p">static_assert</span>(D == <span class="n">201</span>, <span class="s">&quot;D is %v&quot;</span>, D);
     <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">3</span>&gt; abc = [<span class="n">97</span>, <span class="n">98</span>, <span class="n">99</span>];
     <span class="p">assert</span>(checksum(&amp;abc[<span class="n">0</span>..$]) == <span class="n">440920331</span>);
+}</code></pre></figure>
+<h4><code>const</code> is not "read-only"</h4>
+<p>In C, C++, Java or JavaScript, <code>const</code> (or <code>final</code>) often marks a variable that is set once,
+at run time, and never reassigned. CobaltC's <code>const</code> is not that: it means <em>known before the
+program runs</em>, like <code>constexpr</code> in C++ or <code>const</code> in Rust, Go and C#. <code>const usize N = arg_count();</code>
+is <code>diag.const-not-constant</code>, because the value is only known once the program runs; and a constant
+is not a variable at all, but stands for its value, so assigning to it is like assigning to a
+literal.</p>
+<p>CobaltC has no read-only local variables either: every local can be assigned. It does not need
+them for safety, because every change to a variable shows where it happens. Only two things can
+change a local: an assignment to its name in its own function, or an exclusive reference to it,
+<code>&amp;mut x</code>, which must be written out where it is made. A function given <code>&amp;x</code> or a copy of <code>x</code> cannot
+change it; while a shared reference to it is in use, nothing can (<code>diag.aliasing-conflict</code>, §8); and
+threads share changing state only through a <code>mutex</code>. So to see whether <code>x</code> can change, look in its
+function for <code>x =</code> and <code>&amp;mut x</code>. To lend a value without letting it change, lend it with <code>&amp;</code>.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Where a variable can change</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> peek(<span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt; r) : <span class="t">i32</span>
+{
+    *r                                <span class="c">// may read; writing *r is <span class="dg">diag.write-through-shared</span></span>
+}
+
+<span class="k">fn</span> bump(<span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">exclusive</span>&gt; r)
+{
+    *r += <span class="n">1</span>;
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="t">i32</span> limit = <span class="n">10</span>;                   <span class="c">// a variable: it can be assigned, as every local can</span>
+    <span class="p">assert</span>(peek(&amp;limit) == <span class="n">10</span>);       <span class="c">// &amp;limit: the callee can only read it</span>
+    bump(&amp;<span class="k">mut</span> limit);                 <span class="c">// the one way another function changes it, visible here</span>
+    <span class="p">assert</span>(limit == <span class="n">11</span>);
+    <span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt; view = &amp;limit;
+    <span class="p">assert</span>(*view == <span class="n">11</span>);              <span class="c">// while view is in use, nothing may write limit</span>
+    limit = <span class="n">12</span>;                       <span class="c">// <span class="ok">✓</span> view&#x27;s last use is above, so it no longer holds limit</span>
+    <span class="p">assert</span>(limit == <span class="n">12</span>);
 }</code></pre></figure>
 <h3>Static assertions</h3>
 <p><code>static_assert(c)</code> and <code>static_assert(c, &quot;why&quot;)</code> check a constant condition when the program
@@ -3966,7 +4080,7 @@ it, which is also what keeps the module's invariant in one place.</p>
         {
             <span class="k">return</span> <span class="k">false</span>;             <span class="c">// the invariant: the balance never goes below zero</span>
         }
-        a.balance = a.balance - amount;
+        a.balance -= amount;
         <span class="k">true</span>
     }
 }
@@ -4043,7 +4157,7 @@ before the program runs.</p>
     <span class="t">u32</span> sum = <span class="n">0</span>;
     <span class="k">foreach</span> (x in v)
     {
-        sum = sum + *x;
+        sum += *x;
     }
     sum / <span class="p">narrow</span>&lt;<span class="t">u32</span>&gt;(<span class="p">Vec</span>::len(v))
 }
@@ -4276,12 +4390,10 @@ serialises access.</p>
 
 <span class="k">fn</span> worker(<span class="t">ref</span>&lt;<span class="t">mutex</span>&lt;<span class="t">i32</span>&gt;, <span class="t">shared</span>&gt; m, <span class="t">i32</span> n) : <span class="t">i32</span>
 {
-    <span class="t">i32</span> i = <span class="n">0</span>;
-    <span class="k">while</span> (i &lt; n)
+    <span class="k">foreach</span> (i in <span class="n">0</span>..n)
     {
         <span class="k">auto</span> g = <span class="p">lock</span>(m);             <span class="c">// blocks until the mutex is free</span>
-        *g = *g + <span class="n">1</span>;
-        i = i + <span class="n">1</span>;
+        *g += <span class="n">1</span>;
     }                                 <span class="c">// each iteration&#x27;s guard is destroyed here, unlocking</span>
     n
 }
@@ -4327,11 +4439,11 @@ mutex field is its own lock.</p>
 {
     {
         <span class="k">auto</span> g = <span class="p">lock</span>(&amp;b.stats);          <span class="c">// one mutex field...</span>
-        g.hits = g.hits + <span class="n">1</span>;              <span class="c">// g.hits is (*g).hits</span>
+        g.hits += <span class="n">1</span>;                      <span class="c">// g.hits is (*g).hits</span>
         <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> g.seen, me);
     }
     <span class="k">auto</span> r = <span class="p">lock</span>(&amp;b.rounds);             <span class="c">// ...and another, locked independently</span>
-    *r = *r + <span class="n">1</span>;
+    *r += <span class="n">1</span>;
     me
 }
 
@@ -4379,11 +4491,9 @@ jobs, closes the channel, and joins the workers, each of which stops at <code>No
     {
         <span class="k">auto</span> a = <span class="p">spawn</span>(worker, &amp;jobs, &amp;results);
         <span class="k">auto</span> b = <span class="p">spawn</span>(worker, &amp;jobs, &amp;results);
-        <span class="t">u64</span> i = <span class="n">1</span>;
-        <span class="k">while</span> (i &lt;= <span class="n">10</span>)
+        <span class="k">foreach</span> (i in <span class="n">1</span>..<span class="n">11</span>: <span class="t">u64</span>)
         {
             _ = <span class="p">Channel</span>::send(&amp;jobs, i);            <span class="c">// waits while the channel is full</span>
-            i = i + <span class="n">1</span>;
         }
         <span class="p">Channel</span>::close(&amp;jobs);                  <span class="c">// the workers stop once it is empty</span>
         <span class="p">join</span>(a);
@@ -4391,13 +4501,9 @@ jobs, closes the channel, and joins the workers, each of which stops at <code>No
     }
     <span class="p">Channel</span>::close(&amp;results);
     <span class="t">u64</span> total = <span class="n">0</span>;
-    <span class="k">while</span> (<span class="k">true</span>)
+    <span class="k">while</span> (<span class="p">Some</span>(sq) = <span class="p">Channel</span>::recv(&amp;results))   <span class="c">// None once it is closed and empty</span>
     {
-        <span class="k">match</span> (<span class="p">Channel</span>::recv(&amp;results))
-        {
-            <span class="p">Some</span>(sq) : total = total + sq,
-            <span class="p">None</span> : <span class="k">break</span>,
-        }
+        total += sq;
     }
     <span class="p">assert</span>(total == <span class="n">385</span>);                        <span class="c">// 1 + 4 + … + 100, whichever worker did which</span>
 
@@ -4512,7 +4618,7 @@ hands out references to its elements.</p>
 {
     <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v = <span class="p">Vec</span>::new();
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">7</span>);
-    <span class="k">auto</span> p = <span class="p">rawptr_of</span>(<span class="p">Vec</span>::index_shared(&amp;v, <span class="n">0</span>));   <span class="c">// the element&#x27;s address; obtaining it is safe</span>
+    <span class="k">auto</span> p = <span class="p">rawptr_of</span>(&amp;v[<span class="n">0</span>]);                      <span class="c">// the element&#x27;s address; obtaining it is safe</span>
     <span class="k">unsafe</span>
     {
         <span class="k">auto</span> r = &amp;<span class="p">reclaim</span>&lt;<span class="t">i32</span>&gt;(p);    <span class="c">// a checked reference to the element, via its address</span>
@@ -4684,11 +4790,9 @@ and the values are copied into a <code>Vec</code>.</p>
     <span class="t">i64</span> written = <span class="k">unsafe</span> { squares(buf, <span class="p">widen</span>&lt;<span class="t">i64</span>&gt;(n)) };
     <span class="k">if</span> (written &gt;= <span class="n">0</span> &amp;&amp; written &lt;= <span class="p">widen</span>&lt;<span class="t">i64</span>&gt;(n))
     {
-        <span class="t">usize</span> i = <span class="n">0</span>;
-        <span class="k">while</span> (i &lt; <span class="p">narrow</span>&lt;<span class="t">usize</span>&gt;(written))
+        <span class="k">foreach</span> (i in <span class="n">0</span>..<span class="p">narrow</span>&lt;<span class="t">usize</span>&gt;(written))
         {
             <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> out, <span class="k">unsafe</span> { *(buf + <span class="p">reinterpret</span>&lt;<span class="t">isize</span>&gt;(i)) });
-            i = i + <span class="n">1</span>;
         }
     }
     <span class="k">unsafe</span>
@@ -4785,8 +4889,9 @@ value type <code>str</code> belong to the language itself and need no import.</p
 <p><code>std</code> also has <code>min(a, b)</code> and <code>max(a, b)</code> for any <code>ordered</code> type, and <code>abs(x)</code> and
 <code>pow(x, n)</code> (<code>n</code> a <code>u32</code>) for any <code>number</code> type (§12's bounds). <code>abs</code> and <code>pow</code> are checked like the
 operators they use: <code>abs</code> of a signed type's minimum, or a power that does not fit, is
-<code>diag.arith-overflow</code>. There are no <code>sin</code>, <code>exp</code> or <code>log</code>: their last bit differs between platforms'
-libraries; reach your platform's through <code>extern</code> (§20).</p>
+<code>diag.arith-overflow</code>. The logarithms, the exponential, the trigonometric functions and <code>powf</code> are
+intrinsics (below), taken from the platform's maths library, so their last bit may differ between
+platforms; <code>sqrt</code> and the roundings are exact everywhere.</p>
 <p>Intrinsics are called like functions; their behaviour is given by rules rather than by a
 body. Type arguments are written <code>name&lt;T&gt;(…)</code> where the signature needs one. Their names are not
 reserved: a function or variable of your own with the same name is what the name means, and the
@@ -4796,9 +4901,10 @@ intrinsic is used only where there is none.</p>
 <tbody>
 <tr><td><code>drop(x)</code></td><td>destroy a resource now</td><td>§07</td></tr>
 <tr><td><code>wrapping_*</code>, <code>saturating_*</code>, <code>checked_*</code></td><td>alternative overflow policies</td><td>§06</td></tr>
-<tr><td><code>widen&lt;U&gt;</code>, <code>narrow&lt;U&gt;</code>, <code>narrow_wrapping&lt;U&gt;</code>, <code>reinterpret&lt;U&gt;</code>, <code>to_float&lt;U&gt;</code>, <code>to_int&lt;U&gt;</code></td><td>numeric conversions</td><td>§06</td></tr>
+<tr><td><code>widen&lt;U&gt;</code>, <code>narrow&lt;U&gt;</code>, <code>checked_narrow&lt;U&gt;</code>, <code>narrow_wrapping&lt;U&gt;</code>, <code>reinterpret&lt;U&gt;</code>, <code>to_float&lt;U&gt;</code>, <code>to_int&lt;U&gt;</code></td><td>numeric conversions</td><td>§06</td></tr>
+<tr><td><code>count_ones(x)</code>, <code>leading_zeros(x)</code>, <code>trailing_zeros(x)</code>, <code>rotate_left(x, k)</code>, <code>rotate_right(x, k)</code></td><td>an integer's bits</td><td>§06</td></tr>
 <tr><td><code>sizeof&lt;T&gt;()</code>, <code>alignof&lt;T&gt;()</code></td><td>layout queries, in bytes</td><td>§06, §16</td></tr>
-<tr><td><code>min_value&lt;T&gt;()</code>, <code>max_value&lt;T&gt;()</code></td><td>an integer type's smallest and largest value</td><td>§06</td></tr>
+<tr><td><code>min_value&lt;T&gt;()</code>, <code>max_value&lt;T&gt;()</code></td><td>a number type's smallest and largest value (a float's finite extremes)</td><td>§06</td></tr>
 <tr><td><code>sqrt(x)</code>, <code>floor(x)</code>, <code>ceil(x)</code>, <code>round(x)</code>, <code>trunc(x)</code></td><td>an <code>f32</code> or <code>f64</code>'s square root and its roundings to an integral value (<code>round</code>: halfway cases away from zero), exact or correctly rounded, so the same bits everywhere</td><td>§06</td></tr>
 <tr><td><code>ln(x)</code>, <code>exp(x)</code>, <code>log2(x)</code>, <code>log10(x)</code>, <code>sin(x)</code>, <code>cos(x)</code>, <code>tan(x)</code>, <code>atan2(y, x)</code>, <code>powf(x, y)</code></td><td>an <code>f32</code> or <code>f64</code>'s logarithms, exponential, trigonometry and power, from the platform's maths library (within one unit in the last place; the two operands of <code>atan2</code> and <code>powf</code> of one type)</td><td>§06</td></tr>
 <tr><td><code>spawn(f, args…)</code>, <code>join(h)</code></td><td>threads</td><td>§19</td></tr>
@@ -4813,7 +4919,7 @@ intrinsic is used only where there is none.</p>
 <tr><td><code>fault(name)</code>, <code>fault(name, msg)</code></td><td>stop with the run-time fault <code>diag.name</code> (a dynamic diagnostic, <code>_</code> for <code>-</code>, such as <code>index_out_of_bounds</code>), with <code>msg</code> if given; for code that implements containers as <code>std</code> does</td><td>§18</td></tr>
 <tr><td><code>assert(c)</code>, <code>assert(c, fmt, args…)</code></td><td>fault with <code>diag.assert-failed</code> (and the formatted message) when <code>c</code> is false; a function of <code>std</code></td><td>§18</td></tr>
 <tr><td><code>static_assert(c)</code>, <code>static_assert(c, &quot;why&quot;)</code></td><td>reject the program when the constant <code>c</code> is false</td><td>§17</td></tr>
-<tr><td><code>printf(&quot;%v&quot;, x)</code></td><td>write a <code>str</code>, a number, a <code>bool</code> or a <code>String</code> (through <code>&amp;</code>) to standard output; a function of <code>std</code></td><td>§21</td></tr>
+<tr><td><code>printf(&quot;%v&quot;, x)</code></td><td>write a <code>str</code>, a number, a <code>bool</code>, a <code>String</code> (through <code>&amp;</code>), a <code>StringView</code>, or an enum's variant name to standard output; a function of <code>std</code></td><td>§21</td></tr>
 <tr><td><code>printf(fmt, args…)</code>, <code>eprintf(fmt, args…)</code>, <code>sprintf(fmt, args…)</code>, <code>String::appendf(&amp;mut s, fmt, args…)</code></td><td>C-style formatted output, to standard output, to standard error, as a new <code>String</code> or into one, checked when compiled (functions of <code>std</code>)</td><td>§21</td></tr>
 <tr><td><code>read_line()</code></td><td>read the next line of standard input as a <code>String</code> (a function of <code>std</code>)</td><td>§21</td></tr>
 <tr><td><code>arg_count()</code>, <code>arg(i)</code></td><td>the number of program arguments, and argument <code>i</code> as a <code>String</code> (functions of <code>std</code>)</td><td>§21</td></tr>
@@ -4878,7 +4984,7 @@ program that only prints never writes <code>unsafe</code> itself.</p>
     <span class="p">Vec</span>&lt;<span class="t">str</span>&gt; words = <span class="p">Vec</span>::new();
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> words, greeting);
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> words, <span class="s">&quot;world&quot;</span>);
-    shout(*<span class="p">Vec</span>::index_shared(&amp;words, <span class="n">1</span>));
+    shout(words[<span class="n">1</span>]);
     <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, greeting);
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>world!
 hello
@@ -4894,8 +5000,9 @@ otherwise). Use it where bytes are the honest type, such as data handed to <code
 validator.</p>
 <h3><code>Vec&lt;T&gt;</code></h3>
 <p>A growable array with a raw buffer, a length and a capacity. It is a <code>resource</code> whose
-destructor destroys each element and frees the buffer. Elements are reached by reference, never
-copied out (so <code>Vec&lt;Vec&lt;i32&gt;&gt;</code> works without any special support).</p>
+destructor destroys each element and frees the buffer. A plain element is copied when read
+(<code>v[i]</code>); a resource element is only borrowed, or moved out by <code>pop</code> or <code>remove</code>, never copied (so
+<code>Vec&lt;Vec&lt;i32&gt;&gt;</code> works without any special support).</p>
 <table>
 <thead><tr><th>Function</th><th>Signature</th><th>Notes</th></tr></thead>
 <tbody>
@@ -4930,11 +5037,9 @@ copied out (so <code>Vec&lt;Vec&lt;i32&gt;&gt;</code> works without any special 
 <span class="k">fn</span> main()
 {
     <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v = <span class="p">Vec</span>::new();
-    <span class="t">i32</span> i = <span class="n">0</span>;
-    <span class="k">while</span> (i &lt; <span class="n">9</span>)                     <span class="c">// crosses two growth boundaries (4 and 8)</span>
+    <span class="k">foreach</span> (i in <span class="n">0</span>..<span class="n">9</span>: <span class="t">i32</span>)          <span class="c">// crosses two growth boundaries (4 and 8)</span>
     {
         <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, i * i);
-        i = i + <span class="n">1</span>;
     }
     <span class="p">assert</span>(<span class="p">Vec</span>::len(&amp;v) == <span class="n">9</span>);
     <span class="p">assert</span>(*<span class="p">Vec</span>::index_shared(&amp;v, <span class="n">8</span>) == <span class="n">64</span>);
@@ -5073,11 +5178,11 @@ the <code>Vec</code> is destroyed.</p>
     <span class="t">i32</span> x = <span class="n">1</span>;
     <span class="p">Vec</span>&lt;<span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt;&gt; readers = <span class="p">Vec</span>::new();
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> readers, &amp;a);
-    <span class="p">assert</span>(**<span class="p">Vec</span>::index_shared(&amp;readers, <span class="n">0</span>) == <span class="n">10</span>);
+    <span class="p">assert</span>(*readers[<span class="n">0</span>] == <span class="n">10</span>);
 
     <span class="p">Vec</span>&lt;<span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">exclusive</span>&gt;&gt; writers = <span class="p">Vec</span>::new();
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> writers, &amp;<span class="k">mut</span> x);
-    **<span class="p">Vec</span>::index_exclusive(&amp;<span class="k">mut</span> writers, <span class="n">0</span>) = <span class="n">7</span>;   <span class="c">// write through the stored reference</span>
+    *writers[<span class="n">0</span>] = <span class="n">7</span>;                                 <span class="c">// write through the stored reference</span>
     <span class="p">Vec</span>::pop(&amp;<span class="k">mut</span> writers);                          <span class="c">// the Vec lets go of it</span>
     <span class="p">assert</span>(x == <span class="n">7</span>);
     x = <span class="n">8</span>;                                           <span class="c">// x is free again</span>
@@ -5099,8 +5204,9 @@ pieces of §07 and §20 fit together.</div>
 <p>A <code>String</code> is a <code>Vec&lt;u8&gt;</code> that is known to be valid UTF-8: owned, heap-allocated text,
 a resource. <code>String::new()</code> makes an empty one, <code>String::from_str</code> copies a <code>str</code>'s bytes
 (already valid, so nothing is checked), and <code>String::from_utf8</code> validates bytes that came from
-anywhere else. The only way to change one is <code>String::append</code>, which adds valid UTF-8 (below), so
-the guarantee holds for its whole life. <code>from_utf8</code> is the trust-transition pattern of §20 in
+anywhere else. It changes only through functions that keep it valid UTF-8 — <code>append</code> and
+<code>appendf</code> add text, <code>push_ascii</code> an ASCII byte, <code>truncate</code> cuts at a character boundary, <code>clear</code>
+empties it — so the guarantee holds for its whole life. <code>from_utf8</code> is the trust-transition pattern of §20 in
 miniature.</p>
 <table>
 <thead><tr><th>Function</th><th>Signature</th></tr></thead>
@@ -5140,7 +5246,8 @@ Unicode case is not provided.</p>
 <span class="k">fn</span> main()
 {
     <span class="p">String</span> owned = <span class="p">String</span>::from_str(<span class="s">&quot;caf\u{e9}&quot;</span>);   <span class="c">// a str&#x27;s bytes, copied; no validation needed</span>
-    <span class="p">assert</span>(<span class="p">String</span>::len(&amp;owned) == <span class="n">5</span>);
+    <span class="p">assert</span>(<span class="p">String</span>::len(&amp;owned) == <span class="n">5</span>);                <span class="c">// 5 bytes: é is two of them</span>
+    <span class="p">assert</span>(<span class="p">Vec</span>::len(&amp;<span class="p">String</span>::chars(&amp;owned)) == <span class="n">4</span>);   <span class="c">// but 4 characters</span>
 
     <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; good = <span class="p">Vec</span>::new();
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> good, <span class="n">226</span>);        <span class="c">// the three bytes of U+20AC, the euro sign</span>
@@ -5189,9 +5296,10 @@ prints with <code>%s</code>, compares with <code>==</code> to another view or a 
 <tr><td><code>StringView::starts_with(v, &quot;x&quot;)</code>, <code>ends_with</code></td><td><code>bool</code></td></tr>
 <tr><td><code>StringView::trim(v)</code>, <code>trim_start</code>, <code>trim_end</code></td><td>the view without ASCII white space at its ends</td></tr>
 <tr><td><code>StringView::split(v, &quot;,&quot;)</code></td><td>a <code>Vec&lt;StringView&gt;</code> of the parts, each a view of the same <code>String</code></td></tr>
+<tr><td><code>StringView::chars(v)</code></td><td>a <code>Vec&lt;StringView&gt;</code> of its characters, in order, one view each (D-0128)</td></tr>
 <tr><td><code>StringView::parse&lt;T&gt;(v)</code></td><td>a number, as <code>parse</code></td></tr>
 <tr><td><code>String::from_view(v)</code>, <code>String::append(&amp;mut s, v)</code></td><td>the text copied into a <code>String</code></td></tr>
-<tr><td><code>String::find(&amp;s, &quot;x&quot;)</code>, <code>starts_with</code>, <code>ends_with</code>, <code>trim</code>, <code>trim_start</code>, <code>trim_end</code>, <code>split</code>, <code>as_view</code></td><td>the same, straight from a <code>String</code>: each is the <code>StringView::</code> function applied to <code>&amp;s[0..$]</code>, the whole-string view (D-0113)</td></tr>
+<tr><td><code>String::find(&amp;s, &quot;x&quot;)</code>, <code>starts_with</code>, <code>ends_with</code>, <code>trim</code>, <code>trim_start</code>, <code>trim_end</code>, <code>split</code>, <code>chars</code>, <code>as_view</code></td><td>the same, straight from a <code>String</code>: each is the <code>StringView::</code> function applied to <code>&amp;s[0..$]</code>, the whole-string view (D-0113)</td></tr>
 </tbody>
 </table>
 <figure class="code"><div class="code-head"><span class="code-title">Reading fields out of a line</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
@@ -5243,6 +5351,54 @@ prints with <code>%s</code>, compares with <code>==</code> to another view or a 
     <span class="p">String</span>::push_ascii(&amp;<span class="k">mut</span> name, b&#x27;!&#x27;);   <span class="c">// <span class="bad">✗</span> <span class="dg">diag.aliasing-conflict</span> (static): v still views name</span>
     <span class="p">assert</span>(v == <span class="s">&quot;ada&quot;</span>);
 }</code></pre></figure>
+<h4>Going through the characters</h4>
+<p><code>foreach</code> does not take a <code>String</code> itself, and there is no <code>char</code> type; <code>String::chars(&amp;s)</code>
+gives the characters instead: a <code>Vec&lt;StringView&gt;</code>, one view per character, in order. A character is
+one to four bytes of UTF-8 (<code>é</code> is two, most emoji four), so <code>Vec::len</code> of it counts characters where
+<code>String::len</code> counts bytes. Each view is text like any other: it prints, compares with <code>==</code> to a
+<code>str</code>, is matched by text patterns, and appends to a <code>String</code>; and like any view it borrows the
+<code>String</code> while it is in use. <code>StringView::chars(v)</code> does the same for a view, such as a word from
+<code>split</code>. Building the <code>Vec</code> is one allocation; there is no form that visits the characters without
+it, because <code>foreach</code> walks only the collections the language defines and there is no iterator
+protocol for a library to plug into (D-0128 explains). Where that matters, walk
+<code>String::as_bytes(&amp;s)</code> instead.</p>
+<figure class="code"><div class="code-head"><span class="code-title">The characters of a String</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    <span class="p">String</span> s = <span class="p">String</span>::from_str(<span class="s">&quot;caf\u{e9} \u{1F600}!&quot;</span>);
+    <span class="k">foreach</span> (c in <span class="p">String</span>::chars(&amp;s))
+    {
+        <span class="p">printf</span>(<span class="s">&quot;[%v]&quot;</span>, c);
+    }
+    <span class="p">printf</span>(<span class="s">&quot;\n%v characters in %v bytes\n&quot;</span>, <span class="p">Vec</span>::len(&amp;<span class="p">String</span>::chars(&amp;s)), <span class="p">String</span>::len(&amp;s));
+
+    <span class="c">// Reversed by characters, so the two-byte é and the four-byte emoji stay whole.</span>
+    <span class="p">Vec</span>&lt;<span class="p">StringView</span>&gt; cs = <span class="p">String</span>::chars(&amp;s);
+    <span class="p">Vec</span>::reverse(&amp;<span class="k">mut</span> cs);
+    <span class="p">String</span> back = <span class="p">String</span>::new();
+    <span class="k">foreach</span> (c in &amp;cs)
+    {
+        <span class="p">String</span>::append(&amp;<span class="k">mut</span> back, *c);
+    }
+    <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, &amp;back);
+
+    <span class="c">// Positions and text patterns work on each character.</span>
+    <span class="k">foreach</span> (i, c in <span class="p">String</span>::chars(&amp;s))
+    {
+        <span class="k">match</span> (c)
+        {
+            <span class="s">&quot;\u{e9}&quot;</span> : <span class="p">printf</span>(<span class="s">&quot;\u{e9} is character %v\n&quot;</span>, i),
+            <span class="s">&quot;!&quot;</span> : <span class="p">printf</span>(<span class="s">&quot;! is character %v\n&quot;</span>, i),
+            _ : {},
+        }
+    }
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>[c][a][f][é][ ][😀][!]
+7 characters in 11 bytes
+!😀 éfac
+é is character 3
+! is character 6
+</pre></div></figure>
 <h3>Which text type?</h3>
 <p>Rust programmers will recognise the pair, and C programmers may wonder why there are two
 text types at all. The reason is that a constant should not have to be managed. If <code>&quot;hi&quot;</code> were a
@@ -5290,14 +5446,15 @@ messages that are not the program's output. There is no <code>println</code>; en
 <tr><td><code>%d</code> <code>%i</code> <code>%u</code></td><td>any integer type</td><td>decimal; no <code>%ld</code>/<code>%lld</code>/<code>%zu</code> needed, the type is known</td></tr>
 <tr><td><code>%x</code> <code>%X</code> <code>%o</code> <code>%b</code></td><td>any integer type</td><td>hex, octal, binary (<code>#</code> adds <code>0x</code>, <code>0X</code>, <code>0o</code>, <code>0b</code>)</td></tr>
 <tr><td><code>%f</code> <code>%e</code> <code>%g</code> (and <code>%F</code> <code>%E</code> <code>%G</code>)</td><td><code>f32</code>, <code>f64</code></td><td>fixed, exponent, or shortest of the two, 6 digits by default</td></tr>
-<tr><td><code>%s</code></td><td><code>str</code>, <code>&amp;String</code>, <code>bool</code></td><td>the text</td></tr>
+<tr><td><code>%s</code></td><td><code>str</code>, <code>&amp;String</code>, <code>StringView</code>, <code>bool</code></td><td>the text</td></tr>
 <tr><td><code>%v</code></td><td>any of the above</td><td>the value as CobaltC writes it (below)</td></tr>
 <tr><td><code>%%</code></td><td>nothing</td><td>a <code>%</code></td></tr>
 </tbody>
 </table>
 <p>Flags, a width and a precision work as in C: <code>%-8s</code> pads on the right, <code>%05d</code> pads with
 zeros, <code>%+d</code> always shows a sign, <code>%.2f</code> rounds to two decimals, <code>%8.3f</code> does both. Widths count
-characters, so text in any language lines up. There is no <code>%c</code>. A <code>*</code> in place of the width or
+characters, so text in any language lines up; to size a column to its text, count the characters
+too, <code>Vec::len(&amp;String::chars(&amp;s))</code>, since <code>String::len</code> counts bytes. There is no <code>%c</code>. A <code>*</code> in place of the width or
 the precision takes it from the next argument, which must be a <code>usize</code>: <code>printf(&quot;%*d&quot;, w, n)</code>,
 <code>printf(&quot;%.*s&quot;, n, &amp;s)</code>.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Computed widths</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
@@ -5370,6 +5527,7 @@ parts; an enum prints its variant's name. It takes a width and <code>-</code>, b
 <tr><td><code>f32</code>, <code>f64</code></td><td>the shortest digits that read back as the same value</td><td><code>0.1</code>, <code>1.0</code>, <code>0.3333333333333333</code>, <code>1.0e21</code>, <code>1.0e-7</code>, <code>NaN</code>, <code>inf</code></td></tr>
 <tr><td><code>bool</code></td><td><code>true</code> or <code>false</code></td><td></td></tr>
 <tr><td><code>ref&lt;String, shared&gt;</code></td><td>the string's bytes</td><td><code>printf(&quot;%v&quot;, &amp;s)</code></td></tr>
+<tr><td><code>StringView</code></td><td>its text</td><td><code>printf(&quot;%v&quot;, word)</code></td></tr>
 <tr><td>an enum, or a reference to one</td><td>its variant's name (not its payload)</td><td><code>Some</code>, <code>Mul</code>, <code>NotFound</code></td></tr>
 </tbody>
 </table>
@@ -5513,23 +5671,12 @@ printed with <code>printf</code> appears before the program waits.</p>
 <span class="k">fn</span> greet_all() : <span class="p">Result</span>&lt;<span class="t">usize</span>, <span class="p">ReadError</span>&gt;
 {
     <span class="t">usize</span> count = <span class="n">0</span>;
-    <span class="k">while</span> (<span class="k">true</span>)
+    <span class="k">while</span> (<span class="p">Some</span>(name) = <span class="p">read_line</span>()?) <span class="c">// None: the end of input; an error goes back to main</span>
     {
-        <span class="k">auto</span> line = <span class="p">read_line</span>()?;     <span class="c">// an error goes back to main</span>
-        <span class="k">match</span> (line)
+        <span class="k">if</span> (<span class="p">String</span>::len(&amp;name) &gt; <span class="n">0</span>)
         {
-            <span class="p">Some</span>(name) :
-            {
-                <span class="k">if</span> (<span class="p">String</span>::len(&amp;name) &gt; <span class="n">0</span>)
-                {
-                    <span class="p">printf</span>(<span class="s">&quot;hello, %v\n&quot;</span>, &amp;name);
-                    count = count + <span class="n">1</span>;
-                }
-            },
-            <span class="p">None</span> :
-            {
-                <span class="k">return</span> <span class="p">Ok</span>(count);     <span class="c">// the end of input</span>
-            },
+            <span class="p">printf</span>(<span class="s">&quot;hello, %v\n&quot;</span>, &amp;name);
+            count += <span class="n">1</span>;
         }
     }
     <span class="p">Ok</span>(count)
@@ -5571,28 +5718,20 @@ you can call inside <code>unsafe</code> for an argument's raw bytes.</p>
 
 <span class="k">fn</span> main()
 {
-    <span class="t">usize</span> i = <span class="n">0</span>;
-    <span class="k">while</span> (i &lt; <span class="p">arg_count</span>())
+    <span class="k">foreach</span> (i in <span class="n">0</span>..<span class="p">arg_count</span>())
     {
         <span class="k">match</span> (<span class="p">arg</span>(i))
         {
-            <span class="p">Ok</span>(a) :
-            {
-                <span class="p">printf</span>(<span class="s">&quot;%v: %v\n&quot;</span>, i, &amp;a);
-            },
-            <span class="p">Err</span>(e) :
-            {
-                <span class="p">printf</span>(<span class="s">&quot;%v: not UTF-8 at byte %v\n&quot;</span>, i, e.offset);
-            },
+            <span class="p">Ok</span>(a) : <span class="p">printf</span>(<span class="s">&quot;%v: %v\n&quot;</span>, i, &amp;a),
+            <span class="p">Err</span>(e) : <span class="p">printf</span>(<span class="s">&quot;%v: not UTF-8 at byte %v\n&quot;</span>, i, e.offset),
         }
-        i = i + <span class="n">1</span>;
     }
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>0: one
 1: two
 </pre></div></figure>
 <h3>Numbers and text</h3>
 <p><code>String::append(&amp;mut s, x)</code> adds to <code>s</code> exactly what <code>printf(&quot;%v&quot;, x)</code> would write, for the same
-types: a <code>str</code>, any integer, <code>f32</code>/<code>f64</code>, <code>bool</code>, or another <code>String</code> through <code>&amp;</code>. So a line can be
+types: a <code>str</code>, any integer, <code>f32</code>/<code>f64</code>, <code>bool</code>, a <code>StringView</code>, or another <code>String</code> through <code>&amp;</code>. So a line can be
 built piece by piece and printed, or kept, once. <code>parse&lt;T&gt;(&amp;s)</code> goes the other way: it reads the
 whole <code>String</code> as a number of type <code>T</code>, any integer type, <code>f32</code> or <code>f64</code>, and returns a
 <code>Result&lt;T, ParseError&gt;</code>.</p>
@@ -5608,27 +5747,20 @@ whole <code>String</code> as a number of type <code>T</code>, any integer type, 
 <p>Parsing is strict: an optional <code>+</code> or <code>-</code>, then digits, and for a float an optional fraction and
 exponent (<code>2.5e-3</code>), or <code>inf</code> or <code>NaN</code>. No spaces anywhere; <code>read_line</code> removes a Windows line’s
 <code>\r\n</code> whole, so its lines parse, but a <code>\r</code> from any other source is <code>Invalid</code>. Floats are rounded correctly, and every float <code>%v</code> writes parses back to
-the same value. To take a line apart first, <code>String::as_bytes(&amp;s)</code> gives its bytes to read.</p>
+the same value. To take a line apart first, split, trim or search it as views (<code>String::split</code>,
+<code>trim</code>, <code>find</code>, the <code>StringView</code> functions above) and parse a piece with <code>StringView::parse&lt;T&gt;</code>.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Parsing arguments, building a line: <code>coby sum.cb 1.5 2 0.25</code></span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="c">// Adds up its arguments: `coby sum.cb 1.5 2 x` reports the `x`.</span>
 <span class="k">fn</span> main() : <span class="t">u8</span>
 {
     <span class="t">f64</span> total = <span class="n">0.0</span>;
-    <span class="t">usize</span> i = <span class="n">0</span>;
-    <span class="k">while</span> (i &lt; <span class="p">arg_count</span>())
+    <span class="k">foreach</span> (i in <span class="n">0</span>..<span class="p">arg_count</span>())
     {
-        <span class="p">String</span> a = <span class="k">match</span> (<span class="p">arg</span>(i))
-        {
-            <span class="p">Ok</span>(s) : s,
-            <span class="p">Err</span>(_) : <span class="p">String</span>::new(),
-        };
+        <span class="p">String</span> a = <span class="p">Result</span>::unwrap_or(<span class="p">arg</span>(i), <span class="p">String</span>::new());
         <span class="k">match</span> (<span class="p">parse</span>&lt;<span class="t">f64</span>&gt;(&amp;a))
         {
-            <span class="p">Ok</span>(v) :
-            {
-                total = total + v;
-            },
+            <span class="p">Ok</span>(v) : total += v,
             <span class="p">Err</span>(_) :
             {
                 <span class="p">String</span> msg = <span class="p">String</span>::new();
@@ -5641,7 +5773,6 @@ the same value. To take a line apart first, <code>String::as_bytes(&amp;s)</code
                 <span class="k">return</span> <span class="n">1</span>;
             },
         }
-        i = i + <span class="n">1</span>;
     }
     <span class="p">String</span> line = <span class="p">String</span>::new();
     <span class="p">String</span>::append(&amp;<span class="k">mut</span> line, <span class="s">&quot;total &quot;</span>);
@@ -5676,37 +5807,19 @@ value's type says which enum is meant, but building one by hand is written <code
 {
     <span class="p">String</span> path = <span class="p">String</span>::from_str(<span class="s">&quot;notes.txt&quot;</span>);
     <span class="p">String</span> text = <span class="p">String</span>::from_str(<span class="s">&quot;first line\nsecond line\n&quot;</span>);
-    <span class="k">match</span> (<span class="p">write_file</span>(&amp;path, &amp;text))
+    <span class="k">if</span> (<span class="p">Err</span>(_) = <span class="p">write_file</span>(&amp;path, &amp;text))
     {
-        <span class="p">Ok</span>(_) :
-        {
-        },
-        <span class="p">Err</span>(_) :
-        {
-            <span class="p">printf</span>(<span class="s">&quot;cannot write notes.txt\n&quot;</span>);
-            <span class="k">return</span> <span class="n">1</span>;
-        },
+        <span class="p">printf</span>(<span class="s">&quot;cannot write notes.txt\n&quot;</span>);
+        <span class="k">return</span> <span class="n">1</span>;
     }
     <span class="p">String</span> back = <span class="p">Result</span>::unwrap_or(<span class="p">read_file</span>(&amp;path), <span class="p">String</span>::new());
     <span class="p">printf</span>(<span class="s">&quot;%v&quot;</span>, &amp;back);
     <span class="p">String</span> gone = <span class="p">String</span>::from_str(<span class="s">&quot;no-such-file.txt&quot;</span>);
     <span class="k">match</span> (<span class="p">read_file</span>(&amp;gone))
     {
-        <span class="p">Ok</span>(_) :
-        {
-            <span class="p">printf</span>(<span class="s">&quot;?\n&quot;</span>);
-        },
-        <span class="p">Err</span>(e) : <span class="k">match</span> (e)
-        {
-            NotFound :
-            {
-                <span class="p">printf</span>(<span class="s">&quot;no-such-file.txt: not found\n&quot;</span>);
-            },
-            _ :
-            {
-                <span class="p">printf</span>(<span class="s">&quot;no-such-file.txt: cannot read it\n&quot;</span>);
-            },
-        },
+        <span class="p">Ok</span>(_) : <span class="p">printf</span>(<span class="s">&quot;?\n&quot;</span>),
+        <span class="p">Err</span>(NotFound) : <span class="p">printf</span>(<span class="s">&quot;no-such-file.txt: not found\n&quot;</span>),   <span class="c">// a pattern inside a pattern</span>
+        <span class="p">Err</span>(_) : <span class="p">printf</span>(<span class="s">&quot;no-such-file.txt: cannot read it\n&quot;</span>),
     }
     <span class="n">0</span>
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>first line
@@ -5745,40 +5858,21 @@ first when speed matters.</p>
 {
     <span class="p">String</span> path = <span class="p">String</span>::from_str(<span class="s">&quot;app.log&quot;</span>);
     <span class="p">File</span> log = <span class="p">Result</span>::expect(<span class="p">File</span>::create(&amp;path), <span class="s">&quot;cannot create the log&quot;</span>);
-    <span class="t">usize</span> i = <span class="n">1</span>;
-    <span class="k">while</span> (i &lt;= <span class="n">3</span>)
+    <span class="k">foreach</span> (i in <span class="n">1</span>..<span class="n">4</span>)
     {
-        <span class="p">Result</span>::unwrap_or(<span class="p">File</span>::<span class="p">printf</span>(&amp;<span class="k">mut</span> log, <span class="s">&quot;event %v\n&quot;</span>, i), ());
-        i = i + <span class="n">1</span>;
+        _ = <span class="p">File</span>::<span class="p">printf</span>(&amp;<span class="k">mut</span> log, <span class="s">&quot;event %v\n&quot;</span>, i);   <span class="c">// `_ =`: the result is not needed</span>
     }
-    <span class="p">Result</span>::unwrap_or(<span class="p">File</span>::close(log), ());
+    _ = <span class="p">File</span>::close(log);
 
     <span class="p">File</span> input = <span class="p">Result</span>::expect(<span class="p">File</span>::open(&amp;path), <span class="s">&quot;cannot open the log&quot;</span>);
     <span class="p">printf</span>(<span class="s">&quot;%v bytes\n&quot;</span>, <span class="p">Result</span>::unwrap_or(<span class="p">File</span>::len(&amp;input), <span class="n">0</span>));
-    <span class="k">while</span> (<span class="k">true</span>)
+    <span class="k">while</span> (<span class="p">Ok</span>(<span class="p">Some</span>(line)) = <span class="p">File</span>::<span class="p">read_line</span>(&amp;<span class="k">mut</span> input))   <span class="c">// stops at the end, or an error</span>
     {
-        <span class="k">match</span> (<span class="p">File</span>::<span class="p">read_line</span>(&amp;<span class="k">mut</span> input))
-        {
-            <span class="p">Ok</span>(o) : <span class="k">match</span> (o)
-            {
-                <span class="p">Some</span>(line) :
-                {
-                    <span class="p">printf</span>(<span class="s">&quot;read: %s\n&quot;</span>, &amp;line);
-                },
-                <span class="p">None</span> :
-                {
-                    <span class="k">break</span>;
-                },
-            },
-            <span class="p">Err</span>(_) :
-            {
-                <span class="k">break</span>;
-            },
-        }
+        <span class="p">printf</span>(<span class="s">&quot;read: %s\n&quot;</span>, &amp;line);
     }
-    <span class="p">Result</span>::unwrap_or(<span class="p">File</span>::seek(&amp;<span class="k">mut</span> input, <span class="n">6</span>), ());
+    _ = <span class="p">File</span>::seek(&amp;<span class="k">mut</span> input, <span class="n">6</span>);
     <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; bytes = <span class="p">Vec</span>::new();
-    <span class="p">Result</span>::unwrap_or(<span class="p">File</span>::<span class="p">read</span>(&amp;<span class="k">mut</span> input, &amp;<span class="k">mut</span> bytes, <span class="n">1</span>), <span class="n">0</span>);
+    _ = <span class="p">File</span>::<span class="p">read</span>(&amp;<span class="k">mut</span> input, &amp;<span class="k">mut</span> bytes, <span class="n">1</span>);
     <span class="p">printf</span>(<span class="s">&quot;byte 6 is %v\n&quot;</span>, bytes[<span class="n">0</span>]);
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>24 bytes
 read: event 1
@@ -5819,18 +5913,15 @@ environment and measure time. Paths are <code>String</code>s, as for files, and 
 <span class="k">fn</span> main() : <span class="t">u8</span>
 {
     <span class="p">String</span> dir = <span class="p">String</span>::from_str(<span class="s">&quot;work&quot;</span>);
-    <span class="k">match</span> (<span class="p">make_dir</span>(&amp;dir))
+    <span class="k">if</span> (<span class="p">Err</span>(_) = <span class="p">make_dir</span>(&amp;dir))
     {
-        <span class="p">Ok</span>(_) :
-        {
-        },
-        <span class="p">Err</span>(_) : <span class="k">return</span> <span class="n">1</span>,
+        <span class="k">return</span> <span class="n">1</span>;
     }
     <span class="p">String</span> a = <span class="p">String</span>::from_str(<span class="s">&quot;work/notes.txt&quot;</span>);
     <span class="p">String</span> b = <span class="p">String</span>::from_str(<span class="s">&quot;work/old.txt&quot;</span>);
     <span class="p">String</span> text = <span class="p">String</span>::from_str(<span class="s">&quot;remember\n&quot;</span>);
-    <span class="p">Result</span>::unwrap_or(<span class="p">write_file</span>(&amp;a, &amp;text), ());
-    <span class="p">Result</span>::unwrap_or(<span class="p">rename</span>(&amp;a, &amp;b), ());
+    _ = <span class="p">write_file</span>(&amp;a, &amp;text);
+    _ = <span class="p">rename</span>(&amp;a, &amp;b);
     <span class="k">match</span> (<span class="p">list_dir</span>(&amp;dir))
     {
         <span class="p">Ok</span>(names) :
@@ -5843,8 +5934,8 @@ environment and measure time. Paths are <code>String</code>s, as for files, and 
         <span class="p">Err</span>(_) : <span class="k">return</span> <span class="n">1</span>,
     }
     <span class="p">printf</span>(<span class="s">&quot;notes.txt: %s, old.txt: %s\n&quot;</span>, kind(&amp;a), kind(&amp;b));
-    <span class="p">Result</span>::unwrap_or(<span class="p">remove_file</span>(&amp;b), ());
-    <span class="p">Result</span>::unwrap_or(<span class="p">remove_dir</span>(&amp;dir), ());
+    _ = <span class="p">remove_file</span>(&amp;b);
+    _ = <span class="p">remove_dir</span>(&amp;dir);
     <span class="p">printf</span>(<span class="s">&quot;work: %s\n&quot;</span>, kind(&amp;dir));
     <span class="t">u64</span> t0 = <span class="p">monotonic_ns</span>();
     <span class="p">printf</span>(<span class="s">&quot;time goes forward: %v\n&quot;</span>, <span class="p">monotonic_ns</span>() &gt;= t0);
@@ -6026,7 +6117,7 @@ shared reference); put a <code>mutex</code> inside if you need mutation. <code>R
     <span class="k">auto</span> b = <span class="p">Rc</span>::clone(&amp;a);           <span class="c">// count = 2</span>
     <span class="p">assert</span>(<span class="p">Vec</span>::len(<span class="p">Rc</span>::get(&amp;b)) == <span class="n">1</span>);
     <span class="p">drop</span>(a);                          <span class="c">// count = 1; the box survives</span>
-    <span class="p">assert</span>(*<span class="p">Vec</span>::index_shared(<span class="p">Rc</span>::get(&amp;b), <span class="n">0</span>) == <span class="n">42</span>);
+    <span class="p">assert</span>(<span class="p">Rc</span>::get(&amp;b)[<span class="n">0</span>] == <span class="n">42</span>);
     <span class="p">drop</span>(b);                          <span class="c">// count = 0: the Vec is destroyed, then the box is freed</span>
 }</code></pre></figure>
 <h3><code>Box&lt;T&gt;</code></h3>
@@ -6179,8 +6270,8 @@ for looking things up; the semantics are in the earlier sections.</p>
 <li><strong>Identifiers:</strong> ASCII letters, digits and <code>_</code>, not starting with a digit.</li>
 <li><strong>Integer literals:</strong> decimal digits, or hexadecimal, octal or binary after <code>0x</code>, <code>0o</code>, <code>0b</code>, optionally <code>: type</code> (<code>255: u8</code>, <code>0xFF: u8</code>). No sign: <code>-</code> is an operator. <strong>Float literals:</strong> <code>1.5</code>, <code>0.25: f32</code>, <code>1.0e-7</code>. <strong>Digit separators:</strong> a <code>_</code> between two digits is ignored (<code>1_000_000</code>, <code>0xFFFF_0000</code>). <strong>Booleans:</strong> <code>true</code>, <code>false</code>. <strong>Unit value:</strong> <code>()</code>.</li>
 <li><strong>String literals:</strong> <code>&quot;…&quot;</code>, type <code>str</code>. Escapes <code>\n \r \t \0 \\ \&quot;</code> and <code>\u{hex}</code>; any other source character stands for itself. A literal must close on its own line. <strong>Byte literals:</strong> <code>b&quot;…&quot;</code>, type <code>array&lt;u8, N&gt;</code>; the same escapes except <code>\xNN</code> in place of <code>\u{…}</code>, ASCII characters only, at least one byte. <strong>Byte character literals:</strong> <code>b&#x27;a&#x27;</code>, one ASCII character or escape: an unsigned integer literal, <code>u8</code> unless its context gives another unsigned type. <strong>No character literals</strong> (a <code>char</code> type).</li>
-<li><strong>Keywords:</strong> <code>fn struct enum resource match if else while return auto module import export unsafe extern break continue move mut true false as void</code>.</li>
-<li><strong>Reserved type names</strong> (cannot be identifiers): <code>i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 isize usize f32 f64 bool str ref rawptr array handle mutex guard</code>. The words <code>shared</code> and <code>exclusive</code> are ordinary identifiers that only have meaning inside <code>ref&lt;…, …&gt;</code>.</li>
+<li><strong>Keywords:</strong> <code>fn struct bitstruct enum resource match if else while for foreach return auto const module import export unsafe extern break continue move mut true false as void</code> (<code>as</code> is reserved and unused).</li>
+<li><strong>Reserved type names</strong> (cannot be identifiers): <code>i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 isize usize f32 f64 bool str ref rawptr array slice handle mutex guard</code>. The words <code>shared</code> and <code>exclusive</code> are ordinary identifiers that only have meaning inside <code>ref&lt;…, …&gt;</code>.</li>
 <li>Whitespace and newlines are insignificant between tokens; brace placement is a matter of style.</li>
 </ul>
 <h3>Types</h3>
@@ -6192,7 +6283,8 @@ for looking things up; the semantics are in the earlier sections.</p>
 <tr><td><code>void</code></td><td>the unit type (its value is written <code>()</code>)</td></tr>
 <tr><td><code>ref&lt;T, shared&gt;</code>, <code>ref&lt;T, exclusive&gt;</code></td><td>references</td></tr>
 <tr><td><code>rawptr&lt;T&gt;</code></td><td>raw pointer</td></tr>
-<tr><td><code>array&lt;T, N&gt;</code></td><td>fixed array, <code>N</code> a literal</td></tr>
+<tr><td><code>array&lt;T, N&gt;</code></td><td>fixed array, <code>N</code> a constant expression (§16)</td></tr>
+<tr><td><code>slice&lt;T, shared&gt;</code>, <code>slice&lt;T, exclusive&gt;</code></td><td>a borrowed run of elements (§16)</td></tr>
 <tr><td><code>fn(T1, T2) : R</code>, <code>fn(T1)</code></td><td>function type (result <code>void</code> if omitted)</td></tr>
 <tr><td><code>handle&lt;T&gt;</code>, <code>mutex&lt;T&gt;</code>, <code>guard&lt;T&gt;</code></td><td>concurrency types</td></tr>
 <tr><td><code>Name</code>, <code>Name&lt;T1, T2&gt;</code>, <code>mod::Name</code></td><td>a declared struct or enum, optionally instantiated</td></tr>
@@ -6405,7 +6497,8 @@ rule is applied statically where the checker can see the problem and dynamically
 <tr><td><code>diag.arith-overflow</code></td><td>both</td><td><code>+ - *</code> or negation left the type's range</td><td>widen, or use <code>wrapping_</code>/<code>saturating_</code>/<code>checked_</code></td></tr>
 <tr><td><code>diag.div-by-zero</code>, <code>diag.div-overflow</code></td><td>both</td><td>division by zero; <code>MIN / -1</code></td><td>test first or <code>checked_div</code></td></tr>
 <tr><td><code>diag.shift-amount-out-of-range</code></td><td>both</td><td>shift by the bit width or more</td><td>mask the amount</td></tr>
-<tr><td><code>diag.narrowing-overflow</code></td><td>both</td><td><code>narrow</code> or <code>to_int</code> of a value that does not fit</td><td><code>narrow_wrapping</code>, or widen the target</td></tr>
+<tr><td><code>diag.narrowing-overflow</code></td><td>both</td><td><code>narrow</code> or <code>to_int</code> of a value that does not fit, or a value too wide for a <code>bitstruct</code> field</td><td><code>checked_narrow</code> or <code>narrow_wrapping</code>, or widen the target</td></tr>
+<tr><td><code>diag.result-discarded</code></td><td>static</td><td>an expression statement whose value is a <code>Result</code>, so its error would vanish</td><td>handle it (<code>?</code>, <code>match</code>, <code>unwrap</code>), or write <code>_ = e;</code> to ignore it on purpose</td></tr>
 <tr><td><code>diag.literal-out-of-range</code></td><td>static</td><td>a literal that does not fit its type</td><td>fix the literal or its type</td></tr>
 <tr><td><code>diag.recursive-type</code></td><td>static</td><td>a struct or enum contains itself by value</td><td>put the recursive part behind <code>Box&lt;T&gt;</code>, <code>Rc&lt;T&gt;</code> or <code>Vec&lt;T&gt;</code></td></tr>
 <tr><td><code>diag.index-out-of-bounds</code></td><td>both</td><td>array or <code>Vec</code> index, or <code>str_byte</code> position, at or past the length</td><td>check the index first</td></tr>
