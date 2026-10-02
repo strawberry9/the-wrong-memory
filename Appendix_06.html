@@ -156,7 +156,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.100203</div>
+<div class="sub">Specification edition 2026.100204</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -323,7 +323,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100203</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100204</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -361,7 +361,8 @@ checked the program, it translates it to plain C and compiles that with the syst
 the specification requires <em>except</em> those the compiler proves can never fail — the rest
 becomes ordinary C — so it runs many times faster than the interpreter while behaving identically.
 <code>cobc --keep-c</code> leaves the generated C beside the executable if you want to read what your program
-became.</p>
+became; <a href="#intro-generated-c">Reading the C that <code>cobc</code> generates</a>, below, says what is in
+it and what you can do with it.</p>
 <p>The two are kept honest against each other: the test suites require <code>cobc</code>'s
 executables to match <code>coby</code>'s output and diagnostics byte for byte on every program, under both
 GCC and Clang — including every complete example in this guide. Use <code>coby</code> to run a program at
@@ -450,6 +451,78 @@ formatting can never change what a program does. It keeps your line breaks — a
 <code>if (n == 0) { return; }</code> stays on one line, though a function's body always opens on its own line — and a long line is broken only when you ask, with
 <code>--width N</code>. <code>cobfmt --help</code> lists the rest. Like <code>coby</code>, <code>cobfmt</code> runs on Windows as well as
 Linux, and it keeps a file's Windows line endings (<code>\r\n</code>) as they are.</p>
+<h3 id="intro-generated-c">Reading the C that <code>cobc</code> generates</h3>
+<p><code>cobc</code> does not produce machine code itself. Once the shared front end has checked
+your program, <code>cobc</code> translates it into one C file and hands that file to GCC or Clang, which
+builds the executable against <code>libcbrt.a</code>, the run-time library. Normally the C file is deleted
+afterwards; <code>cobc --keep-c -o prog prog.cb</code> keeps it as <code>prog.c</code>, beside <code>prog</code> (without <code>-o</code>,
+<code>a.out</code> gets <code>a.c</code>). Under <code>--run</code> without <code>-o</code> it lives in a temporary directory and is deleted
+with it. If the C compiler ever rejects the file, <code>cobc</code> keeps it whatever you asked and prints
+its path.</p>
+<p>The file is the complete translation of your program, not an excerpt: nothing but
+<code>libcbrt.a</code> is needed to build it. Even a seven-line program comes to a few hundred lines,
+because the file carries everything it uses, in this order:</p>
+<ul>
+<li><strong>The run-time interface</strong>, <code>cbrt.h</code>, copied in at the top: the C declarations of every <code>cb_…</code> function the program calls.</li>
+<li><strong><code>/* ---- types ---- */</code></strong>: each struct, enum and generic instantiation as a C struct, each followed by a <code>_Static_assert</code> that its size and alignment are the ones the specification fixes. <code>Vec&lt;i32&gt;</code> becomes <code>struct s_std__Vec_Li32_R</code>.</li>
+<li><strong><code>/* ---- string literals ---- */</code></strong>: your text literals as byte arrays.</li>
+<li><strong><code>/* ---- functions ---- */</code></strong>: one C function for each function the program actually uses, <code>std</code>'s included, and one copy per instantiation of a generic one (<code>f_std__Vec__push_Li32_R</code> is <code>Vec::push</code> for <code>i32</code>). Your <code>main</code> is <code>f_main</code>.</li>
+<li><strong>Call thunks and type descriptors</strong>: what <code>fn</code> values and the run-time checks need to know about each type.</li>
+<li><strong><code>int main</code></strong>, last: it hands the program's arguments to the runtime and starts <code>f_main</code>.</li>
+</ul>
+<p>Inside a function, the C follows your statements one by one, and every run-time
+check the specification requires is an explicit line, so you can see exactly which checks your
+code still pays for. This is <code>printf(&quot;%v\n&quot;, v[0]);</code> with <code>v</code> a <code>Vec&lt;i32&gt;</code>:</p>
+<figure class="code"><div class="code-head"><span class="code-title">from prog.c</span></div><pre><code>cb_at(<span class="n">0</span>u, <span class="n">7</span>u);                                   <span class="c">// now at line 7 of file 0, for diagnostics</span>
+<span class="k">struct</span> s_std__Vec_Li32_R *v9 = &amp;(l_v_1);
+<span class="k">if</span> (t8 &gt;= v9-&gt;len) cb_fault(<span class="s">&quot;diag.index-out-of-bounds&quot;</span>, CB_NOLOC, <span class="n">0</span>);
+int32_t *e10 = v9-&gt;ptr + (int64_t)t8;            <span class="c">// the element&#x27;s address</span>
+int32_t t11 = (*e10);</code></pre></figure>
+<p>Elsewhere you will meet <code>cb_borrow</code>, <code>cb_read</code> and <code>cb_write</code> (the access and
+aliasing checks of §08–§09), <code>__builtin_add_overflow</code> and its relatives (checked arithmetic, §06),
+and <code>cb_frame_push</code>, <code>cb_stmt_push</code> and their <code>_pop</code> partners (the bookkeeping that runs
+destructors at scope end). A check the compiler has proved can never fail is simply absent.</p>
+<h4>What you can do with it</h4>
+<ul>
+<li><strong>Read it</strong> to see how a construct is compiled, which checks a loop costs, or why one way of writing it is faster than another.</li>
+<li><strong>Build it yourself, with your own flags.</strong> <code>cobc</code>'s own build of <code>prog.c</code> is the command below; <code>-O2</code> is the default level and <code>libcbrt.a</code> sits beside the <code>cobc</code> executable. Add <code>-g -O0</code> for a build to step through in a debugger, <code>-fsanitize=address,undefined</code> to have the sanitizers watch it, <code>-march=native</code> or <code>-flto</code>, or leave out <code>-w</code> to see the C compiler's warnings, which <code>cobc</code> silences.</li>
+<li><strong>Debug and profile it</strong> at the C level: in a <code>-g</code> build, <code>gdb</code> and <code>perf annotate</code> show these C lines, and the <code>cb_at(file, line)</code> calls lead back to the line of your <code>.cb</code> file.</li>
+<li><strong>Report a compiler bug.</strong> If GCC or Clang rejects the generated C, that kept file and the C compiler's message are the whole report.</li>
+</ul>
+<figure class="code"><div class="code-head"><span class="code-title">building prog.c by hand (Linux; clang takes the same flags)</span></div><pre><code>gcc -std=gnu11 -O2 -ffp-contract=off -fno-optimize-sibling-calls -w prog.c \
+    -L /path/to/cobc/dir -lcbrt -lpthread -ldl -lm -o prog</code></pre></figure>
+<p>Keep <code>-std=gnu11</code> and the two <code>-f</code> flags when you change the rest; each is part of
+the program's meaning. <code>-ffp-contract=off</code> stops the C compiler fusing <code>a * b + c</code> into one
+fused multiply-add with a single rounding, since the specification rounds each operation on its
+own (§06). <code>-fno-optimize-sibling-calls</code> keeps every call a real call, so a recursion too deep for
+the stack stops with the same diagnostic it gets from <code>coby</code>, instead of being turned into a loop
+that runs to completion. A program that links its own C code (<code>extern &quot;./mine.c&quot;;</code>, §20) also
+needs that code compiled and added before <code>-lcbrt</code>.</p>
+<div class="callout warn"><div class="callout-title">Watch out</div>The generated C is for reading and experimenting, not for keeping or editing by
+hand. Its names are internal and change between versions of <code>cobc</code>, and it is only correct with the
+<code>libcbrt.a</code> built alongside the same <code>cobc</code>. <code>cobc</code> refuses a mismatched runtime, but a build by hand
+skips that check.</div>
+<h4>Why compile to C</h4>
+<p>Compiling through C is a long tradition rather than a shortcut: C++ began as
+Cfront, which translated it into C, and Nim, Vala, Cython and several Scheme compilers work this
+way today. Few compilers write machine code entirely on their own; most hand the last step to a
+shared back end such as LLVM or GCC's. C as the target brings:</p>
+<ul>
+<li><strong>Portability for free.</strong> Wherever there is a C compiler, the language can run.</li>
+<li><strong>Decades of optimisation for free.</strong> GCC's and Clang's <code>-O2</code> do register allocation, inlining, vectorisation and instruction scheduling better than a young compiler could.</li>
+<li><strong>Readable output.</strong> You can see what your program became, which is what <code>--keep-c</code> is for; LLVM IR or assembly would be far harder to read.</li>
+<li><strong>Easy C interoperation.</strong> Calling C functions and linking C libraries is natural, which is what <code>extern fn</code> (§20) needs.</li>
+</ul>
+<h4>What it costs</h4>
+<ul>
+<li><strong>C's own rules come along.</strong> The generated C must avoid C's undefined behaviour, and it has to keep up as C compilers grow stricter: code an older compiler accepted with a warning, a newer one may reject outright.</li>
+<li><strong>Less control.</strong> Some things C cannot say directly (exact stack layout, particular calling conventions, precise debug information), so they are worked around with flags such as <code>-ffp-contract=off</code> above.</li>
+<li><strong>Slower builds.</strong> Every build includes a full C compilation.</li>
+<li><strong>Debuggers show C lines, not CobaltC lines.</strong> <code>cobc</code> emits no <code>#line</code> directives, so <code>gdb</code> steps through the C; the <code>cb_at(file, line)</code> calls lead back to your source.</li>
+</ul>
+<p>For CobaltC the trade is a good one. Its central promise is that <code>coby</code> and <code>cobc</code>
+behave identically, and letting GCC and Clang do the machine-code work leaves <code>cobc</code> free to get
+the semantics and the checks exactly right.</p>
 
 <nav class="pager"><a class="top" href="#top">Top</a><a class="next" href="#tour">A tour in one program &rarr;</a></nav></section>
 <section id="tour">
