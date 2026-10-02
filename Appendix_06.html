@@ -156,7 +156,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.100201</div>
+<div class="sub">Specification edition 2026.100202</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -323,7 +323,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100201</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100202</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -1379,7 +1379,9 @@ see, like the call above, is reported when the conflicting access runs, marked <
 <p>A reference lives as long as something holds it. A reference passed straight to a call
 dies when the statement ends, which is why consecutive calls that each borrow the same variable are
 fine. A reference, slice or <code>StringView</code> kept in a local variable lives until the <em>last statement
-of its block that uses it</em>, and ends there. Using it inside a loop, a branch or a nested block
+of its block that uses it</em>, and ends there. So does any other local that holds references but
+owns nothing to destroy: the <code>Option&lt;ref&lt;V, shared&gt;&gt;</code> that <code>HashMap::get</code> returns, or a struct of
+references. Using it inside a loop, a branch or a nested block
 counts as a use by that whole statement, so a reference used in a loop lives through the loop.
 A reference variable lives to the end of its block, as before, when a closure captures it, when
 another reference was borrowed through it, or when a variable that can hold references (a
@@ -1394,6 +1396,11 @@ keep a reference derived from it.</p>
     <span class="p">assert</span>(<span class="p">Vec</span>::len(b) == <span class="n">3</span>);         <span class="c">// the last use of b: it ends after this statement</span>
     <span class="p">String</span>::clear(&amp;<span class="k">mut</span> cur);          <span class="c">// <span class="ok">✓</span> nothing borrows cur any more</span>
     <span class="p">assert</span>(<span class="p">String</span>::len(&amp;cur) == <span class="n">0</span>);
+    <span class="p">HashMap</span>&lt;<span class="p">String</span>, <span class="t">u32</span>&gt; m = <span class="p">HashMap</span>::new();
+    <span class="p">HashMap</span>::insert(&amp;<span class="k">mut</span> m, <span class="p">String</span>::from_str(<span class="s">&quot;a&quot;</span>), <span class="n">1</span>);
+    <span class="p">Option</span>&lt;<span class="t">ref</span>&lt;<span class="t">u32</span>, <span class="t">shared</span>&gt;&gt; hit = <span class="p">HashMap</span>::get(&amp;m, &amp;<span class="p">String</span>::from_str(<span class="s">&quot;a&quot;</span>));
+    <span class="p">assert</span>(<span class="p">Option</span>::is_some(&amp;hit));    <span class="c">// the last use of hit</span>
+    <span class="p">HashMap</span>::insert(&amp;<span class="k">mut</span> m, <span class="p">String</span>::from_str(<span class="s">&quot;b&quot;</span>), <span class="n">2</span>);   <span class="c">// <span class="ok">✓</span> hit no longer borrows m</span>
 }</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">A use in a loop keeps the reference for the whole loop</span><span class="badge bad">rejected: diag.aliasing-conflict</span></div><pre><code><span class="k">import</span> std;
 
