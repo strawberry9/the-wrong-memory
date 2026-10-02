@@ -156,7 +156,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.100202</div>
+<div class="sub">Specification edition 2026.100203</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -323,7 +323,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100202</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100203</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -454,22 +454,24 @@ Linux, and it keeps a file's Windows line endings (<code>\r\n</code>) as they ar
 <nav class="pager"><a class="top" href="#top">Top</a><a class="next" href="#tour">A tour in one program &rarr;</a></nav></section>
 <section id="tour">
 <h2>A tour in one program</h2>
-<p class="blurb">A complete, runnable program that introduces the syntax before the reference sections begin.</p>
+<p class="blurb">A complete, runnable program that introduces the syntax and the main capabilities, and the mistakes the compiler stops, before the reference sections begin.</p>
 <p>Here is a complete program. Read it once for the shape of the syntax; every
 construct it uses has its own section later. It runs under both the interpreter and the compiler
 and prints the output shown below the code.</p>
 <figure class="code"><div class="code-head"><span class="code-title">tour.cb</span><span class="badge ok">runs</span></div><pre><code><span class="c">// ------------------------------------------------------------------</span>
 <span class="c">// A first CobaltC program: a temperature log.</span>
 <span class="c">//</span>
-<span class="c">// One page that touches most of the language: a module, structs, an</span>
-<span class="c">// enum with payloads and `match`, a resource with a destructor,</span>
-<span class="c">// Vec and foreach, references, Result and `?`, generics, a closure, and a thread.</span>
+<span class="c">// One page that touches most of what CobaltC is for: structs, an enum</span>
+<span class="c">// with payloads and `match`, a resource with a destructor, Vec, String</span>
+<span class="c">// and HashMap, references the compiler checks, slices, Option, Result</span>
+<span class="c">// and `?`, checked arithmetic, generics, a closure, and two threads</span>
+<span class="c">// sharing a counter through a mutex.</span>
 <span class="c">// ------------------------------------------------------------------</span>
 
 <span class="k">import</span> std;
 
 <span class="c">// A module. Its `export` items are reached as `limits::COLD`; the rest</span>
-<span class="c">// stay inside. A `const` is a named value fixed when the program is compiled.</span>
+<span class="c">// stay inside. A `const` is a value fixed when the program is compiled.</span>
 <span class="k">module</span> limits
 {
     <span class="k">export</span> <span class="k">const</span> <span class="t">i32</span> COLD = <span class="n">150</span>;                          <span class="c">// tenths of a degree</span>
@@ -514,13 +516,36 @@ and prints the output shown below the code.</p>
 <span class="k">resource</span> <span class="k">struct</span> Log
 {
     <span class="p">Vec</span>&lt;Reading&gt; entries;
+    <span class="p">HashMap</span>&lt;<span class="p">String</span>, <span class="t">u32</span>&gt; per_sensor;                      <span class="c">// readings counted by sensor name</span>
 }
 
 <span class="c">// The destructor. It is never called directly; the language runs it.</span>
 <span class="k">fn</span> Log::<span class="p">drop</span>(<span class="t">ref</span>&lt;Log, <span class="t">exclusive</span>&gt; self)
 {
     <span class="p">printf</span>(<span class="s">&quot;L%d\n&quot;</span>, <span class="p">Vec</span>::len(&amp;self.entries));             <span class="c">// printf&#x27;s format is checked when compiled</span>
-    <span class="c">// self.entries (a Vec, itself a resource) is destroyed after this body.</span>
+}
+
+<span class="k">fn</span> record(<span class="t">ref</span>&lt;Log, <span class="t">exclusive</span>&gt; log, <span class="t">i32</span> tenths, <span class="t">u8</span> sensor)
+{
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> log.entries, Reading { .tenths = tenths, .sensor = sensor });
+    *<span class="p">HashMap</span>::entry(&amp;<span class="k">mut</span> log.per_sensor, <span class="p">sprintf</span>(<span class="s">&quot;sensor-%d&quot;</span>, sensor), <span class="n">0</span>) += <span class="n">1</span>;
+}
+
+<span class="c">// A slice is a borrowed run of elements. Arithmetic never wraps</span>
+<span class="c">// silently: `checked_add` gives None on overflow, and `?` on an Option</span>
+<span class="c">// returns that None from this function at once.</span>
+<span class="k">fn</span> average(<span class="t">slice</span>&lt;Reading, <span class="t">shared</span>&gt; rs) : <span class="p">Option</span>&lt;<span class="t">i32</span>&gt;
+{
+    <span class="k">if</span> (slice_len(rs) == <span class="n">0</span>)
+    {
+        <span class="k">return</span> <span class="p">None</span>;
+    }
+    <span class="t">i32</span> total = <span class="n">0</span>;
+    <span class="k">foreach</span> (r in rs)
+    {
+        total = <span class="p">checked_add</span>(total, r.tenths)?;
+    }
+    <span class="p">Some</span>(total / <span class="p">narrow</span>&lt;<span class="t">i32</span>&gt;(slice_len(rs)))              <span class="c">// `narrow` checks that the value fits</span>
 }
 
 <span class="c">// A fallible function returns a Result. Err carries the offending byte.</span>
@@ -541,98 +566,191 @@ and prints the output shown below the code.</p>
     <span class="p">Ok</span>(h * <span class="n">10</span> + l)
 }
 
-<span class="c">// A generic function. T is inferred from the arguments at each call.</span>
-<span class="k">fn</span> first_of&lt;T&gt;(T a, T b) : T
+<span class="c">// A generic function: T is any integer type, fixed at each call.</span>
+<span class="k">fn</span> larger&lt;T: integer&gt;(T a, T b) : T
 {
-    a
+    <span class="k">if</span> (a &gt; b) { a } <span class="k">else</span> { b }
 }
 
-<span class="c">// A function to run on another thread.</span>
-<span class="k">fn</span> work(<span class="t">i32</span> n) : <span class="t">i32</span>
+<span class="c">// Runs on its own thread: counts the hot readings in its half of the</span>
+<span class="c">// log into a counter the two threads share. Only the lock reaches it.</span>
+<span class="k">fn</span> count_hot(<span class="t">ref</span>&lt;<span class="t">mutex</span>&lt;<span class="t">u32</span>&gt;, <span class="t">shared</span>&gt; hot, <span class="t">slice</span>&lt;Reading, <span class="t">shared</span>&gt; part) : <span class="t">usize</span>
 {
-    n * <span class="n">2</span>
+    <span class="k">foreach</span> (r in part)
+    {
+        <span class="k">if</span> (r.tenths &gt; limits::HOT)
+        {
+            *<span class="p">lock</span>(hot) += <span class="n">1</span>;
+        }
+    }
+    slice_len(part)
 }
 
 <span class="k">fn</span> main()
 {
-    Log log = Log { .entries = <span class="p">Vec</span>::new() };              <span class="c">// Vec::new&#x27;s T comes from the field type</span>
-    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> log.entries, Reading { .tenths = <span class="n">120</span>, .sensor = <span class="n">1</span> });
-    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> log.entries, Reading { .tenths = <span class="n">215</span>, .sensor = <span class="n">1</span> });
-    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> log.entries, Reading { .tenths = <span class="n">340</span>, .sensor = <span class="n">2</span> });
+    Log log = Log { .entries = <span class="p">Vec</span>::new(), .per_sensor = <span class="p">HashMap</span>::new() };
+    record(&amp;<span class="k">mut</span> log, <span class="n">120</span>, <span class="n">1</span>);
+    record(&amp;<span class="k">mut</span> log, <span class="n">215</span>, <span class="n">1</span>);
+    record(&amp;<span class="k">mut</span> log, <span class="n">340</span>, <span class="n">2</span>);
+    record(&amp;<span class="k">mut</span> log, <span class="n">310</span>, <span class="n">2</span>);
 
     <span class="c">// Loop over the entries through a shared reference to each one.</span>
+    <span class="c">// `match` takes the Verdict apart; it must handle every variant.</span>
     <span class="k">foreach</span> (r in &amp;log.entries)                           <span class="c">// r : ref&lt;Reading, shared&gt;</span>
     {
         <span class="k">match</span> (judge(r))
         {
-            Cold(by) :            <span class="c">// &quot;C&quot; then the shortfall</span>
-            {
-                <span class="p">printf</span>(<span class="s">&quot;C%d&quot;</span>, by);
-            },
-            Fine     :
-            {
-                <span class="p">printf</span>(<span class="s">&quot;F&quot;</span>);
-            },
-            Hot(by)  :            <span class="c">// &quot;H&quot; then the excess</span>
-            {
-                <span class="p">printf</span>(<span class="s">&quot;H%d&quot;</span>, by);
-            },
+            Cold(by) : <span class="p">printf</span>(<span class="s">&quot;C%d &quot;</span>, by),                <span class="c">// &quot;C&quot; then the shortfall</span>
+            Fine     : <span class="p">printf</span>(<span class="s">&quot;F &quot;</span>),
+            Hot(by)  : <span class="p">printf</span>(<span class="s">&quot;H%d &quot;</span>, by),                <span class="c">// &quot;H&quot; then the excess</span>
         }
-        <span class="p">printf</span>(<span class="s">&quot;\n&quot;</span>);
-    }
-
-    <span class="c">// Result handling with match. `b&quot;42&quot;` is a byte-array literal:</span>
-    <span class="c">// the two u8 values 52 and 50.</span>
-    <span class="k">auto</span> digits = <span class="s">b&quot;42&quot;</span>;
-    <span class="k">match</span> (parse_two(digits[<span class="n">0</span>], digits[<span class="n">1</span>]))
-    {
-        <span class="p">Ok</span>(v)  :
-        {
-            <span class="p">printf</span>(<span class="s">&quot;%d&quot;</span>, v);
-        },
-        <span class="p">Err</span>(_) :
-        {
-            <span class="p">printf</span>(<span class="s">&quot;?&quot;</span>);
-        },
     }
     <span class="p">printf</span>(<span class="s">&quot;\n&quot;</span>);
 
-    <span class="c">// A closure. The capture list names every outer variable the body</span>
-    <span class="c">// uses; `scale` is only read, so it is captured by shared reference.</span>
-    <span class="t">i32</span> scale = <span class="n">3</span>;
-    <span class="k">auto</span> scaled = [scale](<span class="t">i32</span> x)
+    <span class="c">// A lookup gives an Option; a pattern condition takes it apart.</span>
+    <span class="k">if</span> (<span class="p">Some</span>(n) = <span class="p">HashMap</span>::get(&amp;log.per_sensor, &amp;<span class="p">String</span>::from_str(<span class="s">&quot;sensor-2&quot;</span>)))
     {
-        x * scale
+        <span class="p">printf</span>(<span class="s">&quot;sensor-2: %d\n&quot;</span>, *n);
+    }
+
+    <span class="c">// A slice of the Vec, and an average that cannot overflow unseen.</span>
+    <span class="k">if</span> (<span class="p">Some</span>(avg) = average(&amp;log.entries[<span class="n">0</span> .. <span class="n">2</span>]))
+    {
+        <span class="p">printf</span>(<span class="s">&quot;avg %d\n&quot;</span>, avg);
+    }
+
+    <span class="c">// Sorting, and a closure: `to_f` captures nothing, `offset` is read.</span>
+    <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; temps = <span class="p">Vec</span>::new();
+    <span class="k">foreach</span> (r in &amp;log.entries)
+    {
+        <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> temps, r.tenths);
+    }
+    <span class="p">Vec</span>::sort(&amp;<span class="k">mut</span> temps);
+    <span class="t">i32</span> offset = <span class="n">32</span>;
+    <span class="k">auto</span> to_f = [offset](<span class="t">i32</span> tenths)
+    {
+        tenths * <span class="n">9</span> / <span class="n">50</span> + offset
     };
-    <span class="p">printf</span>(<span class="s">&quot;%d\n&quot;</span>, scaled(<span class="n">4</span>));
+    <span class="p">printf</span>(<span class="s">&quot;coldest %dF, warmest %dF\n&quot;</span>, to_f(temps[<span class="n">0</span>]), to_f(temps[<span class="n">3</span>]));
 
-    <span class="p">printf</span>(<span class="s">&quot;%d\n&quot;</span>, first_of(<span class="n">9</span>, <span class="n">8</span>));                      <span class="c">// T := i32</span>
+    <span class="c">// Result handling: `b&quot;42&quot;` is a byte-array literal (52 and 50).</span>
+    <span class="k">auto</span> digits = <span class="s">b&quot;42&quot;</span>;
+    <span class="k">if</span> (<span class="p">Ok</span>(v) = parse_two(digits[<span class="n">0</span>], digits[<span class="n">1</span>]))
+    {
+        <span class="p">printf</span>(<span class="s">&quot;%d %d\n&quot;</span>, v, larger(v, <span class="n">17</span>));             <span class="c">// T := i32</span>
+    }
 
-    <span class="c">// A thread: spawn takes a function and its arguments; join waits</span>
-    <span class="c">// and returns the result. The handle is a resource too.</span>
-    <span class="k">auto</span> h = <span class="p">spawn</span>(work, <span class="n">21</span>);
-    <span class="p">printf</span>(<span class="s">&quot;%d\n&quot;</span>, <span class="p">join</span>(h));
-}   <span class="c">// `log` is destroyed here: its destructor prints &quot;L3&quot;, then the Vec frees its buffer.</span></code></pre><div class="code-output"><span class="out-label">output</span><pre>C30
-F
-H40
-42
-12
-9
-42
-L3
+    <span class="c">// Two threads share the counter through a mutex; each gets its own</span>
+    <span class="c">// half of the log as a slice. `join` waits and gives the result.</span>
+    <span class="k">auto</span> hot = <span class="p">Mutex</span>::new(<span class="n">0</span>: <span class="t">u32</span>);
+    <span class="k">auto</span> h1 = <span class="p">spawn</span>(count_hot, &amp;hot, &amp;log.entries[<span class="n">0</span> .. <span class="n">2</span>]);
+    <span class="k">auto</span> h2 = <span class="p">spawn</span>(count_hot, &amp;hot, &amp;log.entries[<span class="n">2</span> .. <span class="n">4</span>]);
+    <span class="t">usize</span> seen = <span class="p">join</span>(h1) + <span class="p">join</span>(h2);
+    <span class="p">printf</span>(<span class="s">&quot;%d of %d readings hot\n&quot;</span>, *<span class="p">lock</span>(&amp;hot), seen);
+}   <span class="c">// `log` is destroyed here: its destructor prints &quot;L4&quot;, then its Vec and HashMap are freed.</span></code></pre><div class="code-output"><span class="out-label">output</span><pre>C30 F H40 H10 
+sensor-2: 2
+avg 167
+coldest 53F, warmest 93F
+42 42
+2 of 4 readings hot
+L4
 </pre></div></figure>
+<h3>What the compiler stops</h3>
+<p>The program above is correct, so it shows what CobaltC lets you write. Just as much of
+the language is what it will not let through. Each of these mistakes, a one-line change to the
+same kind of code, is rejected <em>before the program runs</em>, by both the interpreter and the
+compiler, with a diagnostic that names the rule; what cannot be decided in advance is checked
+while the program runs, and stops it at the line where it happens (§08–§10).</p>
+<figure class="code"><div class="code-head"><span class="code-title">A reference kept across a push</span><span class="badge bad">rejected: diag.aliasing-conflict</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">struct</span> Reading
+{
+    <span class="t">i32</span> tenths;
+    <span class="t">u8</span> sensor;
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="p">Vec</span>&lt;Reading&gt; entries = <span class="p">Vec</span>::new();
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> entries, Reading { .tenths = <span class="n">120</span>, .sensor = <span class="n">1</span> });
+    <span class="t">ref</span>&lt;Reading, <span class="t">shared</span>&gt; first = <span class="p">Vec</span>::index_shared(&amp;entries, <span class="n">0</span>);
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> entries, Reading { .tenths = <span class="n">215</span>, .sensor = <span class="n">1</span> });   <span class="c">// <span class="bad">✗</span> the push may move the elements</span>
+    <span class="p">printf</span>(<span class="s">&quot;%d\n&quot;</span>, first.tenths);                                     <span class="c">//   while `first` still points into them</span>
+}</code></pre></figure>
+<figure class="code"><div class="code-head"><span class="code-title">A value used after it moved</span><span class="badge bad">rejected: diag.stale-binding</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">resource</span> <span class="k">struct</span> Log
+{
+    <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; entries;
+}
+
+<span class="k">fn</span> archive(Log l)                     <span class="c">// takes the log: it is destroyed when this call ends</span>
+{
+}
+
+<span class="k">fn</span> main()
+{
+    Log log = Log { .entries = <span class="p">Vec</span>::new() };
+    archive(log);                     <span class="c">// `log` moves into the call</span>
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> log.entries, <span class="n">7</span>);   <span class="c">// <span class="bad">✗</span> `log` no longer owns anything</span>
+}</code></pre></figure>
+<figure class="code"><div class="code-head"><span class="code-title">An error ignored</span><span class="badge bad">rejected: diag.result-discarded</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> digit(<span class="t">u8</span> b) : <span class="p">Result</span>&lt;<span class="t">i32</span>, <span class="t">u8</span>&gt;
+{
+    <span class="k">if</span> (b &gt; b&#x27;<span class="n">9</span>&#x27; || b &lt; b&#x27;<span class="n">0</span>&#x27;)
+    {
+        <span class="k">return</span> <span class="p">Err</span>(b);
+    }
+    <span class="p">Ok</span>(<span class="p">widen</span>&lt;<span class="t">i32</span>&gt;(b - b&#x27;<span class="n">0</span>&#x27;))
+}
+
+<span class="k">fn</span> main()
+{
+    digit(b&#x27;x&#x27;);                      <span class="c">// <span class="bad">✗</span> an error dropped on the floor would go unseen</span>
+    <span class="c">// Handle it (`?`, `match`, `if (Err(e) = …)`), or say you mean to drop</span>
+    <span class="c">// it: `_ = digit(b&#x27;x&#x27;);` discards the value on purpose.</span>
+}</code></pre></figure>
+<figure class="code"><div class="code-head"><span class="code-title">Arithmetic that would wrap</span><span class="badge bad">rejected: diag.arith-overflow</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    <span class="t">i32</span> tenths = <span class="n">2000000000</span>;
+    <span class="t">i32</span> twice = tenths * <span class="n">2</span>;           <span class="c">// <span class="bad">✗</span> the product does not fit in an i32: no silent wrap</span>
+    <span class="p">printf</span>(<span class="s">&quot;%d\n&quot;</span>, twice);
+}</code></pre></figure>
+<figure class="code"><div class="code-head"><span class="code-title">A case left out</span><span class="badge bad">rejected: diag.non-exhaustive-match</span></div><pre><code><span class="k">enum</span> Verdict
+{
+    Cold(<span class="t">i32</span>),
+    Fine,
+    Hot(<span class="t">i32</span>)
+}
+
+<span class="k">fn</span> label(Verdict v) : <span class="t">i32</span>
+{
+    <span class="k">match</span> (v)                         <span class="c">// <span class="bad">✗</span> `Hot` is not handled: every variant must be</span>
+    {
+        Cold(by) : -by,
+        Fine     : <span class="n">0</span>,
+    }
+}
+
+<span class="k">fn</span> main()
+{
+    label(Fine);
+}</code></pre></figure>
 <h3>What you just saw</h3>
 <ul>
-<li><strong>Declarations are type-first</strong>, like C: <code>i32 x = 5;</code>, <code>usize i = 0;</code>, <code>Vec&lt;Reading&gt; entries;</code>. <code>auto</code> infers the type from the initialiser. Function return types follow a colon: <code>fn work(i32 n) : i32</code>.</li>
+<li><strong>Declarations are type-first</strong>, like C: <code>i32 x = 5;</code>, <code>Vec&lt;Reading&gt; entries;</code>. <code>auto</code> infers the type from the initialiser. Function return types follow a colon: <code>fn judge(…) : Verdict</code>.</li>
 <li><strong>Blocks, <code>if</code> and <code>match</code> are expressions.</strong> The last expression in a block, with no semicolon, is the block's value. <code>judge</code> returns whatever branch of the <code>if</code> runs.</li>
-<li><strong>Conditions need parentheses</strong> (<code>if (c)</code>, <code>while (c)</code>, <code>match (e)</code>), and <code>match</code> arms are <code>Pattern : expression,</code> with a comma after each arm.</li>
-<li><strong><code>&amp;x</code> is a shared (read-only) reference and <code>&amp;mut x</code> an exclusive one.</strong> <code>*r</code> reads or writes through a reference; <code>r.field</code> works directly on a reference to a struct.</li>
-<li><strong><code>Log</code> is a <code>resource</code></strong>: it owns a <code>Vec</code>. It has a destructor <code>fn Log::drop</code>, which the language runs at the end of <code>main</code>. Passing or assigning a resource moves it.</li>
-<li><strong>No implicit conversions.</strong> <code>widen&lt;i32&gt;(b - b&#x27;0&#x27;)</code> says exactly what happens to the representation; its opposite, <code>narrow</code>, is checked at run time. <code>b&#x27;0&#x27;</code> is the byte 48.</li>
-<li><strong><code>foreach (r in &amp;log.entries)</code></strong> visits each element through a shared reference; <code>in c</code> would take the elements and <code>in &amp;mut c</code> change them in place.</li>
-<li><strong>Library calls are qualified</strong>: <code>Vec::push(&amp;mut v, x)</code>, <code>Vec::len(&amp;v)</code>, <code>Vec::index_shared(&amp;v, i)</code>. There is no method-call syntax.</li>
-<li><strong>Text is a <code>str</code> value; <code>printf</code> writes it.</strong> <code>&quot;F&quot;</code> is a <code>str</code> literal, a copyable value with no owner. <code>printf</code> is C's, but its format is checked against its arguments when the program is compiled; <code>b&quot;42&quot;</code> is a byte-array literal, <code>array&lt;u8, 2&gt;</code>.</li>
-<li><strong>Modules and constants.</strong> <code>limits</code> exports two <code>const</code> values, used as <code>limits::COLD</code> and <code>limits::HOT</code>.</li>
+<li><strong>Conditions need parentheses</strong> (<code>if (c)</code>, <code>while (c)</code>, <code>match (e)</code>); <code>match</code> arms are <code>Pattern : expression,</code>, and a <code>match</code> must cover every variant (a missing one is rejected, above). A pattern can also be a condition: <code>if (Some(n) = HashMap::get(…))</code> runs its block only when the lookup found something, with <code>n</code> bound.</li>
+<li><strong><code>&amp;x</code> is a shared (read-only) reference and <code>&amp;mut x</code> an exclusive one.</strong> The compiler checks every use: a reference kept into the <code>Vec</code> across a <code>push</code>, a value used after it moved, are rejected before the program runs (above). <code>&amp;log.entries[0 .. 2]</code> is a <em>slice</em>, a borrowed run of elements.</li>
+<li><strong><code>Log</code> is a <code>resource</code></strong>: it owns a <code>Vec</code> and a <code>HashMap</code>. Its destructor <code>fn Log::drop</code> runs at the end of <code>main</code>, then its fields are freed. Passing or assigning a resource moves it.</li>
+<li><strong><code>String</code>, <code>HashMap</code> and <code>sprintf</code>.</strong> <code>sprintf(&quot;sensor-%d&quot;, s)</code> builds a <code>String</code>; <code>*HashMap::entry(&amp;mut m, key, 0) += 1</code> counts. The standard library lives in the module <code>std</code>, imported by <code>import std;</code>.</li>
+<li><strong>Errors are values.</strong> A <code>Result</code> must be used (dropping one is rejected), <code>?</code> returns an <code>Err</code> or a <code>None</code> early, and <code>checked_add</code> turns an overflow into <code>None</code>. Plain arithmetic that overflows is never silent: it is rejected when the compiler can see it, and stops the program when it happens.</li>
+<li><strong>No implicit conversions.</strong> <code>widen&lt;i32&gt;(b - b&#x27;0&#x27;)</code> and <code>narrow&lt;i32&gt;(n)</code> say what happens to the representation; <code>narrow</code> checks that the value fits.</li>
+<li><strong>Library calls are qualified</strong>: <code>Vec::push(&amp;mut v, x)</code>, <code>Vec::sort(&amp;mut v)</code>, <code>HashMap::get(&amp;m, &amp;k)</code>. There is no method-call syntax.</li>
+<li><strong>Generics, closures and threads.</strong> <code>larger&lt;T: integer&gt;</code> works for any integer type; <code>to_f</code> is a closure whose capture list names what it uses; <code>spawn</code> starts a thread and <code>join</code> waits for its result. The two threads share their counter only through a <code>mutex</code>: <code>lock</code> is the only way in.</li>
 </ul>
 <p>Further showcases can be found in the repository's
 <a href="https://github.com/strawberry9/CobaltC/tree/main/showcase">showcase directory</a>; its
