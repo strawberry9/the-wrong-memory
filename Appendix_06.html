@@ -156,7 +156,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.100102</div>
+<div class="sub">Specification edition 2026.100201</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -323,7 +323,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100102</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100201</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -367,7 +367,8 @@ executables to match <code>coby</code>'s output and diagnostics byte for byte on
 GCC and Clang — including every complete example in this guide. Use <code>coby</code> to run a program at
 once; use <code>cobc</code> to build an executable, or to see how fast the program can be.</p>
 <p>On Linux the two work side by side, and everything in this guide runs under
-either. On Windows, <code>coby</code> runs programs today; <code>cobc</code> does not yet follow it there.</p>
+either. On Windows, <code>coby</code> runs programs today, and the formatter <code>cobfmt</code> (below) runs there too;
+<code>cobc</code> does not yet follow them there.</p>
 <div class="callout note"><div class="callout-title">Toolchain</div>CobaltC's interpreter (<code>coby</code>) and compiler (<code>cobc</code>) are available
 <a href="https://github.com/strawberry9/CobaltC">here</a>; the repository's README says how to
 build them.</div>
@@ -447,7 +448,8 @@ spacing, blank lines, the <code>:</code> of a <code>match</code>'s arms and of a
 in theirs. Before writing, it checks that the result is the same program token for token, so
 formatting can never change what a program does. It keeps your line breaks — a short
 <code>if (n == 0) { return; }</code> stays on one line, though a function's body always opens on its own line — and a long line is broken only when you ask, with
-<code>--width N</code>. <code>cobfmt --help</code> lists the rest.</p>
+<code>--width N</code>. <code>cobfmt --help</code> lists the rest. Like <code>coby</code>, <code>cobfmt</code> runs on Windows as well as
+Linux, and it keeps a file's Windows line endings (<code>\r\n</code>) as they are.</p>
 
 <nav class="pager"><a class="top" href="#top">Top</a><a class="next" href="#tour">A tour in one program &rarr;</a></nav></section>
 <section id="tour">
@@ -1995,6 +1997,7 @@ arguments.</p>
 <tr><td><code>fn(T1, T2) : R</code></td><td>function values</td><td>no</td></tr>
 <tr><td><code>handle&lt;T&gt;</code>, <code>mutex&lt;T&gt;</code>, <code>guard&lt;T&gt;</code></td><td>threads and locks (§19)</td><td>yes</td></tr>
 <tr><td><code>struct</code>, <code>enum</code></td><td>user-declared aggregates (§16)</td><td>if marked <code>resource</code> or any part is</td></tr>
+<tr><td><code>bitstruct</code></td><td>named runs of bits packed into one unsigned integer, <code>u8</code> to <code>u128</code> (§16)</td><td>no</td></tr>
 <tr><td><code>never</code></td><td>the type of <code>return</code>, <code>break</code> and <code>continue</code>: an expression that never yields a value, accepted wherever any type is expected</td><td>n/a</td></tr>
 </tbody>
 </table>
@@ -2835,6 +2838,9 @@ does not say what its closure owns, so this is found when the program runs. Call
 reference, a field or an element (<code>(*f)(x)</code>, <code>(t.run)()</code>, <code>(fs[i])()</code>) calls the value where it is
 and moves nothing.</p>
 <h3>Closures</h3>
+<p>Functions do not nest: a <code>fn</code> declared inside another function is a syntax error, unless it
+is a function of a type declared in the same block (<code>fn T::name</code>, §16). A function needed only
+inside another is written there as a closure, which can also use the variables around it.</p>
 <p>A closure is written <code>[captures](params) { body }</code>, in the style of a C++ lambda. The
 bracket must list <em>exactly</em> the outer variables the body uses, no more and no fewer; it is
 documentation that the compiler checks (<code>diag.capture-list-mismatch</code>). How each variable is captured
@@ -2957,10 +2963,10 @@ A <code>main</code> with parameters, or returning anything other than <code>u8</
 <nav class="pager"><a class="prev" href="#s14">&larr; §14 Control flow and scopes</a><a class="top" href="#top">Top</a><a class="next" href="#s16">§16 Structs, arrays, enums and match &rarr;</a></nav></section>
 <section id="s16">
 <h2><span class="secnum">§16</span>Structs, arrays, enums and match</h2>
-<div class="spec-ref">Governing specification file: <code>spec/16-aggregates.md</code></div><p class="blurb">The three aggregate kinds, how they nest, and exhaustive matching over enums with payloads.</p>
-<p>CobaltC has three aggregate kinds: structs (named fields), arrays (a fixed number of
-elements) and enums (one of several variants, each with an optional payload). They compose freely
-and generically. <code>match</code> is how you take an enum apart, and it must handle every variant.</p>
+<div class="spec-ref">Governing specification file: <code>spec/16-aggregates.md</code></div><p class="blurb">The four aggregate kinds, how they nest, and exhaustive matching over enums with payloads.</p>
+<p>CobaltC has four aggregate kinds: structs (named fields), bitstructs (named runs of bits
+packed into one unsigned integer), arrays (a fixed number of elements) and enums (one of several
+variants, each with an optional payload). They compose freely, and all but bitstructs generically. <code>match</code> is how you take an enum apart, and it must handle every variant.</p>
 <h3>Structs</h3>
 <figure class="code"><div class="code-head"><span class="code-title">Struct declaration, literal, access</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
@@ -3200,8 +3206,8 @@ of it.</p>
     <span class="p">assert</span>(v[<span class="n">49</span>] == <span class="n">49</span> &amp;&amp; v[<span class="n">50</span>] == <span class="n">1000</span>);
 }</code></pre></figure>
 <h3>Types declared inside a function</h3>
-<p>A <code>struct</code> or <code>enum</code> used by one function can be declared inside it, as a statement, and so can
-its functions, <code>fn T::name(…)</code> (a destructor too). It is an ordinary type whose <em>name</em> is
+<p>A <code>struct</code>, <code>enum</code> or <code>bitstruct</code> used by one function can be declared inside it, as a
+statement, and so can its functions, <code>fn T::name(…)</code> (a destructor too). It is an ordinary type whose <em>name</em> is
 scoped like a local: usable from its declaration to the end of its block. Two functions can each
 have their own <code>Entry</code>. A local type and its functions see module items and the local types and
 constants around them, but not the function's variables or type parameters; a plain local function
@@ -3240,6 +3246,29 @@ is written as a closure (§15).</p>
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> w, <span class="p">String</span>::from_str(<span class="s">&quot;fig&quot;</span>));
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> w, <span class="p">String</span>::from_str(<span class="s">&quot;pea&quot;</span>));
     <span class="p">assert</span>(shortest(&amp;w) == <span class="n">1</span>);        <span class="c">// &quot;fig&quot;: as short as &quot;pea&quot;, and first</span>
+}</code></pre></figure>
+<p>A <code>bitstruct</code> declared in a function is the same as one at module level: it gets its
+<code>Name::bits</code> and <code>Name::from_bits</code>, and its fields read and write in the same way. A packed header
+that one decoder reads can live inside that decoder.</p>
+<figure class="code"><div class="code-head"><span class="code-title">A local bitstruct</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> payload_len(<span class="t">u16</span> raw) : <span class="t">u16</span>
+{
+    bitstruct Header : <span class="t">u16</span>            <span class="c">// bits 0..4, 4..14, 14..16</span>
+    {
+        kind  : <span class="n">4</span>;
+        len   : <span class="n">10</span>;
+        flags : <span class="n">2</span>;
+    }
+
+    Header h = Header::from_bits(raw);
+    h.len
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="p">assert</span>(payload_len(<span class="n">0</span>x0123) == <span class="n">18</span>);        <span class="c">// 0x0123 &gt;&gt; 4 is 0x12</span>
+    <span class="p">assert</span>(payload_len(<span class="n">0</span>xFFFF) == <span class="n">1023</span>);
 }</code></pre></figure>
 <h3>Enums and <code>match</code></h3>
 <p>An enum lists its variants; each may carry one payload type. Variant names are used
