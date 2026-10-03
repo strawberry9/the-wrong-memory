@@ -331,8 +331,8 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 <span class="k">fn</span> main()
 {
-    <span class="p">printf</span>(<span class="s">&quot;Hello, CobaltC!\n&quot;</span>);
-}</code></pre><div class="code-output"><span class="out-label">output</span><pre>Hello, CobaltC!
+    <span class="p">printf</span>(<span class="s">&quot;hello, world\n&quot;</span>);
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>hello, world
 </pre></div></figure>
 <h3>What CobaltC is</h3>
 <p>CobaltC is a small systems programming language with a C-family surface
@@ -466,7 +466,7 @@ because the file carries everything it uses, in this order:</p>
 <li><strong>The run-time interface</strong>, <code>cbrt.h</code>, copied in at the top: the C declarations of every <code>cb_…</code> function the program calls.</li>
 <li><strong><code>/* ---- types ---- */</code></strong>: each struct, enum and generic instantiation as a C struct, each followed by a <code>_Static_assert</code> that its size and alignment are the ones the specification fixes. <code>Vec&lt;i32&gt;</code> becomes <code>struct s_std__Vec_Li32_R</code>.</li>
 <li><strong><code>/* ---- string literals ---- */</code></strong>: your text literals as byte arrays.</li>
-<li><strong><code>/* ---- functions ---- */</code></strong>: one C function for each function the program actually uses, <code>std</code>'s included, and one copy per instantiation of a generic one (<code>f_std__Vec__push_Li32_R</code> is <code>Vec::push</code> for <code>i32</code>). Your <code>main</code> is <code>f_main</code>.</li>
+<li><strong><code>/* ---- functions ---- */</code></strong>: one C function for each function the program actually uses, <code>std</code>'s included, and one copy per instantiation of a generic one (<code>f_std__Vec__push_Li32_R</code> is <code>Vec::push</code> for <code>i32</code>). Your <code>main</code> is <code>f_main</code>; every other function is <code>static</code>, so the C compiler may inline it where it is called.</li>
 <li><strong>Call thunks and type descriptors</strong>: what <code>fn</code> values and the run-time checks need to know about each type.</li>
 <li><strong><code>int main</code></strong>, last: it hands the program's arguments to the runtime and starts <code>f_main</code>.</li>
 </ul>
@@ -485,19 +485,24 @@ destructors at scope end). A check the compiler has proved can never fail is sim
 <h4>What you can do with it</h4>
 <ul>
 <li><strong>Read it</strong> to see how a construct is compiled, which checks a loop costs, or why one way of writing it is faster than another.</li>
-<li><strong>Build it yourself, with your own flags.</strong> <code>cobc</code>'s own build of <code>prog.c</code> is the command below; <code>-O2</code> is the default level and <code>libcbrt.a</code> sits beside the <code>cobc</code> executable. Add <code>-g -O0</code> for a build to step through in a debugger, <code>-fsanitize=address,undefined</code> to have the sanitizers watch it, <code>-march=native</code> or <code>-flto</code>, or leave out <code>-w</code> to see the C compiler's warnings, which <code>cobc</code> silences.</li>
+<li><strong>Build it yourself, with your own flags.</strong> <code>cobc</code>'s own build of <code>prog.c</code> is the command below, and <code>cobc -v</code> prints the exact one it runs, with the real path of <code>libcbrt.a</code> (and any <code>extern</code> C file's compilation), ready to paste and change; <code>-O2</code> is the default level and <code>libcbrt.a</code> sits beside the <code>cobc</code> executable. Add <code>-g -O0</code> for a build to step through in a debugger, <code>-fsanitize=address,undefined</code> to have the sanitizers watch it, <code>-march=native</code> or <code>-flto</code>, or leave out <code>-w</code> to see the C compiler's warnings, which <code>cobc</code> silences.</li>
 <li><strong>Debug and profile it</strong> at the C level: in a <code>-g</code> build, <code>gdb</code> and <code>perf annotate</code> show these C lines, and the <code>cb_at(file, line)</code> calls lead back to the line of your <code>.cb</code> file.</li>
 <li><strong>Report a compiler bug.</strong> If GCC or Clang rejects the generated C, that kept file and the C compiler's message are the whole report.</li>
 </ul>
 <figure class="code"><div class="code-head"><span class="code-title">building prog.c by hand (Linux; clang takes the same flags)</span></div><pre><code>gcc -std=gnu11 -O2 -ffp-contract=off -fno-optimize-sibling-calls -w prog.c \
-    -L /path/to/cobc/dir -lcbrt -lpthread -ldl -lm -o prog</code></pre></figure>
+    -L /path/to/cobc/dir -lcbrt -lpthread -ldl -lm \
+    -Wl,--gc-sections -Wl,--strip-debug -o prog</code></pre></figure>
 <p>Keep <code>-std=gnu11</code> and the two <code>-f</code> flags when you change the rest; each is part of
 the program's meaning. <code>-ffp-contract=off</code> stops the C compiler fusing <code>a * b + c</code> into one
 fused multiply-add with a single rounding, since the specification rounds each operation on its
 own (§06). <code>-fno-optimize-sibling-calls</code> keeps every call a real call, so a recursion too deep for
 the stack stops with the same diagnostic it gets from <code>coby</code>, instead of being turned into a loop
 that runs to completion. A program that links its own C code (<code>extern &quot;./mine.c&quot;;</code>, §20) also
-needs that code compiled and added before <code>-lcbrt</code>.</p>
+needs that code compiled and added before <code>-lcbrt</code>; <code>cobc -v</code> shows both commands. The last two
+options only make the executable smaller: they leave out the parts of the runtime the program does
+not use, and the runtime's debug information (a hello world is about 0.8 MB with them, 5.9 MB
+without); drop them if you link a <code>-g</code> build to debug. <code>cobc -s</code> also leaves out the symbol table
+(<code>--strip-all</code> in place of <code>--strip-debug</code>, about 0.6 MB), which only profilers and debuggers read.</p>
 <div class="callout warn"><div class="callout-title">Watch out</div>The generated C is for reading and experimenting, not for keeping or editing by
 hand. Its names are internal and change between versions of <code>cobc</code>, and it is only correct with the
 <code>libcbrt.a</code> built alongside the same <code>cobc</code>. <code>cobc</code> refuses a mismatched runtime, but a build by hand
