@@ -156,7 +156,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.100204</div>
+<div class="sub">Specification edition 2026.100301</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -323,7 +323,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100204</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100301</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -907,9 +907,9 @@ implementation. <a href="#s21">§21</a> covers it in full.</p>
 <tr><td>Ownership helpers</td><td><code>Box&lt;T&gt;</code>, <code>Rc&lt;T&gt;</code>, <code>Weak&lt;T&gt;</code>, <code>swap</code>, <code>replace</code>, <code>overwrite</code></td></tr>
 <tr><td>Numeric helpers</td><td><code>min</code>, <code>max</code>, <code>abs</code>, <code>pow</code> (over the built-in bounds); <code>Rng</code>, a seeded pseudo-random generator</td></tr>
 <tr><td>Bytes</td><td><code>Vec::push_le</code>, <code>push_be</code>, <code>read_le</code>, <code>read_be</code>, <code>crc32</code></td></tr>
-<tr><td>Text</td><td><code>String</code>, <code>StringView</code> (split, chars, find, trim, starts/ends_with, parse), <code>parse&lt;T&gt;</code>, <code>String::append</code>, the ASCII tests and case changes</td></tr>
+<tr><td>Text</td><td><code>String</code>, <code>StringView</code> (split, chars, find, trim, starts/ends_with, parse), <code>String::parse&lt;T&gt;</code>, <code>String::append</code>, the ASCII tests and case changes</td></tr>
 <tr><td>Output</td><td><code>printf</code>, <code>eprintf</code>, <code>sprintf</code>, <code>String::appendf</code>, <code>assert</code></td></tr>
-<tr><td>Input and arguments</td><td><code>read_line</code>, <code>read</code>, <code>arg_count</code>, <code>arg</code></td></tr>
+<tr><td>Input and arguments</td><td><code>read_line</code>, <code>stdin_read</code>, <code>arg_count</code>, <code>arg</code></td></tr>
 <tr><td>Files</td><td><code>File</code> (open, create, append, open_rw, read, read_line, write, seek, len, close, …), <code>read_file</code>, <code>write_file</code>, <code>read_bytes</code>, <code>write_bytes</code>, <code>FileError</code></td></tr>
 <tr><td>System</td><td><code>make_dir</code>, <code>remove_file</code>, <code>remove_dir</code>, <code>rename</code>, <code>list_dir</code>, <code>path_kind</code>, <code>env_var</code>, <code>current_dir</code>, <code>monotonic_ns</code>, <code>unix_seconds</code>, <code>sleep_ms</code></td></tr>
 <tr><td>Concurrency</td><td><code>Channel&lt;T&gt;</code> (new, send, recv, close)</td></tr>
@@ -4456,7 +4456,7 @@ hint.</p>
 enums of <code>std</code>, taken apart with <code>match</code>. The postfix <code>?</code> operator unwraps a <code>Result</code>: on <code>Ok(v)</code> it
 yields <code>v</code>, on <code>Err(e)</code> it returns <code>Err(e)</code> from the enclosing function immediately. That function
 must therefore return <code>Result&lt;_, E&gt;</code> with exactly the same <code>E</code>; convert first with
-<code>map_err(r, f)</code> if the error types differ. On an <code>Option</code>, <code>?</code> works the same way inside a
+<code>Result::map_err(r, f)</code> if the error types differ. On an <code>Option</code>, <code>?</code> works the same way inside a
 function that itself returns an <code>Option</code>: <code>Some(v)</code> gives <code>v</code>, <code>None</code> returns <code>None</code> at once, so
 <code>usize end = checked_add(start, n)?;</code> reads "the sum, or give up" (D-0130). Nothing converts between
 the two: in a function returning a <code>Result</code>, <code>Option::ok_or(o, e)</code> turns the <code>Option</code> into a
@@ -4476,7 +4476,7 @@ error) is evaluated either way, and one that goes unused is destroyed. Where the
     <span class="p">Vec</span>&lt;<span class="p">String</span>&gt; copy = <span class="p">Vec</span>::clone(&amp;names);                    <span class="c">// each String copied by its clone (§12)</span>
     <span class="p">String</span> first = <span class="p">Option</span>::expect(<span class="p">Vec</span>::pop(&amp;<span class="k">mut</span> copy), <span class="s">&quot;the copy has one name&quot;</span>);
     overwrite(&amp;<span class="k">mut</span> first, <span class="p">String</span>::from_str(<span class="s">&quot;grace&quot;</span>));         <span class="c">// the old String is destroyed here</span>
-    <span class="t">u32</span> n = <span class="p">Result</span>::unwrap(<span class="p">parse</span>&lt;<span class="t">u32</span>&gt;(&amp;<span class="p">String</span>::from_str(<span class="s">&quot;42&quot;</span>)));
+    <span class="t">u32</span> n = <span class="p">Result</span>::unwrap(<span class="p">String</span>::<span class="p">parse</span>&lt;<span class="t">u32</span>&gt;(&amp;<span class="p">String</span>::from_str(<span class="s">&quot;42&quot;</span>)));
     <span class="p">assert</span>(<span class="p">String</span>::eq_str(&amp;first, <span class="s">&quot;grace&quot;</span>) &amp;&amp; n == <span class="n">42</span> &amp;&amp; <span class="p">Vec</span>::len(&amp;names) == <span class="n">1</span>);
     <span class="p">Option</span>&lt;<span class="t">u32</span>&gt; none = <span class="p">None</span>;
     <span class="t">u32</span> fails = <span class="p">Option</span>::expect(none, <span class="s">&quot;no value where one was promised&quot;</span>);
@@ -4946,9 +4946,9 @@ result may only be integers, floats, <code>bool</code>, <code>void</code> and <c
 is a <em>claim</em>: a genuine value of its declared type, but one whose relationship to anything
 else (that a returned length is right, that a pointer is valid) is not established until your code
 checks it.</p>
-<p><code>std</code> declares two externs: <code>write(rawptr&lt;u8&gt; buf, usize len) : isize</code>, which
-<code>printf</code> (§21) writes through, with the <code>unsafe</code> block inside <code>std</code>, and its counterpart <code>read</code>,
-which <code>read_line</code> reads through. Calling conventions and how code is linked are outside the language
+<p><code>std</code> declares two externs: <code>stdout_write(rawptr&lt;u8&gt; buf, usize len) : isize</code>, which
+<code>printf</code> (§21) writes through, with the <code>unsafe</code> block inside <code>std</code>, and its counterpart
+<code>stdin_read</code>, which <code>read_line</code> reads through. Calling conventions and how code is linked are outside the language
 and documented by each implementation; a program names the C code it needs with <code>extern &quot;…&quot;;</code>
 (below).</p>
 <p>Both implementations call real C functions on x86-64 Linux: an <code>extern fn</code> names a
@@ -4975,7 +4975,7 @@ FfiType, pointers included. The interpreter's memory is simulated, so it can pas
     <span class="p">assert</span>(distance == <span class="n">7</span>);
     <span class="p">assert</span>(<span class="k">unsafe</span> { toupper(<span class="n">99</span>) } == <span class="n">67</span>);                   <span class="c">// &#x27;c&#x27; -&gt; &#x27;C&#x27;</span>
 }</code></pre></figure>
-<figure class="code"><div class="code-head"><span class="code-title">Calling the write extern</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+<figure class="code"><div class="code-head"><span class="code-title">Calling the stdout_write extern</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> main()
 {
@@ -4983,7 +4983,7 @@ FfiType, pointers included. The interpreter's memory is simulated, so it can pas
     <span class="t">rawptr</span>&lt;<span class="t">u8</span>&gt; p = <span class="p">reinterpret_ptr</span>&lt;<span class="t">u8</span>&gt;(<span class="p">rawptr_of</span>(&amp;msg));
     <span class="t">isize</span> written = <span class="k">unsafe</span>
     {
-        <span class="p">write</span>(p, <span class="n">3</span>)                   <span class="c">// the extern call; its result is a claim about how much was written</span>
+        stdout_write(p, <span class="n">3</span>)            <span class="c">// the extern call; its result is a claim about how much was written</span>
     };
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>Hi
 </pre></div></figure>
@@ -5114,7 +5114,7 @@ its life, because there is no operation that could break it.</p>
 <h2><span class="secnum">§21</span>The standard library, std</h2>
 <div class="spec-ref">Governing specification file: <code>spec/21-standard-library-semantics.md</code></div><p class="blurb">import std; Option, Result, the intrinsics, str and printf, and Vec, String, HashMap, HashSet, Rc and Box written in CobaltC.</p>
 <p>The standard library is the module <code>std</code>: the <code>Option</code> and <code>Result</code> enums, <code>printf</code>, <code>eprintf</code>, <code>sprintf</code>,
-<code>write</code>, <code>read</code>, <code>read_line</code>, <code>arg_count</code>, <code>arg</code>, <code>arg_bytes</code>, <code>parse</code>, <code>read_file</code>, <code>write_file</code> and <code>map_err</code>, and the library types written in CobaltC itself, <code>Vec&lt;T&gt;</code>, <code>String</code>,
+<code>stdout_write</code>, <code>stdin_read</code>, <code>read_line</code>, <code>arg_count</code>, <code>arg</code>, <code>arg_bytes</code>, <code>read_file</code>, <code>write_file</code>, and the library types written in CobaltC itself, <code>Vec&lt;T&gt;</code>, <code>String</code>,
 <code>HashMap&lt;K, V&gt;</code>, <code>HashSet&lt;K&gt;</code>, <code>Rc&lt;T&gt;</code>, <code>Box&lt;T&gt;</code> and <code>Channel&lt;T&gt;</code> (§19), and <code>swap</code> and <code>replace</code>. A program uses it with <code>import std;</code>, or by qualified paths such as <code>std::Vec</code>. Its source
 is part of the specification, which is the language's proof that the mechanisms in this guide are
 enough to build real containers. A function joins <code>std</code> when it names one very common intent, so
@@ -5144,13 +5144,7 @@ value type <code>str</code> belong to the language itself and need no import.</p
     <span class="k">export</span> <span class="t">usize</span> offset;              <span class="c">// where validation failed</span>
 }
 
-<span class="k">export</span> <span class="k">enum</span> <span class="p">ReadError</span>                 <span class="c">// why read_line failed</span>
-{
-    Io,
-    Utf8(<span class="p">Utf8Error</span>)
-}
-
-<span class="k">export</span> <span class="k">enum</span> <span class="p">FileError</span>                 <span class="c">// why read_file or write_file failed</span>
+<span class="k">export</span> <span class="k">enum</span> <span class="p">FileError</span>                 <span class="c">// why reading or writing failed: a file, or standard input</span>
 {
     NotFound,
     Denied,
@@ -5192,8 +5186,8 @@ intrinsic is used only where there is none.</p>
 <tr><td><code>reclaim&lt;T&gt;(p)</code>, <code>release(p, n)</code>, <code>copy_raw(dst, src, n)</code></td><td>raw memory as objects (unsafe)</td><td>§20</td></tr>
 <tr><td><code>allocate(n, align)</code>, <code>deallocate(p, n, align)</code></td><td>raw allocation (<code>deallocate</code> is unsafe)</td><td>§20</td></tr>
 <tr><td><code>dangling&lt;T&gt;()</code></td><td>a well-aligned non-null address that must never be dereferenced; used for empty containers</td><td>§21</td></tr>
-<tr><td><code>write(buf, len)</code></td><td>an extern of <code>std</code>: write bytes to standard output (unsafe)</td><td>§20</td></tr>
-<tr><td><code>read(buf, len)</code></td><td>an extern of <code>std</code>: read bytes from standard input (unsafe)</td><td>§21</td></tr>
+<tr><td><code>stdout_write(buf, len)</code></td><td>an extern of <code>std</code>: write bytes to standard output (unsafe)</td><td>§20</td></tr>
+<tr><td><code>stdin_read(buf, len)</code></td><td>an extern of <code>std</code>: read bytes from standard input (unsafe)</td><td>§21</td></tr>
 <tr><td><code>str_len(s)</code>, <code>str_byte(s, i)</code>, <code>str_ptr(s)</code></td><td>a <code>str</code>'s byte count, one byte (bounds-checked), and the address of its bytes (safe)</td><td>§21</td></tr>
 <tr><td><code>fault(name)</code>, <code>fault(name, msg)</code></td><td>stop with the run-time fault <code>diag.name</code> (a dynamic diagnostic, <code>_</code> for <code>-</code>, such as <code>index_out_of_bounds</code>), with <code>msg</code> if given; for code that implements containers as <code>std</code> does</td><td>§18</td></tr>
 <tr><td><code>assert(c)</code>, <code>assert(c, fmt, args…)</code></td><td>fault with <code>diag.assert-failed</code> (and the formatted message) when <code>c</code> is false; a function of <code>std</code></td><td>§18</td></tr>
@@ -5203,14 +5197,14 @@ intrinsic is used only where there is none.</p>
 <tr><td><code>read_line()</code></td><td>read the next line of standard input as a <code>String</code> (a function of <code>std</code>)</td><td>§21</td></tr>
 <tr><td><code>arg_count()</code>, <code>arg(i)</code></td><td>the number of program arguments, and argument <code>i</code> as a <code>String</code> (functions of <code>std</code>)</td><td>§21</td></tr>
 <tr><td><code>arg_bytes(i, buf, len)</code></td><td>an extern of <code>std</code>: copy argument <code>i</code>'s bytes, whatever they are (unsafe)</td><td>§21</td></tr>
-<tr><td><code>parse&lt;T&gt;(&amp;s)</code></td><td>read a whole <code>String</code> as a number of type <code>T</code> (a function of <code>std</code>)</td><td>§21</td></tr>
-<tr><td><code>read_file(&amp;path)</code>, <code>write_file(&amp;path, &amp;text)</code></td><td>read a whole file as a <code>String</code>, or replace a file's contents (functions of <code>std</code>)</td><td>§21</td></tr>
+<tr><td><code>String::parse&lt;T&gt;(&amp;s)</code></td><td>read a whole <code>String</code> as a number of type <code>T</code> (a function of <code>std</code>)</td><td>§21</td></tr>
+<tr><td><code>read_file(path)</code>, <code>write_file(path, text)</code></td><td>read a whole file as a <code>String</code>, or replace a file's contents; <code>path</code> and <code>text</code> are <code>StringView</code>s: a literal, or <code>&amp;s[0..$]</code> of a <code>String</code> (functions of <code>std</code>)</td><td>§21</td></tr>
 <tr><td><code>Option::unwrap(o)</code>, <code>Option::expect(o, msg)</code>, <code>Result::unwrap(r)</code>, <code>Result::expect(r, msg)</code></td><td>the value, or the fault <code>diag.unwrap-failed</code> (with <code>msg</code>) when there is none</td><td>§18</td></tr>
 <tr><td><code>Option::unwrap_or(o, d)</code>, <code>Result::unwrap_or(r, d)</code></td><td>the value, or the default <code>d</code> when there is none (functions of <code>std</code>)</td><td>§18</td></tr>
 <tr><td><code>Option::ok_or(o, e)</code></td><td>the <code>Option</code> as a <code>Result</code>, <code>Err(e)</code> for <code>None</code>, so <code>?</code> applies to it (a function of <code>std</code>)</td><td>§18</td></tr>
-<tr><td><code>FileError::text(&amp;e)</code>, <code>ReadError::text</code>, <code>ParseError::text</code>, <code>Utf8Error::text</code></td><td>a <code>std</code> error as a sentence for a person, a <code>str</code> (functions of <code>std</code>)</td><td>§21</td></tr>
+<tr><td><code>FileError::text(&amp;e)</code>, <code>ParseError::text</code>, <code>Utf8Error::text</code></td><td>a <code>std</code> error as a sentence for a person, a <code>str</code> (functions of <code>std</code>)</td><td>§21</td></tr>
 <tr><td><code>Option::is_some(&amp;o)</code>, <code>is_none</code>, <code>Result::is_ok(&amp;r)</code>, <code>is_err</code></td><td>which variant, without taking the value (functions of <code>std</code>)</td><td>§18</td></tr>
-<tr><td><code>map_err(r, f)</code></td><td>convert a <code>Result</code>'s error type with <code>f</code> (a function of <code>std</code>)</td><td>§18</td></tr>
+<tr><td><code>Result::map_err(r, f)</code></td><td>convert a <code>Result</code>'s error type with <code>f</code> (a function of <code>std</code>)</td><td>§18</td></tr>
 </tbody>
 </table>
 <p><code>read_volatile(p)</code> and <code>write_volatile(p, v)</code> are raw accesses that the compiler must perform
@@ -5233,7 +5227,7 @@ and <code>str_byte</code>; there is no indexing or slicing syntax. Escapes are <
 one literal, as in C, so longer text is written a line at a time: <code>&quot;one\n&quot; &quot;two\n&quot;</code> is the
 single <code>str</code> <code>&quot;one\ntwo\n&quot;</code>, and a long <code>printf</code> format can be split the same way.</p>
 <p><code>printf(&quot;%v&quot;, s)</code> writes a <code>str</code> to standard output. It prints numbers, <code>bool</code> and <code>String</code>
-too (see "Printing: <code>printf</code>" below). The <code>unsafe</code> block that reaches the <code>write</code> extern is inside <code>std</code>, so a
+too (see "Printing: <code>printf</code>" below). The <code>unsafe</code> block that reaches the <code>stdout_write</code> extern is inside <code>std</code>, so a
 program that only prints never writes <code>unsafe</code> itself.</p>
 <figure class="code"><div class="code-head"><span class="code-title">str values</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
@@ -5275,7 +5269,7 @@ hello
 }</code></pre></figure>
 <p>A byte literal <code>b&quot;…&quot;</code> is different: it is an <code>array&lt;u8, N&gt;</code>, exactly the array you
 would have written by hand, and admits <code>\xNN</code> for any byte value (and only ASCII characters
-otherwise). Use it where bytes are the honest type, such as data handed to <code>write</code> or to a
+otherwise). Use it where bytes are the honest type, such as data handed to <code>stdout_write</code> or to a
 validator.</p>
 <h3><code>Vec&lt;T&gt;</code></h3>
 <p>A growable array with a raw buffer, a length and a capacity. It is a <code>resource</code> whose
@@ -5463,9 +5457,9 @@ never use it for keys, tokens, nonces, passwords, or anything an adversary must 
 
 <span class="k">fn</span> main()
 {
-    Rng r = Rng::seed(<span class="n">42</span>);
+    Rng r = Rng::new(<span class="n">42</span>);
     <span class="p">assert</span>(Rng::next_u64(&amp;<span class="k">mut</span> r) == <span class="n">1546998764402558742</span>);      <span class="c">// the specification&#x27;s check value</span>
-    Rng dice = Rng::seed(<span class="n">7</span>);
+    Rng dice = Rng::new(<span class="n">7</span>);
     <span class="t">u64</span> total = <span class="n">0</span>;
     <span class="k">foreach</span> (k in <span class="n">0</span>..<span class="n">100</span>)
     {
@@ -5601,16 +5595,37 @@ prints with <code>%s</code>, compares with <code>==</code> to another view or a 
 <thead><tr><th>Function</th><th>Result</th></tr></thead>
 <tbody>
 <tr><td><code>StringView::len(v)</code></td><td>its length in bytes</td></tr>
-<tr><td><code>StringView::find(v, &quot;x&quot;)</code></td><td><code>Option&lt;usize&gt;</code>: where <code>x</code> first occurs</td></tr>
-<tr><td><code>StringView::starts_with(v, &quot;x&quot;)</code>, <code>ends_with</code></td><td><code>bool</code></td></tr>
+<tr><td><code>StringView::of(t)</code></td><td>a view of a <code>str</code> <code>t</code>; a literal where a view is expected is one already (D-0134)</td></tr>
+<tr><td><code>StringView::find(v, t)</code></td><td><code>Option&lt;usize&gt;</code>: where the text of the view <code>t</code> first occurs</td></tr>
+<tr><td><code>StringView::starts_with(v, t)</code>, <code>ends_with</code></td><td><code>bool</code></td></tr>
 <tr><td><code>StringView::trim(v)</code>, <code>trim_start</code>, <code>trim_end</code></td><td>the view without ASCII white space at its ends</td></tr>
 <tr><td><code>StringView::split(v, &quot;,&quot;)</code></td><td>a <code>Vec&lt;StringView&gt;</code> of the parts, each a view of the same <code>String</code></td></tr>
 <tr><td><code>StringView::chars(v)</code></td><td>a <code>Vec&lt;StringView&gt;</code> of its characters, in order, one view each (D-0128)</td></tr>
-<tr><td><code>StringView::parse&lt;T&gt;(v)</code></td><td>a number, as <code>parse</code></td></tr>
+<tr><td><code>StringView::parse&lt;T&gt;(v)</code></td><td>a number, as <code>String::parse</code></td></tr>
 <tr><td><code>String::from_view(v)</code>, <code>String::append(&amp;mut s, v)</code></td><td>the text copied into a <code>String</code></td></tr>
-<tr><td><code>String::find(&amp;s, &quot;x&quot;)</code>, <code>starts_with</code>, <code>ends_with</code>, <code>trim</code>, <code>trim_start</code>, <code>trim_end</code>, <code>split</code>, <code>chars</code>, <code>as_view</code></td><td>the same, straight from a <code>String</code>: each is the <code>StringView::</code> function applied to <code>&amp;s[0..$]</code>, the whole-string view (D-0113)</td></tr>
+<tr><td><code>String::find(&amp;s, t)</code>, <code>starts_with</code>, <code>ends_with</code>, <code>trim</code>, <code>trim_start</code>, <code>trim_end</code>, <code>split</code>, <code>chars</code>, <code>as_view</code></td><td>the same, straight from a <code>String</code>: each is the <code>StringView::</code> function applied to <code>&amp;s[0..$]</code>, the whole-string view (D-0113)</td></tr>
 </tbody>
 </table>
+<p>Text that a function only reads is a <code>StringView</code> throughout <code>std</code>: a file's path, the text
+to search for, the text to write (D-0134). A <code>String</code> passes its whole-string view, <code>&amp;s[0..$]</code>. A
+literal passes itself: a <code>str</code> literal where a <code>StringView</code> is expected is a view of it, and since a
+<code>str</code> never ends, neither does the view. A <code>str</code> held in a variable is not a literal; view it with
+<code>StringView::of(t)</code>. (<code>split</code>'s separator is the one <code>str</code>: <code>split</code> returns views of its first
+argument, and a function returning views may borrow only one thing, §10.)</p>
+<figure class="code"><div class="code-head"><span class="code-title">Views of a String, of a literal, of a str</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    <span class="p">String</span> text = <span class="p">String</span>::from_str(<span class="s">&quot;the cat sat on the mat&quot;</span>);
+    <span class="p">String</span> word = <span class="p">String</span>::from_str(<span class="s">&quot;sat&quot;</span>);
+    <span class="p">assert</span>(<span class="p">String</span>::find(&amp;text, &amp;word[<span class="n">0</span>..$]) == <span class="p">Some</span>(<span class="n">8</span>));   <span class="c">// a String to search for</span>
+    <span class="p">assert</span>(<span class="p">String</span>::find(&amp;text, <span class="s">&quot;mat&quot;</span>) == <span class="p">Some</span>(<span class="n">19</span>));        <span class="c">// a literal: already a view</span>
+    <span class="t">str</span> w = <span class="s">&quot;on&quot;</span>;
+    <span class="p">assert</span>(<span class="p">String</span>::find(&amp;text, <span class="p">StringView</span>::of(w)) == <span class="p">Some</span>(<span class="n">12</span>));
+    <span class="p">StringView</span> label = <span class="s">&quot;fixed&quot;</span>;                            <span class="c">// a view of a literal, for the whole run</span>
+    <span class="p">printf</span>(<span class="s">&quot;%s %d\n&quot;</span>, label, <span class="p">StringView</span>::len(label));
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>fixed 5
+</pre></div></figure>
 <figure class="code"><div class="code-head"><span class="code-title">Reading fields out of a line</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="c">// The first word of a line: a view into the line itself.</span>
@@ -5724,16 +5739,16 @@ need an owner.</p>
 <tr><td>Valid UTF-8</td><td>yes, by the literal grammar</td><td>yes, by construction or validation</td><td>not guaranteed</td></tr>
 <tr><td>Resource (moved, destroyed)</td><td>no: copied like an integer</td><td>yes</td><td>no</td></tr>
 <tr><td>Allocates</td><td>never</td><td>yes</td><td>no (an ordinary array)</td></tr>
-<tr><td>Passed to</td><td><code>printf</code>, <code>==</code>, <code>str_len</code>, <code>str_byte</code></td><td><code>printf</code> (as <code>&amp;s</code>), <code>String::len</code>, <code>String::into_bytes</code></td><td><code>write</code> and other raw-byte code</td></tr>
+<tr><td>Passed to</td><td><code>printf</code>, <code>==</code>, <code>str_len</code>, <code>str_byte</code>; any <code>StringView</code> parameter</td><td><code>printf</code> (as <code>&amp;s</code>), <code>String::len</code>, <code>String::into_bytes</code>; a <code>StringView</code> parameter as <code>&amp;s[0..$]</code></td><td><code>stdout_write</code> and other raw-byte code</td></tr>
 </tbody>
 </table>
 <div class="callout rule"><div class="callout-title">Rules of thumb</div><ul>
 <li>Text written in your source code: use <code>str</code>. Pass it, store it in structs and <code>Vec&lt;str&gt;</code>, and print it freely.</li>
 <li>Text built at run time, or text you need to own: use <code>String</code>, created explicitly from a <code>str</code> with <code>String::from_str</code>.</li>
 <li>Part of a <code>String</code>, to read, compare, split or parse without copying: a <code>StringView</code>, <code>&amp;s[i..j]</code>.</li>
-<li>A function that takes text from anywhere, a literal or a run-time <code>String</code>, takes <code>ref&lt;String, shared&gt;</code>. A caller holding a literal copies it first (<code>String k = String::from_str(&quot;key&quot;); f(&amp;k);</code>): the copy is small, and the call site shows it.</li>
+<li>A function that only reads text, from anywhere, takes a <code>StringView</code>, as <code>std</code>'s do (D-0134): a caller passes a literal as it is, <code>f(&quot;key&quot;)</code>, and a <code>String</code> as <code>f(&amp;s[0..$])</code>; nothing is copied.</li>
 <li>Bytes from outside the program (a file, a socket, FFI): they stay <code>Vec&lt;u8&gt;</code> until <code>String::from_utf8</code> accepts them.</li>
-<li>Bytes that are not text (a protocol header, data for <code>write</code>): use <code>b&quot;…&quot;</code>.</li>
+<li>Bytes that are not text (a protocol header, data for <code>stdout_write</code>): use <code>b&quot;…&quot;</code>.</li>
 </ul>
 </div>
 <p>The two text types never convert into each other silently (§12's no-implicit-conversion
@@ -5905,7 +5920,7 @@ x = 3, y = 4.5
     <span class="p">printf</span>(<span class="s">&quot;%v&quot;</span>, Point { .x = <span class="n">1</span>, .y = <span class="n">2</span> });  <span class="c">// <span class="bad">✗</span> <span class="dg">diag.type-mismatch</span> (static): print the fields instead</span>
 }</code></pre></figure>
 <p>Raw bytes are not text, so <code>printf</code> does not take a <code>u8</code> as a character or a <code>Vec&lt;u8&gt;</code>:
-a <code>u8</code> prints as a number. To write bytes, use the <code>write</code> extern the way <code>std</code> does, around an
+a <code>u8</code> prints as a number. To write bytes, use the <code>stdout_write</code> extern the way <code>std</code> does, around an
 <code>unsafe</code> block. <code>put</code> writes one byte and <code>print_bytes</code> a whole <code>Vec&lt;u8&gt;</code>:</p>
 <figure class="code"><div class="code-head"><span class="code-title">Printing bytes</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
@@ -5916,7 +5931,7 @@ a <code>u8</code> prints as a number. To write bytes, use the <code>write</code>
     <span class="t">rawptr</span>&lt;<span class="t">u8</span>&gt; p = <span class="p">reinterpret_ptr</span>&lt;<span class="t">u8</span>&gt;(<span class="p">rawptr_of</span>(&amp;buf));
     <span class="k">unsafe</span>
     {
-        <span class="p">write</span>(p, <span class="n">1</span>);                  <span class="c">// trusted: p points at one valid byte</span>
+        stdout_write(p, <span class="n">1</span>);           <span class="c">// trusted: p points at one valid byte</span>
     }
 }
 
@@ -5956,7 +5971,7 @@ ok
 }</code></pre></figure>
 <h3>Reading input</h3>
 <p><code>read_line()</code> reads the next line of standard input. It returns a
-<code>Result&lt;Option&lt;String&gt;, ReadError&gt;</code>:</p>
+<code>Result&lt;Option&lt;String&gt;, FileError&gt;</code>:</p>
 <table>
 <thead><tr><th>Result</th><th>Meaning</th></tr></thead>
 <tbody>
@@ -5969,15 +5984,17 @@ ok
 <p>A line ends at <code>\n</code>, and a <code>\r</code> just before it is removed with it, so a line typed
 on Windows reads the same as one typed on Linux. The line is a
 <code>String</code> that has already been checked, so a program that reads never writes <code>unsafe</code>, and <code>?</code>
-passes a <code>ReadError</code> up to the caller. Underneath is the <code>read</code> extern, the counterpart of
-<code>write</code>, which you can call yourself inside <code>unsafe</code> to read raw bytes.</p>
+passes a <code>FileError</code> up to the caller: the same error a file gives (D-0134), whose <code>NotFound</code> and
+<code>Denied</code> never come from standard input, so a <code>match</code> that names <code>Io</code> and <code>Utf8</code> ends with <code>_</code>.
+Underneath is the <code>stdin_read</code> extern, the counterpart of <code>stdout_write</code>, which you can call
+yourself inside <code>unsafe</code> to read raw bytes.</p>
 <p>Both <code>coby</code> and <code>cobc</code> read standard input, from the terminal or from a pipe, for example
 <code>printf &#x27;ada\nlin\n&#x27; | coby greet.cb</code>. Standard output is flushed before each read, so a prompt
 printed with <code>printf</code> appears before the program waits.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Reading lines</span></div><pre><code><span class="k">import</span> std;
 
 <span class="c">// Greets every line of input; blank lines are skipped.</span>
-<span class="k">fn</span> greet_all() : <span class="p">Result</span>&lt;<span class="t">usize</span>, <span class="p">ReadError</span>&gt;
+<span class="k">fn</span> greet_all() : <span class="p">Result</span>&lt;<span class="t">usize</span>, <span class="p">FileError</span>&gt;
 {
     <span class="t">usize</span> count = <span class="n">0</span>;
     <span class="k">while</span> (<span class="p">Some</span>(name) = <span class="p">read_line</span>()?) <span class="c">// None: the end of input; an error goes back to main</span>
@@ -6041,7 +6058,7 @@ you can call inside <code>unsafe</code> for an argument's raw bytes.</p>
 <h3>Numbers and text</h3>
 <p><code>String::append(&amp;mut s, x)</code> adds to <code>s</code> exactly what <code>printf(&quot;%v&quot;, x)</code> would write, for the same
 types: a <code>str</code>, any integer, <code>f32</code>/<code>f64</code>, <code>bool</code>, a <code>StringView</code>, or another <code>String</code> through <code>&amp;</code>. So a line can be
-built piece by piece and printed, or kept, once. <code>parse&lt;T&gt;(&amp;s)</code> goes the other way: it reads the
+built piece by piece and printed, or kept, once. <code>String::parse&lt;T&gt;(&amp;s)</code> goes the other way: it reads the
 whole <code>String</code> as a number of type <code>T</code>, any integer type, <code>f32</code> or <code>f64</code>, and returns a
 <code>Result&lt;T, ParseError&gt;</code>.</p>
 <table>
@@ -6067,7 +6084,7 @@ the same value. To take a line apart first, split, trim or search it as views (<
     <span class="k">foreach</span> (i in <span class="n">0</span>..<span class="p">arg_count</span>())
     {
         <span class="p">String</span> a = <span class="p">Result</span>::unwrap_or(<span class="p">arg</span>(i), <span class="p">String</span>::new());
-        <span class="k">match</span> (<span class="p">parse</span>&lt;<span class="t">f64</span>&gt;(&amp;a))
+        <span class="k">match</span> (<span class="p">String</span>::<span class="p">parse</span>&lt;<span class="t">f64</span>&gt;(&amp;a))
         {
             <span class="p">Ok</span>(v)  : total += v,
             <span class="p">Err</span>(_) :
@@ -6092,39 +6109,37 @@ the same value. To take a line apart first, split, trim or search it as views (<
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>total 3.75
 </pre></div></figure>
 <h3>Files</h3>
-<p><code>read_file(&amp;path)</code> reads a whole file as a <code>String</code>; <code>write_file(&amp;path, &amp;text)</code> makes the
-file hold exactly <code>text</code>, creating it or replacing what it held. Both take the path as a <code>String</code>
-(it usually comes from <code>arg</code>) and return a <code>Result</code> whose error is a <code>FileError</code>: <code>NotFound</code>,
+<p><code>read_file(path)</code> reads a whole file as a <code>String</code>; <code>write_file(path, text)</code> makes the
+file hold exactly <code>text</code>, creating it or replacing what it held. Both take the path, and the text,
+as a <code>StringView</code> (D-0134): a literal, <code>read_file(&quot;notes.txt&quot;)</code>, or a <code>String</code>'s whole-string view,
+<code>read_file(&amp;path[0..$])</code> for a path that came from <code>arg</code>. They return a <code>Result</code> whose error is a
+<code>FileError</code>: <code>NotFound</code>,
 <code>Denied</code>, <code>Utf8(e)</code> for a file that is not valid UTF-8 (with the offset of the first bad byte), or
 <code>Io</code> for anything else. A relative path is relative to the directory the program runs in. Both
 tools read and write files. <code>FileError::text(&amp;e)</code> is the error as a sentence for a person
-("not found", "permission denied", …), as <code>ReadError::text</code>, <code>ParseError::text</code> and
-<code>Utf8Error::text</code> are for theirs (D-0117); <code>%v</code> of an error prints its variant's name instead.</p>
+("not found", "permission denied", …), as <code>ParseError::text</code> and <code>Utf8Error::text</code> are for
+theirs (D-0117); <code>%v</code> of an error prints its variant's name instead.</p>
 <table>
 <thead><tr><th>Function</th><th>Signature</th></tr></thead>
 <tbody>
-<tr><td><code>read_file</code></td><td><code>(ref&lt;String, shared&gt; path) : Result&lt;String, FileError&gt;</code></td></tr>
-<tr><td><code>write_file</code></td><td><code>(ref&lt;String, shared&gt; path, ref&lt;String, shared&gt; text) : Result&lt;void, FileError&gt;</code></td></tr>
+<tr><td><code>read_file</code></td><td><code>(StringView path) : Result&lt;String, FileError&gt;</code></td></tr>
+<tr><td><code>write_file</code></td><td><code>(StringView path, StringView text) : Result&lt;void, FileError&gt;</code></td></tr>
 </tbody>
 </table>
-<p>These two handle the whole file at once; <code>File</code>, below, reads and writes one in pieces. <code>ReadError</code>
-and <code>FileError</code> both have variants called <code>Io</code> and <code>Utf8</code>; a <code>match</code> names them plainly, since the
-value's type says which enum is meant, but building one by hand is written <code>FileError::Io</code>.</p>
+<p>These two handle the whole file at once; <code>File</code>, below, reads and writes one in pieces.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Writing a file and reading it back</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> main() : <span class="t">u8</span>
 {
-    <span class="p">String</span> path = <span class="p">String</span>::from_str(<span class="s">&quot;notes.txt&quot;</span>);
     <span class="p">String</span> text = <span class="p">String</span>::from_str(<span class="s">&quot;first line\nsecond line\n&quot;</span>);
-    <span class="k">if</span> (<span class="p">Err</span>(_) = <span class="p">write_file</span>(&amp;path, &amp;text))
+    <span class="k">if</span> (<span class="p">Err</span>(_) = <span class="p">write_file</span>(<span class="s">&quot;notes.txt&quot;</span>, &amp;text[<span class="n">0</span>..$]))
     {
         <span class="p">printf</span>(<span class="s">&quot;cannot write notes.txt\n&quot;</span>);
         <span class="k">return</span> <span class="n">1</span>;
     }
-    <span class="p">String</span> back = <span class="p">Result</span>::unwrap_or(<span class="p">read_file</span>(&amp;path), <span class="p">String</span>::new());
+    <span class="p">String</span> back = <span class="p">Result</span>::unwrap_or(<span class="p">read_file</span>(<span class="s">&quot;notes.txt&quot;</span>), <span class="p">String</span>::new());
     <span class="p">printf</span>(<span class="s">&quot;%v&quot;</span>, &amp;back);
-    <span class="p">String</span> gone = <span class="p">String</span>::from_str(<span class="s">&quot;no-such-file.txt&quot;</span>);
-    <span class="k">match</span> (<span class="p">read_file</span>(&amp;gone))
+    <span class="k">match</span> (<span class="p">read_file</span>(<span class="s">&quot;no-such-file.txt&quot;</span>))
     {
         <span class="p">Ok</span>(_)         : <span class="p">printf</span>(<span class="s">&quot;?\n&quot;</span>),
         <span class="p">Err</span>(NotFound) : <span class="p">printf</span>(<span class="s">&quot;no-such-file.txt: not found\n&quot;</span>),   <span class="c">// a pattern inside a pattern</span>
@@ -6144,36 +6159,35 @@ so it cannot be used again. Every operation returns a <code>Result</code> whose 
 <table>
 <thead><tr><th>Function</th><th>Does</th></tr></thead>
 <tbody>
-<tr><td><code>File::open(&amp;path)</code></td><td>open for reading; the file must exist</td></tr>
-<tr><td><code>File::create(&amp;path)</code></td><td>open for writing, empty: created, or its contents discarded</td></tr>
-<tr><td><code>File::append(&amp;path)</code></td><td>open for writing at the end, created if missing</td></tr>
-<tr><td><code>File::open_rw(&amp;path)</code></td><td>open for reading and writing, created if missing, contents kept</td></tr>
+<tr><td><code>File::open(path)</code></td><td>open for reading; the file must exist (<code>path</code> a <code>StringView</code>, as for <code>read_file</code>)</td></tr>
+<tr><td><code>File::create(path)</code></td><td>open for writing, empty: created, or its contents discarded</td></tr>
+<tr><td><code>File::append(path)</code></td><td>open for writing at the end, created if missing</td></tr>
+<tr><td><code>File::open_rw(path)</code></td><td>open for reading and writing, created if missing, contents kept</td></tr>
 <tr><td><code>File::read_line(&amp;mut f)</code></td><td>the next line without its <code>\n</code> (nor a <code>\r</code> before it), <code>None</code> at the end (as <code>read_line</code>)</td></tr>
 <tr><td><code>File::read(&amp;mut f, &amp;mut buf, max)</code></td><td>append up to <code>max</code> bytes to a <code>Vec&lt;u8&gt;</code>; how many, 0 at the end</td></tr>
 <tr><td><code>File::read_to_end(&amp;mut f, &amp;mut buf)</code></td><td>append the rest of the file to a <code>Vec&lt;u8&gt;</code></td></tr>
-<tr><td><code>File::write(&amp;mut f, &amp;bytes[i..j])</code>, <code>File::write_str(&amp;mut f, &amp;text)</code></td><td>write all of a slice of bytes, or a <code>String</code>'s text</td></tr>
+<tr><td><code>File::write(&amp;mut f, &amp;bytes[i..j])</code>, <code>File::write_text(&amp;mut f, text)</code></td><td>write all of a slice of bytes, or text (a <code>StringView</code>: a literal, or <code>&amp;s[0..$]</code>)</td></tr>
 <tr><td><code>File::printf(&amp;mut f, &quot;format&quot;, …)</code></td><td>write formatted text, as <code>printf</code> formats it</td></tr>
 <tr><td><code>File::seek(&amp;mut f, pos)</code>, <code>File::len(&amp;f)</code></td><td>move to byte <code>pos</code> (a <code>u64</code>); the length in bytes</td></tr>
 <tr><td><code>File::close(f)</code></td><td>close it and say whether that worked</td></tr>
-<tr><td><code>read_bytes(&amp;path)</code>, <code>write_bytes(&amp;path, &amp;bytes[i..j])</code></td><td><code>read_file</code> and <code>write_file</code> for bytes: a <code>Vec&lt;u8&gt;</code></td></tr>
+<tr><td><code>read_bytes(path)</code>, <code>write_bytes(path, &amp;bytes[i..j])</code></td><td><code>read_file</code> and <code>write_file</code> for bytes: a <code>Vec&lt;u8&gt;</code></td></tr>
 </tbody>
 </table>
-<p>Reading is buffered, so <code>read_line</code> is quick, and <code>read</code> fills up to what was asked for; each
+<p>Reading is buffered, so <code>read_line</code> is quick, and <code>File::read</code> fills up to what was asked for; each
 write reaches the file before it returns, so gather many small pieces in a <code>String</code> or <code>Vec&lt;u8&gt;</code>
 first when speed matters.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Writing a log, reading it line by line, and seeking</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> main()
 {
-    <span class="p">String</span> path = <span class="p">String</span>::from_str(<span class="s">&quot;app.log&quot;</span>);
-    <span class="p">File</span> log = <span class="p">Result</span>::expect(<span class="p">File</span>::create(&amp;path), <span class="s">&quot;cannot create the log&quot;</span>);
+    <span class="p">File</span> log = <span class="p">Result</span>::expect(<span class="p">File</span>::create(<span class="s">&quot;app.log&quot;</span>), <span class="s">&quot;cannot create the log&quot;</span>);
     <span class="k">foreach</span> (i in <span class="n">1</span>..<span class="n">4</span>)
     {
         _ = <span class="p">File</span>::<span class="p">printf</span>(&amp;<span class="k">mut</span> log, <span class="s">&quot;event %v\n&quot;</span>, i);   <span class="c">// `_ =`: the result is not needed</span>
     }
     _ = <span class="p">File</span>::close(log);
 
-    <span class="p">File</span> input = <span class="p">Result</span>::expect(<span class="p">File</span>::open(&amp;path), <span class="s">&quot;cannot open the log&quot;</span>);
+    <span class="p">File</span> input = <span class="p">Result</span>::expect(<span class="p">File</span>::open(<span class="s">&quot;app.log&quot;</span>), <span class="s">&quot;cannot open the log&quot;</span>);
     <span class="p">printf</span>(<span class="s">&quot;%v bytes\n&quot;</span>, <span class="p">Result</span>::unwrap_or(<span class="p">File</span>::len(&amp;input), <span class="n">0</span>));
     <span class="k">while</span> (<span class="p">Ok</span>(<span class="p">Some</span>(line)) = <span class="p">File</span>::<span class="p">read_line</span>(&amp;<span class="k">mut</span> input))   <span class="c">// stops at the end, or an error</span>
     {
@@ -6191,23 +6205,23 @@ byte 6 is 49
 </pre></div></figure>
 <h3>Directories, the environment and the clocks</h3>
 <p>Files live in directories, which a program can make, list and clean up; it can also read its
-environment and measure time. Paths are <code>String</code>s, as for files, and failures are <code>FileError</code>s.</p>
+environment and measure time. Paths are <code>StringView</code>s, as for files, and failures are <code>FileError</code>s.</p>
 <table>
 <thead><tr><th>Function</th><th>Does</th></tr></thead>
 <tbody>
-<tr><td><code>make_dir(&amp;path)</code></td><td>make a directory: <code>Ok(true)</code> made, <code>Ok(false)</code> one was already there</td></tr>
-<tr><td><code>remove_file(&amp;path)</code>, <code>remove_dir(&amp;path)</code></td><td>remove a file, or an empty directory</td></tr>
-<tr><td><code>rename(&amp;from, &amp;to)</code></td><td>move a file or directory, replacing a file at <code>to</code></td></tr>
-<tr><td><code>list_dir(&amp;path)</code></td><td>the names in a directory, sorted: a <code>Vec&lt;String&gt;</code></td></tr>
-<tr><td><code>path_kind(&amp;path)</code></td><td><code>File(len)</code>, <code>Dir</code> or <code>Other</code>; <code>Err(NotFound)</code> when nothing is there</td></tr>
-<tr><td><code>env_var(&amp;name)</code></td><td><code>Ok(Some(value))</code>, or <code>Ok(None)</code> when the variable is not set</td></tr>
+<tr><td><code>make_dir(path)</code></td><td>make a directory: <code>Ok(true)</code> made, <code>Ok(false)</code> one was already there</td></tr>
+<tr><td><code>remove_file(path)</code>, <code>remove_dir(path)</code></td><td>remove a file, or an empty directory</td></tr>
+<tr><td><code>rename(from, to)</code></td><td>move a file or directory, replacing a file at <code>to</code></td></tr>
+<tr><td><code>list_dir(path)</code></td><td>the names in a directory, sorted: a <code>Vec&lt;String&gt;</code></td></tr>
+<tr><td><code>path_kind(path)</code></td><td><code>File(len)</code>, <code>Dir</code> or <code>Other</code>; <code>Err(NotFound)</code> when nothing is there</td></tr>
+<tr><td><code>env_var(name)</code></td><td><code>Ok(Some(value))</code>, or <code>Ok(None)</code> when the variable is not set</td></tr>
 <tr><td><code>current_dir()</code></td><td>the working directory, which relative paths start from</td></tr>
 <tr><td><code>monotonic_ns()</code>, <code>unix_seconds()</code></td><td>a clock for measuring time (never goes back), and the date</td></tr>
 </tbody>
 </table>
 <figure class="code"><div class="code-head"><span class="code-title">Making, listing and removing</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
-<span class="k">fn</span> kind(<span class="t">ref</span>&lt;<span class="p">String</span>, <span class="t">shared</span>&gt; p) : <span class="t">str</span>
+<span class="k">fn</span> kind(<span class="p">StringView</span> p) : <span class="t">str</span>
 {
     <span class="k">match</span> (<span class="p">path_kind</span>(p))
     {
@@ -6221,17 +6235,13 @@ environment and measure time. Paths are <code>String</code>s, as for files, and 
 
 <span class="k">fn</span> main() : <span class="t">u8</span>
 {
-    <span class="p">String</span> dir = <span class="p">String</span>::from_str(<span class="s">&quot;work&quot;</span>);
-    <span class="k">if</span> (<span class="p">Err</span>(_) = <span class="p">make_dir</span>(&amp;dir))
+    <span class="k">if</span> (<span class="p">Err</span>(_) = <span class="p">make_dir</span>(<span class="s">&quot;work&quot;</span>))
     {
         <span class="k">return</span> <span class="n">1</span>;
     }
-    <span class="p">String</span> a = <span class="p">String</span>::from_str(<span class="s">&quot;work/notes.txt&quot;</span>);
-    <span class="p">String</span> b = <span class="p">String</span>::from_str(<span class="s">&quot;work/old.txt&quot;</span>);
-    <span class="p">String</span> text = <span class="p">String</span>::from_str(<span class="s">&quot;remember\n&quot;</span>);
-    _ = <span class="p">write_file</span>(&amp;a, &amp;text);
-    _ = <span class="p">rename</span>(&amp;a, &amp;b);
-    <span class="k">match</span> (<span class="p">list_dir</span>(&amp;dir))
+    _ = <span class="p">write_file</span>(<span class="s">&quot;work/notes.txt&quot;</span>, <span class="s">&quot;remember\n&quot;</span>);
+    _ = <span class="p">rename</span>(<span class="s">&quot;work/notes.txt&quot;</span>, <span class="s">&quot;work/old.txt&quot;</span>);
+    <span class="k">match</span> (<span class="p">list_dir</span>(<span class="s">&quot;work&quot;</span>))
     {
         <span class="p">Ok</span>(names) :
         {
@@ -6242,10 +6252,10 @@ environment and measure time. Paths are <code>String</code>s, as for files, and 
         },
         <span class="p">Err</span>(_)    : <span class="k">return</span> <span class="n">1</span>,
     }
-    <span class="p">printf</span>(<span class="s">&quot;notes.txt: %s, old.txt: %s\n&quot;</span>, kind(&amp;a), kind(&amp;b));
-    _ = <span class="p">remove_file</span>(&amp;b);
-    _ = <span class="p">remove_dir</span>(&amp;dir);
-    <span class="p">printf</span>(<span class="s">&quot;work: %s\n&quot;</span>, kind(&amp;dir));
+    <span class="p">printf</span>(<span class="s">&quot;notes.txt: %s, old.txt: %s\n&quot;</span>, kind(<span class="s">&quot;work/notes.txt&quot;</span>), kind(<span class="s">&quot;work/old.txt&quot;</span>));
+    _ = <span class="p">remove_file</span>(<span class="s">&quot;work/old.txt&quot;</span>);
+    _ = <span class="p">remove_dir</span>(<span class="s">&quot;work&quot;</span>);
+    <span class="p">printf</span>(<span class="s">&quot;work: %s\n&quot;</span>, kind(<span class="s">&quot;work&quot;</span>));
     <span class="t">u64</span> t0 = <span class="p">monotonic_ns</span>();
     <span class="p">printf</span>(<span class="s">&quot;time goes forward: %v\n&quot;</span>, <span class="p">monotonic_ns</span>() &gt;= t0);
     <span class="n">0</span>
@@ -6315,22 +6325,23 @@ take the key by reference, so they copy nothing.</p>
 <tr><td><code>HashMap::entry(&amp;mut m, k, fresh)</code></td><td>the value for <code>k</code> as an exclusive reference, adding <code>k</code> with <code>fresh</code> first if absent</td></tr>
 <tr><td><code>HashMap::get(&amp;m, &amp;k)</code>, <code>HashMap::get_mut(&amp;mut m, &amp;k)</code></td><td><code>Some</code> reference to the value, or <code>None</code></td></tr>
 <tr><td><code>HashMap::contains(&amp;m, &amp;k)</code></td><td>whether <code>k</code> is present</td></tr>
-<tr><td><code>HashMap::remove(&amp;mut m, &amp;k)</code></td><td>removes <code>k</code> and returns its value; fast: the last entry moves into its place</td></tr>
-<tr><td><code>HashMap::remove_ordered(&amp;mut m, &amp;k)</code></td><td>the same, keeping every other entry's place; takes time in proportion to the map's size</td></tr>
+<tr><td><code>HashMap::remove(&amp;mut m, &amp;k)</code></td><td>removes <code>k</code> and returns its value; every other entry keeps its place; takes time in proportion to the map's size</td></tr>
+<tr><td><code>HashMap::swap_remove(&amp;mut m, &amp;k)</code></td><td>the same, fast: the last entry moves into the removed one's place (D-0134)</td></tr>
 <tr><td><code>HashMap::key_at(&amp;m, i)</code>, <code>HashMap::value_at(&amp;m, i)</code></td><td>entry <code>i</code>, for <code>i &lt; len</code>, in insertion order</td></tr>
 <tr><td><code>HashMap::clear(&amp;mut m)</code></td><td>removes every entry, destroying keys and values; the map stays usable</td></tr>
 <tr><td><code>HashMap::clone(&amp;m)</code>, <code>HashSet::clone(&amp;s)</code>, <code>Box::clone(&amp;b)</code>, <code>clone(&amp;m)</code></td><td>a copy of a map, set or box whose contents are <code>clone</code> (§12); <code>Rc::clone</code> shares instead</td></tr>
 <tr><td><code>sleep_ms(ms)</code></td><td>the calling thread does nothing for at least <code>ms</code> milliseconds; other threads run meanwhile (D-0124)</td></tr>
 <tr><td><code>Rc::downgrade(&amp;r)</code>, <code>Weak::upgrade(&amp;w)</code>, <code>Weak::clone(&amp;w)</code></td><td>a <code>Weak&lt;T&gt;</code> keeps the box, not the value: <code>upgrade</code> is <code>Some(Rc)</code> while a strong handle exists, else <code>None</code> — for a parent pointer, a cache, an observer list, where an <code>Rc</code> would make a cycle (D-0125)</td></tr>
-<tr><td><code>Rng::seed(s)</code>, <code>Rng::next_u64(&amp;mut r)</code>, <code>Rng::below(&amp;mut r, n)</code>, <code>Rng::unit_f64(&amp;mut r)</code></td><td>a general-purpose pseudo-random generator (xoshiro256**, fixed by the specification): the same seed gives the same numbers everywhere; <code>below</code> is unbiased in <code>0 .. n</code>. It is not suitable for cryptographic purposes — keys, tokens, nonces, anything an adversary must not predict (D-0120)</td></tr>
+<tr><td><code>Rng::new(s)</code>, <code>Rng::next_u64(&amp;mut r)</code>, <code>Rng::below(&amp;mut r, n)</code>, <code>Rng::unit_f64(&amp;mut r)</code></td><td>a general-purpose pseudo-random generator (xoshiro256**, fixed by the specification): the same seed gives the same numbers everywhere; <code>below</code> is unbiased in <code>0 .. n</code>. It is not suitable for cryptographic purposes — keys, tokens, nonces, anything an adversary must not predict (D-0120)</td></tr>
 <tr><td><code>HashMap::get_str(&amp;m, &quot;k&quot;)</code>, <code>get_mut_str</code>, <code>contains_str</code>, <code>remove_str</code></td><td>for a map keyed by <code>String</code>: the same lookups with a <code>str</code>, so no <code>String</code> is built to ask (D-0113); <code>HashSet::contains_str</code>, <code>remove_str</code> likewise</td></tr>
-<tr><td><code>HashSet::new</code>, <code>len</code>, <code>insert</code>, <code>contains</code>, <code>remove</code>, <code>remove_ordered</code>, <code>at</code></td><td>the same for a set; <code>insert</code> and <code>remove</code> say whether anything changed</td></tr>
+<tr><td><code>HashSet::new</code>, <code>len</code>, <code>insert</code>, <code>contains</code>, <code>remove</code>, <code>swap_remove</code>, <code>key_at</code>, <code>clear</code></td><td>the same for a set; <code>insert</code> and the removals say whether anything changed</td></tr>
 </tbody>
 </table>
 <p>Entries are kept in the order they were added, so <code>foreach (k, v in &amp;m)</code> (§14) visits
 them in that order, the same in the interpreter and the compiler, whatever the keys hash to.
-<code>key_at</code> and <code>value_at</code> reach entry <code>i</code> directly. <code>remove</code> is quick
-because it fills the gap with the last entry; use <code>remove_ordered</code> when the order matters.</p>
+<code>key_at</code> and <code>value_at</code> reach entry <code>i</code> directly. <code>remove</code> keeps that order, so it moves every
+later entry down one; <code>swap_remove</code> is quick because it fills the gap with the last entry instead,
+for a map whose order does not matter.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Counting words, and a set</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> main()
