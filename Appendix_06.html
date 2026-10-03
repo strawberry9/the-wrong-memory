@@ -2047,7 +2047,7 @@ not read freed memory.</p>
 <nav class="pager"><a class="prev" href="#s09">&larr; §09 References</a><a class="top" href="#top">Top</a><a class="next" href="#s11">§11 Initialisation &rarr;</a></nav></section>
 <section id="s11">
 <h2><span class="secnum">§11</span>Initialisation</h2>
-<div class="spec-ref">Governing specification file: <code>spec/11-initialization.md</code></div><p class="blurb">Every variable is written before it is read, on every path, and every aggregate is built whole.</p>
+<div class="spec-ref">Governing specification file: <code>spec/11-initialization.md</code></div><p class="blurb">Every variable is written before it is read, on every path, and every aggregate is built whole; constants name values known before the program runs.</p>
 <p>Reading storage that has never been written is undefined behaviour in C. In CobaltC it is
 impossible in a well-formed program: a variable declared without an initialiser must be assigned on
 <em>every</em> path before it is read, and the check is static. Aggregates are always initialised
@@ -2090,6 +2090,130 @@ the same block would only hide a mistake.</p>
     }
     <span class="p">assert</span>(total == <span class="n">4</span>);               <span class="c">// the outer one is untouched</span>
     <span class="t">i32</span> total = <span class="n">10</span>;                   <span class="c">// <span class="bad">✗</span> <span class="dg">diag.duplicate-local</span>: declared above, in this block</span>
+}</code></pre></figure>
+<h3>Constants</h3>
+<p><code>const τ NAME = e;</code> names a value, at the top level of any module or inside a function (below). <code>NAME</code> can be used
+wherever its value could, with the visibility, <code>export</code>, <code>import</code> and qualified paths of any item.
+<code>e</code> must be a <em>constant expression</em>: literals, other constants, operators, struct, array and
+variant literals of constant expressions and their fields and elements (<code>SCREEN.w</code>, <code>PRIMES[2]</code>),
+a function's name, and the pure intrinsics (<code>min_value</code>, <code>sizeof</code>, <code>widen</code>, …). A constant cannot be a resource, cannot depend on itself, and cannot be
+assigned to or borrowed; an overflow in computing one is reported at the constant, before the
+program runs. Integer, float, <code>bool</code> and <code>str</code> constants cost nothing at run time: each use becomes
+the literal.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Constants</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">const</span> <span class="t">u64</span> KIB = <span class="n">1024</span>;
+<span class="k">const</span> <span class="t">u64</span> MIB = KIB * KIB;
+<span class="k">const</span> <span class="t">u32</span> READ = <span class="n">0</span>x1;
+<span class="k">const</span> <span class="t">u32</span> WRITE = <span class="n">0</span>x2;
+<span class="k">const</span> <span class="t">u32</span> READ_WRITE = READ | WRITE;
+<span class="k">const</span> <span class="t">i32</span> LOWEST = -<span class="n">2147483648</span>;
+
+<span class="k">struct</span> Size
+{
+    <span class="t">u32</span> w;
+    <span class="t">u32</span> h;
+}
+
+<span class="k">const</span> Size SCREEN = Size { .w = <span class="n">640</span>, .h = <span class="n">480</span> };
+
+<span class="k">fn</span> main()
+{
+    <span class="p">static_assert</span>(MIB == <span class="n">1048576</span>);
+    <span class="p">static_assert</span>(READ_WRITE == <span class="n">3</span>);
+    <span class="p">static_assert</span>(LOWEST &lt; <span class="n">0</span>);
+    <span class="p">static_assert</span>(SCREEN.w * SCREEN.h == <span class="n">307200</span>);   <span class="c">// a field of a constant is a constant</span>
+}</code></pre></figure>
+<p>A constant is typed exactly as a declaration <code>τ x = e;</code> would be: in
+<code>const u64 MIB = 1024 * 1024;</code> the literals are <code>u64</code>s, and an initializer that overflows its type,
+such as <code>const i32 BIG = 65536 * 65536;</code>, is rejected at the constant. <code>const auto NAME = e;</code> takes
+its type from <code>e</code>, as <code>auto x = e;</code> does: <code>const auto MIB = KIB * KIB;</code> is a <code>u64</code> when <code>KIB</code> is, and
+a bare literal is an <code>i32</code> (or an <code>f64</code>). When <code>e</code> alone does not settle a type — <code>None</code>, say —
+write the type.</p>
+<p>A constant can also be declared inside a function, as a statement: <code>const u8 LIMIT = 200;</code>. It is
+the same kind of constant, but its name is <em>scoped like a local</em>: it can be used from its
+declaration to the end of its block, and an inner block can declare another constant or a variable
+of the same name, which hides it there (in its own block, a second declaration of the name is
+<code>diag.duplicate-local</code>, above). A local variable, even one set from a literal, is
+not a constant — any later statement could change it — so <code>static_assert</code> cannot use it; name the
+value with <code>const</code> when you want the check made before the program runs. A local constant's
+initializer can use other constants, but not a local variable or the function's type
+parameters.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Local constants</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> checksum(<span class="t">slice</span>&lt;<span class="t">u8</span>, <span class="t">shared</span>&gt; data) : <span class="t">u32</span>
+{
+    <span class="k">const</span> <span class="t">u32</span> PRIME = <span class="n">16777619</span>;       <span class="c">// FNV-1a: the 32-bit prime and offset basis</span>
+    <span class="k">const</span> <span class="t">u32</span> SEED = <span class="n">2166136261</span>;
+    <span class="p">static_assert</span>(PRIME % <span class="n">2</span> == <span class="n">1</span>);
+    <span class="t">u32</span> h = SEED;
+    <span class="k">foreach</span> (b in data)
+    {
+        h = <span class="p">wrapping_mul</span>(h ^ <span class="p">widen</span>&lt;<span class="t">u32</span>&gt;(*b), PRIME);
+    }
+    h
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="t">u8</span> b = <span class="n">200</span>;
+    <span class="k">auto</span> d = b + <span class="n">1</span>;                   <span class="c">// a variable: checked when the program runs</span>
+    <span class="p">assert</span>(d == <span class="n">201</span>);
+    <span class="k">const</span> <span class="t">u8</span> B = <span class="n">200</span>;
+    <span class="k">const</span> <span class="k">auto</span> D = B + <span class="n">1</span>;             <span class="c">// constants: checked before it runs (auto: D is a u8)</span>
+    <span class="p">static_assert</span>(D == <span class="n">201</span>, <span class="s">&quot;D is %v&quot;</span>, D);
+    <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">3</span>&gt; abc = [<span class="n">97</span>, <span class="n">98</span>, <span class="n">99</span>];
+    <span class="p">assert</span>(checksum(&amp;abc[<span class="n">0</span>..$]) == <span class="n">440920331</span>);
+}</code></pre></figure>
+<h4><code>const</code> means known when the program is compiled</h4>
+<p>A <code>const</code> can never change: assigning to it, or borrowing it with <code>&amp;mut</code>, is rejected when
+the program is compiled, as in Rust. A constant is not a variable at all, but stands for its value,
+so assigning to it is like assigning to a literal. Copying its value out is fine: <code>i32 y = LIMIT;</code>
+gives a variable <code>y</code>, which can change, while <code>LIMIT</code> stays as it is.</p>
+<figure class="code"><div class="code-head"><span class="code-title">A constant cannot change</span><span class="badge bad">rejected: diag.type-mismatch</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">const</span> <span class="t">i32</span> LIMIT = <span class="n">10</span>;
+
+<span class="k">fn</span> main()
+{
+    <span class="t">i32</span> y = LIMIT;                    <span class="c">// a copy of the value: y is an ordinary variable</span>
+    y += <span class="n">1</span>;
+    LIMIT = <span class="n">11</span>;                       <span class="c">// <span class="bad">✗</span> <span class="dg">diag.type-mismatch</span>: a constant cannot be assigned</span>
+}</code></pre></figure>
+<p>What makes it a constant is <em>when</em> its value is known: before the program runs, like
+<code>const</code> in Rust, Go and C# or <code>constexpr</code> in C++. That differs from C, C++, Java or JavaScript, where
+<code>const</code> (or <code>final</code>) often marks a variable that is set once, at run time, and never reassigned.
+<code>const usize N = arg_count();</code> is <code>diag.const-not-constant</code>, because the value is only known once
+the program runs.</p>
+<p>CobaltC has no read-only local variables either: every local can be assigned. It does not need
+them for safety, because every change to a variable shows where it happens. Only two things can
+change a local: an assignment to its name in its own function, or an exclusive reference to it,
+<code>&amp;mut x</code>, which must be written out where it is made. A function given <code>&amp;x</code> or a copy of <code>x</code> cannot
+change it; while a shared reference to it is in use, nothing can (<code>diag.aliasing-conflict</code>, §8); and
+threads share changing state only through a <code>mutex</code>. So to see whether <code>x</code> can change, look in its
+function for <code>x =</code> and <code>&amp;mut x</code>. To lend a value without letting it change, lend it with <code>&amp;</code>.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Where a variable can change</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> peek(<span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt; r) : <span class="t">i32</span>
+{
+    *r                                <span class="c">// may read; writing *r is <span class="dg">diag.write-through-shared</span></span>
+}
+
+<span class="k">fn</span> bump(<span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">exclusive</span>&gt; r)
+{
+    *r += <span class="n">1</span>;
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="t">i32</span> limit = <span class="n">10</span>;                   <span class="c">// a variable: it can be assigned, as every local can</span>
+    <span class="p">assert</span>(peek(&amp;limit) == <span class="n">10</span>);       <span class="c">// &amp;limit: the callee can only read it</span>
+    bump(&amp;<span class="k">mut</span> limit);                 <span class="c">// the one way another function changes it, visible here</span>
+    <span class="p">assert</span>(limit == <span class="n">11</span>);
+    <span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt; view = &amp;limit;
+    <span class="p">assert</span>(*view == <span class="n">11</span>);              <span class="c">// while view is in use, nothing may write limit</span>
+    limit = <span class="n">12</span>;                       <span class="c">// <span class="ok">✓</span> view&#x27;s last use is above, so it no longer holds limit</span>
+    <span class="p">assert</span>(limit == <span class="n">12</span>);
 }</code></pre></figure>
 <h3>Definite assignment</h3>
 <figure class="code"><div class="code-head"><span class="code-title">Assigned on every path</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
@@ -3955,7 +4079,7 @@ memory (§20).</p>
 <nav class="pager"><a class="prev" href="#s15">&larr; §15 Functions and closures</a><a class="top" href="#top">Top</a><a class="next" href="#s17">§17 Modules and name resolution &rarr;</a></nav></section>
 <section id="s17">
 <h2><span class="secnum">§17</span>Modules and name resolution</h2>
-<div class="spec-ref">Governing specification file: <code>spec/17-modules.md</code></div><p class="blurb">module, export and import; private by default; a module's body may be another file; a fixed lookup order for every name.</p>
+<div class="spec-ref">Governing specification file: <code>spec/17-modules.md</code></div><p class="blurb">module, export and import; re-export; private by default; a module's body may be another file; a fixed lookup order for every name.</p>
 <p>Modules group declarations and control which names are visible where. They introduce no
 new semantics: ownership, borrowing and every other rule apply unchanged across module boundaries.
 The vocabulary is C++20's: <code>module</code>, <code>import</code>, <code>export</code>.</p>
@@ -4125,184 +4249,12 @@ used with one import, and how <code>std</code> itself is built (§21): <code>imp
 <p>Only what is exported passes through: a private item never becomes reachable by being
 re-exported. A name the module already has for a different item is <code>diag.duplicate-item</code>; the same
 item arriving twice, or two modules re-exporting each other, is not an error.</p>
-<h3>Constants</h3>
-<p><code>const τ NAME = e;</code> names a value, at the top level of any module. <code>NAME</code> can be used
-wherever its value could, with the visibility, <code>export</code>, <code>import</code> and qualified paths of any item.
-<code>e</code> must be a <em>constant expression</em>: literals, other constants, operators, struct, array and
-variant literals of constant expressions and their fields and elements (<code>SCREEN.w</code>, <code>PRIMES[2]</code>),
-a function's name, and the pure intrinsics (<code>min_value</code>, <code>sizeof</code>, <code>widen</code>, …). A constant cannot be a resource, cannot depend on itself, and cannot be
-assigned to or borrowed; an overflow in computing one is reported at the constant, before the
-program runs. Integer, float, <code>bool</code> and <code>str</code> constants cost nothing at run time: each use becomes
-the literal.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Constants</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
-
-<span class="k">const</span> <span class="t">u64</span> KIB = <span class="n">1024</span>;
-<span class="k">const</span> <span class="t">u64</span> MIB = KIB * KIB;
-<span class="k">const</span> <span class="t">u32</span> READ = <span class="n">0</span>x1;
-<span class="k">const</span> <span class="t">u32</span> WRITE = <span class="n">0</span>x2;
-<span class="k">const</span> <span class="t">u32</span> READ_WRITE = READ | WRITE;
-<span class="k">const</span> <span class="t">i32</span> LOWEST = -<span class="n">2147483648</span>;
-
-<span class="k">struct</span> Size
-{
-    <span class="t">u32</span> w;
-    <span class="t">u32</span> h;
-}
-
-<span class="k">const</span> Size SCREEN = Size { .w = <span class="n">640</span>, .h = <span class="n">480</span> };
-
-<span class="k">fn</span> main()
-{
-    <span class="p">static_assert</span>(MIB == <span class="n">1048576</span>);
-    <span class="p">static_assert</span>(READ_WRITE == <span class="n">3</span>);
-    <span class="p">static_assert</span>(LOWEST &lt; <span class="n">0</span>);
-    <span class="p">static_assert</span>(SCREEN.w * SCREEN.h == <span class="n">307200</span>);   <span class="c">// a field of a constant is a constant</span>
-}</code></pre></figure>
-<p>A constant is typed exactly as a declaration <code>τ x = e;</code> would be: in
-<code>const u64 MIB = 1024 * 1024;</code> the literals are <code>u64</code>s, and an initializer that overflows its type,
-such as <code>const i32 BIG = 65536 * 65536;</code>, is rejected at the constant. <code>const auto NAME = e;</code> takes
-its type from <code>e</code>, as <code>auto x = e;</code> does: <code>const auto MIB = KIB * KIB;</code> is a <code>u64</code> when <code>KIB</code> is, and
-a bare literal is an <code>i32</code> (or an <code>f64</code>). When <code>e</code> alone does not settle a type — <code>None</code>, say —
-write the type.</p>
-<p>A constant can also be declared inside a function, as a statement: <code>const u8 LIMIT = 200;</code>. It is
-the same kind of constant, but its name is <em>scoped like a local</em>: it can be used from its
-declaration to the end of its block, and an inner block can declare another constant or a variable
-of the same name, which hides it there (in its own block, a second declaration of the name is
-<code>diag.duplicate-local</code>, §11). A local variable, even one set from a literal, is
-not a constant — any later statement could change it — so <code>static_assert</code> cannot use it; name the
-value with <code>const</code> when you want the check made before the program runs. A local constant's
-initializer can use other constants, but not a local variable or the function's type
-parameters.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Local constants</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
-
-<span class="k">fn</span> checksum(<span class="t">slice</span>&lt;<span class="t">u8</span>, <span class="t">shared</span>&gt; data) : <span class="t">u32</span>
-{
-    <span class="k">const</span> <span class="t">u32</span> PRIME = <span class="n">16777619</span>;       <span class="c">// FNV-1a: the 32-bit prime and offset basis</span>
-    <span class="k">const</span> <span class="t">u32</span> SEED = <span class="n">2166136261</span>;
-    <span class="p">static_assert</span>(PRIME % <span class="n">2</span> == <span class="n">1</span>);
-    <span class="t">u32</span> h = SEED;
-    <span class="k">foreach</span> (b in data)
-    {
-        h = <span class="p">wrapping_mul</span>(h ^ <span class="p">widen</span>&lt;<span class="t">u32</span>&gt;(*b), PRIME);
-    }
-    h
-}
-
-<span class="k">fn</span> main()
-{
-    <span class="t">u8</span> b = <span class="n">200</span>;
-    <span class="k">auto</span> d = b + <span class="n">1</span>;                   <span class="c">// a variable: checked when the program runs</span>
-    <span class="p">assert</span>(d == <span class="n">201</span>);
-    <span class="k">const</span> <span class="t">u8</span> B = <span class="n">200</span>;
-    <span class="k">const</span> <span class="k">auto</span> D = B + <span class="n">1</span>;             <span class="c">// constants: checked before it runs (auto: D is a u8)</span>
-    <span class="p">static_assert</span>(D == <span class="n">201</span>, <span class="s">&quot;D is %v&quot;</span>, D);
-    <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">3</span>&gt; abc = [<span class="n">97</span>, <span class="n">98</span>, <span class="n">99</span>];
-    <span class="p">assert</span>(checksum(&amp;abc[<span class="n">0</span>..$]) == <span class="n">440920331</span>);
-}</code></pre></figure>
-<h4><code>const</code> means known when the program is compiled</h4>
-<p>A <code>const</code> can never change: assigning to it, or borrowing it with <code>&amp;mut</code>, is rejected when
-the program is compiled, as in Rust. A constant is not a variable at all, but stands for its value,
-so assigning to it is like assigning to a literal. Copying its value out is fine: <code>i32 y = LIMIT;</code>
-gives a variable <code>y</code>, which can change, while <code>LIMIT</code> stays as it is.</p>
-<figure class="code"><div class="code-head"><span class="code-title">A constant cannot change</span><span class="badge bad">rejected: diag.type-mismatch</span></div><pre><code><span class="k">import</span> std;
-
-<span class="k">const</span> <span class="t">i32</span> LIMIT = <span class="n">10</span>;
-
-<span class="k">fn</span> main()
-{
-    <span class="t">i32</span> y = LIMIT;                    <span class="c">// a copy of the value: y is an ordinary variable</span>
-    y += <span class="n">1</span>;
-    LIMIT = <span class="n">11</span>;                       <span class="c">// <span class="bad">✗</span> <span class="dg">diag.type-mismatch</span>: a constant cannot be assigned</span>
-}</code></pre></figure>
-<p>What makes it a constant is <em>when</em> its value is known: before the program runs, like
-<code>const</code> in Rust, Go and C# or <code>constexpr</code> in C++. That differs from C, C++, Java or JavaScript, where
-<code>const</code> (or <code>final</code>) often marks a variable that is set once, at run time, and never reassigned.
-<code>const usize N = arg_count();</code> is <code>diag.const-not-constant</code>, because the value is only known once
-the program runs.</p>
-<p>CobaltC has no read-only local variables either: every local can be assigned. It does not need
-them for safety, because every change to a variable shows where it happens. Only two things can
-change a local: an assignment to its name in its own function, or an exclusive reference to it,
-<code>&amp;mut x</code>, which must be written out where it is made. A function given <code>&amp;x</code> or a copy of <code>x</code> cannot
-change it; while a shared reference to it is in use, nothing can (<code>diag.aliasing-conflict</code>, §8); and
-threads share changing state only through a <code>mutex</code>. So to see whether <code>x</code> can change, look in its
-function for <code>x =</code> and <code>&amp;mut x</code>. To lend a value without letting it change, lend it with <code>&amp;</code>.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Where a variable can change</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
-
-<span class="k">fn</span> peek(<span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt; r) : <span class="t">i32</span>
-{
-    *r                                <span class="c">// may read; writing *r is <span class="dg">diag.write-through-shared</span></span>
-}
-
-<span class="k">fn</span> bump(<span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">exclusive</span>&gt; r)
-{
-    *r += <span class="n">1</span>;
-}
-
-<span class="k">fn</span> main()
-{
-    <span class="t">i32</span> limit = <span class="n">10</span>;                   <span class="c">// a variable: it can be assigned, as every local can</span>
-    <span class="p">assert</span>(peek(&amp;limit) == <span class="n">10</span>);       <span class="c">// &amp;limit: the callee can only read it</span>
-    bump(&amp;<span class="k">mut</span> limit);                 <span class="c">// the one way another function changes it, visible here</span>
-    <span class="p">assert</span>(limit == <span class="n">11</span>);
-    <span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt; view = &amp;limit;
-    <span class="p">assert</span>(*view == <span class="n">11</span>);              <span class="c">// while view is in use, nothing may write limit</span>
-    limit = <span class="n">12</span>;                       <span class="c">// <span class="ok">✓</span> view&#x27;s last use is above, so it no longer holds limit</span>
-    <span class="p">assert</span>(limit == <span class="n">12</span>);
-}</code></pre></figure>
-<h3>Static assertions</h3>
-<p><code>static_assert(c)</code> and <code>static_assert(c, &quot;why&quot;)</code> check a constant condition when the program
-is compiled, not when it runs: a false one stops it with <code>diag.static-assert-failed</code> and shows the
-message. As with <code>assert</code>, the message may carry values, <code>static_assert(D == 201, &quot;D is %v&quot;, D)</code>,
-provided they are constants too. The condition is a constant expression (the same kind a <code>const</code> has), so it can use
-constants, <code>sizeof</code>, <code>alignof</code>, the limits and the conversions. It is checked in every function,
-called or not, and in a generic function once for each type it is used with, so
-<code>static_assert(sizeof&lt;T&gt;() &lt;= 8, &quot;…&quot;)</code> limits what <code>T</code> may be. At run time it does nothing. For a
-condition only known as the program runs, use <code>assert</code> (§18): a <code>static_assert</code> whose condition
-names a local variable, calls a function or is not a <code>bool</code> is rejected before the program runs,
-with <code>diag.static-assert-not-constant</code>, which says so.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Checked before the program runs</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
-
-<span class="k">struct</span> Header
-{
-    <span class="t">u32</span> magic;
-    <span class="t">u16</span> version;
-    <span class="t">u16</span> flags;
-    <span class="t">u64</span> length;
-}
-
-<span class="k">const</span> <span class="t">usize</span> BUF = <span class="n">4096</span>;
-
-<span class="c">// Stores a value that must fit in one machine word.</span>
-<span class="k">fn</span> word&lt;T&gt;(T x) : T
-{
-    <span class="p">static_assert</span>(<span class="p">sizeof</span>&lt;T&gt;() &lt;= <span class="n">8</span>, <span class="s">&quot;word&lt;T&gt; needs T to fit in 8 bytes&quot;</span>);
-    x
-}
-
-<span class="k">fn</span> main()
-{
-    <span class="p">static_assert</span>(<span class="p">sizeof</span>&lt;Header&gt;() == <span class="n">16</span>, <span class="s">&quot;Header must match the C struct&quot;</span>);
-    <span class="p">static_assert</span>(BUF &amp; (BUF - <span class="n">1</span>) == <span class="n">0</span>, <span class="s">&quot;BUF must be a power of two&quot;</span>);
-    <span class="p">assert</span>(word(<span class="n">5</span>: <span class="t">i64</span>) == <span class="n">5</span> &amp;&amp; word(<span class="n">2.5</span>) == <span class="n">2.5</span>);
-}</code></pre></figure>
-<figure class="code"><div class="code-head"><span class="code-title">A variable is not a constant</span><span class="badge bad">rejected: diag.static-assert-not-constant</span></div><pre><code><span class="k">import</span> std;
-
-<span class="k">fn</span> main()
-{
-    <span class="t">i32</span> x = <span class="n">1</span>;
-    <span class="p">static_assert</span>(x == <span class="n">1</span>);            <span class="c">// <span class="bad">✗</span> <span class="dg">diag.static-assert-not-constant</span>: x is a variable;</span>
-                                      <span class="c">//   write assert(x == 1), or const i32 X = 1;</span>
-}</code></pre></figure>
-<figure class="code"><div class="code-head"><span class="code-title">A failed assertion</span><span class="badge bad">rejected: diag.static-assert-failed</span></div><pre><code><span class="k">fn</span> word&lt;T&gt;(T x) : T
-{
-    <span class="p">static_assert</span>(<span class="p">sizeof</span>&lt;T&gt;() &lt;= <span class="n">8</span>, <span class="s">&quot;word&lt;T&gt; needs T to fit in 8 bytes&quot;</span>);
-    x
-}
-
-<span class="k">fn</span> main()
-{
-    word(<span class="n">1</span>: <span class="t">i128</span>);                    <span class="c">// <span class="bad">✗</span> <span class="dg">diag.static-assert-failed</span> (static): an i128 is 16 bytes</span>
-}</code></pre></figure>
+<h3>Constants as items</h3>
+<p>A <code>const</code> declared at a module's top level is an item like a function: it is private unless
+marked <code>export</code>, it can be imported, and other modules name it by its path (<code>config::LIMIT</code>).
+Constants themselves, and the <code>static_assert</code> checks built on them, are described with
+declarations (§11) and with assertions (§18). The specification keeps their rules in its modules
+chapter (<code>spec/17</code> §1a and §1b), because a constant is an item.</p>
 <h3>A module in another file</h3>
 <p>A module's body can be a separate file. <code>module geo &quot;./geometry.cb&quot;;</code> means exactly
 <code>module geo { … }</code> with the file's declarations as the body: the same visibility, the same
@@ -4452,7 +4404,7 @@ over its invariants.</p>
 struct literal, or destructuring it — is <code>diag.name-not-visible</code>, the same diagnostic as for a
 private function. Give the module a constructor function if callers need to build the struct.</p>
 <p>There are no read-only (<code>const</code>) fields: in CobaltC <code>const</code> means a value known before the
-program runs (§17 constants), not "fixed once built". A field that other code may read but not
+program runs (§11 constants), not "fixed once built". A field that other code may read but not
 change is a private field with an exported function that reads it. Only the module can then change
 it, which is also what keeps the module's invariant in one place.</p>
 <figure class="code"><div class="code-head"><span class="code-title">A field others can read but not change</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
@@ -4507,7 +4459,7 @@ it, which is also what keeps the module's invariant in one place.</p>
 <nav class="pager"><a class="prev" href="#s16">&larr; §16 Structs, arrays, enums and match</a><a class="top" href="#top">Top</a><a class="next" href="#s18">§18 Errors and failure &rarr;</a></nav></section>
 <section id="s18">
 <h2><span class="secnum">§18</span>Errors and failure</h2>
-<div class="spec-ref">Governing specification file: <code>spec/18-error-failure-semantics.md</code></div><p class="blurb">Fatal checked faults that unwind, and recoverable Result values with the ? operator. Nothing in between.</p>
+<div class="spec-ref">Governing specification file: <code>spec/18-error-failure-semantics.md</code></div><p class="blurb">Fatal checked faults that unwind, assertions checked at run time or before the program runs, and recoverable Result values with the ? operator. Nothing in between.</p>
 <p>There are exactly two ways for something to go wrong in CobaltC, and they never mix. A
 <strong>checked fault</strong> is the language catching a violated invariant (overflow, an index out
 of range, a stale reference, a conflicting borrow): it is fatal. An <strong>error value</strong> is
@@ -4549,7 +4501,7 @@ other fault. <code>assert(c, &quot;format&quot;, args…)</code> adds a message,
 failure can say which values were wrong. The condition is always evaluated, exactly once: there is
 no build in which assertions are left out. The message, and its arguments, are only evaluated when
 the condition is false, so they cost nothing while it holds. Every example in this guide checks its
-own results with <code>assert</code>; a condition that is constant is checked with <code>static_assert</code> (§17)
+own results with <code>assert</code>; a condition that is constant is checked with <code>static_assert</code> (below)
 before the program runs.</p>
 <figure class="code"><div class="code-head"><span class="code-title">An assertion that fails, with its message</span><span class="badge bad">rejected: diag.assert-failed</span></div><pre><code><span class="k">import</span> std;
 
@@ -4577,6 +4529,60 @@ before the program runs.</p>
 <p>Faults are named <code>diag.…</code> and listed in the appendix. Both the interpreter and a compiled
 program print the name, the rule that fired, what was required and what was observed, and a repair
 hint.</p>
+<h3>Static assertions</h3>
+<p><code>static_assert(c)</code> and <code>static_assert(c, &quot;why&quot;)</code> check a constant condition when the program
+is compiled, not when it runs: a false one stops it with <code>diag.static-assert-failed</code> and shows the
+message. As with <code>assert</code>, the message may carry values, <code>static_assert(D == 201, &quot;D is %v&quot;, D)</code>,
+provided they are constants too. The condition is a constant expression (the same kind a <code>const</code> has, §11), so it can use
+constants, <code>sizeof</code>, <code>alignof</code>, the limits and the conversions. It is checked in every function,
+called or not, and in a generic function once for each type it is used with, so
+<code>static_assert(sizeof&lt;T&gt;() &lt;= 8, &quot;…&quot;)</code> limits what <code>T</code> may be. At run time it does nothing. For a
+condition only known as the program runs, use <code>assert</code> (above): a <code>static_assert</code> whose condition
+names a local variable, calls a function or is not a <code>bool</code> is rejected before the program runs,
+with <code>diag.static-assert-not-constant</code>, which says so.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Checked before the program runs</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">struct</span> Header
+{
+    <span class="t">u32</span> magic;
+    <span class="t">u16</span> version;
+    <span class="t">u16</span> flags;
+    <span class="t">u64</span> length;
+}
+
+<span class="k">const</span> <span class="t">usize</span> BUF = <span class="n">4096</span>;
+
+<span class="c">// Stores a value that must fit in one machine word.</span>
+<span class="k">fn</span> word&lt;T&gt;(T x) : T
+{
+    <span class="p">static_assert</span>(<span class="p">sizeof</span>&lt;T&gt;() &lt;= <span class="n">8</span>, <span class="s">&quot;word&lt;T&gt; needs T to fit in 8 bytes&quot;</span>);
+    x
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="p">static_assert</span>(<span class="p">sizeof</span>&lt;Header&gt;() == <span class="n">16</span>, <span class="s">&quot;Header must match the C struct&quot;</span>);
+    <span class="p">static_assert</span>(BUF &amp; (BUF - <span class="n">1</span>) == <span class="n">0</span>, <span class="s">&quot;BUF must be a power of two&quot;</span>);
+    <span class="p">assert</span>(word(<span class="n">5</span>: <span class="t">i64</span>) == <span class="n">5</span> &amp;&amp; word(<span class="n">2.5</span>) == <span class="n">2.5</span>);
+}</code></pre></figure>
+<figure class="code"><div class="code-head"><span class="code-title">A variable is not a constant</span><span class="badge bad">rejected: diag.static-assert-not-constant</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    <span class="t">i32</span> x = <span class="n">1</span>;
+    <span class="p">static_assert</span>(x == <span class="n">1</span>);            <span class="c">// <span class="bad">✗</span> <span class="dg">diag.static-assert-not-constant</span>: x is a variable;</span>
+                                      <span class="c">//   write assert(x == 1), or const i32 X = 1;</span>
+}</code></pre></figure>
+<figure class="code"><div class="code-head"><span class="code-title">A failed assertion</span><span class="badge bad">rejected: diag.static-assert-failed</span></div><pre><code><span class="k">fn</span> word&lt;T&gt;(T x) : T
+{
+    <span class="p">static_assert</span>(<span class="p">sizeof</span>&lt;T&gt;() &lt;= <span class="n">8</span>, <span class="s">&quot;word&lt;T&gt; needs T to fit in 8 bytes&quot;</span>);
+    x
+}
+
+<span class="k">fn</span> main()
+{
+    word(<span class="n">1</span>: <span class="t">i128</span>);                    <span class="c">// <span class="bad">✗</span> <span class="dg">diag.static-assert-failed</span> (static): an i128 is 16 bytes</span>
+}</code></pre></figure>
 <h3><code>Result</code>, <code>Option</code> and <code>?</code></h3>
 <p><code>Result&lt;T, E&gt;</code> is <code>Ok(T)</code> or <code>Err(E)</code>; <code>Option&lt;T&gt;</code> is <code>Some(T)</code> or <code>None</code>. Both are plain
 enums of <code>std</code>, taken apart with <code>match</code>. The postfix <code>?</code> operator unwraps a <code>Result</code>: on <code>Ok(v)</code> it
@@ -5341,7 +5347,7 @@ name means, and the intrinsic is used only where there is none.</p>
 <tbody>
 <tr><td><code>str_len(s)</code>, <code>str_byte(s, i)</code>, <code>str_ptr(s)</code></td><td>a <code>str</code>'s byte count, one byte (bounds-checked), and the address of its bytes (safe)</td><td>§21</td></tr>
 <tr><td><code>slice_len(s)</code></td><td>a slice's number of elements (also through a reference)</td><td>§16</td></tr>
-<tr><td><code>static_assert(c)</code>, <code>static_assert(c, &quot;why&quot;)</code></td><td>reject the program when the constant <code>c</code> is false</td><td>§17</td></tr>
+<tr><td><code>static_assert(c)</code>, <code>static_assert(c, &quot;why&quot;)</code></td><td>reject the program when the constant <code>c</code> is false</td><td>§18</td></tr>
 <tr><td><code>fault(name)</code>, <code>fault(name, msg)</code></td><td>stop with the run-time fault <code>diag.name</code> (a dynamic diagnostic, <code>_</code> for <code>-</code>, such as <code>index_out_of_bounds</code>), with <code>msg</code> if given; for code that implements containers as <code>std</code> does</td><td>§18</td></tr>
 </tbody>
 </table>
