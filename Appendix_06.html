@@ -156,7 +156,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.100304</div>
+<div class="sub">Specification edition 2026.100305</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -323,7 +323,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100304</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100305</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -6550,6 +6550,7 @@ take the key by reference, so they copy nothing.</p>
 <tr><td><code>Rng::new(s)</code>, <code>Rng::next_u64(&amp;mut r)</code>, <code>Rng::below(&amp;mut r, n)</code>, <code>Rng::unit_f64(&amp;mut r)</code></td><td>a general-purpose pseudo-random generator (xoshiro256**, fixed by the specification): the same seed gives the same numbers everywhere; <code>below</code> is unbiased in <code>0 .. n</code>. It is not suitable for cryptographic purposes — keys, tokens, nonces, anything an adversary must not predict (D-0120)</td></tr>
 <tr><td><code>HashMap::get_str(&amp;m, &quot;k&quot;)</code>, <code>get_mut_str</code>, <code>contains_str</code>, <code>remove_str</code></td><td>for a map keyed by <code>String</code>: the same lookups with a <code>str</code>, so no <code>String</code> is built to ask (D-0113); <code>HashSet::contains_str</code>, <code>remove_str</code> likewise</td></tr>
 <tr><td><code>HashSet::new</code>, <code>len</code>, <code>insert</code>, <code>contains</code>, <code>remove</code>, <code>swap_remove</code>, <code>key_at</code>, <code>clear</code></td><td>the same for a set; <code>insert</code> and the removals say whether anything changed</td></tr>
+<tr><td><code>HashSet::union(&amp;a, &amp;b)</code>, <code>HashSet::intersection(&amp;a, &amp;b)</code>, <code>HashSet::difference(&amp;a, &amp;b)</code></td><td>a new set of the keys in either, in both, or in <code>a</code> but not <code>b</code>, copied with <code>clone</code>; <code>a</code> and <code>b</code> are unchanged. The result keeps <code>a</code>'s order, and <code>union</code> adds <code>b</code>'s new keys after it (D-0138)</td></tr>
 </tbody>
 </table>
 <p>Entries are kept in the order they were added, so <code>foreach (k, v in &amp;m)</code> (§14) visits
@@ -6630,6 +6631,37 @@ cat: 1
 {
     <span class="p">HashMap</span>&lt;<span class="t">f64</span>, <span class="t">str</span>&gt; m = <span class="p">HashMap</span>::new();   <span class="c">// <span class="bad">✗</span> <span class="dg">diag.type-mismatch</span> (static): f64 is not a key type</span>
 }</code></pre></figure>
+<figure class="code"><div class="code-head"><span class="code-title">Set operations</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> show(<span class="t">str</span> name, <span class="t">ref</span>&lt;<span class="p">HashSet</span>&lt;<span class="t">str</span>&gt;, <span class="t">shared</span>&gt; s)
+{
+    <span class="p">printf</span>(<span class="s">&quot;%-13s&quot;</span>, name);
+    <span class="k">foreach</span> (i in <span class="n">0</span>..<span class="p">HashSet</span>::len(s))
+    {
+        <span class="p">printf</span>(<span class="s">&quot; %s&quot;</span>, *<span class="p">HashSet</span>::key_at(s, i));
+    }
+    <span class="p">printf</span>(<span class="s">&quot;\n&quot;</span>);
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="p">HashSet</span>&lt;<span class="t">str</span>&gt; monday = <span class="p">HashSet</span>::new();
+    <span class="p">HashSet</span>&lt;<span class="t">str</span>&gt; tuesday = <span class="p">HashSet</span>::new();
+    <span class="k">foreach</span> (n in [<span class="s">&quot;Ann&quot;</span>, <span class="s">&quot;Bo&quot;</span>, <span class="s">&quot;Cy&quot;</span>, <span class="s">&quot;Di&quot;</span>])
+    {
+        <span class="p">HashSet</span>::insert(&amp;<span class="k">mut</span> monday, n);
+    }
+    <span class="k">foreach</span> (n in [<span class="s">&quot;Cy&quot;</span>, <span class="s">&quot;Ed&quot;</span>, <span class="s">&quot;Ann&quot;</span>])
+    {
+        <span class="p">HashSet</span>::insert(&amp;<span class="k">mut</span> tuesday, n);
+    }
+    show(<span class="s">&quot;either day:&quot;</span>, &amp;<span class="p">HashSet</span>::union(&amp;monday, &amp;tuesday));
+    show(<span class="s">&quot;both days:&quot;</span>, &amp;<span class="p">HashSet</span>::intersection(&amp;monday, &amp;tuesday));
+    show(<span class="s">&quot;monday only:&quot;</span>, &amp;<span class="p">HashSet</span>::difference(&amp;monday, &amp;tuesday));
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>either day:   Ann Bo Cy Di Ed
+both days:    Ann Cy
+monday only:  Bo Di
+</pre></div></figure>
 <h3><code>Queue&lt;T&gt;</code> and <code>PriorityQueue&lt;T&gt;</code></h3>
 <p><em>In <code>std::collections</code>.</em></p>
 <p>A <code>Queue&lt;T&gt;</code> hands elements back in the order they arrived: <code>push_back</code> adds at the back,
