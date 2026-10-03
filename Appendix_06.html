@@ -156,7 +156,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.100305</div>
+<div class="sub">Specification edition 2026.100306</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -323,7 +323,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100305</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100306</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -5603,7 +5603,7 @@ joining, searching and reversing. <code>filled</code> and <code>extend_from</cod
     <span class="p">assert</span>(<span class="p">String</span>::eq_str(&amp;names[<span class="n">0</span>], <span class="s">&quot;x&quot;</span>));
 }</code></pre></figure>
 <p>A <code>String</code> in hand can be searched and split directly: <code>String::find</code>, <code>starts_with</code>,
-<code>ends_with</code>, <code>trim</code> and <code>split</code> are the <code>StringView</code> functions applied to the whole-string view
+<code>ends_with</code>, <code>contains</code>, <code>replace</code>, <code>trim</code> and <code>split</code> are the <code>StringView</code> functions applied to the whole-string view
 <code>&amp;s[0..$]</code>. And a map keyed by <code>String</code> can be asked with a literal: <code>HashMap::get_str</code>,
 <code>contains_str</code> and <code>remove_str</code> find the entry a <code>String</code> of the same text would, without building
 one (D-0113).</p>
@@ -5807,9 +5807,12 @@ prints with <code>%s</code>, compares with <code>==</code> to another view or a 
 <tr><td><code>StringView::trim(v)</code>, <code>trim_start</code>, <code>trim_end</code></td><td>the view without ASCII white space at its ends</td></tr>
 <tr><td><code>StringView::split(v, &quot;,&quot;)</code></td><td>a <code>Vec&lt;StringView&gt;</code> of the parts, each a view of the same <code>String</code></td></tr>
 <tr><td><code>StringView::chars(v)</code></td><td>a <code>Vec&lt;StringView&gt;</code> of its characters, in order, one view each (D-0128)</td></tr>
+<tr><td><code>StringView::contains(v, t)</code></td><td><code>bool</code>: whether the text of <code>t</code> occurs in <code>v</code> (D-0139)</td></tr>
+<tr><td><code>StringView::replace(v, from, to)</code></td><td>a new <code>String</code>: <code>v</code> with every occurrence of <code>from</code> replaced by <code>to</code>, left to right, no overlap; an empty <code>from</code> occurs nowhere</td></tr>
+<tr><td><code>StringView::join(&amp;parts[0..$], sep)</code>, <code>String::join(&amp;strings[0..$], sep)</code></td><td>a new <code>String</code>: the parts with <code>sep</code> between each two; the inverse of <code>split</code></td></tr>
 <tr><td><code>StringView::parse&lt;T&gt;(v)</code></td><td>a number, as <code>String::parse</code></td></tr>
 <tr><td><code>String::from_view(v)</code>, <code>String::append(&amp;mut s, v)</code></td><td>the text copied into a <code>String</code></td></tr>
-<tr><td><code>String::find(&amp;s, t)</code>, <code>starts_with</code>, <code>ends_with</code>, <code>trim</code>, <code>trim_start</code>, <code>trim_end</code>, <code>split</code>, <code>chars</code>, <code>as_view</code></td><td>the same, straight from a <code>String</code>: each is the <code>StringView::</code> function applied to <code>&amp;s[0..$]</code>, the whole-string view (D-0113)</td></tr>
+<tr><td><code>String::find(&amp;s, t)</code>, <code>starts_with</code>, <code>ends_with</code>, <code>contains</code>, <code>replace</code>, <code>trim</code>, <code>trim_start</code>, <code>trim_end</code>, <code>split</code>, <code>chars</code>, <code>as_view</code></td><td>the same, straight from a <code>String</code>: each is the <code>StringView::</code> function applied to <code>&amp;s[0..$]</code>, the whole-string view (D-0113)</td></tr>
 </tbody>
 </table>
 <p>Text that a function only reads is a <code>StringView</code> throughout <code>std</code>: a file's path, the text
@@ -5871,6 +5874,38 @@ argument, and a function returning views may borrow only one thing, §10.)</p>
     <span class="p">assert</span>(area == <span class="n">1920</span>);
     <span class="p">printf</span>(<span class="s">&quot;%s -&gt; %d\n&quot;</span>, args, area);
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>width=80, height = 24 -&gt; 1920
+</pre></div></figure>
+<p>Three questions come up so often that they have their own names (D-0139). <code>contains</code> is
+<code>find</code> with a yes-or-no answer. <code>replace</code> makes a new <code>String</code> with every occurrence of one text
+replaced by another, scanning left to right so occurrences never overlap; the empty text occurs
+nowhere, so replacing it changes nothing. <code>join</code> is the inverse of <code>split</code>: the parts with a
+separator between each two, from a slice of views (what <code>split</code> gives) or a slice of <code>String</code>s
+(what a program builds). Each takes its texts as <code>StringView</code>s, so a literal, a <code>String</code>'s
+<code>&amp;s[0..$]</code> and another view all serve.</p>
+<figure class="code"><div class="code-head"><span class="code-title">contains, replace and join</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    <span class="p">String</span> path = <span class="p">String</span>::from_str(<span class="s">&quot;/usr/local/lib/cobaltc&quot;</span>);
+    <span class="p">assert</span>(<span class="p">String</span>::contains(&amp;path, <span class="s">&quot;/local/&quot;</span>) &amp;&amp; !<span class="p">String</span>::contains(&amp;path, <span class="s">&quot;bin&quot;</span>));
+
+    <span class="p">String</span> windows = <span class="p">String</span>::replace(&amp;path, <span class="s">&quot;/&quot;</span>, <span class="s">&quot;\\&quot;</span>);          <span class="c">// a new String; path unchanged</span>
+    <span class="p">printf</span>(<span class="s">&quot;%s\n&quot;</span>, &amp;windows);
+    <span class="p">String</span> aaa = <span class="p">String</span>::from_str(<span class="s">&quot;aaa&quot;</span>);
+    <span class="p">printf</span>(<span class="s">&quot;%s\n&quot;</span>, &amp;<span class="p">String</span>::replace(&amp;aaa, <span class="s">&quot;aa&quot;</span>, <span class="s">&quot;b&quot;</span>));            <span class="c">// left to right, no overlap: &quot;ba&quot;</span>
+
+    <span class="p">Vec</span>&lt;<span class="p">StringView</span>&gt; parts = <span class="p">String</span>::split(&amp;path, <span class="s">&quot;/&quot;</span>);          <span class="c">// &quot;&quot;, &quot;usr&quot;, &quot;local&quot;, &quot;lib&quot;, &quot;cobaltc&quot;</span>
+    <span class="p">printf</span>(<span class="s">&quot;%s\n&quot;</span>, &amp;<span class="p">StringView</span>::<span class="p">join</span>(&amp;parts[<span class="n">1</span>..$], <span class="s">&quot; &gt; &quot;</span>));
+    <span class="p">assert</span>(<span class="p">StringView</span>::<span class="p">join</span>(&amp;parts[<span class="n">0</span>..$], <span class="s">&quot;/&quot;</span>) == path);        <span class="c">// join undoes split</span>
+
+    <span class="p">Vec</span>&lt;<span class="p">String</span>&gt; names = <span class="p">Vec</span>::new();
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> names, <span class="p">String</span>::from_str(<span class="s">&quot;ada&quot;</span>));
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> names, <span class="p">String</span>::from_str(<span class="s">&quot;grace&quot;</span>));
+    <span class="p">printf</span>(<span class="s">&quot;%s\n&quot;</span>, &amp;<span class="p">String</span>::<span class="p">join</span>(&amp;names[<span class="n">0</span>..$], <span class="s">&quot;, &quot;</span>));
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>\usr\local\lib\cobaltc
+ba
+usr &gt; local &gt; lib &gt; cobaltc
+ada, grace
 </pre></div></figure>
 <figure class="code"><div class="code-head"><span class="code-title">The viewed String cannot change</span><span class="badge bad">rejected: diag.aliasing-conflict</span></div><pre><code><span class="k">import</span> std;
 
