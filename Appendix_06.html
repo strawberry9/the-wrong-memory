@@ -156,7 +156,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.100302</div>
+<div class="sub">Specification edition 2026.100303</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -323,7 +323,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100302</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100303</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -886,7 +886,7 @@ nested, literal and text patterns, <code>if</code> and <code>while</code> (eithe
 <tr><td>Conversions</td><td><code>widen</code>, <code>narrow</code>, <code>checked_narrow</code>, <code>narrow_wrapping</code>, <code>reinterpret</code>, <code>to_float</code>, <code>to_int</code></td></tr>
 <tr><td>Bits</td><td><code>count_ones</code>, <code>leading_zeros</code>, <code>trailing_zeros</code>, <code>rotate_left</code>, <code>rotate_right</code></td></tr>
 <tr><td>Arithmetic</td><td><code>wrapping_add</code>/<code>sub</code>/<code>mul</code>, <code>saturating_add</code>/<code>sub</code>/<code>mul</code>, <code>checked_add</code>/<code>sub</code>/<code>mul</code>/<code>div</code>/<code>rem</code>, <code>checked_neg</code></td></tr>
-<tr><td>Numeric limits and float functions</td><td><code>min_value</code>, <code>max_value</code>, <code>sqrt</code>, <code>floor</code>, <code>ceil</code>, <code>round</code>, <code>trunc</code>, <code>ln</code>, <code>exp</code>, <code>log2</code>, <code>log10</code>, <code>sin</code>, <code>cos</code>, <code>tan</code>, <code>atan2</code>, <code>powf</code></td></tr>
+<tr><td>Numeric limits</td><td><code>min_value</code>, <code>max_value</code></td></tr>
 <tr><td>Layout</td><td><code>sizeof</code>, <code>alignof</code></td></tr>
 <tr><td><code>str</code> and slices</td><td><code>str_len</code>, <code>str_byte</code>, <code>str_ptr</code>, <code>slice_len</code></td></tr>
 <tr><td>Faults and compile-time checks</td><td><code>fault</code>, <code>static_assert</code></td></tr>
@@ -903,22 +903,28 @@ that begin with <code>$</code>: the machinery <code>std</code>'s own code is bui
 <code>std</code>'s private extern <code>stderr_write</code>, which <code>eprintf</code> writes through.</p>
 <h3>std: needs import std;</h3>
 <p>Mostly written in CobaltC itself; a few parts are provided natively by each
-implementation. <a href="#s21">§21</a> covers it in full.</p>
+implementation. <code>std</code> is divided into submodules by subject, and <code>import std;</code> brings in all of
+them, so a program never needs to know which holds what; the column says, for a program that wants
+one subject alone (<code>import std::text;</code>). <a href="#s21">§21</a> covers it in full.</p>
 <table>
-<thead><tr><th>Area</th><th>Items</th></tr></thead>
+<thead><tr><th>Area</th><th>Items</th><th>Submodule</th></tr></thead>
 <tbody>
-<tr><td>Core types</td><td><code>Option&lt;T&gt;</code>, <code>Result&lt;T, E&gt;</code>, <code>AllocError</code>, <code>Utf8Error</code>, <code>ParseError</code>; <code>unwrap</code>, <code>unwrap_or</code>, <code>expect</code>, <code>ok_or</code>, <code>is_some</code>/<code>is_none</code>/<code>is_ok</code>/<code>is_err</code>; <code>map_err</code>; each error's <code>text</code></td></tr>
-<tr><td>Collections</td><td><code>Vec&lt;T&gt;</code> (push, pop, index, insert, remove, clone, from_slice, filled, from_fn, append, contains, position, reverse, truncate, swap, clear, …), <code>HashMap&lt;K, V&gt;</code>, <code>HashSet&lt;K&gt;</code></td></tr>
-<tr><td>Sorting</td><td><code>Vec::sort</code>, <code>sort_by</code>, <code>binary_search</code>, <code>binary_search_by</code></td></tr>
-<tr><td>Ownership helpers</td><td><code>Box&lt;T&gt;</code>, <code>Rc&lt;T&gt;</code>, <code>Weak&lt;T&gt;</code>, <code>swap</code>, <code>replace</code>, <code>overwrite</code></td></tr>
-<tr><td>Numeric helpers</td><td><code>min</code>, <code>max</code>, <code>abs</code>, <code>pow</code> (over the built-in bounds); <code>Rng</code>, a seeded pseudo-random generator</td></tr>
-<tr><td>Bytes</td><td><code>Vec::push_le</code>, <code>push_be</code>, <code>read_le</code>, <code>read_be</code>, <code>crc32</code></td></tr>
-<tr><td>Text</td><td><code>String</code>, <code>StringView</code> (split, chars, find, trim, starts/ends_with, parse), <code>String::parse&lt;T&gt;</code>, <code>String::append</code>, the ASCII tests and case changes</td></tr>
-<tr><td>Output</td><td><code>printf</code>, <code>eprintf</code>, <code>sprintf</code>, <code>String::appendf</code>, <code>assert</code>; the extern <code>stdout_write</code></td></tr>
-<tr><td>Input and arguments</td><td><code>read_line</code>, <code>arg_count</code>, <code>arg</code>; the externs <code>stdin_read</code> and <code>arg_bytes</code></td></tr>
-<tr><td>Files</td><td><code>File</code> (open, create, append, open_rw, read, read_line, write, seek, len, close, …), <code>read_file</code>, <code>write_file</code>, <code>read_bytes</code>, <code>write_bytes</code>, <code>FileError</code></td></tr>
-<tr><td>System</td><td><code>make_dir</code>, <code>remove_file</code>, <code>remove_dir</code>, <code>rename</code>, <code>list_dir</code>, <code>path_kind</code>, <code>env_var</code>, <code>current_dir</code>, <code>monotonic_ns</code>, <code>unix_seconds</code>, <code>sleep_ms</code></td></tr>
-<tr><td>Concurrency</td><td><code>Channel&lt;T&gt;</code> (new, send, recv, close)</td></tr>
+<tr><td>Core types</td><td><code>Option&lt;T&gt;</code>, <code>Result&lt;T, E&gt;</code>, <code>AllocError</code>; <code>unwrap</code>, <code>unwrap_or</code>, <code>expect</code>, <code>ok_or</code>, <code>is_some</code>/<code>is_none</code>/<code>is_ok</code>/<code>is_err</code>; <code>map_err</code></td><td><code>std::core</code></td></tr>
+<tr><td>Collections</td><td><code>Vec&lt;T&gt;</code> (push, pop, index, insert, remove, clone, from_slice, filled, from_fn, append, contains, position, reverse, truncate, swap, clear, …), <code>HashMap&lt;K, V&gt;</code>, <code>HashSet&lt;K&gt;</code></td><td><code>std::collections</code></td></tr>
+<tr><td>Sorting</td><td><code>Vec::sort</code>, <code>sort_by</code>, <code>binary_search</code>, <code>binary_search_by</code></td><td><code>std::collections</code></td></tr>
+<tr><td>Ownership helpers</td><td><code>Box&lt;T&gt;</code>, <code>Rc&lt;T&gt;</code>, <code>Weak&lt;T&gt;</code></td><td><code>std::memory</code></td></tr>
+<tr><td>Values behind references</td><td><code>swap</code>, <code>replace</code>, <code>overwrite</code></td><td><code>std::core</code></td></tr>
+<tr><td>Numeric helpers</td><td><code>min</code>, <code>max</code>, <code>abs</code>, <code>pow</code> (over the built-in bounds)</td><td><code>std::core</code></td></tr>
+<tr><td>Floating-point functions</td><td><code>sqrt</code>, <code>floor</code>, <code>ceil</code>, <code>round</code>, <code>trunc</code>, <code>ln</code>, <code>exp</code>, <code>log2</code>, <code>log10</code>, <code>sin</code>, <code>cos</code>, <code>tan</code>, <code>atan2</code>, <code>powf</code></td><td><code>std::math</code></td></tr>
+<tr><td>Random numbers</td><td><code>Rng</code>, a seeded pseudo-random generator</td><td><code>std::random</code></td></tr>
+<tr><td>Bytes</td><td><code>Vec::push_le</code>, <code>push_be</code> (<code>std::collections</code>); <code>read_le</code>, <code>read_be</code>, <code>crc32</code></td><td><code>std::text</code></td></tr>
+<tr><td>Text</td><td><code>String</code>, <code>StringView</code> (split, chars, find, trim, starts/ends_with, parse), <code>String::parse&lt;T&gt;</code>, <code>String::append</code>, <code>sprintf</code>, <code>String::appendf</code>, the ASCII tests and case changes, <code>Utf8Error</code>, <code>ParseError</code></td><td><code>std::text</code></td></tr>
+<tr><td>Output</td><td><code>printf</code>, <code>eprintf</code>; the extern <code>stdout_write</code></td><td><code>std::io</code></td></tr>
+<tr><td>Checks</td><td><code>assert</code></td><td><code>std::core</code></td></tr>
+<tr><td>Input</td><td><code>read_line</code>; the extern <code>stdin_read</code></td><td><code>std::io</code></td></tr>
+<tr><td>Files</td><td><code>File</code> (open, create, append, open_rw, read, read_line, write, seek, len, close, …), <code>read_file</code>, <code>write_file</code>, <code>read_bytes</code>, <code>write_bytes</code>, <code>FileError</code></td><td><code>std::io</code></td></tr>
+<tr><td>The system</td><td><code>arg_count</code>, <code>arg</code> and the extern <code>arg_bytes</code>; <code>make_dir</code>, <code>remove_file</code>, <code>remove_dir</code>, <code>rename</code>, <code>list_dir</code>, <code>path_kind</code>, <code>env_var</code>, <code>current_dir</code>, <code>monotonic_ns</code>, <code>unix_seconds</code>, <code>sleep_ms</code></td><td><code>std::sys</code></td></tr>
+<tr><td>Concurrency</td><td><code>Channel&lt;T&gt;</code> (new, send, recv, close)</td><td><code>std::sync</code></td></tr>
 </tbody>
 </table>
 <h3>What may surprise you</h3>
@@ -927,6 +933,7 @@ implementation. <a href="#s21">§21</a> covers it in full.</p>
 <li><code>Vec</code>, <code>String</code> and <code>Option</code> are <code>std</code>, but <code>array</code>, <code>str</code>, <code>slice</code>, <code>handle</code> and <code>mutex</code> are core.</li>
 <li><code>swap</code>, the one to use, is <code>std</code>; <code>swap_places</code>, which it is built on, is private to <code>std</code>.</li>
 <li><code>min</code> and <code>max</code> are <code>std</code>; <code>min_value</code> and <code>max_value</code> are core.</li>
+<li><code>sqrt</code>, <code>round</code> and the other floating-point functions are <code>std</code> (<code>std::math</code>), not core: they are ordinary library functions, so they need the import, and a function of your own named <code>round</code> is an ordinary name.</li>
 </ul>
 
 <nav class="pager"><a class="prev" href="#tour">&larr; A tour in one program</a><a class="top" href="#top">Top</a><a class="next" href="#s06">§06 Arithmetic and numeric types &rarr;</a></nav></section>
@@ -4021,7 +4028,8 @@ imports would give one name two meanings, qualify.</p>
     std::<span class="p">assert</span>(maths::square(<span class="n">7</span>) == <span class="n">49</span>);    <span class="c">// the qualified form still works</span>
 }</code></pre></figure>
 <p><code>import m;</code> naming a module does two things: <code>m</code> itself resolves, as with any import, and
-every item <code>m</code> exports, including the variants of its exported enums, can be used unqualified. This
+every item <code>m</code> exports, including the variants of its exported enums, can be used unqualified, except
+its submodules, which keep their paths (<code>std::text</code>) or are imported themselves. This
 is how programs use the standard library: <code>import std;</code>. A name is looked up in a fixed order: the
 module's own declarations first, then single-name imports, then module imports, then the
 enclosing modules. So a module's own <code>printf</code> wins over <code>std::printf</code>, which stays reachable by its
@@ -4066,6 +4074,57 @@ a module in a file of its own, writes its own <code>import std;</code>.</p>
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>square
 &gt; done
 </pre></div></figure>
+<h3>Re-export: <code>export import</code></h3>
+<p>An <code>import</code> can be exported like any other declaration. <code>export import p;</code> in a module <code>M</code>
+does what <code>import p;</code> does, and also passes on what <code>p</code> brings in as <code>M</code>'s own items: every item
+the module <code>p</code> exports, or the one item <code>p</code> names. A program that imports <code>M</code> then finds those names
+as if <code>M</code> had declared them, and <code>M::name</code> works too. They are the same items, not copies: a type
+passed on this way is one type under two paths. This is how a library divided into modules is still
+used with one import, and how <code>std</code> itself is built (§21): <code>import std;</code> brings in <code>std::text</code>,
+<code>std::io</code> and the rest because <code>std</code> re-exports each of them.</p>
+<figure class="code"><div class="code-head"><span class="code-title">One import for a library in parts</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">module</span> geometry
+{
+    <span class="k">export</span> <span class="k">module</span> shapes
+    {
+        <span class="k">export</span> <span class="k">struct</span> Square
+        {
+            <span class="k">export</span> <span class="t">i32</span> side;
+        }
+
+        <span class="k">export</span> <span class="k">fn</span> area(Square s) : <span class="t">i32</span>
+        {
+            s.side * s.side
+        }
+    }
+
+    <span class="k">export</span> <span class="k">module</span> units
+    {
+        <span class="k">export</span> <span class="k">fn</span> cm(<span class="t">i32</span> n) : <span class="t">i32</span>
+        {
+            n * <span class="n">10</span>
+        }
+    }
+
+    <span class="k">export</span> <span class="k">import</span> geometry::shapes;   <span class="c">// shapes&#x27; items become geometry&#x27;s</span>
+    <span class="k">export</span> <span class="k">import</span> geometry::units::cm;     <span class="c">// one item only</span>
+}
+
+<span class="k">import</span> geometry;
+
+<span class="k">fn</span> main()
+{
+    Square s = Square { .side = cm(<span class="n">2</span>) };      <span class="c">// geometry::shapes::Square, through geometry</span>
+    <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, area(s));
+    geometry::shapes::Square t = geometry::Square { .side = <span class="n">1</span> };   <span class="c">// one type, two paths</span>
+    <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, area(t));
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>400
+1
+</pre></div></figure>
+<p>Only what is exported passes through: a private item never becomes reachable by being
+re-exported. A name the module already has for a different item is <code>diag.duplicate-item</code>; the same
+item arriving twice, or two modules re-exporting each other, is not an error.</p>
 <h3>Constants</h3>
 <p><code>const τ NAME = e;</code> names a value, at the top level of any module. <code>NAME</code> can be used
 wherever its value could, with the visibility, <code>export</code>, <code>import</code> and qualified paths of any item.
@@ -4747,7 +4806,7 @@ mutex field is its own lock.</p>
     <span class="p">assert</span>(g.hits == <span class="n">2</span> &amp;&amp; <span class="p">Vec</span>::len(&amp;g.seen) == <span class="n">2</span> &amp;&amp; *<span class="p">lock</span>(&amp;b.rounds) == <span class="n">2</span>);
 }</code></pre></figure>
 <h3>Passing values: <code>Channel</code></h3>
-<p>A <code>Channel&lt;T&gt;</code> from <code>std</code> is a queue between threads, shared by reference as a mutex is.
+<p>A <code>Channel&lt;T&gt;</code> from <code>std</code> (<code>std::sync</code>) is a queue between threads, shared by reference as a mutex is.
 <code>Channel::new(cap)</code> holds at most <code>cap</code> values (at least 1). <code>Channel::send(&amp;ch, v)</code> moves <code>v</code> in,
 waiting while the channel is full; <code>Channel::recv(&amp;ch)</code> moves the oldest value out as <code>Some(v)</code>,
 waiting while it is empty. A value in a channel has one owner, the channel, so a <code>String</code> or a
@@ -5134,6 +5193,34 @@ joins <code>std</code> when it names one very common intent, so that its name sa
 would otherwise have to be read to discover; one that is only shorter, not clearer, stays out. Being
 a module, it keeps its private parts private: no program can touch <code>Vec</code>'s length or buffer,
 <code>String</code>'s bytes, a <code>HashMap</code>'s table or <code>Rc</code>'s count.</p>
+<p><code>std</code> is divided into submodules by subject, and its root passes each one's items on as its
+own (<code>export import</code>, §17), so <code>import std;</code> brings in everything and <code>std::Vec</code> names the same type
+as <code>std::collections::Vec</code>. A program that wants one subject alone may import just that one:</p>
+<table>
+<thead><tr><th>Submodule</th><th>What it holds</th></tr></thead>
+<tbody>
+<tr><td><code>std::core</code></td><td><code>Option</code>, <code>Result</code>, <code>AllocError</code>, <code>assert</code>, <code>swap</code>, <code>replace</code>, <code>overwrite</code>, <code>min</code>, <code>max</code>, <code>abs</code>, <code>pow</code></td></tr>
+<tr><td><code>std::collections</code></td><td><code>Vec</code> (with sorting), <code>HashMap</code>, <code>HashSet</code></td></tr>
+<tr><td><code>std::text</code></td><td><code>String</code>, <code>StringView</code>, <code>sprintf</code>, <code>String::appendf</code>, the ASCII functions, <code>Utf8Error</code>, <code>ParseError</code>, <code>read_le</code>, <code>read_be</code>, <code>crc32</code></td></tr>
+<tr><td><code>std::io</code></td><td><code>printf</code>, <code>eprintf</code>, <code>read_line</code>, <code>File</code>, <code>FileError</code>, <code>read_file</code>, <code>write_file</code>, <code>read_bytes</code>, <code>write_bytes</code></td></tr>
+<tr><td><code>std::sys</code></td><td><code>arg_count</code>, <code>arg</code>, the directory functions, <code>env_var</code>, <code>current_dir</code>, the clocks, <code>sleep_ms</code></td></tr>
+<tr><td><code>std::memory</code></td><td><code>Box</code>, <code>Rc</code>, <code>Weak</code></td></tr>
+<tr><td><code>std::sync</code></td><td><code>Channel</code></td></tr>
+<tr><td><code>std::random</code></td><td><code>Rng</code></td></tr>
+<tr><td><code>std::math</code></td><td><code>sqrt</code>, <code>floor</code>, <code>ceil</code>, <code>round</code>, <code>trunc</code>, <code>ln</code>, <code>exp</code>, <code>log2</code>, <code>log10</code>, <code>sin</code>, <code>cos</code>, <code>tan</code>, <code>atan2</code>, <code>powf</code></td></tr>
+</tbody>
+</table>
+<figure class="code"><div class="code-head"><span class="code-title">One subject at a time</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std::text;
+<span class="k">import</span> std::io;
+
+<span class="k">fn</span> main()
+{
+    <span class="p">String</span> s = <span class="p">String</span>::from_str(<span class="s">&quot;only text and output&quot;</span>);
+    <span class="p">printf</span>(<span class="s">&quot;%s\n&quot;</span>, &amp;s);
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>only text and output
+</pre></div></figure>
+<p>This guide writes <code>import std;</code> and the short names throughout; each part below says which
+submodule it lives in.</p>
 <p><strong>The intrinsics and the text value type <code>str</code> are not part of <code>std</code>.</strong> They belong
 to the language itself and need no import. This section keeps the two apart, as the specification's
 tables do: the intrinsics first, then <code>std</code> at a glance, then each part of <code>std</code> in turn.</p>
@@ -5188,8 +5275,6 @@ name means, and the intrinsic is used only where there is none.</p>
 <tr><td><code>count_ones(x)</code>, <code>leading_zeros(x)</code>, <code>trailing_zeros(x)</code>, <code>rotate_left(x, k)</code>, <code>rotate_right(x, k)</code></td><td>an integer's bits</td><td>§06</td></tr>
 <tr><td><code>sizeof&lt;T&gt;()</code>, <code>alignof&lt;T&gt;()</code></td><td>layout queries, in bytes</td><td>§06, §16</td></tr>
 <tr><td><code>min_value&lt;T&gt;()</code>, <code>max_value&lt;T&gt;()</code></td><td>a number type's smallest and largest value (a float's finite extremes)</td><td>§06</td></tr>
-<tr><td><code>sqrt(x)</code>, <code>floor(x)</code>, <code>ceil(x)</code>, <code>round(x)</code>, <code>trunc(x)</code></td><td>an <code>f32</code> or <code>f64</code>'s square root and its roundings to an integral value (<code>round</code>: halfway cases away from zero), exact or correctly rounded, so the same bits everywhere</td><td>§06</td></tr>
-<tr><td><code>ln(x)</code>, <code>exp(x)</code>, <code>log2(x)</code>, <code>log10(x)</code>, <code>sin(x)</code>, <code>cos(x)</code>, <code>tan(x)</code>, <code>atan2(y, x)</code>, <code>powf(x, y)</code></td><td>an <code>f32</code> or <code>f64</code>'s logarithms, exponential, trigonometry and power, from the platform's maths library (within one unit in the last place; the two operands of <code>atan2</code> and <code>powf</code> of one type)</td><td>§06</td></tr>
 </tbody>
 </table>
 <h4>Text, slices, checks and faults</h4>
@@ -5256,12 +5341,16 @@ is the rest, for finding a name quickly.</p>
 <tr><td><code>String::parse&lt;T&gt;(&amp;s)</code></td><td>read a whole <code>String</code> as a number of type <code>T</code></td><td>§21</td></tr>
 <tr><td><code>min(a, b)</code>, <code>max(a, b)</code></td><td>the smaller or larger of two values of an <code>ordered</code> type (§12)</td><td>§21</td></tr>
 <tr><td><code>abs(x)</code>, <code>pow(x, n)</code></td><td>absolute value and power (<code>n</code> a <code>u32</code>) of a <code>number</code> type (§12), checked as the operators they use</td><td>§21</td></tr>
+<tr><td><code>sqrt(x)</code>, <code>floor(x)</code>, <code>ceil(x)</code>, <code>round(x)</code>, <code>trunc(x)</code></td><td>an <code>f32</code> or <code>f64</code>'s square root and its roundings to an integral value (<code>round</code>: halfway cases away from zero), exact or correctly rounded, so the same bits everywhere</td><td>§21</td></tr>
+<tr><td><code>ln(x)</code>, <code>exp(x)</code>, <code>log2(x)</code>, <code>log10(x)</code>, <code>sin(x)</code>, <code>cos(x)</code>, <code>tan(x)</code>, <code>atan2(y, x)</code>, <code>powf(x, y)</code></td><td>an <code>f32</code> or <code>f64</code>'s logarithms, exponential, trigonometry and power, from the platform's maths library (within one unit in the last place; the two operands of <code>atan2</code> and <code>powf</code> of one type)</td><td>§21</td></tr>
 </tbody>
 </table>
 <p><code>abs</code> and <code>pow</code> are checked like the operators they use: <code>abs</code> of a signed type's minimum, or a
-power that does not fit, is <code>diag.arith-overflow</code>. The logarithms, the exponential, the
-trigonometric functions and <code>powf</code> are intrinsics (above), taken from the platform's maths library,
-so their last bit may differ between platforms; <code>sqrt</code> and the roundings are exact everywhere.</p>
+power that does not fit, is <code>diag.arith-overflow</code>. The floating-point functions (<code>std::math</code>) take
+an <code>f32</code> or an <code>f64</code> and give the same type; an integer is converted first, <code>sqrt(to_float&lt;f64&gt;(n))</code>.
+The logarithms, the exponential, the trigonometric functions and <code>powf</code> come from the platform's
+maths library, so their last bit may differ between platforms; <code>sqrt</code> and the roundings are exact
+everywhere.</p>
 <h3><code>str</code></h3>
 <p>CobaltC has two text types, and the short version is: <strong><code>str</code> is a text constant,
 <code>String</code> is text you own.</strong> Fixed text you write in your program is a <code>str</code>; text you build,
@@ -5322,6 +5411,7 @@ would have written by hand, and admits <code>\xNN</code> for any byte value (and
 otherwise). Use it where bytes are the honest type, such as data handed to <code>stdout_write</code> or to a
 validator.</p>
 <h3><code>Vec&lt;T&gt;</code></h3>
+<p><em>In <code>std::collections</code>.</em></p>
 <p>A growable array with a raw buffer, a length and a capacity. It is a <code>resource</code> whose
 destructor destroys each element and frees the buffer. A plain element is copied when read
 (<code>v[i]</code>); a resource element is only borrowed, or moved out by <code>pop</code> or <code>remove</code>, never copied (so
@@ -5553,6 +5643,7 @@ the <code>Vec</code> is destroyed.</p>
 <code>copy_raw</code> and <code>deallocate</code>. Reading it in the specification is the best way to see how the
 pieces of §07 and §20 fit together.</div>
 <h3><code>String</code></h3>
+<p><em>In <code>std::text</code>.</em></p>
 <p>A <code>String</code> is a <code>Vec&lt;u8&gt;</code> that is known to be valid UTF-8: owned, heap-allocated text,
 a resource. <code>String::new()</code> makes an empty one, <code>String::from_str</code> copies a <code>str</code>'s bytes
 (already valid, so nothing is checked), and <code>String::from_utf8</code> validates bytes that came from
@@ -5634,6 +5725,7 @@ Unicode case is not provided.</p>
     }
 }</code></pre></figure>
 <h3><code>StringView</code>: part of a <code>String</code>, without copying</h3>
+<p><em>In <code>std::text</code>.</em></p>
 <p><code>&amp;s[i..j]</code> on a <code>String</code> gives a <code>StringView</code>: a read-only view of the bytes <code>i</code> to <code>j</code>,
 with no copy. Positions are byte positions, <code>$</code> is the length, and both ends must fall on a
 character boundary (cutting through a multi-byte character is <code>diag.not-char-boundary</code>). A view
@@ -5806,6 +5898,7 @@ rule). Going from <code>str</code> to <code>String</code> is an explicit call th
 <code>String</code> back into a <code>str</code>: a <code>str</code> is always a literal's value, so it cannot refer to bytes that
 something else owns.</p>
 <h3>Printing: <code>printf</code></h3>
+<p><em>In <code>std::io</code> (<code>printf</code>, <code>eprintf</code>) and <code>std::text</code> (<code>sprintf</code>, <code>String::appendf</code>).</em></p>
 <p><code>printf</code> is the one way a program writes output. It is C's, with one difference that matters: the format is checked against its
 arguments when the program is compiled. The format must be a string literal; each <code>%</code> specifier
 must match its argument's type and there must be exactly one argument per specifier, or the
@@ -6020,6 +6113,7 @@ ok
     <span class="p">assert</span>(<span class="p">String</span>::len(&amp;s) == <span class="n">2</span>);
 }</code></pre></figure>
 <h3>Reading input</h3>
+<p><em>In <code>std::io</code>.</em></p>
 <p><code>read_line()</code> reads the next line of standard input. It returns a
 <code>Result&lt;Option&lt;String&gt;, FileError&gt;</code>:</p>
 <table>
@@ -6083,6 +6177,7 @@ printed with <code>printf</code> appears before the program waits.</p>
     }
 }</code></pre></figure>
 <h3>Program arguments</h3>
+<p><em>In <code>std::sys</code>.</em></p>
 <p><code>arg_count()</code> is the number of arguments the program was started with, and <code>arg(i)</code>
 is argument <code>i</code> as a <code>Result&lt;String, Utf8Error&gt;</code>. Argument 0 is the first one after the program:
 <code>coby prog.cb a b</code> and <code>cobc --run prog.cb a b</code> both give <code>a</code> and <code>b</code>, and the program's own name
@@ -6106,6 +6201,7 @@ you can call inside <code>unsafe</code> for an argument's raw bytes.</p>
 1: two
 </pre></div></figure>
 <h3>Numbers and text</h3>
+<p><em>In <code>std::text</code>.</em></p>
 <p><code>String::append(&amp;mut s, x)</code> adds to <code>s</code> exactly what <code>printf(&quot;%v&quot;, x)</code> would write, for the same
 types: a <code>str</code>, any integer, <code>f32</code>/<code>f64</code>, <code>bool</code>, a <code>StringView</code>, or another <code>String</code> through <code>&amp;</code>. So a line can be
 built piece by piece and printed, or kept, once. <code>String::parse&lt;T&gt;(&amp;s)</code> goes the other way: it reads the
@@ -6159,6 +6255,7 @@ the same value. To take a line apart first, split, trim or search it as views (<
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>total 3.75
 </pre></div></figure>
 <h3>Files</h3>
+<p><em>In <code>std::io</code>.</em></p>
 <p><code>read_file(path)</code> reads a whole file as a <code>String</code>; <code>write_file(path, text)</code> makes the
 file hold exactly <code>text</code>, creating it or replacing what it held. Both take the path, and the text,
 as a <code>StringView</code> (D-0134): a literal, <code>read_file(&quot;notes.txt&quot;)</code>, or a <code>String</code>'s whole-string view,
@@ -6201,6 +6298,7 @@ second line
 no-such-file.txt: not found
 </pre></div></figure>
 <h3>Open files: <code>File</code></h3>
+<p><em>In <code>std::io</code>.</em></p>
 <p>A <code>File</code> is an open file, for what <code>read_file</code> cannot do: bytes that are not text, files
 too large to hold, appending to a log. It is a resource, like <code>Vec</code>: it has one owner, can move to
 another thread, and its destructor closes it. <code>close</code> closes it too, and reports whether that
@@ -6254,6 +6352,7 @@ read: event 3
 byte 6 is 49
 </pre></div></figure>
 <h3>Directories, the environment and the clocks</h3>
+<p><em>In <code>std::sys</code>.</em></p>
 <p>Files live in directories, which a program can make, list and clean up; it can also read its
 environment and measure time. Paths are <code>StringView</code>s, as for files, and failures are <code>FileError</code>s.</p>
 <table>
@@ -6315,6 +6414,7 @@ work: missing
 time goes forward: true
 </pre></div></figure>
 <h3>Sorting and searching</h3>
+<p><em>In <code>std::collections</code>.</em></p>
 <p><code>Vec::sort(&amp;mut v)</code> puts a <code>Vec</code> in order: integers by value, <code>false</code> before <code>true</code>, text by
 its bytes, and a struct or enum of these field by field in declaration order (an enum by the order
 its variants are declared in, then by payload). For any other order, or any other element type, <code>Vec::sort_by(&amp;mut v, less)</code> takes a
@@ -6361,6 +6461,7 @@ that are equal keep the order they had. In a sorted <code>Vec</code>, <code>Vec:
     <span class="p">assert</span>(&amp;ps[<span class="n">1</span>].name[<span class="n">0</span>..$] == <span class="s">&quot;a&quot;</span> &amp;&amp; &amp;ps[<span class="n">2</span>].name[<span class="n">0</span>..$] == <span class="s">&quot;c&quot;</span>);   <span class="c">// equal scores keep their order</span>
 }</code></pre></figure>
 <h3><code>HashMap&lt;K, V&gt;</code> and <code>HashSet&lt;K&gt;</code></h3>
+<p><em>In <code>std::collections</code>.</em></p>
 <p><code>HashMap&lt;K, V&gt;</code> maps keys to values; <code>HashSet&lt;K&gt;</code> holds a set of keys. A key is an integer,
 a <code>bool</code>, a <code>str</code>, a <code>String</code>, or a struct whose fields (an enum whose payloads) are all keys:
 <code>struct Pos { i32 x; i32 y; }</code> keys a grid. Any other key type (a float, an array, a struct with a
@@ -6466,6 +6567,7 @@ cat: 1
     <span class="p">HashMap</span>&lt;<span class="t">f64</span>, <span class="t">str</span>&gt; m = <span class="p">HashMap</span>::new();   <span class="c">// <span class="bad">✗</span> <span class="dg">diag.type-mismatch</span> (static): f64 is not a key type</span>
 }</code></pre></figure>
 <h3><code>Rc&lt;T&gt;</code></h3>
+<p><em>In <code>std::memory</code>.</em></p>
 <p>Shared ownership as a library: a reference-counted box. <code>Rc::clone</code> makes another handle
 to the same box; the value is destroyed when the last handle is dropped. Access is read-only (a
 shared reference); put a <code>mutex</code> inside if you need mutation. <code>Rc</code> is not thread-safe.</p>
@@ -6491,6 +6593,7 @@ shared reference); put a <code>mutex</code> inside if you need mutation. <code>R
     <span class="p">drop</span>(b);                          <span class="c">// count = 0: the Vec is destroyed, then the box is freed</span>
 }</code></pre></figure>
 <h3><code>Box&lt;T&gt;</code></h3>
+<p><em>In <code>std::memory</code>.</em></p>
 <p>A value on the heap with exactly one owner: <code>Rc</code> without the count. <code>Box::new(v)</code> moves <code>v</code>
 in; <code>Box::get(&amp;b)</code> and <code>Box::get_mut(&amp;mut b)</code> borrow it; <code>Box::into_inner(b)</code> moves it back out;
 destroying the <code>Box</code> destroys the value. Its main use is a type that contains itself, which needs
@@ -6532,6 +6635,7 @@ other value.</p>
 {
 }</code></pre></figure>
 <h3><code>swap</code> and <code>replace</code></h3>
+<p><em>In <code>std::core</code>.</em></p>
 <p>A value cannot be moved out of something you hold only by reference, since that would leave
 a hole. So two values behind references are exchanged by <code>swap(&amp;mut a, &amp;mut b)</code>, and one is
 exchanged for a new value by <code>replace(&amp;mut r, v)</code>, which returns the old one. Two elements of the
