@@ -156,7 +156,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.100401</div>
+<div class="sub">Specification edition 2026.100402</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -323,7 +323,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100401</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100402</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -403,7 +403,7 @@ turn.</p>
 <tr><td>Names are unambiguous</td><td>Modules with <code>export</code>/<code>import</code>, private by default. Name resolution is a fixed, documented order.</td><td>§17</td></tr>
 <tr><td>Failure is never silent</td><td>Two channels only: a <em>checked fault</em> is fatal and unwinds destructors; recoverable errors are <code>Result</code> values with the <code>?</code> operator. There is no catch.</td><td>§18</td></tr>
 <tr><td>Threads do not race</td><td><code>spawn</code>/<code>join</code> with owning handles; a <code>mutex</code> whose interior is reachable only through a <code>lock</code> guard. The same aliasing rules apply across threads.</td><td>§19</td></tr>
-<tr><td>External data is a claim, not a fact</td><td><code>unsafe</code> blocks record what you assert. <code>rawptr&lt;T&gt;</code>, <code>reclaim</code>, <code>allocate</code> and <code>extern fn</code> are the only doors to the outside, and FFI signatures are restricted to plain types.</td><td>§20</td></tr>
+<tr><td>External data is a claim, not a fact</td><td><code>unsafe</code> blocks record what you assert. <code>rawptr&lt;T&gt;</code>, <code>reclaim</code>, <code>allocate</code> and <code>unsafe extern fn</code> are the only doors to the outside, and FFI signatures are restricted to plain types.</td><td>§20</td></tr>
 <tr><td>Text is a value, not a resource</td><td>A string literal <code>&quot;…&quot;</code> is a <code>str</code>: a copyable value like an integer, valid UTF-8 by construction, never owned or freed. <code>printf</code> writes one. Owned, growable text is <code>String</code>, built from a <code>str</code> or validated from bytes.</td><td>§21</td></tr>
 <tr><td>The library proves the language is sufficient</td><td><code>Vec&lt;T&gt;</code>, <code>String</code> and <code>Rc&lt;T&gt;</code> are written in CobaltC itself, using nothing the language does not give you.</td><td>§21</td></tr>
 </tbody>
@@ -516,7 +516,7 @@ shared back end such as LLVM or GCC's. C as the target brings:</p>
 <li><strong>Portability for free.</strong> Wherever there is a C compiler, the language can run.</li>
 <li><strong>Decades of optimisation for free.</strong> GCC's and Clang's <code>-O2</code> do register allocation, inlining, vectorisation and instruction scheduling better than a young compiler could.</li>
 <li><strong>Readable output.</strong> You can see what your program became, which is what <code>--keep-c</code> is for; LLVM IR or assembly would be far harder to read.</li>
-<li><strong>Easy C interoperation.</strong> Calling C functions and linking C libraries is natural, which is what <code>extern fn</code> (§20) needs.</li>
+<li><strong>Easy C interoperation.</strong> Calling C functions and linking C libraries is natural, which is what <code>unsafe extern fn</code> (§20) needs.</li>
 </ul>
 <h4>What it costs</h4>
 <ul>
@@ -877,7 +877,7 @@ layer each part belongs to.</p>
 generics with the built-in bounds <code>eq</code>, <code>ordered</code>, <code>number</code>, <code>integer</code> and <code>clone</code>, <code>match</code> with
 nested, literal and text patterns, <code>if</code> and <code>while</code> (either with a pattern as the condition), <code>for</code>,
 <code>foreach</code> (over collections and ranges), <code>break</code>, <code>continue</code>, <code>?</code>, <code>const</code>, modules and <code>import</code>, <code>unsafe</code>,
-<code>extern fn</code> and <code>extern &quot;code&quot;;</code>.</p>
+<code>unsafe extern fn</code> and <code>extern &quot;code&quot;;</code>.</p>
 <h4>Intrinsics</h4>
 <table>
 <thead><tr><th>Group</th><th>Names</th></tr></thead>
@@ -3350,7 +3350,7 @@ value is a literal; nothing is ever truncated. <code>Instr::bits(i)</code> is th
 <code>clone</code>, equal by its bits, a <code>HashMap</code> key, and its bytes in raw memory are the integer's. A field
 has no address of its own, so it cannot be borrowed — borrow the whole value — and a bitstruct is
 not taken apart by destructuring. Byte order is not its concern: <code>Vec::push_le</code> and <code>push_be</code> write
-it out (D-0119), and an <code>extern fn</code> takes <code>Instr::bits(i)</code>.</p>
+it out (D-0119), and an <code>unsafe extern fn</code> takes <code>Instr::bits(i)</code>.</p>
 <figure class="code"><div class="code-head"><span class="code-title">A bitstruct</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 bitstruct Double : <span class="t">u64</span>
@@ -4980,7 +4980,8 @@ rules still apply to every ordinary access inside an <code>unsafe</code> block.<
 <tr><td><code>p + n</code> (pointer offset, <code>n : isize</code>)</td><td>the result stays within, or one past the end of, one allocation or object</td></tr>
 <tr><td><code>reclaim&lt;T&gt;(p)</code></td><td>the bytes at <code>p</code> hold a valid <code>T</code> that no ordinary object owns; you now treat them as an object</td></tr>
 <tr><td><code>release(p, n)</code>, <code>copy_raw(dst, src, n)</code>, <code>deallocate(p, n, align)</code></td><td>the ranges are valid and nothing live overlaps them; <code>deallocate</code> matches one earlier <code>allocate</code></td></tr>
-<tr><td>a call to an <code>extern fn</code></td><td>the foreign code honours its signature and touches only what the pointer arguments reach</td></tr>
+<tr><td>an <code>unsafe extern fn</code> declaration</td><td>the linked code has a function of this name with exactly this signature</td></tr>
+<tr><td>a call to an <code>unsafe extern fn</code></td><td>the foreign code honours its signature and touches only what the pointer arguments reach</td></tr>
 </tbody>
 </table>
 <h3>Raw pointers</h3>
@@ -5075,9 +5076,13 @@ it is encouraged to stop with a diagnostic rather than crash, since a report nam
 crash does not; but that is a courtesy, not a rule. Keep <code>unsafe</code> blocks small, so that what each one
 promises can be read and checked by eye.</p>
 <h3>Foreign functions</h3>
-<p><code>extern fn name(params) : ret;</code> declares a function provided from outside. Parameters and
+<p><code>unsafe extern fn name(params) : ret;</code> declares a function provided from outside. Parameters and
 result may only be integers, floats, <code>bool</code>, <code>void</code> and <code>rawptr&lt;T&gt;</code>; anything else, including a
-<code>ref</code> or a struct, is rejected (<code>diag.extern-non-ffi-type</code>). Calling it needs <code>unsafe</code>. Its result
+<code>ref</code> or a struct, is rejected (<code>diag.extern-non-ffi-type</code>). The declaration itself says <code>unsafe</code>,
+as Rust 2024 requires: no tool can check that the C function really has that name and exactly those
+types, and if it does not, every call is wrong, so the promise is marked where it is made, where a
+search for <code>unsafe</code> finds it. Without <code>unsafe</code> the declaration is a syntax error. Calling it needs
+<code>unsafe</code> too, for what the function does. Its result
 is a <em>claim</em>: a genuine value of its declared type, but one whose relationship to anything
 else (that a returned length is right, that a pointer is valid) is not established until your code
 checks it.</p>
@@ -5086,15 +5091,15 @@ checks it.</p>
 <code>stdin_read</code>, which <code>read_line</code> reads through. Calling conventions and how code is linked are outside the language
 and documented by each implementation; a program names the C code it needs with <code>extern &quot;…&quot;;</code>
 (below).</p>
-<p>Both implementations call real C functions on x86-64 Linux: an <code>extern fn</code> names a
+<p>Both implementations call real C functions on x86-64 Linux: an <code>unsafe extern fn</code> names a
 function in the C library or the maths library by its declared name. The compiler passes any
 FfiType, pointers included. The interpreter's memory is simulated, so it can pass only integers,
 <code>bool</code> and floats, and reports a call that needs a pointer as unsupported rather than guessing.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Calling C functions</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
-<span class="k">extern</span> <span class="k">fn</span> <span class="p">sqrt</span>(<span class="t">f64</span> x) : <span class="t">f64</span>;          <span class="c">// from the maths library</span>
-<span class="k">extern</span> <span class="k">fn</span> labs(<span class="t">i64</span> x) : <span class="t">i64</span>;          <span class="c">// from the C library</span>
-<span class="k">extern</span> <span class="k">fn</span> toupper(<span class="t">i32</span> c) : <span class="t">i32</span>;
+<span class="k">unsafe</span> <span class="k">extern</span> <span class="k">fn</span> <span class="p">sqrt</span>(<span class="t">f64</span> x) : <span class="t">f64</span>;          <span class="c">// from the maths library</span>
+<span class="k">unsafe</span> <span class="k">extern</span> <span class="k">fn</span> labs(<span class="t">i64</span> x) : <span class="t">i64</span>;          <span class="c">// from the C library</span>
+<span class="k">unsafe</span> <span class="k">extern</span> <span class="k">fn</span> toupper(<span class="t">i32</span> c) : <span class="t">i32</span>;
 
 <span class="k">fn</span> main()
 {
@@ -5124,13 +5129,13 @@ FfiType, pointers included. The interpreter's memory is simulated, so it can pas
 </pre></div></figure>
 <figure class="code"><div class="code-head"><span class="code-title">Only plain types cross an extern boundary</span><span class="badge bad">rejected: diag.extern-non-ffi-type</span></div><pre><code><span class="k">import</span> std;
 
-<span class="k">extern</span> <span class="k">fn</span> takes_vec(<span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v);      <span class="c">// <span class="bad">✗</span> <span class="dg">diag.extern-non-ffi-type</span>: a Vec cannot cross the boundary</span>
+<span class="k">unsafe</span> <span class="k">extern</span> <span class="k">fn</span> takes_vec(<span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v);      <span class="c">// <span class="bad">✗</span> <span class="dg">diag.extern-non-ffi-type</span>: a Vec cannot cross the boundary</span>
 
 <span class="k">fn</span> main()
 {
 }</code></pre></figure>
 <h3>Your own C code</h3>
-<p><code>extern &quot;…&quot;;</code> names C code for the compiler to link, so that the program's <code>extern fn</code>
+<p><code>extern &quot;…&quot;;</code> names C code for the compiler to link, so that the program's <code>unsafe extern fn</code>
 declarations can be found in it. It can go anywhere an item can, declares no name, and can be
 repeated; each piece of code is linked once. The program still builds with nothing but
 <code>cobc main.cb</code>.</p>
@@ -5177,8 +5182,8 @@ and the values are copied into a <code>Vec</code>.</p>
 
 <span class="k">extern</span> <span class="s">&quot;./shapes.c&quot;</span>;                  <span class="c">// relative to this file</span>
 
-<span class="k">extern</span> <span class="k">fn</span> area(<span class="t">i32</span> w, <span class="t">i32</span> h) : <span class="t">i32</span>;
-<span class="k">extern</span> <span class="k">fn</span> squares(<span class="t">rawptr</span>&lt;<span class="t">i64</span>&gt; out, <span class="t">i64</span> n) : <span class="t">i64</span>;
+<span class="k">unsafe</span> <span class="k">extern</span> <span class="k">fn</span> area(<span class="t">i32</span> w, <span class="t">i32</span> h) : <span class="t">i32</span>;
+<span class="k">unsafe</span> <span class="k">extern</span> <span class="k">fn</span> squares(<span class="t">rawptr</span>&lt;<span class="t">i64</span>&gt; out, <span class="t">i64</span> n) : <span class="t">i64</span>;
 
 <span class="c">// u8 sides: the product always fits the C function&#x27;s int32_t.</span>
 <span class="k">export</span> <span class="k">fn</span> rect_area(<span class="t">u8</span> w, <span class="t">u8</span> h) : <span class="t">i32</span>
@@ -7482,7 +7487,7 @@ for looking things up; the semantics are in the earlier sections.</p>
 }
 
 <span class="c">// Foreign functions: parameters and result must be scalars, void or rawptr.</span>
-<span class="k">extern</span> <span class="k">fn</span> name(<span class="t">rawptr</span>&lt;<span class="t">u8</span>&gt; buf, <span class="t">usize</span> len) : <span class="t">isize</span>;
+<span class="k">unsafe</span> <span class="k">extern</span> <span class="k">fn</span> name(<span class="t">rawptr</span>&lt;<span class="t">u8</span>&gt; buf, <span class="t">usize</span> len) : <span class="t">isize</span>;
 
 <span class="c">// Structs and enums. `resource` marks a type that manages something.</span>
 <span class="k">struct</span> Name&lt;T&gt;
@@ -7679,7 +7684,7 @@ rule is applied statically where the checker can see the problem and dynamically
 <tr><td><code>diag.channel-deadlock</code></td><td>dynamic</td><td>the program's only running thread waits on a full or empty channel that is not closed</td><td>send or receive from another thread, or <code>close</code> the channel first</td></tr>
 <tr><td><code>diag.stack-exhausted</code></td><td>dynamic</td><td>calls nested deeper than the stack the implementation provides</td><td>recurse less deeply: a loop, or an explicit stack in a <code>Vec</code></td></tr>
 <tr><td><code>diag.trusted-outside-unsafe</code></td><td>static</td><td>a raw or extern operation outside <code>unsafe</code></td><td>wrap it in <code>unsafe</code> after checking the precondition</td></tr>
-<tr><td><code>diag.extern-non-ffi-type</code></td><td>static</td><td>an <code>extern fn</code> with a non-FFI parameter or result</td><td>pass scalars or <code>rawptr</code></td></tr>
+<tr><td><code>diag.extern-non-ffi-type</code></td><td>static</td><td>an <code>unsafe extern fn</code> with a non-FFI parameter or result</td><td>pass scalars or <code>rawptr</code></td></tr>
 <tr><td><code>diag.alloc-failure</code></td><td>dynamic</td><td><code>Vec</code> or <code>Rc</code> could not allocate</td><td>call <code>allocate</code> yourself if you need to recover</td></tr>
 </tbody>
 </table>
