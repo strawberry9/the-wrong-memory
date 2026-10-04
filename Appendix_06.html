@@ -156,7 +156,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.100402</div>
+<div class="sub">Specification edition 2026.100403</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -323,7 +323,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100402</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100403</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -404,7 +404,7 @@ turn.</p>
 <tr><td>Failure is never silent</td><td>Two channels only: a <em>checked fault</em> is fatal and unwinds destructors; recoverable errors are <code>Result</code> values with the <code>?</code> operator. There is no catch.</td><td>§18</td></tr>
 <tr><td>Threads do not race</td><td><code>spawn</code>/<code>join</code> with owning handles; a <code>mutex</code> whose interior is reachable only through a <code>lock</code> guard. The same aliasing rules apply across threads.</td><td>§19</td></tr>
 <tr><td>External data is a claim, not a fact</td><td><code>unsafe</code> blocks record what you assert. <code>rawptr&lt;T&gt;</code>, <code>reclaim</code>, <code>allocate</code> and <code>unsafe extern fn</code> are the only doors to the outside, and FFI signatures are restricted to plain types.</td><td>§20</td></tr>
-<tr><td>Text is a value, not a resource</td><td>A string literal <code>&quot;…&quot;</code> is a <code>str</code>: a copyable value like an integer, valid UTF-8 by construction, never owned or freed. <code>printf</code> writes one. Owned, growable text is <code>String</code>, built from a <code>str</code> or validated from bytes.</td><td>§21</td></tr>
+<tr><td>A text literal is a value; owned text is a resource</td><td>A string literal <code>&quot;…&quot;</code> is a <code>str</code>: a copyable value like an integer, valid UTF-8 by construction, never owned or freed. <code>printf</code> writes one. Owned, growable text is <code>String</code>, a resource: moved, destroyed at scope end, built from a <code>str</code> (a literal written where a <code>String</code> is declared becomes one there) or validated from bytes.</td><td>§21</td></tr>
 <tr><td>The library proves the language is sufficient</td><td><code>Vec&lt;T&gt;</code>, <code>String</code> and <code>Rc&lt;T&gt;</code> are written in CobaltC itself, using nothing the language does not give you.</td><td>§21</td></tr>
 </tbody>
 </table>
@@ -448,8 +448,9 @@ would change (for a test or a commit hook). It changes layout and nothing else: 
 spacing, blank lines, the <code>:</code> of a <code>match</code>'s arms and of a <code>bitstruct</code>'s fields aligned in one column, and trailing comments kept
 in theirs. Before writing, it checks that the result is the same program token for token, so
 formatting can never change what a program does. It keeps your line breaks — a short
-<code>if (n == 0) { return; }</code> stays on one line, though a function's body always opens on its own line — and a long line is broken only when you ask, with
-<code>--width N</code>. <code>cobfmt --help</code> lists the rest. Like <code>coby</code>, <code>cobfmt</code> runs on Windows as well as
+<code>if (n == 0) { return; }</code> stays on one line, though a function's body always opens on its own line — and a line longer than 120 characters
+that holds a list of arguments, parameters or array elements is broken one item per line. <code>--width N</code>
+sets another width, and <code>--no-wrap</code> leaves every line as long as it is. <code>cobfmt --help</code> lists the rest. Like <code>coby</code>, <code>cobfmt</code> runs on Windows as well as
 Linux, and it keeps a file's Windows line endings (<code>\r\n</code>) as they are.</p>
 <h3 id="intro-generated-c">Reading the C that <code>cobc</code> generates</h3>
 <p><code>cobc</code> does not produce machine code itself. Once the shared front end has checked
@@ -914,11 +915,11 @@ one subject alone (<code>import std::text;</code>). <a href="#s21">§21</a> cove
 <tr><td>Sorting</td><td><code>Vec::sort</code>, <code>sort_by</code>, <code>binary_search</code>, <code>binary_search_by</code></td><td><code>std::collections</code></td></tr>
 <tr><td>Ownership helpers</td><td><code>Box&lt;T&gt;</code>, <code>Rc&lt;T&gt;</code>, <code>Weak&lt;T&gt;</code></td><td><code>std::memory</code></td></tr>
 <tr><td>Values behind references</td><td><code>swap</code>, <code>replace</code>, <code>overwrite</code></td><td><code>std::core</code></td></tr>
-<tr><td>Numeric helpers</td><td><code>min</code>, <code>max</code>, <code>abs</code>, <code>pow</code> (over the built-in bounds)</td><td><code>std::core</code></td></tr>
+<tr><td>Numeric helpers</td><td><code>min</code>, <code>max</code>, <code>abs</code>, <code>pow</code> (over the built-in bounds)</td><td><code>std::math</code></td></tr>
 <tr><td>Floating-point functions</td><td><code>sqrt</code>, <code>floor</code>, <code>ceil</code>, <code>round</code>, <code>trunc</code>, <code>ln</code>, <code>exp</code>, <code>log2</code>, <code>log10</code>, <code>sin</code>, <code>cos</code>, <code>tan</code>, <code>atan2</code>, <code>powf</code></td><td><code>std::math</code></td></tr>
 <tr><td>Random numbers</td><td><code>Rng</code>, a seeded pseudo-random generator (<code>Rng::from_os</code> for a fresh seed); <code>os_random_bytes</code>, <code>os_random_u64</code> for secrets</td><td><code>std::random</code></td></tr>
 <tr><td>Networking</td><td><code>TcpListener</code> (bind, accept), <code>TcpStream</code> (connect, read_line, read, write, printf, shutdown_write, timeouts), <code>UdpSocket</code>, <code>IpAddr</code>, <code>SocketAddr</code>, <code>resolve</code>, <code>NetError</code></td><td><code>std::net</code></td></tr>
-<tr><td>Other programs</td><td><code>Command</code> (arg, current_dir, env, output, status, spawn), <code>Child</code> (read_output_line, write_input, wait, kill), <code>watch_interrupts</code>, <code>interrupt_requested</code></td><td><code>std::process</code></td></tr>
+<tr><td>Other programs</td><td><code>Command</code> (arg, current_dir, env, output, status, spawn), <code>Child</code> (read_output_line, write_input, wait, kill), <code>watch_interrupts</code>, <code>interrupt_requested</code>, <code>exit</code></td><td><code>std::process</code></td></tr>
 <tr><td>Bytes</td><td><code>Vec::push_le</code>, <code>push_be</code> (<code>std::collections</code>); <code>read_le</code>, <code>read_be</code>, <code>crc32</code></td><td><code>std::text</code></td></tr>
 <tr><td>Text</td><td><code>String</code>, <code>StringView</code> (split, chars, find, trim, starts/ends_with, parse), <code>String::parse&lt;T&gt;</code>, <code>String::append</code>, <code>sprintf</code>, <code>String::appendf</code>, the ASCII tests and case changes, <code>Utf8Error</code>, <code>ParseError</code></td><td><code>std::text</code></td></tr>
 <tr><td>Output</td><td><code>printf</code>, <code>eprintf</code>; the extern <code>stdout_write</code></td><td><code>std::io</code></td></tr>
@@ -927,7 +928,10 @@ one subject alone (<code>import std::text;</code>). <a href="#s21">§21</a> cove
 <tr><td>Files</td><td><code>File</code> (open, create, append, open_rw, read, read_line, write, seek, len, close, …), <code>read_file</code>, <code>write_file</code>, <code>read_bytes</code>, <code>write_bytes</code>, <code>FileError</code></td><td><code>std::io</code></td></tr>
 <tr><td>The system</td><td><code>arg_count</code>, <code>arg</code> and the extern <code>arg_bytes</code>; <code>make_dir</code>, <code>remove_file</code>, <code>remove_dir</code>, <code>rename</code>, <code>list_dir</code>, <code>path_kind</code>, <code>make_dir_all</code>, <code>remove_dir_all</code>, <code>copy_file</code>, <code>file_info</code>, <code>set_current_dir</code>, <code>temp_dir</code>, <code>home_dir</code>, the <code>path_</code> functions (join, parent, file_name, stem, extension, is_absolute, normalize, canonical), <code>env_var</code>, <code>current_dir</code>, <code>monotonic_ns</code>, <code>unix_seconds</code>, <code>sleep_ms</code></td><td><code>std::sys</code></td></tr>
 <tr><td>Concurrency</td><td><code>Channel&lt;T&gt;</code> (new, send, recv, close)</td><td><code>std::sync</code></td></tr>
-<tr><td>Dates and times</td><td><code>DateTime</code> (from_unix, now, new, to_unix, to_iso, from_iso, weekday, less), <code>Weekday</code>, <code>unix_ms</code> — UTC only</td><td><code>std::time</code></td></tr>
+<tr><td>Cryptography</td><td><code>sha256</code>, <code>sha384</code>, <code>sha512</code>, <code>hmac_sha256</code>, <code>digest_eq</code>, <code>hkdf_sha256</code>, <code>chacha20_poly1305_seal</code>/<code>open</code>, <code>x25519</code>, <code>rsa_verify_pss</code>, <code>ecdsa_verify</code>; <code>to_hex</code>, <code>from_hex</code>, <code>base64_encode</code>, <code>base64_decode</code> in <code>std::text</code></td><td><code>std::crypto</code></td></tr>
+<tr><td>Big integers</td><td><code>BigUint</code> (add, sub, mul, div_rem, mod_pow, shifts, text, parse, bytes)</td><td><code>std::math</code></td></tr>
+<tr><td>Certificates and TLS</td><td><code>Certificate</code>, <code>TrustStore</code>, <code>verify_chain</code>; <code>TlsStream</code> (connect, client, read, read_exact, write, close)</td><td><code>std::x509</code>, <code>std::tls</code></td></tr>
+<tr><td>Dates and times</td><td><code>DateTime</code> (from_unix, now, new, to_unix, to_iso, from_iso, weekday, less, to_local), <code>Weekday</code>, <code>unix_ms</code>, <code>local_offset_seconds</code> — UTC, and the machine's local time</td><td><code>std::time</code></td></tr>
 </tbody>
 </table>
 <h3>What may surprise you</h3>
@@ -1598,7 +1602,7 @@ keep a reference derived from it.</p>
 
 <span class="k">fn</span> main()
 {
-    <span class="p">String</span> cur = <span class="p">String</span>::from_str(<span class="s">&quot;abc&quot;</span>);
+    <span class="p">String</span> cur = <span class="s">&quot;abc&quot;</span>;
     <span class="t">ref</span>&lt;<span class="p">Vec</span>&lt;<span class="t">u8</span>&gt;, <span class="t">shared</span>&gt; b = <span class="p">String</span>::as_bytes(&amp;cur);
     <span class="p">assert</span>(<span class="p">Vec</span>::len(b) == <span class="n">3</span>);         <span class="c">// the last use of b: it ends after this statement</span>
     <span class="p">String</span>::clear(&amp;<span class="k">mut</span> cur);          <span class="c">// <span class="ok">✓</span> nothing borrows cur any more</span>
@@ -1876,7 +1880,7 @@ been destructured. That needs a struct without a destructor of its own.</p>
 
 <span class="k">fn</span> person() : Person
 {
-    Person { .name = <span class="p">String</span>::from_str(<span class="s">&quot;Ada&quot;</span>), .city = <span class="p">String</span>::from_str(<span class="s">&quot;London&quot;</span>) }
+    Person { .name = <span class="s">&quot;Ada&quot;</span>, .city = <span class="s">&quot;London&quot;</span> }
 }
 
 <span class="k">fn</span> sum(<span class="t">slice</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt; xs) : <span class="t">i32</span>
@@ -2277,7 +2281,7 @@ literal supplies every field at once; after that, individual fields can be assig
 
 <span class="k">fn</span> main()
 {
-    Entry e = Entry { .item = <span class="p">String</span>::from_str(<span class="s">&quot;pens&quot;</span>), .change = -<span class="n">3</span> };
+    Entry e = Entry { .item = <span class="s">&quot;pens&quot;</span>, .change = -<span class="n">3</span> };
     Entry { item, change } = e;       <span class="c">// binds `item` and `change`; e is consumed</span>
     <span class="p">assert</span>(<span class="p">String</span>::len(&amp;item) == <span class="n">4</span> &amp;&amp; change == -<span class="n">3</span>);
 }</code></pre></figure>
@@ -2302,8 +2306,8 @@ cannot be destructured, since the destructor would then run on a struct whose fi
 
 <span class="k">fn</span> main()
 {
-    Entry a = Entry { .item = <span class="p">String</span>::from_str(<span class="s">&quot;pens&quot;</span>), .change = -<span class="n">3</span>, .note = <span class="p">String</span>::new() };
-    Entry b = Entry { .item = <span class="p">String</span>::from_str(<span class="s">&quot;ink&quot;</span>), .change = <span class="n">5</span>, .note = <span class="p">String</span>::new() };
+    Entry a = Entry { .item = <span class="s">&quot;pens&quot;</span>, .change = -<span class="n">3</span>, .note = <span class="p">String</span>::new() };
+    Entry b = Entry { .item = <span class="s">&quot;ink&quot;</span>, .change = <span class="n">5</span>, .note = <span class="p">String</span>::new() };
     Entry { item : first, change : da, .. } = a;     <span class="c">// renamed; `note` is left and ends with the block</span>
     Entry { item : second, change : db, .. } = b;
     <span class="p">assert</span>(<span class="p">String</span>::len(&amp;first) + <span class="p">String</span>::len(&amp;second) == <span class="n">7</span> &amp;&amp; da + db == <span class="n">2</span>);
@@ -2346,7 +2350,10 @@ arguments.</p>
 <p>Two types are the same only if they have the same name and the same type arguments.
 <code>ref&lt;i32, shared&gt;</code> and <code>ref&lt;i32, exclusive&gt;</code> are different types. There is no subtyping and no
 implicit conversion anywhere: not between integer widths, not from <code>T</code> to <code>ref&lt;T, m&gt;</code>, not from
-<code>Option&lt;T&gt;</code> to <code>T</code>. This applies to arguments too.</p>
+<code>Option&lt;T&gt;</code> to <code>T</code>. This applies to arguments too. A literal is not an exception but a different
+thing: it has no type of its own until its position gives it one, so <code>u64 x = 5;</code>, <code>StringView v =
+&quot;x&quot;;</code> and <code>String s = &quot;x&quot;;</code> type the literal (§21) rather than convert a value, and the same
+positions still reject an <code>i32</code>, a <code>str</code> or any other typed value.</p>
 <figure class="code"><div class="code-head"><span class="code-title">No implicit widening, even for arguments</span><span class="badge bad">rejected: diag.type-mismatch</span></div><pre><code><span class="k">fn</span> takes_i64(<span class="t">i64</span> x) : <span class="t">i64</span>
 {
     x
@@ -2372,8 +2379,8 @@ be, so it stays usable afterwards.</p>
 
 <span class="k">fn</span> main()
 {
-    <span class="p">String</span> a = <span class="p">String</span>::from_str(<span class="s">&quot;app&quot;</span>);
-    <span class="p">String</span> b = <span class="p">String</span>::from_str(<span class="s">&quot;apple&quot;</span>);
+    <span class="p">String</span> a = <span class="s">&quot;app&quot;</span>;
+    <span class="p">String</span> b = <span class="s">&quot;apple&quot;</span>;
     <span class="p">assert</span>(a != b &amp;&amp; a &lt; b);          <span class="c">// text order: a prefix first</span>
     <span class="p">assert</span>(<span class="s">&quot;b&quot;</span> &gt; <span class="s">&quot;abc&quot;</span>);
     <span class="p">assert</span>(<span class="k">false</span> &lt; <span class="k">true</span>);
@@ -2518,7 +2525,7 @@ the bound:</p>
 
 <span class="k">fn</span> main()
 {
-    Person a = Person { .name = <span class="p">String</span>::from_str(<span class="s">&quot;Ada&quot;</span>), .age = <span class="n">36</span> };
+    Person a = Person { .name = <span class="s">&quot;Ada&quot;</span>, .age = <span class="n">36</span> };
     Person b = clone(&amp;a);                              <span class="c">// derived: name copied, age copied</span>
     <span class="p">String</span>::push_ascii(&amp;<span class="k">mut</span> b.name, b&#x27;!&#x27;);
     <span class="p">assert</span>(<span class="p">String</span>::eq_str(&amp;a.name, <span class="s">&quot;Ada&quot;</span>) &amp;&amp; <span class="p">String</span>::eq_str(&amp;b.name, <span class="s">&quot;Ada!&quot;</span>));
@@ -3788,7 +3795,7 @@ literal, a variant, and a variant with a pattern for its payload; there is nothi
 <span class="k">fn</span> main()
 {
     <span class="p">assert</span>(opcode(<span class="s">&quot;jump&quot;</span>) == <span class="n">3</span> &amp;&amp; opcode(<span class="s">&quot;halt&quot;</span>) == -<span class="n">1</span>);
-    <span class="p">String</span> cmd = <span class="p">String</span>::from_str(<span class="s">&quot;exit&quot;</span>);
+    <span class="p">String</span> cmd = <span class="s">&quot;exit&quot;</span>;
     <span class="p">assert</span>(is_quit(&amp;cmd) &amp;&amp; <span class="p">String</span>::len(&amp;cmd) == <span class="n">4</span>);
     <span class="p">Option</span>&lt;<span class="p">String</span>&gt; first = <span class="p">Some</span>(<span class="p">String</span>::from_str(<span class="s">&quot;load&quot;</span>));
     <span class="t">i32</span> k = <span class="k">match</span> (first) { <span class="p">Some</span>(<span class="s">&quot;load&quot;</span>) : <span class="n">1</span>, <span class="p">Some</span>(_) : <span class="n">2</span>, <span class="p">None</span> : <span class="n">0</span>, };
@@ -5271,7 +5278,7 @@ as <code>std::collections::Vec</code>. A program that wants one subject alone ma
 <table>
 <thead><tr><th>Submodule</th><th>What it holds</th></tr></thead>
 <tbody>
-<tr><td><code>std::core</code></td><td><code>Option</code>, <code>Result</code>, <code>AllocError</code>, <code>assert</code>, <code>swap</code>, <code>replace</code>, <code>overwrite</code>, <code>min</code>, <code>max</code>, <code>abs</code>, <code>pow</code></td></tr>
+<tr><td><code>std::core</code></td><td><code>Option</code>, <code>Result</code>, <code>AllocError</code>, <code>assert</code>, <code>swap</code>, <code>replace</code>, <code>overwrite</code></td></tr>
 <tr><td><code>std::collections</code></td><td><code>Vec</code> (with sorting), <code>HashMap</code>, <code>HashSet</code>, <code>Queue</code>, <code>PriorityQueue</code></td></tr>
 <tr><td><code>std::text</code></td><td><code>String</code>, <code>StringView</code>, <code>sprintf</code>, <code>String::appendf</code>, the ASCII functions, <code>Utf8Error</code>, <code>ParseError</code>, <code>read_le</code>, <code>read_be</code>, <code>crc32</code></td></tr>
 <tr><td><code>std::io</code></td><td><code>printf</code>, <code>eprintf</code>, <code>read_line</code>, <code>File</code>, <code>FileError</code>, <code>read_file</code>, <code>write_file</code>, <code>read_bytes</code>, <code>write_bytes</code></td></tr>
@@ -5279,10 +5286,13 @@ as <code>std::collections::Vec</code>. A program that wants one subject alone ma
 <tr><td><code>std::memory</code></td><td><code>Box</code>, <code>Rc</code>, <code>Weak</code></td></tr>
 <tr><td><code>std::sync</code></td><td><code>Channel</code></td></tr>
 <tr><td><code>std::random</code></td><td><code>Rng</code>, <code>os_random_bytes</code>, <code>os_random_u64</code></td></tr>
-<tr><td><code>std::math</code></td><td><code>sqrt</code>, <code>floor</code>, <code>ceil</code>, <code>round</code>, <code>trunc</code>, <code>ln</code>, <code>exp</code>, <code>log2</code>, <code>log10</code>, <code>sin</code>, <code>cos</code>, <code>tan</code>, <code>atan2</code>, <code>powf</code></td></tr>
+<tr><td><code>std::math</code></td><td><code>min</code>, <code>max</code>, <code>abs</code>, <code>pow</code>, <code>BigUint</code>, <code>BigDivision</code>, <code>sqrt</code>, <code>floor</code>, <code>ceil</code>, <code>round</code>, <code>trunc</code>, <code>ln</code>, <code>exp</code>, <code>log2</code>, <code>log10</code>, <code>sin</code>, <code>cos</code>, <code>tan</code>, <code>atan2</code>, <code>powf</code></td></tr>
 <tr><td><code>std::time</code></td><td><code>DateTime</code>, <code>Weekday</code>, <code>unix_ms</code></td></tr>
-<tr><td><code>std::process</code></td><td><code>Command</code>, <code>Output</code>, <code>Child</code>, <code>watch_interrupts</code>, <code>interrupt_requested</code></td></tr>
+<tr><td><code>std::process</code></td><td><code>Command</code>, <code>Output</code>, <code>Child</code>, <code>watch_interrupts</code>, <code>interrupt_requested</code>, <code>exit</code></td></tr>
 <tr><td><code>std::net</code></td><td><code>IpAddr</code>, <code>SocketAddr</code>, <code>resolve</code>, <code>TcpListener</code>, <code>TcpStream</code>, <code>UdpSocket</code>, <code>Datagram</code>, <code>NetError</code></td></tr>
+<tr><td><code>std::crypto</code></td><td><code>Sha256</code>, <code>sha256</code>, <code>HmacSha256</code>, <code>hmac_sha256</code>, <code>digest_eq</code>, <code>hkdf_extract</code>, <code>hkdf_expand</code>, <code>hkdf_sha256</code>, <code>hkdf_expand_label</code>, <code>chacha20</code>, <code>poly1305</code>, <code>chacha20_poly1305_seal</code>, <code>chacha20_poly1305_open</code>, <code>x25519</code>, <code>x25519_public_key</code>, <code>x25519_private_key</code>, <code>Sha512</code>, <code>sha512</code>, <code>Sha384</code>, <code>sha384</code>, <code>HashKind</code>, <code>hash</code>, <code>RsaPublicKey</code>, <code>rsa_verify_pkcs1v15</code>, <code>rsa_verify_pss</code>, <code>EcCurve</code>, <code>ecdsa_verify</code></td></tr>
+<tr><td><code>std::x509</code></td><td><code>Certificate</code>, <code>certificates_from_pem</code>, <code>TrustStore</code>, <code>verify_chain</code>, <code>verify_signature</code>, <code>CertError</code>, <code>Der</code>, <code>der_read</code></td></tr>
+<tr><td><code>std::tls</code></td><td><code>TlsStream</code>, <code>TlsError</code></td></tr>
 </tbody>
 </table>
 <figure class="code"><div class="code-head"><span class="code-title">One subject at a time</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std::text;
@@ -5290,7 +5300,7 @@ as <code>std::collections::Vec</code>. A program that wants one subject alone ma
 
 <span class="k">fn</span> main()
 {
-    <span class="p">String</span> s = <span class="p">String</span>::from_str(<span class="s">&quot;only text and output&quot;</span>);
+    <span class="p">String</span> s = <span class="s">&quot;only text and output&quot;</span>;
     <span class="p">printf</span>(<span class="s">&quot;%s\n&quot;</span>, &amp;s);
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>only text and output
 </pre></div></figure>
@@ -5607,7 +5617,7 @@ joining, searching and reversing. <code>filled</code> and <code>extend_from</cod
     <span class="p">Vec</span>::extend_from(&amp;<span class="k">mut</span> row, &amp;grid[<span class="n">1</span>][<span class="n">0</span>..$]);                           <span class="c">// copies bytes</span>
     <span class="p">assert</span>(<span class="p">Vec</span>::len(&amp;names) == <span class="n">4</span> &amp;&amp; <span class="p">Vec</span>::len(&amp;row) == <span class="n">8</span> &amp;&amp; row[<span class="n">6</span>] == b&#x27;#&#x27;);
 
-    <span class="p">String</span> key = <span class="p">String</span>::from_str(<span class="s">&quot;n1&quot;</span>);
+    <span class="p">String</span> key = <span class="s">&quot;n1&quot;</span>;
     <span class="p">assert</span>(<span class="p">Vec</span>::index_of(&amp;names, &amp;key) == <span class="p">Some</span>(<span class="n">1</span>));
     <span class="p">assert</span>(<span class="p">Vec</span>::contains(&amp;row, &amp;b&#x27;#&#x27;) &amp;&amp; !<span class="p">Vec</span>::contains(&amp;row, &amp;b&#x27;?&#x27;));
     <span class="p">assert</span>(<span class="p">Vec</span>::position(&amp;names, [key](<span class="t">ref</span>&lt;<span class="p">String</span>, <span class="t">shared</span>&gt; s) : <span class="t">bool</span> { *s == key }) == <span class="p">Some</span>(<span class="n">1</span>));
@@ -5623,7 +5633,7 @@ one (D-0113).</p>
 
 <span class="k">fn</span> main()
 {
-    <span class="p">String</span> line = <span class="p">String</span>::from_str(<span class="s">&quot;  name = Ada, born = 1815  &quot;</span>);
+    <span class="p">String</span> line = <span class="s">&quot;  name = Ada, born = 1815  &quot;</span>;
     <span class="p">assert</span>(<span class="p">String</span>::trim(&amp;line) == <span class="s">&quot;name = Ada, born = 1815&quot;</span>);
     <span class="p">assert</span>(<span class="p">String</span>::find(&amp;line, <span class="s">&quot;born&quot;</span>) == <span class="p">Some</span>(<span class="n">14</span>) &amp;&amp; <span class="p">String</span>::ends_with(&amp;line, <span class="s">&quot;  &quot;</span>));
 
@@ -5660,7 +5670,7 @@ into bytes the same way, through <code>Name::bits(v)</code>.</p>
     <span class="p">assert</span>(<span class="p">Vec</span>::len(&amp;header) == <span class="n">7</span> &amp;&amp; header[<span class="n">0</span>] == <span class="n">0</span>x89 &amp;&amp; header[<span class="n">4</span>] == <span class="n">0</span>x80 &amp;&amp; header[<span class="n">5</span>] == <span class="n">2</span>);
     <span class="p">assert</span>(read_be&lt;<span class="t">u32</span>&gt;(&amp;header[<span class="n">0</span>..$], <span class="n">0</span>) == <span class="n">0</span>x89504E47 &amp;&amp; read_le&lt;<span class="t">u16</span>&gt;(&amp;header[<span class="n">0</span>..$], <span class="n">4</span>) == <span class="n">640</span>);
     <span class="p">assert</span>(read_le&lt;<span class="t">i8</span>&gt;(&amp;header[<span class="n">0</span>..$], <span class="n">6</span>) == -<span class="n">1</span>);
-    <span class="p">String</span> text = <span class="p">String</span>::from_str(<span class="s">&quot;123456789&quot;</span>);
+    <span class="p">String</span> text = <span class="s">&quot;123456789&quot;</span>;
     <span class="p">assert</span>(crc32(&amp;<span class="p">String</span>::as_bytes(&amp;text)[<span class="n">0</span>..$]) == <span class="n">0</span>xCBF43926);
 }</code></pre></figure>
 <p><code>Rng</code> is a general-purpose pseudo-random generator — for simulations, games, sampling,
@@ -5744,7 +5754,14 @@ pieces of §07 and §20 fit together.</div>
 <p>A <code>String</code> is a <code>Vec&lt;u8&gt;</code> that is known to be valid UTF-8: owned, heap-allocated text,
 a resource. <code>String::new()</code> makes an empty one, <code>String::from_str</code> copies a <code>str</code>'s bytes
 (already valid, so nothing is checked), and <code>String::from_utf8</code> validates bytes that came from
-anywhere else. It changes only through functions that keep it valid UTF-8 — <code>append</code> and
+anywhere else. Where the declared type already says <code>String</code>, a literal is enough: <code>String s =
+&quot;text&quot;;</code>, a struct literal's <code>String</code> field, an argument whose parameter is a <code>String</code>, and the
+value a function declared <code>: String</code> returns are each <code>String::from_str</code> of the literal, written
+short (D-0149), and so is a literal argument whose generic parameter the other arguments make a
+<code>String</code>: <code>Result::unwrap_or(arg(0), &quot;default&quot;)</code>, <code>Vec::push(&amp;mut names, &quot;x&quot;)</code> for a <code>Vec&lt;String&gt;</code>
+(D-0162). That is the one place a literal allocates, and the word <code>String</code> in a declaration nearby
+says so; a <code>str</code> <em>variable</em> is never made a <code>String</code> without <code>String::from_str</code>, and
+<code>auto s = &quot;text&quot;;</code> is a <code>str</code>. It changes only through functions that keep it valid UTF-8 — <code>append</code> and
 <code>appendf</code> add text, <code>push_ascii</code> an ASCII byte, <code>truncate</code> cuts at a character boundary, <code>clear</code>
 empties it — so the guarantee holds for its whole life. <code>from_utf8</code> is the trust-transition pattern of §20 in
 miniature.</p>
@@ -5752,7 +5769,7 @@ miniature.</p>
 <thead><tr><th>Function</th><th>Signature</th></tr></thead>
 <tbody>
 <tr><td><code>String::new</code></td><td><code>() : String</code> (empty)</td></tr>
-<tr><td><code>String::from_str</code></td><td><code>(str) : String</code> (copies; cannot fail)</td></tr>
+<tr><td><code>String::from_str</code></td><td><code>(str) : String</code> (copies; cannot fail); a literal where a <code>String</code> is declared is this call already (D-0149)</td></tr>
 <tr><td><code>String::from_utf8</code></td><td><code>(Vec&lt;u8&gt;) : Result&lt;String, Utf8Error&gt;</code></td></tr>
 <tr><td><code>String::len</code></td><td><code>(ref&lt;String, shared&gt;) : usize</code> (bytes)</td></tr>
 <tr><td><code>String::into_bytes</code></td><td><code>(String) : Vec&lt;u8&gt;</code> (gives the bytes back, consuming the string)</td></tr>
@@ -5786,7 +5803,7 @@ Unicode case is not provided.</p>
 
 <span class="k">fn</span> main()
 {
-    <span class="p">String</span> owned = <span class="p">String</span>::from_str(<span class="s">&quot;caf\u{e9}&quot;</span>);   <span class="c">// a str&#x27;s bytes, copied; no validation needed</span>
+    <span class="p">String</span> owned = <span class="s">&quot;caf\u{e9}&quot;</span>;   <span class="c">// a str&#x27;s bytes, copied; no validation needed</span>
     <span class="p">assert</span>(<span class="p">String</span>::len(&amp;owned) == <span class="n">5</span>);                <span class="c">// 5 bytes: é is two of them</span>
     <span class="p">assert</span>(<span class="p">Vec</span>::len(&amp;<span class="p">String</span>::chars(&amp;owned)) == <span class="n">4</span>);   <span class="c">// but 4 characters</span>
 
@@ -5835,6 +5852,7 @@ prints with <code>%s</code>, compares with <code>==</code> to another view or a 
 <tbody>
 <tr><td><code>StringView::len(v)</code></td><td>its length in bytes</td></tr>
 <tr><td><code>StringView::of(t)</code></td><td>a view of a <code>str</code> <code>t</code>; a literal where a view is expected is one already (D-0134)</td></tr>
+<tr><td><code>StringView::as_bytes(v)</code></td><td>the view's bytes as a <code>slice&lt;u8, shared&gt;</code>, not a copy: what a hash, a MAC or a socket write takes (D-0163)</td></tr>
 <tr><td><code>StringView::find(v, t)</code></td><td><code>Option&lt;usize&gt;</code>: where the text of the view <code>t</code> first occurs</td></tr>
 <tr><td><code>StringView::starts_with(v, t)</code>, <code>ends_with</code></td><td><code>bool</code></td></tr>
 <tr><td><code>StringView::trim(v)</code>, <code>trim_start</code>, <code>trim_end</code></td><td>the view without ASCII white space at its ends</td></tr>
@@ -5858,8 +5876,8 @@ argument, and a function returning views may borrow only one thing, §10.)</p>
 
 <span class="k">fn</span> main()
 {
-    <span class="p">String</span> text = <span class="p">String</span>::from_str(<span class="s">&quot;the cat sat on the mat&quot;</span>);
-    <span class="p">String</span> word = <span class="p">String</span>::from_str(<span class="s">&quot;sat&quot;</span>);
+    <span class="p">String</span> text = <span class="s">&quot;the cat sat on the mat&quot;</span>;
+    <span class="p">String</span> word = <span class="s">&quot;sat&quot;</span>;
     <span class="p">assert</span>(<span class="p">String</span>::find(&amp;text, &amp;word[<span class="n">0</span>..$]) == <span class="p">Some</span>(<span class="n">8</span>));   <span class="c">// a String to search for</span>
     <span class="p">assert</span>(<span class="p">String</span>::find(&amp;text, <span class="s">&quot;mat&quot;</span>) == <span class="p">Some</span>(<span class="n">19</span>));        <span class="c">// a literal: already a view</span>
     <span class="t">str</span> w = <span class="s">&quot;on&quot;</span>;
@@ -5883,7 +5901,7 @@ argument, and a function returning views may borrow only one thing, §10.)</p>
 
 <span class="k">fn</span> main()
 {
-    <span class="p">String</span> line = <span class="p">String</span>::from_str(<span class="s">&quot;  set width=80, height = 24  &quot;</span>);
+    <span class="p">String</span> line = <span class="s">&quot;  set width=80, height = 24  &quot;</span>;
     <span class="p">assert</span>(first_word(&amp;line) == <span class="s">&quot;set&quot;</span>);
 
     <span class="p">StringView</span> args = <span class="p">StringView</span>::trim(&amp;line[<span class="n">6</span>..$]);     <span class="c">// &quot;width=80, height = 24&quot;</span>
@@ -5919,12 +5937,12 @@ separator between each two, from a slice of views (what <code>split</code> gives
 
 <span class="k">fn</span> main()
 {
-    <span class="p">String</span> path = <span class="p">String</span>::from_str(<span class="s">&quot;/usr/local/lib/cobaltc&quot;</span>);
+    <span class="p">String</span> path = <span class="s">&quot;/usr/local/lib/cobaltc&quot;</span>;
     <span class="p">assert</span>(<span class="p">String</span>::contains(&amp;path, <span class="s">&quot;/local/&quot;</span>) &amp;&amp; !<span class="p">String</span>::contains(&amp;path, <span class="s">&quot;bin&quot;</span>));
 
     <span class="p">String</span> windows = <span class="p">String</span>::replace(&amp;path, <span class="s">&quot;/&quot;</span>, <span class="s">&quot;\\&quot;</span>);          <span class="c">// a new String; path unchanged</span>
     <span class="p">printf</span>(<span class="s">&quot;%s\n&quot;</span>, &amp;windows);
-    <span class="p">String</span> aaa = <span class="p">String</span>::from_str(<span class="s">&quot;aaa&quot;</span>);
+    <span class="p">String</span> aaa = <span class="s">&quot;aaa&quot;</span>;
     <span class="p">printf</span>(<span class="s">&quot;%s\n&quot;</span>, &amp;<span class="p">String</span>::replace(&amp;aaa, <span class="s">&quot;aa&quot;</span>, <span class="s">&quot;b&quot;</span>));            <span class="c">// left to right, no overlap: &quot;ba&quot;</span>
 
     <span class="p">Vec</span>&lt;<span class="p">StringView</span>&gt; parts = <span class="p">String</span>::split(&amp;path, <span class="s">&quot;/&quot;</span>);          <span class="c">// &quot;&quot;, &quot;usr&quot;, &quot;local&quot;, &quot;lib&quot;, &quot;cobaltc&quot;</span>
@@ -5944,7 +5962,7 @@ ada, grace
 
 <span class="k">fn</span> main()
 {
-    <span class="p">String</span> name = <span class="p">String</span>::from_str(<span class="s">&quot;ada&quot;</span>);
+    <span class="p">String</span> name = <span class="s">&quot;ada&quot;</span>;
     <span class="p">StringView</span> v = &amp;name[<span class="n">0</span>..$];
     <span class="p">String</span>::push_ascii(&amp;<span class="k">mut</span> name, b&#x27;!&#x27;);   <span class="c">// <span class="bad">✗</span> <span class="dg">diag.aliasing-conflict</span> (static): v still views name</span>
     <span class="p">assert</span>(v == <span class="s">&quot;ada&quot;</span>);
@@ -5964,7 +5982,7 @@ protocol for a library to plug into (D-0128 explains). Where that matters, walk
 
 <span class="k">fn</span> main()
 {
-    <span class="p">String</span> s = <span class="p">String</span>::from_str(<span class="s">&quot;caf\u{e9} \u{1F600}!&quot;</span>);
+    <span class="p">String</span> s = <span class="s">&quot;caf\u{e9} \u{1F600}!&quot;</span>;
     <span class="k">foreach</span> (c in <span class="p">String</span>::chars(&amp;s))
     {
         <span class="p">printf</span>(<span class="s">&quot;[%v]&quot;</span>, c);
@@ -6008,7 +6026,7 @@ need an owner.</p>
 <thead><tr><th></th><th><code>str</code></th><th><code>String</code></th><th><code>b&quot;…&quot;</code></th></tr></thead>
 <tbody>
 <tr><td>What it is</td><td>a text constant</td><td>owned text</td><td>raw bytes</td></tr>
-<tr><td>Written as</td><td><code>&quot;hello&quot;</code></td><td><code>String::from_str(&quot;hello&quot;)</code>, <code>String::from_utf8(bytes)</code></td><td><code>b&quot;hello&quot;</code></td></tr>
+<tr><td>Written as</td><td><code>&quot;hello&quot;</code></td><td><code>String::from_str(&quot;hello&quot;)</code>, or <code>&quot;hello&quot;</code> where a <code>String</code> is declared (D-0149); <code>String::from_utf8(bytes)</code></td><td><code>b&quot;hello&quot;</code></td></tr>
 <tr><td>Type</td><td><code>str</code></td><td><code>String</code></td><td><code>array&lt;u8, N&gt;</code></td></tr>
 <tr><td>Valid UTF-8</td><td>yes, by the literal grammar</td><td>yes, by construction or validation</td><td>not guaranteed</td></tr>
 <tr><td>Resource (moved, destroyed)</td><td>no: copied like an integer</td><td>yes</td><td>no</td></tr>
@@ -6026,9 +6044,14 @@ need an owner.</p>
 </ul>
 </div>
 <p>The two text types never convert into each other silently (§12's no-implicit-conversion
-rule). Going from <code>str</code> to <code>String</code> is an explicit call that makes a copy, and nothing turns a
-<code>String</code> back into a <code>str</code>: a <code>str</code> is always a literal's value, so it cannot refer to bytes that
-something else owns.</p>
+rule). Going from a <code>str</code> value to a <code>String</code> is an explicit call that makes a copy, and nothing turns
+a <code>String</code> back into a <code>str</code>: a <code>str</code> is always a literal's value, so it cannot refer to bytes that
+something else owns. A <em>literal</em> is different in kind: like the <code>5</code> in <code>u64 x = 5;</code>, it has no
+type until its position gives it one, so <code>String s = &quot;hi&quot;;</code> is the literal typed as a <code>String</code>
+(<code>String::from_str</code> of it, D-0149) and <code>StringView v = &quot;hi&quot;;</code> as a view, not a value converted. A
+<code>str</code> variable in the same place is still a type error. A <code>String</code> compares with <code>==</code> and <code>!=</code> to a
+<code>str</code> or a <code>StringView</code>, either way round, by its bytes (<code>name == &quot;sha256&quot;</code>, D-0164); the orderings
+<code>&lt;</code> … <code>&gt;=</code> stay within one text type.</p>
 <h3>Printing: <code>printf</code></h3>
 <p><em>In <code>std::io</code> (<code>printf</code>, <code>eprintf</code>) and <code>std::text</code> (<code>sprintf</code>, <code>String::appendf</code>).</em></p>
 <p><code>printf</code> is the one way a program writes output. It is C's, with one difference that matters: the format is checked against its
@@ -6072,7 +6095,7 @@ the precision takes it from the next argument, which must be a <code>usize</code
 
 <span class="k">fn</span> main()
 {
-    <span class="p">String</span> item = <span class="p">String</span>::from_str(<span class="s">&quot;widget&quot;</span>);
+    <span class="p">String</span> item = <span class="s">&quot;widget&quot;</span>;
     <span class="t">u32</span> qty = <span class="n">12</span>;
     <span class="t">f64</span> price = <span class="n">3.5</span>;
     <span class="p">printf</span>(<span class="s">&quot;%-8s|%5d|%8.2f|%#06x\n&quot;</span>, &amp;item, qty, price, <span class="n">255</span>);
@@ -6159,7 +6182,7 @@ accepts numbers and text, and would be rejected for a struct.</p>
     <span class="t">f64</span> zero = <span class="n">0.0</span>;
     show(zero / zero);
 
-    <span class="p">String</span> name = <span class="p">String</span>::from_str(<span class="s">&quot;owned text&quot;</span>);
+    <span class="p">String</span> name = <span class="s">&quot;owned text&quot;</span>;
     <span class="p">printf</span>(<span class="s">&quot;%v&quot;</span>, &amp;name);                     <span class="c">// a String through a reference: name stays usable</span>
     <span class="p">printf</span>(<span class="s">&quot;\n&quot;</span>);
     <span class="p">printf</span>(<span class="s">&quot;x = %v, y = %v\n&quot;</span>, <span class="n">3</span>, <span class="n">4.5</span>);
@@ -6179,7 +6202,7 @@ x = 3, y = 4.5
 
 <span class="k">fn</span> main()
 {
-    <span class="p">String</span> s = <span class="p">String</span>::from_str(<span class="s">&quot;text&quot;</span>);
+    <span class="p">String</span> s = <span class="s">&quot;text&quot;</span>;
     <span class="p">printf</span>(<span class="s">&quot;%v&quot;</span>, s);                         <span class="c">// <span class="bad">✗</span> <span class="dg">diag.type-mismatch</span> (static): a String prints through &amp;s</span>
 }</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">Composite values are not printable</span><span class="badge bad">rejected: diag.type-mismatch</span></div><pre><code><span class="k">import</span> std;
@@ -6231,18 +6254,22 @@ a <code>u8</code> prints as a number. To write bytes, use the <code>stdout_write
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>a97
 ok
 </pre></div></figure>
-<figure class="code"><div class="code-head"><span class="code-title">A literal is not a String</span><span class="badge bad">rejected: diag.type-mismatch</span></div><pre><code><span class="k">import</span> std;
+<figure class="code"><div class="code-head"><span class="code-title">A str value is not a String</span><span class="badge bad">rejected: diag.type-mismatch</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> main()
 {
-    <span class="p">String</span> s = <span class="s">&quot;hi&quot;</span>;                  <span class="c">// <span class="bad">✗</span> <span class="dg">diag.type-mismatch</span> (static): &quot;hi&quot; is a str</span>
+    <span class="t">str</span> t = <span class="s">&quot;hi&quot;</span>;
+    <span class="p">String</span> s = t;                     <span class="c">// <span class="bad">✗</span> <span class="dg">diag.type-mismatch</span> (static): t is a str value;</span>
+                                      <span class="c">// String::from_str(t) makes the String</span>
 }</code></pre></figure>
-<figure class="code"><div class="code-head"><span class="code-title">The bridge is explicit</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+<figure class="code"><div class="code-head"><span class="code-title">The bridge is explicit for a value, implied for a literal</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> main()
 {
-    <span class="p">String</span> s = <span class="p">String</span>::from_str(<span class="s">&quot;hi&quot;</span>);   <span class="c">// <span class="ok">✓</span> the explicit, allocating bridge</span>
-    <span class="p">assert</span>(<span class="p">String</span>::len(&amp;s) == <span class="n">2</span>);
+    <span class="p">String</span> s = <span class="s">&quot;hi&quot;</span>;                  <span class="c">// <span class="ok">✓</span> a literal where a String is declared is String::from_str of it (D-0149)</span>
+    <span class="t">str</span> t = <span class="s">&quot;there&quot;</span>;
+    <span class="p">String</span> u = <span class="p">String</span>::from_str(t);   <span class="c">// <span class="ok">✓</span> the explicit, allocating bridge for a str value</span>
+    <span class="p">assert</span>(<span class="p">String</span>::len(&amp;s) == <span class="n">2</span> &amp;&amp; <span class="p">String</span>::len(&amp;u) == <span class="n">5</span>);
 }</code></pre></figure>
 <h3>Reading input</h3>
 <p><em>In <code>std::io</code>.</em></p>
@@ -6288,7 +6315,7 @@ printed with <code>printf</code> appears before the program waits.</p>
 {
     <span class="k">match</span> (greet_all())
     {
-        <span class="p">Ok</span>(n) :
+        <span class="p">Ok</span>(n)  :
         {
             <span class="p">printf</span>(<span class="s">&quot;%v greeted\n&quot;</span>, n);
         },
@@ -6296,7 +6323,7 @@ printed with <code>printf</code> appears before the program waits.</p>
         {
             <span class="k">match</span> (e)
             {
-                Io :
+                Io      :
                 {
                     <span class="p">printf</span>(<span class="s">&quot;could not read input\n&quot;</span>);
                 },
@@ -6445,7 +6472,7 @@ theirs (D-0117); <code>%v</code> of an error prints its variant's name instead.<
 
 <span class="k">fn</span> main() : <span class="t">u8</span>
 {
-    <span class="p">String</span> text = <span class="p">String</span>::from_str(<span class="s">&quot;first line\nsecond line\n&quot;</span>);
+    <span class="p">String</span> text = <span class="s">&quot;first line\nsecond line\n&quot;</span>;
     <span class="k">if</span> (<span class="p">Err</span>(_) = <span class="p">write_file</span>(<span class="s">&quot;notes.txt&quot;</span>, &amp;text[<span class="n">0</span>..$]))
     {
         <span class="p">printf</span>(<span class="s">&quot;cannot write notes.txt\n&quot;</span>);
@@ -6637,9 +6664,9 @@ time goes forward: true
 <p><em>In <code>std::time</code>.</em></p>
 <p>A <code>DateTime</code> is a moment in UTC to the second: <code>year</code> (an <code>i64</code>), <code>month</code>, <code>day</code>, <code>hour</code>,
 <code>minute</code> and <code>second</code>, all fields a program can read. It converts to and from the seconds of
-<code>unix_seconds()</code> and to and from ISO 8601 text, the form logs, file names and protocols use. There
-is no local time and there are no time zones: a program that shows local time to a person does so
-outside <code>std</code>.</p>
+<code>unix_seconds()</code> and to and from ISO 8601 text, the form logs, file names and protocols use. The
+one time zone <code>std</code> knows is the machine's own: <code>DateTime::to_local</code> shifts a moment into it for
+showing to a person; there are no named zones and no other zone's rules.</p>
 <table>
 <thead><tr><th>Function</th><th>Does</th></tr></thead>
 <tbody>
@@ -6650,6 +6677,8 @@ outside <code>std</code>.</p>
 <tr><td><code>DateTime::weekday(&amp;t)</code>, <code>Weekday::text(&amp;w)</code></td><td>the day of the week, <code>Monday</code> … <code>Sunday</code>, and its name</td></tr>
 <tr><td><code>DateTime::eq(&amp;a, &amp;b)</code>, <code>DateTime::less(&amp;a, &amp;b)</code></td><td>the same moment; earlier (fits <code>Vec::sort_by</code>)</td></tr>
 <tr><td><code>unix_ms()</code></td><td>the wall clock in milliseconds since 1970</td></tr>
+<tr><td><code>DateTime::to_local(&amp;t)</code></td><td>the same moment written in the machine's local time, daylight saving included, by the operating system's rule</td></tr>
+<tr><td><code>local_offset_seconds(unix)</code></td><td>how many seconds local time is ahead of UTC at that moment (negative when behind)</td></tr>
 </tbody>
 </table>
 <p><strong>Measure elapsed time with <code>monotonic_ns()</code>, never with the wall clock.</strong> The wall
@@ -6685,6 +6714,35 @@ while a program runs; <code>unix_seconds()</code>, <code>unix_ms()</code> and <c
 81 whole days to 2026-12-24
 2026-02-29: out of range
 </pre></div></figure>
+<p><strong>Local time is for showing, not for keeping.</strong> Store and log UTC, convert with
+<code>DateTime::to_local</code> as the last step before printing, and print a local value by its fields: it is a
+plain <code>DateTime</code> that knows nothing of its zone, so <code>to_iso</code> of it would end in <code>Z</code> and <code>to_unix</code> of it
+is not the moment. The offset depends on the machine and on the moment (clocks change twice a year
+in many zones), so this program's output differs from place to place:</p>
+<figure class="code"><div class="code-head"><span class="code-title">Showing a moment in local time (output depends on the machine)</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main() : <span class="t">u8</span>
+{
+    <span class="p">DateTime</span> now = <span class="p">DateTime</span>::now();
+    <span class="p">DateTime</span> here = <span class="p">DateTime</span>::to_local(&amp;now);
+    <span class="t">i64</span> offset = <span class="p">local_offset_seconds</span>(<span class="p">DateTime</span>::to_unix(&amp;now));
+    <span class="t">str</span> sign = <span class="k">if</span> (offset &lt; <span class="n">0</span>) { <span class="s">&quot;-&quot;</span> } <span class="k">else</span> { <span class="s">&quot;+&quot;</span> };
+    <span class="t">i64</span> magnitude = <span class="k">if</span> (offset &lt; <span class="n">0</span>) { <span class="n">0</span> - offset } <span class="k">else</span> { offset };
+    <span class="p">printf</span>(
+        <span class="s">&quot;%s UTC is %04d-%02d-%02d %02d:%02d:%02d here (UTC%s%02d:%02d)\n&quot;</span>,
+        &amp;<span class="p">DateTime</span>::to_iso(&amp;now),
+        here.year,
+        here.month,
+        here.day,
+        here.hour,
+        here.minute,
+        here.second,
+        sign,
+        magnitude / <span class="n">3600</span>,
+        magnitude % <span class="n">3600</span> / <span class="n">60</span>,
+    );
+    <span class="n">0</span>
+}</code></pre></figure>
 <h3>Running other programs</h3>
 <p><em>In <code>std::process</code>.</em></p>
 <p>A <code>Command</code> names a program and its arguments; running it starts a child process. There is
@@ -6750,6 +6808,44 @@ it. There is no callback; the program's own loop looks at the flag, often enough
 an interrupt arrives in may return early (a listener's <code>accept</code> and a socket's <code>read</code> give
 <code>Err(TimedOut)</code>), and <code>TcpListener::set_accept_timeout_ms</code> bounds how long a quiet server waits
 before looking again.</p>
+<p>To end the program from anywhere, <code>exit(status)</code> (D-0150): the calling thread's scopes and
+frames are unwound and every destructor runs, as they do when a fault ends the program, standard
+output is flushed, and the process ends with <code>status</code>, with no diagnostic. Other threads take no
+further steps. <code>exit</code> has type <code>never</code>, so it can stand in for any value: <code>None : exit(2)</code> in a
+<code>match</code> arm, or <code>exit(1)</code> as a statement after an error message. Returning from <code>main</code> is still the
+ordinary way to end; <code>exit</code> is for the place that knows the program is over and is not <code>main</code>.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Ending the program with its destructors run</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">resource</span> <span class="k">struct</span> Lock
+{
+    <span class="t">i32</span> id;
+}
+
+<span class="k">fn</span> Lock::<span class="p">drop</span>(<span class="t">ref</span>&lt;Lock, <span class="t">exclusive</span>&gt; self)
+{
+    <span class="p">printf</span>(<span class="s">&quot;lock %d released\n&quot;</span>, self.id);
+}
+
+<span class="k">fn</span> check(<span class="t">i32</span> value) : <span class="t">i32</span>
+{
+    Lock inner = Lock { .id = <span class="n">2</span> };
+    <span class="k">if</span> (value &lt; <span class="n">0</span>)
+    {
+        <span class="p">eprintf</span>(<span class="s">&quot;negative input\n&quot;</span>);
+        <span class="p">exit</span>(<span class="n">3</span>);                             <span class="c">// inner and outer are released first</span>
+    }
+    value * <span class="n">2</span>
+}
+
+<span class="k">fn</span> main() : <span class="t">u8</span>
+{
+    Lock outer = Lock { .id = <span class="n">1</span> };
+    <span class="t">i32</span> r = check(-<span class="n">5</span>);
+    <span class="p">printf</span>(<span class="s">&quot;never printed %d\n&quot;</span>, r);
+    <span class="n">0</span>
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>lock 2 released
+lock 1 released
+</pre></div></figure>
 <figure class="code"><div class="code-head"><span class="code-title">A loop that stops when asked</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> main()
@@ -6763,6 +6859,172 @@ before looking again.</p>
     <span class="p">printf</span>(<span class="s">&quot;handled %u, stopping cleanly\n&quot;</span>, handled);
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>handled 3, stopping cleanly
 </pre></div></figure>
+<h3>Cryptography, and bytes as text</h3>
+<p><em>In <code>std::crypto</code>, with the encodings in <code>std::text</code>.</em></p>
+<p><code>sha256(data)</code> is the SHA-256 digest of some bytes, 32 of them as an <code>array&lt;u8, 32&gt;</code>;
+<code>hmac_sha256(key, data)</code> is a message authentication code under a key, the way a webhook body,
+a session cookie or a signed request is protected. Both come in a streaming form for a message that
+arrives in pieces: <code>Sha256::new()</code>, <code>Sha256::update(&amp;mut h, piece)</code> as often as needed,
+<code>Sha256::finish(h)</code>; <code>HmacSha256</code> the same. A <code>Sha256</code> is a plain value, so a copy of a half-done
+computation continues on its own. Everything is written in CobaltC (the spec lists it), so the two
+tools compute exactly the same bytes; for a message of a few kilobytes the interpreter's speed does
+not matter.</p>
+<p><strong>Check a MAC with <code>digest_eq</code>, never with <code>==</code>.</strong> <code>digest_eq(a, b)</code> compares every byte
+whatever the first difference, so how long the check takes says nothing about how many leading bytes
+a sender guessed right. A digest is shown with <code>to_hex</code> and read back with <code>from_hex</code>; bytes that
+must travel as text go through <code>base64_encode</code> and <code>base64_decode</code> (RFC 4648, padded). Random keys
+come from <code>os_random_bytes</code>. A secret is rarely used as it arrives: <code>hkdf_sha256(salt, secret, info, len)</code>
+derives <code>len</code> bytes of key material from it, bound to what they are for by <code>info</code>, so one secret
+never keys two purposes (RFC 5869; TLS 1.3's key schedule is this function). There is no
+signing and no password hashing in <code>std</code> yet; each is a decision of its own.</p>
+<p><strong>Encrypting.</strong> <code>chacha20_poly1305_seal(key, nonce, aad, plaintext)</code> encrypts and
+authenticates (RFC 8439): a 32-byte key, a 12-byte nonce that must never repeat under one key, and
+<code>aad</code>, data sent in the clear but protected from change; the result is the ciphertext and a 16-byte
+tag. <code>chacha20_poly1305_open</code> gives the plaintext back, or <code>None</code> if a single bit of the message, the
+tag or the <code>aad</code> was changed, and never any part of a refused message. <strong>Agreeing on a
+key.</strong> Each side makes <code>x25519_private_key()</code>, sends <code>x25519_public_key(&amp;private[0..$])</code>, and
+computes <code>x25519(&amp;private[0..$], &amp;their_public[0..$])</code>: both get the same 32 bytes, which nobody who
+saw only the public keys can (RFC 7748); <code>None</code> means the other side sent a key that must be refused.
+Feed the shared secret to <code>hkdf_sha256</code>, never use it as a key directly. All of these take the same
+steps whatever the secret bytes are, so their timing reveals nothing but lengths; a key or nonce of
+the wrong length is the fault <code>diag.crypto-length</code>.</p>
+<figure class="code"><div class="code-head"><span class="code-title">A key exchange and an encrypted message</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; alice = <span class="p">x25519_private_key</span>();
+    <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; bob = <span class="p">x25519_private_key</span>();
+    <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; alice_public = <span class="p">x25519_public_key</span>(&amp;alice[<span class="n">0</span>..$]);
+    <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; bob_public = <span class="p">x25519_public_key</span>(&amp;bob[<span class="n">0</span>..$]);
+    <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; <span class="t">shared</span> = <span class="p">Option</span>::unwrap(<span class="p">x25519</span>(&amp;alice[<span class="n">0</span>..$], &amp;bob_public[<span class="n">0</span>..$]));
+    <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; nothing = <span class="p">Vec</span>::new();
+    <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; key = <span class="p">hkdf_sha256</span>(&amp;nothing[<span class="n">0</span>..$], &amp;<span class="t">shared</span>[<span class="n">0</span>..$], &amp;<span class="s">b&quot;example key&quot;</span>[<span class="n">0</span>..$], <span class="n">32</span>);
+    <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; nonce = <span class="p">Vec</span>::filled(<span class="n">12</span>, <span class="n">0</span>: <span class="t">u8</span>);
+    <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; sealed = <span class="p">chacha20_poly1305_seal</span>(&amp;key[<span class="n">0</span>..$], &amp;nonce[<span class="n">0</span>..$], &amp;<span class="s">b&quot;header&quot;</span>[<span class="n">0</span>..$], &amp;<span class="s">b&quot;attack at dawn&quot;</span>[<span class="n">0</span>..$]);
+    <span class="c">// Bob derives the same key from his side of the exchange.</span>
+    <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; bobs = <span class="p">Option</span>::unwrap(<span class="p">x25519</span>(&amp;bob[<span class="n">0</span>..$], &amp;alice_public[<span class="n">0</span>..$]));
+    <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; bob_key = <span class="p">hkdf_sha256</span>(&amp;nothing[<span class="n">0</span>..$], &amp;bobs[<span class="n">0</span>..$], &amp;<span class="s">b&quot;example key&quot;</span>[<span class="n">0</span>..$], <span class="n">32</span>);
+    <span class="k">match</span> (<span class="p">chacha20_poly1305_open</span>(&amp;bob_key[<span class="n">0</span>..$], &amp;nonce[<span class="n">0</span>..$], &amp;<span class="s">b&quot;header&quot;</span>[<span class="n">0</span>..$], &amp;sealed[<span class="n">0</span>..$]))
+    {
+        <span class="p">Some</span>(p) : <span class="p">printf</span>(<span class="s">&quot;bob reads: %s\n&quot;</span>, &amp;<span class="p">Result</span>::unwrap_or(<span class="p">String</span>::from_utf8(p), <span class="p">String</span>::new())),
+        <span class="p">None</span>    : <span class="p">printf</span>(<span class="s">&quot;refused\n&quot;</span>),
+    }
+    sealed[<span class="n">0</span>] = sealed[<span class="n">0</span>] ^ <span class="n">1</span>;
+    <span class="p">printf</span>(
+        <span class="s">&quot;changed in transit: %s\n&quot;</span>,
+        <span class="k">if</span> (<span class="p">Option</span>::is_none(&amp;<span class="p">chacha20_poly1305_open</span>(
+            &amp;bob_key[<span class="n">0</span>..$],
+            &amp;nonce[<span class="n">0</span>..$],
+            &amp;<span class="s">b&quot;header&quot;</span>[<span class="n">0</span>..$],
+            &amp;sealed[<span class="n">0</span>..$],
+        ))) { <span class="s">&quot;refused&quot;</span> } <span class="k">else</span> { <span class="s">&quot;accepted&quot;</span> },
+    );
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>bob reads: attack at dawn
+changed in transit: refused
+</pre></div></figure>
+<table>
+<thead><tr><th>Function</th><th>Does</th></tr></thead>
+<tbody>
+<tr><td><code>sha256(data)</code>, <code>Sha256::new()</code>, <code>Sha256::update(&amp;mut h, data)</code>, <code>Sha256::finish(h)</code></td><td>the SHA-256 digest, in one call or in pieces: an <code>array&lt;u8, 32&gt;</code></td></tr>
+<tr><td><code>hmac_sha256(key, data)</code>, <code>HmacSha256::new(key)</code>, <code>update</code>, <code>finish</code></td><td>HMAC-SHA-256 under <code>key</code> (any length; a long key is hashed first)</td></tr>
+<tr><td><code>digest_eq(a, b)</code></td><td>the same bytes, compared in a time that depends only on the lengths</td></tr>
+<tr><td><code>hkdf_sha256(salt, ikm, info, len)</code>, <code>hkdf_extract(salt, ikm)</code>, <code>hkdf_expand(prk, info, len)</code></td><td>HKDF (RFC 5869): <code>len</code> bytes of key material derived from a secret, bound to <code>info</code>; at most 8160 bytes from one extracted key</td></tr>
+<tr><td><code>chacha20_poly1305_seal(key, nonce, aad, plaintext)</code>, <code>chacha20_poly1305_open(key, nonce, aad, sealed)</code></td><td>authenticated encryption (RFC 8439): ciphertext and tag; the plaintext back, or <code>None</code> for anything changed</td></tr>
+<tr><td><code>chacha20(key, nonce, counter, data)</code>, <code>poly1305(key, message)</code></td><td>the stream cipher and the one-time MAC the AEAD is built from</td></tr>
+<tr><td><code>x25519_private_key()</code>, <code>x25519_public_key(private)</code>, <code>x25519(private, their_public)</code></td><td>key agreement (RFC 7748): a key pair, and the shared secret, <code>None</code> for a public key that must be refused</td></tr>
+<tr><td><code>sha512(data)</code>, <code>sha384(data)</code>, <code>Sha512</code>, <code>Sha384</code></td><td>the 64- and 48-byte SHA-2 digests, one-shot or streaming</td></tr>
+<tr><td><code>hash(kind, data)</code></td><td>the digest by a <code>HashKind</code>: <code>Sha2_256</code>, <code>Sha2_384</code> or <code>Sha2_512</code></td></tr>
+<tr><td><code>rsa_verify_pkcs1v15(&amp;key, kind, digest, sig)</code>, <code>rsa_verify_pss(&amp;key, kind, digest, sig)</code></td><td>whether an RSA signature (PKCS #1 v1.5, or PSS with a digest-length salt) is the key's over that digest</td></tr>
+<tr><td><code>ecdsa_verify(curve, public_key, digest, sig)</code></td><td>whether a DER ECDSA signature on <code>P256</code> or <code>P384</code> is the key's over that digest</td></tr>
+<tr><td><code>hkdf_expand_label(secret, label, context, len)</code></td><td>TLS 1.3's key-schedule step (RFC 8446 §7.1)</td></tr>
+<tr><td><code>to_hex(bytes)</code>, <code>from_hex(text)</code></td><td>lowercase hexadecimal and back (<code>ParseError</code> for a non-digit or an odd count)</td></tr>
+<tr><td><code>base64_encode(bytes)</code>, <code>base64_decode(text)</code></td><td>base64 with <code>=</code> padding and back (<code>ParseError</code> for a bad character or length)</td></tr>
+</tbody>
+</table>
+<figure class="code"><div class="code-head"><span class="code-title">A digest, a MAC, and their text forms</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; d = <span class="p">sha256</span>(&amp;<span class="s">b&quot;abc&quot;</span>[<span class="n">0</span>..$]);
+    <span class="p">printf</span>(<span class="s">&quot;%s\n&quot;</span>, &amp;<span class="p">to_hex</span>(&amp;d[<span class="n">0</span>..$]));
+    <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; mac = <span class="p">hmac_sha256</span>(&amp;<span class="s">b&quot;Jefe&quot;</span>[<span class="n">0</span>..$], &amp;<span class="s">b&quot;what do ya want for nothing?&quot;</span>[<span class="n">0</span>..$]);
+    <span class="p">printf</span>(<span class="s">&quot;%s\n&quot;</span>, &amp;<span class="p">to_hex</span>(&amp;mac[<span class="n">0</span>..$]));
+    <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; again = <span class="p">hmac_sha256</span>(&amp;<span class="s">b&quot;Jefe&quot;</span>[<span class="n">0</span>..$], &amp;<span class="s">b&quot;what do ya want for nothing?&quot;</span>[<span class="n">0</span>..$]);
+    <span class="p">printf</span>(<span class="s">&quot;verified: %v\n&quot;</span>, <span class="p">digest_eq</span>(&amp;mac[<span class="n">0</span>..$], &amp;again[<span class="n">0</span>..$]));
+    <span class="p">printf</span>(<span class="s">&quot;%s\n&quot;</span>, &amp;<span class="p">base64_encode</span>(&amp;<span class="s">b&quot;foobar&quot;</span>[<span class="n">0</span>..$]));
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843
+verified: true
+Zm9vYmFy
+</pre></div></figure>
+<p><strong>Checking signatures.</strong> A client checks what others signed and never signs, so
+<code>std</code> verifies only: <code>rsa_verify_pkcs1v15</code> and <code>rsa_verify_pss</code> for RSA, <code>ecdsa_verify</code> for ECDSA on
+P-256 and P-384, each given the digest made with <code>hash(kind, data)</code>. They use only public values and
+answer <code>false</code> for anything malformed. An RSA key is a <code>BigUint</code> modulus and exponent.</p>
+<h3>Big integers</h3>
+<p><em>In <code>std::math</code>.</em></p>
+<p>A <code>BigUint</code> is an unsigned integer of any size: <code>add</code>, <code>sub</code>, <code>mul</code>, <code>div_rem</code> (a <code>BigDivision</code>
+of <code>quotient</code> and <code>remainder</code>), <code>rem</code>, <code>mod_pow</code>, shifts, <code>eq</code> and <code>less</code>, and conversions to and from
+big-endian bytes and decimal text. It owns its digits, so it is a resource: reassign one with
+<code>overwrite</code>, and take a division apart by destructuring. Its operations take time that depends on the
+numbers, so it is for public values, never for a secret key.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Thirty factorial</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    <span class="p">BigUint</span> f = <span class="p">BigUint</span>::from_u64(<span class="n">1</span>);
+    <span class="k">for</span> (<span class="t">u64</span> i = <span class="n">2</span>; i &lt;= <span class="n">30</span>; i += <span class="n">1</span>)
+    {
+        overwrite(&amp;<span class="k">mut</span> f, <span class="p">BigUint</span>::mul(&amp;f, &amp;<span class="p">BigUint</span>::from_u64(i)));
+    }
+    <span class="p">printf</span>(<span class="s">&quot;30! = %s\n&quot;</span>, &amp;<span class="p">BigUint</span>::text(&amp;f));
+    <span class="p">BigDivision</span> { quotient, remainder } = <span class="p">BigUint</span>::div_rem(&amp;f, &amp;<span class="p">BigUint</span>::from_u64(<span class="n">1000000007</span>));
+    <span class="p">printf</span>(<span class="s">&quot;mod 1000000007 = %s\n&quot;</span>, &amp;<span class="p">BigUint</span>::text(&amp;remainder));
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>30! = 265252859812191058636308480000000
+mod 1000000007 = 109361473
+</pre></div></figure>
+<h3>Certificates</h3>
+<p><em>In <code>std::x509</code>.</em></p>
+<p><code>Certificate::parse(der)</code> reads an X.509 certificate; <code>certificates_from_pem(text)</code> reads every
+certificate in PEM text. A <code>TrustStore</code> holds the roots a chain may end at: <code>TrustStore::system()</code> reads
+the operating system's bundle on Unix (on Windows, pass a bundle to <code>TrustStore::from_pem_file</code>).
+<code>verify_chain(&amp;leaf, &amp;intermediates[0..$], &amp;roots, host, &amp;now)</code> decides whether a server's certificates
+prove it is <code>host</code>: the leaf names the host (a DNS name, a one-label wildcard, or an IP address; never
+the common name), every certificate is in date and signed by the next, every issuer is a CA, and the
+chain ends at a root. The error says why not: <code>HostMismatch</code>, <code>Expired</code>, <code>UnknownAuthority</code> and so on.
+Revocation (CRL, OCSP) is not checked.</p>
+<h3>TLS</h3>
+<p><em>In <code>std::tls</code>.</em></p>
+<p><code>TlsStream::connect(addr, server_name, &amp;roots)</code> opens a TLS 1.3 connection: it checks the
+server's certificate chain against <code>roots</code> and <code>server_name</code>, and then <code>read</code>, <code>read_exact</code>, <code>write</code>
+and <code>close</code> carry data encrypted and authenticated. <code>TlsStream::client(tcp, …)</code> does the same over a
+<code>TcpStream</code> the program connected and configured itself (its timeouts apply). The client speaks only
+TLS 1.3 with ChaCha20-Poly1305 and X25519, which every public server offers; a failure is a <code>TlsError</code>
+saying whether it was the network, the certificate, the handshake or an alert. The example is shown,
+not run: it needs the network.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Connecting to a DNS-over-TLS resolver (needs the network)</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main() : <span class="t">u8</span>
+{
+    <span class="p">TrustStore</span> roots = <span class="k">match</span> (<span class="p">TrustStore</span>::system())
+    {
+        <span class="p">Ok</span>(t)  : t,
+        <span class="p">Err</span>(_) : <span class="k">return</span> <span class="n">1</span>,
+    };
+    <span class="p">IpAddr</span> ip = <span class="p">Result</span>::unwrap(<span class="p">IpAddr</span>::<span class="p">parse</span>(<span class="s">&quot;1.1.1.1&quot;</span>));
+    <span class="p">TlsStream</span> s = <span class="k">match</span> (<span class="p">TlsStream</span>::connect(<span class="p">SocketAddr</span>::new(ip, <span class="n">853</span>), <span class="s">&quot;cloudflare-dns.com&quot;</span>, &amp;roots))
+    {
+        <span class="p">Ok</span>(s)  : s,
+        <span class="p">Err</span>(e) :
+        {
+            <span class="p">eprintf</span>(<span class="s">&quot;tls: %s\n&quot;</span>, <span class="p">TlsError</span>::text(&amp;e));
+            <span class="k">return</span> <span class="n">1</span>;
+        },
+    };
+    <span class="c">// … a DNS-over-TLS query: a 2-byte length, then the DNS message …</span>
+    _ = <span class="p">TlsStream</span>::close(&amp;<span class="k">mut</span> s);
+    <span class="n">0</span>
+}</code></pre></figure>
 <h3>Networking</h3>
 <p><em>In <code>std::net</code>.</em></p>
 <p>TCP connections, UDP datagrams and name resolution, over IPv4 and IPv6. Addresses are values:
@@ -6929,9 +7191,9 @@ that are equal keep the order they had. In a sorted <code>Vec</code>, <code>Vec:
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> names, <span class="p">String</span>::from_str(<span class="s">&quot;lin&quot;</span>));
     <span class="p">Vec</span>::sort(&amp;<span class="k">mut</span> names);
     <span class="p">assert</span>(&amp;names[<span class="n">0</span>][<span class="n">0</span>..$] == <span class="s">&quot;ada&quot;</span> &amp;&amp; &amp;names[<span class="n">2</span>][<span class="n">0</span>..$] == <span class="s">&quot;mira&quot;</span>);
-    <span class="p">String</span> who = <span class="p">String</span>::from_str(<span class="s">&quot;lin&quot;</span>);
+    <span class="p">String</span> who = <span class="s">&quot;lin&quot;</span>;
     <span class="p">assert</span>(<span class="p">Result</span>::unwrap_or(<span class="p">Vec</span>::binary_search(&amp;names, &amp;who), <span class="n">99</span>) == <span class="n">1</span>);
-    <span class="p">String</span> bob = <span class="p">String</span>::from_str(<span class="s">&quot;bob&quot;</span>);
+    <span class="p">String</span> bob = <span class="s">&quot;bob&quot;</span>;
     <span class="p">assert</span>(<span class="k">match</span> (<span class="p">Vec</span>::binary_search(&amp;names, &amp;bob))
     {
         <span class="p">Ok</span>(_)  : <span class="k">false</span>,
@@ -6939,9 +7201,9 @@ that are equal keep the order they had. In a sorted <code>Vec</code>, <code>Vec:
     });
 
     <span class="p">Vec</span>&lt;Player&gt; ps = <span class="p">Vec</span>::new();
-    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> ps, Player { .name = <span class="p">String</span>::from_str(<span class="s">&quot;a&quot;</span>), .score = <span class="n">3</span> });
-    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> ps, Player { .name = <span class="p">String</span>::from_str(<span class="s">&quot;b&quot;</span>), .score = <span class="n">9</span> });
-    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> ps, Player { .name = <span class="p">String</span>::from_str(<span class="s">&quot;c&quot;</span>), .score = <span class="n">3</span> });
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> ps, Player { .name = <span class="s">&quot;a&quot;</span>, .score = <span class="n">3</span> });
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> ps, Player { .name = <span class="s">&quot;b&quot;</span>, .score = <span class="n">9</span> });
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> ps, Player { .name = <span class="s">&quot;c&quot;</span>, .score = <span class="n">3</span> });
     <span class="p">Vec</span>::sort_by(&amp;<span class="k">mut</span> ps, higher);
     <span class="p">assert</span>(ps[<span class="n">0</span>].score == <span class="n">9</span>);
     <span class="p">assert</span>(&amp;ps[<span class="n">1</span>].name[<span class="n">0</span>..$] == <span class="s">&quot;a&quot;</span> &amp;&amp; &amp;ps[<span class="n">2</span>].name[<span class="n">0</span>..$] == <span class="s">&quot;c&quot;</span>);   <span class="c">// equal scores keep their order</span>
@@ -6995,7 +7257,7 @@ for a map whose order does not matter.</p>
         <span class="p">printf</span>(<span class="s">&quot;%-4s %d\n&quot;</span>, word, n);
     }
 
-    <span class="p">String</span> cat = <span class="p">String</span>::from_str(<span class="s">&quot;cat&quot;</span>);
+    <span class="p">String</span> cat = <span class="s">&quot;cat&quot;</span>;
     <span class="k">match</span> (<span class="p">HashMap</span>::get(&amp;counts, &amp;cat))
     {
         <span class="p">Some</span>(n) : <span class="p">printf</span>(<span class="s">&quot;cat: %d\n&quot;</span>, *n),
@@ -7371,7 +7633,7 @@ destroys what was there.</p>
     sort_by_len(&amp;<span class="k">mut</span> words[<span class="n">0</span>..$]);
     <span class="p">assert</span>(<span class="p">String</span>::len(&amp;words[<span class="n">0</span>]) == <span class="n">3</span> &amp;&amp; <span class="p">String</span>::len(&amp;words[$ - <span class="n">1</span>]) == <span class="n">6</span>);
 
-    Pair p = Pair { .left = <span class="p">String</span>::from_str(<span class="s">&quot;L&quot;</span>), .right = <span class="p">String</span>::from_str(<span class="s">&quot;RR&quot;</span>) };
+    Pair p = Pair { .left = <span class="s">&quot;L&quot;</span>, .right = <span class="s">&quot;RR&quot;</span> };
     <span class="p">swap</span>(&amp;<span class="k">mut</span> p.left, &amp;<span class="k">mut</span> p.right);
     <span class="p">String</span> old = replace(&amp;<span class="k">mut</span> p.left, <span class="p">String</span>::from_str(<span class="s">&quot;new&quot;</span>));   <span class="c">// old is &quot;RR&quot;</span>
     <span class="p">assert</span>(<span class="p">String</span>::len(&amp;old) == <span class="n">2</span> &amp;&amp; <span class="p">String</span>::len(&amp;p.left) == <span class="n">3</span>);
