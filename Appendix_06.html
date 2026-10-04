@@ -156,7 +156,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.100306</div>
+<div class="sub">Specification edition 2026.100401</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -323,7 +323,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100306</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100401</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -916,15 +916,18 @@ one subject alone (<code>import std::text;</code>). <a href="#s21">§21</a> cove
 <tr><td>Values behind references</td><td><code>swap</code>, <code>replace</code>, <code>overwrite</code></td><td><code>std::core</code></td></tr>
 <tr><td>Numeric helpers</td><td><code>min</code>, <code>max</code>, <code>abs</code>, <code>pow</code> (over the built-in bounds)</td><td><code>std::core</code></td></tr>
 <tr><td>Floating-point functions</td><td><code>sqrt</code>, <code>floor</code>, <code>ceil</code>, <code>round</code>, <code>trunc</code>, <code>ln</code>, <code>exp</code>, <code>log2</code>, <code>log10</code>, <code>sin</code>, <code>cos</code>, <code>tan</code>, <code>atan2</code>, <code>powf</code></td><td><code>std::math</code></td></tr>
-<tr><td>Random numbers</td><td><code>Rng</code>, a seeded pseudo-random generator</td><td><code>std::random</code></td></tr>
+<tr><td>Random numbers</td><td><code>Rng</code>, a seeded pseudo-random generator (<code>Rng::from_os</code> for a fresh seed); <code>os_random_bytes</code>, <code>os_random_u64</code> for secrets</td><td><code>std::random</code></td></tr>
+<tr><td>Networking</td><td><code>TcpListener</code> (bind, accept), <code>TcpStream</code> (connect, read_line, read, write, printf, shutdown_write, timeouts), <code>UdpSocket</code>, <code>IpAddr</code>, <code>SocketAddr</code>, <code>resolve</code>, <code>NetError</code></td><td><code>std::net</code></td></tr>
+<tr><td>Other programs</td><td><code>Command</code> (arg, current_dir, env, output, status, spawn), <code>Child</code> (read_output_line, write_input, wait, kill), <code>watch_interrupts</code>, <code>interrupt_requested</code></td><td><code>std::process</code></td></tr>
 <tr><td>Bytes</td><td><code>Vec::push_le</code>, <code>push_be</code> (<code>std::collections</code>); <code>read_le</code>, <code>read_be</code>, <code>crc32</code></td><td><code>std::text</code></td></tr>
 <tr><td>Text</td><td><code>String</code>, <code>StringView</code> (split, chars, find, trim, starts/ends_with, parse), <code>String::parse&lt;T&gt;</code>, <code>String::append</code>, <code>sprintf</code>, <code>String::appendf</code>, the ASCII tests and case changes, <code>Utf8Error</code>, <code>ParseError</code></td><td><code>std::text</code></td></tr>
 <tr><td>Output</td><td><code>printf</code>, <code>eprintf</code>; the extern <code>stdout_write</code></td><td><code>std::io</code></td></tr>
 <tr><td>Checks</td><td><code>assert</code></td><td><code>std::core</code></td></tr>
-<tr><td>Input</td><td><code>read_line</code>; the extern <code>stdin_read</code></td><td><code>std::io</code></td></tr>
+<tr><td>Input</td><td><code>read_line</code>, <code>read_all</code>, <code>read_all_bytes</code>; the extern <code>stdin_read</code></td><td><code>std::io</code></td></tr>
 <tr><td>Files</td><td><code>File</code> (open, create, append, open_rw, read, read_line, write, seek, len, close, …), <code>read_file</code>, <code>write_file</code>, <code>read_bytes</code>, <code>write_bytes</code>, <code>FileError</code></td><td><code>std::io</code></td></tr>
-<tr><td>The system</td><td><code>arg_count</code>, <code>arg</code> and the extern <code>arg_bytes</code>; <code>make_dir</code>, <code>remove_file</code>, <code>remove_dir</code>, <code>rename</code>, <code>list_dir</code>, <code>path_kind</code>, <code>env_var</code>, <code>current_dir</code>, <code>monotonic_ns</code>, <code>unix_seconds</code>, <code>sleep_ms</code></td><td><code>std::sys</code></td></tr>
+<tr><td>The system</td><td><code>arg_count</code>, <code>arg</code> and the extern <code>arg_bytes</code>; <code>make_dir</code>, <code>remove_file</code>, <code>remove_dir</code>, <code>rename</code>, <code>list_dir</code>, <code>path_kind</code>, <code>make_dir_all</code>, <code>remove_dir_all</code>, <code>copy_file</code>, <code>file_info</code>, <code>set_current_dir</code>, <code>temp_dir</code>, <code>home_dir</code>, the <code>path_</code> functions (join, parent, file_name, stem, extension, is_absolute, normalize, canonical), <code>env_var</code>, <code>current_dir</code>, <code>monotonic_ns</code>, <code>unix_seconds</code>, <code>sleep_ms</code></td><td><code>std::sys</code></td></tr>
 <tr><td>Concurrency</td><td><code>Channel&lt;T&gt;</code> (new, send, recv, close)</td><td><code>std::sync</code></td></tr>
+<tr><td>Dates and times</td><td><code>DateTime</code> (from_unix, now, new, to_unix, to_iso, from_iso, weekday, less), <code>Weekday</code>, <code>unix_ms</code> — UTC only</td><td><code>std::time</code></td></tr>
 </tbody>
 </table>
 <h3>What may surprise you</h3>
@@ -5267,11 +5270,14 @@ as <code>std::collections::Vec</code>. A program that wants one subject alone ma
 <tr><td><code>std::collections</code></td><td><code>Vec</code> (with sorting), <code>HashMap</code>, <code>HashSet</code>, <code>Queue</code>, <code>PriorityQueue</code></td></tr>
 <tr><td><code>std::text</code></td><td><code>String</code>, <code>StringView</code>, <code>sprintf</code>, <code>String::appendf</code>, the ASCII functions, <code>Utf8Error</code>, <code>ParseError</code>, <code>read_le</code>, <code>read_be</code>, <code>crc32</code></td></tr>
 <tr><td><code>std::io</code></td><td><code>printf</code>, <code>eprintf</code>, <code>read_line</code>, <code>File</code>, <code>FileError</code>, <code>read_file</code>, <code>write_file</code>, <code>read_bytes</code>, <code>write_bytes</code></td></tr>
-<tr><td><code>std::sys</code></td><td><code>arg_count</code>, <code>arg</code>, the directory functions, <code>env_var</code>, <code>current_dir</code>, the clocks, <code>sleep_ms</code></td></tr>
+<tr><td><code>std::sys</code></td><td><code>arg_count</code>, <code>arg</code>, the directory and path functions, <code>file_info</code>, <code>env_var</code>, <code>current_dir</code>, the clocks, <code>sleep_ms</code></td></tr>
 <tr><td><code>std::memory</code></td><td><code>Box</code>, <code>Rc</code>, <code>Weak</code></td></tr>
 <tr><td><code>std::sync</code></td><td><code>Channel</code></td></tr>
-<tr><td><code>std::random</code></td><td><code>Rng</code></td></tr>
+<tr><td><code>std::random</code></td><td><code>Rng</code>, <code>os_random_bytes</code>, <code>os_random_u64</code></td></tr>
 <tr><td><code>std::math</code></td><td><code>sqrt</code>, <code>floor</code>, <code>ceil</code>, <code>round</code>, <code>trunc</code>, <code>ln</code>, <code>exp</code>, <code>log2</code>, <code>log10</code>, <code>sin</code>, <code>cos</code>, <code>tan</code>, <code>atan2</code>, <code>powf</code></td></tr>
+<tr><td><code>std::time</code></td><td><code>DateTime</code>, <code>Weekday</code>, <code>unix_ms</code></td></tr>
+<tr><td><code>std::process</code></td><td><code>Command</code>, <code>Output</code>, <code>Child</code>, <code>watch_interrupts</code>, <code>interrupt_requested</code></td></tr>
+<tr><td><code>std::net</code></td><td><code>IpAddr</code>, <code>SocketAddr</code>, <code>resolve</code>, <code>TcpListener</code>, <code>TcpStream</code>, <code>UdpSocket</code>, <code>Datagram</code>, <code>NetError</code></td></tr>
 </tbody>
 </table>
 <figure class="code"><div class="code-head"><span class="code-title">One subject at a time</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std::text;
@@ -5393,6 +5399,7 @@ is the rest, for finding a name quickly.</p>
 <tr><td><code>printf(fmt, args…)</code>, <code>eprintf(fmt, args…)</code>, <code>sprintf(fmt, args…)</code>, <code>String::appendf(&amp;mut s, fmt, args…)</code></td><td>C-style formatted output, to standard output, to standard error, as a new <code>String</code> or into one, checked when compiled</td><td>§21</td></tr>
 <tr><td><code>assert(c)</code>, <code>assert(c, fmt, args…)</code></td><td>fault with <code>diag.assert-failed</code> (and the formatted message) when <code>c</code> is false</td><td>§18</td></tr>
 <tr><td><code>read_line()</code></td><td>read the next line of standard input as a <code>String</code></td><td>§21</td></tr>
+<tr><td><code>read_all()</code>, <code>read_all_bytes()</code></td><td>the rest of standard input at once, as a <code>String</code> or as bytes</td><td>§21</td></tr>
 <tr><td><code>arg_count()</code>, <code>arg(i)</code></td><td>the number of program arguments, and argument <code>i</code> as a <code>String</code></td><td>§21</td></tr>
 <tr><td><code>read_file(path)</code>, <code>write_file(path, text)</code></td><td>read a whole file as a <code>String</code>, or replace a file's contents; <code>path</code> and <code>text</code> are <code>StringView</code>s: a literal, or <code>&amp;s[0..$]</code> of a <code>String</code></td><td>§21</td></tr>
 <tr><td><code>stdout_write(buf, len)</code>, <code>stdin_read(buf, len)</code>, <code>arg_bytes(i, buf, len)</code></td><td>the externs beneath them: raw bytes to standard output, from standard input, and of argument <code>i</code> (unsafe)</td><td>§20</td></tr>
@@ -5653,8 +5660,8 @@ into bytes the same way, through <code>Name::bits(v)</code>.</p>
 }</code></pre></figure>
 <p><code>Rng</code> is a general-purpose pseudo-random generator — for simulations, games, sampling,
 randomised tests, shuffling — whose sequence the specification fixes, so a program that seeds it
-with a constant prints the same numbers under both tools and on every machine; seed it from
-<code>monotonic_ns()</code> for a fresh sequence. <code>below(&amp;mut r, n)</code> is unbiased, <code>unit_f64</code> is in <code>[0, 1)</code>.
+with a constant prints the same numbers under both tools and on every machine; seed it with
+<code>Rng::from_os()</code> for a fresh sequence each run. <code>below(&amp;mut r, n)</code> is unbiased, <code>unit_f64</code> is in <code>[0, 1)</code>.
 It is **not suitable for cryptographic purposes**: its output is predictable from a few values, so
 never use it for keys, tokens, nonces, passwords, or anything an adversary must not guess (D-0120).</p>
 <figure class="code"><div class="code-head"><span class="code-title">A reproducible random sequence</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
@@ -5672,6 +5679,27 @@ never use it for keys, tokens, nonces, passwords, or anything an adversary must 
     <span class="p">assert</span>(total &gt;= <span class="n">100</span> &amp;&amp; total &lt;= <span class="n">600</span>);
     <span class="t">f64</span> x = Rng::unit_f64(&amp;<span class="k">mut</span> dice);
     <span class="p">assert</span>(x &gt;= <span class="n">0.0</span> &amp;&amp; x &lt; <span class="n">1.0</span>);
+}</code></pre></figure>
+<p>For anything secret, take bytes from the operating system's cryptographically secure source
+instead (<code>std::random</code>): <code>os_random_bytes(&amp;mut buf[0..$])</code> fills a slice, <code>os_random_u64()</code> gives one
+number. These are what keys, session tokens and nonces are made of. <code>Rng::from_os()</code> seeds an <code>Rng</code>
+from them, which makes its sequence differ between runs but not secret: the sequence is still
+<code>Rng</code>'s. Every system both tools run on has such a source; if one did not, the call would be the
+fault <code>diag.entropy-unavailable</code>, never a quiet fall back to the clock.</p>
+<figure class="code"><div class="code-head"><span class="code-title">A session token</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; token = <span class="p">Vec</span>::filled(<span class="n">16</span>, <span class="n">0</span>: <span class="t">u8</span>);
+    <span class="p">os_random_bytes</span>(&amp;<span class="k">mut</span> token[<span class="n">0</span>..$]);
+    <span class="p">String</span> hex = <span class="p">String</span>::new();
+    <span class="k">foreach</span> (byte in &amp;token)
+    {
+        <span class="p">String</span>::appendf(&amp;<span class="k">mut</span> hex, <span class="s">&quot;%02x&quot;</span>, *byte);
+    }
+    <span class="p">assert</span>(<span class="p">String</span>::len(&amp;hex) == <span class="n">32</span>);
+    Rng shuffle = Rng::from_os();                    <span class="c">// differs each run; not for secrets</span>
+    <span class="p">assert</span>(Rng::below(&amp;<span class="k">mut</span> shuffle, <span class="n">52</span>) &lt; <span class="n">52</span>);
 }</code></pre></figure>
 <p>A <code>Vec</code> can hold references. While it does, they count as live borrows: the referent
 cannot be written past them, and a stored <code>&amp;mut</code> is the only way in until the element is popped or
@@ -6275,6 +6303,41 @@ printed with <code>printf</code> appears before the program waits.</p>
         },
     }
 }</code></pre></figure>
+<p>A program that needs all of its input before it can start, to sort it or parse it as one
+document, takes it at once with <code>read_all()</code> (a <code>String</code>, <code>Err(Utf8(e))</code> when it is not text) or
+<code>read_all_bytes()</code> (a <code>Vec&lt;u8&gt;</code>, any bytes). Each gives what is left after any <code>read_line</code> calls,
+line ends exactly as they came, and an empty result at the end of input.</p>
+<figure class="code"><div class="code-head"><span class="code-title">All of the input at once</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> before(<span class="t">ref</span>&lt;<span class="p">StringView</span>, <span class="t">shared</span>&gt; a, <span class="t">ref</span>&lt;<span class="p">StringView</span>, <span class="t">shared</span>&gt; b) : <span class="t">bool</span>
+{
+    <span class="p">StringView</span>::less(*a, *b)
+}
+
+<span class="c">// Sorts the lines of its input: `sort` in a few lines.</span>
+<span class="k">fn</span> main() : <span class="t">u8</span>
+{
+    <span class="p">String</span> all = <span class="k">match</span> (<span class="p">read_all</span>())
+    {
+        <span class="p">Ok</span>(s)  : s,
+        <span class="p">Err</span>(e) :
+        {
+            <span class="p">eprintf</span>(<span class="s">&quot;sort: %s\n&quot;</span>, <span class="p">FileError</span>::text(&amp;e));
+            <span class="k">return</span> <span class="n">1</span>;
+        },
+    };
+    <span class="p">Vec</span>&lt;<span class="p">StringView</span>&gt; lines = <span class="p">String</span>::split(&amp;all, <span class="s">&quot;\n&quot;</span>);
+    <span class="k">if</span> (<span class="p">Vec</span>::len(&amp;lines) &gt; <span class="n">0</span> &amp;&amp; <span class="p">StringView</span>::len(lines[<span class="p">Vec</span>::len(&amp;lines) - <span class="n">1</span>]) == <span class="n">0</span>)
+    {
+        <span class="p">Vec</span>::pop(&amp;<span class="k">mut</span> lines);                       <span class="c">// the empty piece after the last line end</span>
+    }
+    <span class="p">Vec</span>::sort_by(&amp;<span class="k">mut</span> lines, before);
+    <span class="k">foreach</span> (l in &amp;lines)
+    {
+        <span class="p">printf</span>(<span class="s">&quot;%s\n&quot;</span>, *l);
+    }
+    <span class="n">0</span>
+}</code></pre></figure>
 <h3>Program arguments</h3>
 <p><em>In <code>std::sys</code>.</em></p>
 <p><code>arg_count()</code> is the number of arguments the program was started with, and <code>arg(i)</code>
@@ -6465,8 +6528,61 @@ environment and measure time. Paths are <code>StringView</code>s, as for files, 
 <tr><td><code>env_var(name)</code></td><td><code>Ok(Some(value))</code>, or <code>Ok(None)</code> when the variable is not set</td></tr>
 <tr><td><code>current_dir()</code></td><td>the working directory, which relative paths start from</td></tr>
 <tr><td><code>monotonic_ns()</code>, <code>unix_seconds()</code></td><td>a clock for measuring time (never goes back), and the date</td></tr>
+<tr><td><code>make_dir_all(path)</code>, <code>remove_dir_all(path)</code></td><td>make a directory and any missing ones above it; remove a directory and everything in it</td></tr>
+<tr><td><code>copy_file(from, to)</code></td><td>copy a file, replacing one at <code>to</code>; the number of bytes copied</td></tr>
+<tr><td><code>file_info(path)</code></td><td>a <code>FileInfo</code>: <code>kind</code> (as <code>path_kind</code>'s), <code>len</code>, <code>modified_unix</code> (seconds since 1970) and <code>readonly</code></td></tr>
+<tr><td><code>set_current_dir(path)</code></td><td>change the working directory, for the whole program</td></tr>
+<tr><td><code>temp_dir()</code>, <code>home_dir()</code></td><td>the system's directory for temporary files; the user's home directory, if known</td></tr>
 </tbody>
 </table>
+<p>Paths have their own functions, because a path's grammar is the operating system's: <code>/</code> on
+Unix, <code>\</code> (and <code>/</code>) on Windows, where <code>C:\</code> starts an absolute path. They read the text alone and
+never touch the file system, except <code>path_canonical</code>, which asks the system where a path really
+leads (following links; the path must exist). Use <code>path_join</code> rather than gluing with <code>sprintf</code>:
+it puts in the right separator, only one, and an absolute tail replaces the base.</p>
+<table>
+<thead><tr><th>Function</th><th>Gives</th></tr></thead>
+<tbody>
+<tr><td><code>path_join(base, tail)</code></td><td><code>base</code> and <code>tail</code> with one separator between, as a <code>String</code></td></tr>
+<tr><td><code>path_parent(p)</code>, <code>path_file_name(p)</code></td><td><code>Some</code> part, or <code>None</code>: <code>/a/b</code> and <code>c.txt</code> of <code>/a/b/c.txt</code></td></tr>
+<tr><td><code>path_stem(p)</code>, <code>path_extension(p)</code></td><td><code>archive.tar</code> and <code>gz</code> of <code>archive.tar.gz</code>; <code>.bashrc</code> has a stem and no extension</td></tr>
+<tr><td><code>path_is_absolute(p)</code>, <code>path_normalize(p)</code></td><td>whether <code>p</code> starts from a root; <code>p</code> with <code>.</code> and <code>x/..</code> removed, by the text alone</td></tr>
+<tr><td><code>path_canonical(p)</code></td><td>the absolute path the system resolves <code>p</code> to</td></tr>
+</tbody>
+</table>
+<figure class="code"><div class="code-head"><span class="code-title">A log file's name and place</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main() : <span class="t">u8</span>
+{
+    <span class="p">DateTime</span> day = <span class="p">DateTime</span>::from_unix(<span class="n">1791022620</span>);
+    <span class="p">String</span> name = <span class="p">sprintf</span>(<span class="s">&quot;app-%d-%02d-%02d.log&quot;</span>, day.year, day.month, day.day);
+    <span class="p">String</span> dir = <span class="p">path_join</span>(&amp;<span class="p">temp_dir</span>()[<span class="n">0</span>..$], <span class="s">&quot;cobaltc-guide-logs/2026&quot;</span>);
+    <span class="k">if</span> (<span class="p">Err</span>(_) = <span class="p">make_dir_all</span>(&amp;dir[<span class="n">0</span>..$]))
+    {
+        <span class="k">return</span> <span class="n">1</span>;
+    }
+    <span class="p">String</span> log = <span class="p">path_join</span>(&amp;dir[<span class="n">0</span>..$], &amp;name[<span class="n">0</span>..$]);
+    <span class="k">if</span> (<span class="p">Err</span>(_) = <span class="p">write_file</span>(&amp;log[<span class="n">0</span>..$], <span class="s">&quot;started\n&quot;</span>))
+    {
+        <span class="k">return</span> <span class="n">1</span>;
+    }
+    <span class="p">String</span> stem = <span class="p">Option</span>::unwrap_or(<span class="p">path_stem</span>(&amp;log[<span class="n">0</span>..$]), <span class="p">String</span>::new());
+    <span class="p">String</span> ext = <span class="p">Option</span>::unwrap_or(<span class="p">path_extension</span>(&amp;log[<span class="n">0</span>..$]), <span class="p">String</span>::new());
+    <span class="p">printf</span>(<span class="s">&quot;%s: stem %s, extension %s, absolute %v\n&quot;</span>, &amp;name, &amp;stem, &amp;ext, <span class="p">path_is_absolute</span>(&amp;log[<span class="n">0</span>..$]));
+    <span class="k">match</span> (<span class="p">file_info</span>(&amp;log[<span class="n">0</span>..$]))
+    {
+        <span class="p">Ok</span>(i)  : <span class="p">printf</span>(<span class="s">&quot;%u bytes, written in the last minute: %v\n&quot;</span>, i.len, <span class="p">unix_seconds</span>() - i.modified_unix &lt; <span class="n">60</span>),
+        <span class="p">Err</span>(e) : <span class="p">printf</span>(<span class="s">&quot;file_info: %s\n&quot;</span>, <span class="p">FileError</span>::text(&amp;e)),
+    }
+    <span class="p">String</span> top = <span class="p">path_join</span>(&amp;<span class="p">temp_dir</span>()[<span class="n">0</span>..$], <span class="s">&quot;cobaltc-guide-logs&quot;</span>);
+    _ = <span class="p">remove_dir_all</span>(&amp;top[<span class="n">0</span>..$]);
+    <span class="p">String</span> up = <span class="p">path_normalize</span>(<span class="s">&quot;logs/2026/../2025/./app.log&quot;</span>);
+    <span class="p">printf</span>(<span class="s">&quot;normalized: %s\n&quot;</span>, &amp;up);
+    <span class="n">0</span>
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>app-2026-10-03.log: stem app-2026-10-03, extension log, absolute true
+8 bytes, written in the last minute: true
+normalized: logs/2025/app.log
+</pre></div></figure>
 <figure class="code"><div class="code-head"><span class="code-title">Making, listing and removing</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> kind(<span class="p">StringView</span> p) : <span class="t">str</span>
@@ -6511,6 +6627,272 @@ environment and measure time. Paths are <code>StringView</code>s, as for files, 
 notes.txt: missing, old.txt: file
 work: missing
 time goes forward: true
+</pre></div></figure>
+<h3>Dates and times</h3>
+<p><em>In <code>std::time</code>.</em></p>
+<p>A <code>DateTime</code> is a moment in UTC to the second: <code>year</code> (an <code>i64</code>), <code>month</code>, <code>day</code>, <code>hour</code>,
+<code>minute</code> and <code>second</code>, all fields a program can read. It converts to and from the seconds of
+<code>unix_seconds()</code> and to and from ISO 8601 text, the form logs, file names and protocols use. There
+is no local time and there are no time zones: a program that shows local time to a person does so
+outside <code>std</code>.</p>
+<table>
+<thead><tr><th>Function</th><th>Does</th></tr></thead>
+<tbody>
+<tr><td><code>DateTime::now()</code>, <code>DateTime::from_unix(s)</code></td><td>the moment now, or <code>s</code> seconds after 1970-01-01T00:00:00Z (before it when negative); every <code>i64</code> is a moment</td></tr>
+<tr><td><code>DateTime::new(y, mo, d, h, mi, s)</code></td><td><code>Some</code> moment, or <code>None</code> when the fields name none (a 30 February, an hour 24, a second 60)</td></tr>
+<tr><td><code>DateTime::to_unix(&amp;t)</code></td><td>the seconds since 1970; a <code>DateTime</code> written by hand with impossible fields is the fault <code>diag.invalid-datetime</code></td></tr>
+<tr><td><code>DateTime::to_iso(&amp;t)</code>, <code>DateTime::from_iso(text)</code></td><td><code>2026-10-03T10:17:00Z</code> as a <code>String</code>, and back; <code>from_iso</code> also takes a date alone, as its midnight, and gives a <code>ParseError</code> for anything else</td></tr>
+<tr><td><code>DateTime::weekday(&amp;t)</code>, <code>Weekday::text(&amp;w)</code></td><td>the day of the week, <code>Monday</code> … <code>Sunday</code>, and its name</td></tr>
+<tr><td><code>DateTime::eq(&amp;a, &amp;b)</code>, <code>DateTime::less(&amp;a, &amp;b)</code></td><td>the same moment; earlier (fits <code>Vec::sort_by</code>)</td></tr>
+<tr><td><code>unix_ms()</code></td><td>the wall clock in milliseconds since 1970</td></tr>
+</tbody>
+</table>
+<p><strong>Measure elapsed time with <code>monotonic_ns()</code>, never with the wall clock.</strong> The wall
+clock is whatever the computer's owner or its time service last set it to, and it can jump backwards
+while a program runs; <code>unix_seconds()</code>, <code>unix_ms()</code> and <code>DateTime::now()</code> say what time it is,
+<code>monotonic_ns()</code> how long something took.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Dates as text and back</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main() : <span class="t">u8</span>
+{
+    <span class="p">DateTime</span> launch = <span class="p">DateTime</span>::from_unix(<span class="n">1791022620</span>);
+    <span class="p">String</span> text = <span class="p">DateTime</span>::to_iso(&amp;launch);
+    <span class="p">Weekday</span> w = <span class="p">DateTime</span>::weekday(&amp;launch);
+    <span class="p">printf</span>(<span class="s">&quot;%s, a %s\n&quot;</span>, &amp;text, <span class="p">Weekday</span>::text(&amp;w));
+    <span class="p">DateTime</span> due = <span class="k">match</span> (<span class="p">DateTime</span>::from_iso(<span class="s">&quot;2026-12-24&quot;</span>))
+    {
+        <span class="p">Ok</span>(t)  : t,
+        <span class="p">Err</span>(e) :
+        {
+            <span class="p">printf</span>(<span class="s">&quot;bad date: %s\n&quot;</span>, <span class="p">ParseError</span>::text(&amp;e));
+            <span class="k">return</span> <span class="n">1</span>;
+        },
+    };
+    <span class="t">i64</span> days = (<span class="p">DateTime</span>::to_unix(&amp;due) - <span class="p">DateTime</span>::to_unix(&amp;launch)) / <span class="n">86400</span>;
+    <span class="p">printf</span>(<span class="s">&quot;%d whole days to %d-%02d-%02d\n&quot;</span>, days, due.year, due.month, due.day);
+    <span class="k">match</span> (<span class="p">DateTime</span>::from_iso(<span class="s">&quot;2026-02-29&quot;</span>))
+    {
+        <span class="p">Ok</span>(_)  : <span class="p">printf</span>(<span class="s">&quot;a leap day?\n&quot;</span>),
+        <span class="p">Err</span>(e) : <span class="p">printf</span>(<span class="s">&quot;2026-02-29: %s\n&quot;</span>, <span class="p">ParseError</span>::text(&amp;e)),
+    }
+    <span class="n">0</span>
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>2026-10-03T10:17:00Z, a Saturday
+81 whole days to 2026-12-24
+2026-02-29: out of range
+</pre></div></figure>
+<h3>Running other programs</h3>
+<p><em>In <code>std::process</code>.</em></p>
+<p>A <code>Command</code> names a program and its arguments; running it starts a child process. There is
+<strong>no shell</strong> in between: each <code>arg</code> reaches the program exactly as written, spaces,
+quotes, <code>$</code> and <code>;</code> included, so text from a user can be passed as an argument without any way to
+run something else. A program that wants a shell's features runs one by name, <code>/bin/sh</code> with <code>-c</code>,
+and then quoting is its own business.</p>
+<table>
+<thead><tr><th>Function</th><th>Does</th></tr></thead>
+<tbody>
+<tr><td><code>Command::new(program)</code>, <code>Command::arg(&amp;mut c, a)</code></td><td>a command; one more argument</td></tr>
+<tr><td><code>Command::current_dir(&amp;mut c, dir)</code>, <code>Command::env(&amp;mut c, name, value)</code>, <code>Command::clear_env(&amp;mut c)</code></td><td>where the child starts; an environment variable for it; start it with no inherited variables</td></tr>
+<tr><td><code>Command::output(&amp;c)</code>, <code>Command::output_with_input(&amp;c, input)</code></td><td>run to the end; an <code>Output</code> with <code>status</code>, <code>stdout</code> and <code>stderr</code> (bytes)</td></tr>
+<tr><td><code>Command::status(&amp;c)</code></td><td>run to the end with this program's own input and output; the status</td></tr>
+<tr><td><code>Command::spawn(&amp;c)</code></td><td>start it and return a <code>Child</code> at once, its three streams piped to this program</td></tr>
+<tr><td><code>Child::write_input</code>, <code>close_input</code>, <code>read_output</code>, <code>read_output_line</code>, <code>read_error</code></td><td>talk to a running child, as to a <code>File</code></td></tr>
+<tr><td><code>Child::wait(&amp;mut ch)</code>, <code>try_wait</code>, <code>kill</code></td><td>wait for the end (its status), ask without waiting, or end it at once</td></tr>
+</tbody>
+</table>
+<p>A status is the program's exit code, or minus the signal that ended it (<code>-9</code> after <code>kill</code>
+on Unix). Failing to start is a <code>FileError</code>, as every input and output failure is: <code>NotFound</code>
+when there is no such program. Dropping a
+<code>Child</code> closes its pipes but leaves it running, like a job sent to the background; <code>wait</code> for it if
+it should finish first.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Capturing a program's output</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main() : <span class="t">u8</span>
+{
+    <span class="p">Command</span> c = <span class="p">Command</span>::new(<span class="s">&quot;/bin/sh&quot;</span>);
+    <span class="p">Command</span>::<span class="p">arg</span>(&amp;<span class="k">mut</span> c, <span class="s">&quot;-c&quot;</span>);
+    <span class="p">Command</span>::<span class="p">arg</span>(&amp;<span class="k">mut</span> c, <span class="s">&quot;echo \&quot;$1 world\&quot;; echo oops &gt;&amp;2; exit 3&quot;</span>);
+    <span class="p">Command</span>::<span class="p">arg</span>(&amp;<span class="k">mut</span> c, <span class="s">&quot;sh&quot;</span>);
+    <span class="p">Command</span>::<span class="p">arg</span>(&amp;<span class="k">mut</span> c, <span class="s">&quot;hello; echo injected&quot;</span>);   <span class="c">// one argument, never run as a command</span>
+    <span class="k">match</span> (<span class="p">Command</span>::output(&amp;c))
+    {
+        <span class="p">Ok</span>(o)  :
+        {
+            <span class="p">String</span> out = <span class="p">Result</span>::unwrap_or(<span class="p">String</span>::from_utf8(<span class="p">Vec</span>::clone(&amp;o.stdout)), <span class="p">String</span>::new());
+            <span class="p">printf</span>(<span class="s">&quot;status %d, said: %s&quot;</span>, o.status, &amp;out);
+            <span class="p">printf</span>(<span class="s">&quot;and %u bytes on standard error\n&quot;</span>, <span class="p">Vec</span>::len(&amp;o.stderr));
+        },
+        <span class="p">Err</span>(e) :
+        {
+            <span class="p">printf</span>(<span class="s">&quot;could not run it: %s\n&quot;</span>, <span class="p">FileError</span>::text(&amp;e));
+            <span class="k">return</span> <span class="n">1</span>;
+        },
+    }
+    <span class="p">Command</span> gone = <span class="p">Command</span>::new(<span class="s">&quot;no-such-program-anywhere&quot;</span>);
+    <span class="k">if</span> (<span class="p">Err</span>(NotFound) = <span class="p">Command</span>::output(&amp;gone))
+    {
+        <span class="p">printf</span>(<span class="s">&quot;no-such-program-anywhere: not found\n&quot;</span>);
+    }
+    <span class="n">0</span>
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>status 3, said: hello; echo injected world
+and 5 bytes on standard error
+no-such-program-anywhere: not found
+</pre></div></figure>
+<h4>Stopping cleanly</h4>
+<p>Pressing Ctrl-C, or the system asking a service to stop (SIGTERM), ends a program on the
+spot. A server that should finish the request in hand and close its files first calls
+<code>watch_interrupts()</code>: from then on an interrupt only sets a flag, and <code>interrupt_requested()</code> reads
+it. There is no callback; the program's own loop looks at the flag, often enough. A blocking call
+an interrupt arrives in may return early (a listener's <code>accept</code> and a socket's <code>read</code> give
+<code>Err(TimedOut)</code>), and <code>TcpListener::set_accept_timeout_ms</code> bounds how long a quiet server waits
+before looking again.</p>
+<figure class="code"><div class="code-head"><span class="code-title">A loop that stops when asked</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    <span class="p">watch_interrupts</span>();
+    <span class="t">u64</span> handled = <span class="n">0</span>;
+    <span class="k">while</span> (!<span class="p">interrupt_requested</span>() &amp;&amp; handled &lt; <span class="n">3</span>)
+    {
+        handled += <span class="n">1</span>;                       <span class="c">// one unit of work: a request, a job, a file</span>
+    }
+    <span class="p">printf</span>(<span class="s">&quot;handled %u, stopping cleanly\n&quot;</span>, handled);
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>handled 3, stopping cleanly
+</pre></div></figure>
+<h3>Networking</h3>
+<p><em>In <code>std::net</code>.</em></p>
+<p>TCP connections, UDP datagrams and name resolution, over IPv4 and IPv6. Addresses are values:
+an <code>IpAddr</code> (<code>V4</code> or <code>V6</code>) and a port make a <code>SocketAddr</code>, read from text with <code>SocketAddr::parse</code>
+(<code>&quot;127.0.0.1:8080&quot;</code>, <code>&quot;[::1]:8080&quot;</code>) or built with <code>SocketAddr::new(IpAddr::localhost_v4(), 8080)</code>;
+<code>resolve(host, port)</code> asks the system's resolver.</p>
+<p><strong>Sockets block.</strong> <code>accept</code> waits for a connection, <code>read</code> for bytes, <code>connect</code>
+for the other side. A server handles many connections at once by giving each its own thread:
+<code>spawn</code> a function with the accepted <code>TcpStream</code> moved into it, and use a <code>Channel</code> (§19) where
+threads must talk. Every socket can have timeouts; a call that waits longer gives
+<code>Err(TimedOut)</code>, and the socket is still usable. There is no TLS, and nothing is added to what you
+send: the bytes that arrive are exactly the bytes written, in order, in pieces of any size, so a
+protocol needs its own framing — lines, read with <code>read_line</code>, are the simplest.</p>
+<table>
+<thead><tr><th>Function</th><th>Does</th></tr></thead>
+<tbody>
+<tr><td><code>TcpListener::bind(addr)</code>, <code>TcpListener::local_addr(&amp;l)</code></td><td>listen at <code>addr</code> (port 0: any free port); where it listens</td></tr>
+<tr><td><code>TcpListener::accept(&amp;mut l)</code>, <code>set_accept_timeout_ms(&amp;mut l, ms)</code></td><td>the next connection, a <code>TcpStream</code>; give up after <code>ms</code> with <code>Err(TimedOut)</code></td></tr>
+<tr><td><code>TcpStream::connect(addr)</code>, <code>connect_timeout(addr, ms)</code></td><td>connect to a listener</td></tr>
+<tr><td><code>TcpStream::read_line(&amp;mut s)</code>, <code>read(&amp;mut s, &amp;mut buf, max)</code>, <code>read_exact(&amp;mut s, &amp;mut buf, n)</code></td><td>as <code>File</code>'s: a line, what has arrived (0: the peer has finished), exactly <code>n</code> bytes</td></tr>
+<tr><td><code>TcpStream::write(&amp;mut s, data)</code>, <code>write_text(&amp;mut s, text)</code>, <code>printf(&amp;mut s, fmt, …)</code></td><td>send all of it</td></tr>
+<tr><td><code>TcpStream::shutdown_write(&amp;mut s)</code></td><td>tell the peer nothing more is coming (it reads 0), and keep reading</td></tr>
+<tr><td><code>set_read_timeout_ms</code>, <code>set_write_timeout_ms</code>, <code>set_nodelay</code></td><td>per-stream timeouts (0: none); send small writes at once</td></tr>
+<tr><td><code>UdpSocket::bind(addr)</code>, <code>send_to(&amp;mut u, data, to)</code>, <code>recv_from(&amp;mut u, max)</code></td><td>datagrams: one message each, with its sender in the <code>Datagram</code></td></tr>
+</tbody>
+</table>
+<figure class="code"><div class="code-head"><span class="code-title">An echo server and its clients in one program</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// One connection: each line back in capitals, until the client finishes.</span>
+<span class="k">fn</span> serve(<span class="p">TcpStream</span> s) : <span class="t">u32</span>
+{
+    <span class="t">u32</span> lines = <span class="n">0</span>;
+    <span class="k">while</span> (<span class="p">Ok</span>(<span class="p">Some</span>(line)) = <span class="p">TcpStream</span>::<span class="p">read_line</span>(&amp;<span class="k">mut</span> s))
+    {
+        <span class="p">String</span> up = <span class="p">String</span>::to_ascii_upper(&amp;line);
+        <span class="k">if</span> (<span class="p">Err</span>(_) = <span class="p">TcpStream</span>::<span class="p">printf</span>(&amp;<span class="k">mut</span> s, <span class="s">&quot;%s\n&quot;</span>, &amp;up))
+        {
+            <span class="k">break</span>;
+        }
+        lines += <span class="n">1</span>;
+    }
+    lines
+}
+
+<span class="c">// Accepts `n` connections, each served by its own thread.</span>
+<span class="k">fn</span> listen(<span class="p">TcpListener</span> l, <span class="t">usize</span> n) : <span class="t">u32</span>
+{
+    <span class="p">Vec</span>&lt;<span class="t">handle</span>&lt;<span class="t">u32</span>&gt;&gt; served = <span class="p">Vec</span>::new();
+    <span class="k">for</span> (<span class="t">usize</span> i = <span class="n">0</span>; i &lt; n; i += <span class="n">1</span>)
+    {
+        <span class="k">if</span> (<span class="p">Ok</span>(s) = <span class="p">TcpListener</span>::accept(&amp;<span class="k">mut</span> l))
+        {
+            <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> served, <span class="p">spawn</span>(serve, s));
+        }
+    }
+    <span class="t">u32</span> total = <span class="n">0</span>;
+    <span class="k">while</span> (<span class="p">Some</span>(h) = <span class="p">Vec</span>::pop(&amp;<span class="k">mut</span> served))
+    {
+        total += <span class="p">join</span>(h);
+    }
+    total
+}
+
+<span class="k">fn</span> ask(<span class="p">SocketAddr</span> at, <span class="t">str</span> word) : <span class="p">String</span>
+{
+    <span class="k">match</span> (<span class="p">TcpStream</span>::connect(at))
+    {
+        <span class="p">Ok</span>(c)  :
+        {
+            _ = <span class="p">TcpStream</span>::<span class="p">printf</span>(&amp;<span class="k">mut</span> c, <span class="s">&quot;%s\n&quot;</span>, word);
+            <span class="k">match</span> (<span class="p">TcpStream</span>::<span class="p">read_line</span>(&amp;<span class="k">mut</span> c))
+            {
+                <span class="p">Ok</span>(<span class="p">Some</span>(answer)) : answer,
+                _                : <span class="p">String</span>::from_str(<span class="s">&quot;(no answer)&quot;</span>),
+            }
+        },
+        <span class="p">Err</span>(e) : <span class="p">String</span>::from_str(<span class="p">NetError</span>::text(&amp;e)),
+    }
+}
+
+<span class="k">fn</span> main() : <span class="t">u8</span>
+{
+    <span class="p">TcpListener</span> l = <span class="k">match</span> (<span class="p">TcpListener</span>::bind(<span class="p">SocketAddr</span>::new(<span class="p">IpAddr</span>::localhost_v4(), <span class="n">0</span>)))
+    {
+        <span class="p">Ok</span>(l)  : l,
+        <span class="p">Err</span>(e) :
+        {
+            <span class="p">printf</span>(<span class="s">&quot;bind: %s\n&quot;</span>, <span class="p">NetError</span>::text(&amp;e));
+            <span class="k">return</span> <span class="n">1</span>;
+        },
+    };
+    <span class="p">SocketAddr</span> at = <span class="p">TcpListener</span>::local_addr(&amp;l);
+    <span class="k">auto</span> server = <span class="p">spawn</span>(listen, l, <span class="n">3</span>);
+    <span class="k">foreach</span> (word in [<span class="s">&quot;alpha&quot;</span>, <span class="s">&quot;beta&quot;</span>, <span class="s">&quot;gamma&quot;</span>])
+    {
+        <span class="p">String</span> answer = ask(at, word);
+        <span class="p">printf</span>(<span class="s">&quot;%s -&gt; %s\n&quot;</span>, word, &amp;answer);
+    }
+    <span class="p">printf</span>(<span class="s">&quot;the server answered %u lines\n&quot;</span>, <span class="p">join</span>(server));
+    <span class="n">0</span>
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>alpha -&gt; ALPHA
+beta -&gt; BETA
+gamma -&gt; GAMMA
+the server answered 3 lines
+</pre></div></figure>
+<p>A server that runs until it is stopped combines this with <code>watch_interrupts</code> (above): give
+the listener an accept timeout, and the accept loop looks at the flag between waits.</p>
+<figure class="code"><div class="code-head"><span class="code-title">A server loop that can be stopped</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main() : <span class="t">u8</span>
+{
+    <span class="p">watch_interrupts</span>();
+    <span class="p">TcpListener</span> l = <span class="k">match</span> (<span class="p">TcpListener</span>::bind(<span class="p">SocketAddr</span>::new(<span class="p">IpAddr</span>::localhost_v4(), <span class="n">0</span>)))
+    {
+        <span class="p">Ok</span>(l)  : l,
+        <span class="p">Err</span>(_) : <span class="k">return</span> <span class="n">1</span>,
+    };
+    <span class="p">TcpListener</span>::set_accept_timeout_ms(&amp;<span class="k">mut</span> l, <span class="n">50</span>);
+    <span class="t">u32</span> waits = <span class="n">0</span>;
+    <span class="k">while</span> (!<span class="p">interrupt_requested</span>() &amp;&amp; waits &lt; <span class="n">3</span>)      <span class="c">// a real server: while (!interrupt_requested())</span>
+    {
+        <span class="k">match</span> (<span class="p">TcpListener</span>::accept(&amp;<span class="k">mut</span> l))
+        {
+            <span class="p">Ok</span>(s)         : <span class="p">printf</span>(<span class="s">&quot;a client\n&quot;</span>),    <span class="c">// spawn a thread for it here</span>
+            <span class="p">Err</span>(TimedOut) : waits += <span class="n">1</span>,               <span class="c">// nobody came: look at the flag again</span>
+            <span class="p">Err</span>(e)        :
+            {
+                <span class="p">printf</span>(<span class="s">&quot;accept: %s\n&quot;</span>, <span class="p">NetError</span>::text(&amp;e));
+                <span class="k">return</span> <span class="n">1</span>;
+            },
+        }
+    }
+    <span class="p">printf</span>(<span class="s">&quot;closing the listener and stopping\n&quot;</span>);
+    <span class="n">0</span>
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>closing the listener and stopping
 </pre></div></figure>
 <h3>Sorting and searching</h3>
 <p><em>In <code>std::collections</code>.</em></p>
