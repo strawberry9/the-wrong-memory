@@ -156,7 +156,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.100403</div>
+<div class="sub">Specification edition 2026.100404</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -323,7 +323,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100403</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100404</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -928,7 +928,7 @@ one subject alone (<code>import std::text;</code>). <a href="#s21">§21</a> cove
 <tr><td>Files</td><td><code>File</code> (open, create, append, open_rw, read, read_line, write, seek, len, close, …), <code>read_file</code>, <code>write_file</code>, <code>read_bytes</code>, <code>write_bytes</code>, <code>FileError</code></td><td><code>std::io</code></td></tr>
 <tr><td>The system</td><td><code>arg_count</code>, <code>arg</code> and the extern <code>arg_bytes</code>; <code>make_dir</code>, <code>remove_file</code>, <code>remove_dir</code>, <code>rename</code>, <code>list_dir</code>, <code>path_kind</code>, <code>make_dir_all</code>, <code>remove_dir_all</code>, <code>copy_file</code>, <code>file_info</code>, <code>set_current_dir</code>, <code>temp_dir</code>, <code>home_dir</code>, the <code>path_</code> functions (join, parent, file_name, stem, extension, is_absolute, normalize, canonical), <code>env_var</code>, <code>current_dir</code>, <code>monotonic_ns</code>, <code>unix_seconds</code>, <code>sleep_ms</code></td><td><code>std::sys</code></td></tr>
 <tr><td>Concurrency</td><td><code>Channel&lt;T&gt;</code> (new, send, recv, close)</td><td><code>std::sync</code></td></tr>
-<tr><td>Cryptography</td><td><code>sha256</code>, <code>sha384</code>, <code>sha512</code>, <code>hmac_sha256</code>, <code>digest_eq</code>, <code>hkdf_sha256</code>, <code>chacha20_poly1305_seal</code>/<code>open</code>, <code>x25519</code>, <code>rsa_verify_pss</code>, <code>ecdsa_verify</code>; <code>to_hex</code>, <code>from_hex</code>, <code>base64_encode</code>, <code>base64_decode</code> in <code>std::text</code></td><td><code>std::crypto</code></td></tr>
+<tr><td>Cryptography</td><td><code>sha256</code>, <code>sha384</code>, <code>sha512</code>, <code>hmac_sha256</code>, <code>digest_eq</code>, <code>hkdf_sha256</code>, <code>chacha20_poly1305_seal</code>/<code>open</code>, <code>aes_gcm_seal</code>/<code>open</code>, <code>x25519</code>, <code>p256_ecdh</code>, <code>rsa_verify_pss</code>, <code>ecdsa_verify</code>; <code>to_hex</code>, <code>from_hex</code>, <code>base64_encode</code>, <code>base64_decode</code> in <code>std::text</code></td><td><code>std::crypto</code></td></tr>
 <tr><td>Big integers</td><td><code>BigUint</code> (add, sub, mul, div_rem, mod_pow, shifts, text, parse, bytes)</td><td><code>std::math</code></td></tr>
 <tr><td>Certificates and TLS</td><td><code>Certificate</code>, <code>TrustStore</code>, <code>verify_chain</code>; <code>TlsStream</code> (connect, client, read, read_exact, write, close)</td><td><code>std::x509</code>, <code>std::tls</code></td></tr>
 <tr><td>Dates and times</td><td><code>DateTime</code> (from_unix, now, new, to_unix, to_iso, from_iso, weekday, less, to_local), <code>Weekday</code>, <code>unix_ms</code>, <code>local_offset_seconds</code> — UTC, and the machine's local time</td><td><code>std::time</code></td></tr>
@@ -5290,7 +5290,7 @@ as <code>std::collections::Vec</code>. A program that wants one subject alone ma
 <tr><td><code>std::time</code></td><td><code>DateTime</code>, <code>Weekday</code>, <code>unix_ms</code></td></tr>
 <tr><td><code>std::process</code></td><td><code>Command</code>, <code>Output</code>, <code>Child</code>, <code>watch_interrupts</code>, <code>interrupt_requested</code>, <code>exit</code></td></tr>
 <tr><td><code>std::net</code></td><td><code>IpAddr</code>, <code>SocketAddr</code>, <code>resolve</code>, <code>TcpListener</code>, <code>TcpStream</code>, <code>UdpSocket</code>, <code>Datagram</code>, <code>NetError</code></td></tr>
-<tr><td><code>std::crypto</code></td><td><code>Sha256</code>, <code>sha256</code>, <code>HmacSha256</code>, <code>hmac_sha256</code>, <code>digest_eq</code>, <code>hkdf_extract</code>, <code>hkdf_expand</code>, <code>hkdf_sha256</code>, <code>hkdf_expand_label</code>, <code>chacha20</code>, <code>poly1305</code>, <code>chacha20_poly1305_seal</code>, <code>chacha20_poly1305_open</code>, <code>x25519</code>, <code>x25519_public_key</code>, <code>x25519_private_key</code>, <code>Sha512</code>, <code>sha512</code>, <code>Sha384</code>, <code>sha384</code>, <code>HashKind</code>, <code>hash</code>, <code>RsaPublicKey</code>, <code>rsa_verify_pkcs1v15</code>, <code>rsa_verify_pss</code>, <code>EcCurve</code>, <code>ecdsa_verify</code></td></tr>
+<tr><td><code>std::crypto</code></td><td><code>Sha256</code>, <code>sha256</code>, <code>HmacSha256</code>, <code>hmac_sha256</code>, <code>digest_eq</code>, <code>hkdf_extract</code>, <code>hkdf_expand</code>, <code>hkdf_sha256</code>, <code>hkdf_expand_label</code>, <code>chacha20</code>, <code>poly1305</code>, <code>chacha20_poly1305_seal</code>, <code>chacha20_poly1305_open</code>, <code>x25519</code>, <code>x25519_public_key</code>, <code>x25519_private_key</code>, <code>aes_encrypt_block</code>, <code>aes_gcm_seal</code>, <code>aes_gcm_open</code>, <code>p256_private_key</code>, <code>p256_public_key</code>, <code>p256_ecdh</code>, <code>Sha512</code>, <code>sha512</code>, <code>Sha384</code>, <code>sha384</code>, <code>HashKind</code>, <code>hash</code>, <code>RsaPublicKey</code>, <code>rsa_verify_pkcs1v15</code>, <code>rsa_verify_pss</code>, <code>EcCurve</code>, <code>ecdsa_verify</code></td></tr>
 <tr><td><code>std::x509</code></td><td><code>Certificate</code>, <code>certificates_from_pem</code>, <code>TrustStore</code>, <code>verify_chain</code>, <code>verify_signature</code>, <code>CertError</code>, <code>Der</code>, <code>der_read</code></td></tr>
 <tr><td><code>std::tls</code></td><td><code>TlsStream</code>, <code>TlsError</code></td></tr>
 </tbody>
@@ -6885,9 +6885,14 @@ tag or the <code>aad</code> was changed, and never any part of a refused message
 key.</strong> Each side makes <code>x25519_private_key()</code>, sends <code>x25519_public_key(&amp;private[0..$])</code>, and
 computes <code>x25519(&amp;private[0..$], &amp;their_public[0..$])</code>: both get the same 32 bytes, which nobody who
 saw only the public keys can (RFC 7748); <code>None</code> means the other side sent a key that must be refused.
-Feed the shared secret to <code>hkdf_sha256</code>, never use it as a key directly. All of these take the same
-steps whatever the secret bytes are, so their timing reveals nothing but lengths; a key or nonce of
-the wrong length is the fault <code>diag.crypto-length</code>.</p>
+Feed the shared secret to <code>hkdf_sha256</code>, never use it as a key directly. <strong>The NIST
+alternatives.</strong> <code>aes_gcm_seal</code> and <code>aes_gcm_open</code> are the same pair with AES-GCM (NIST SP
+800-38D), for formats and protocols that require it: the key is 16, 24 or 32 bytes (AES-128, AES-192
+or AES-256), the nonce 12. <code>p256_private_key</code>, <code>p256_public_key</code> and <code>p256_ecdh</code> agree on a key over
+the P-256 curve; the public key is 65 bytes, and <code>None</code> means a key that must be refused. Where you
+choose, ChaCha20-Poly1305 and X25519 are the faster pair in <code>std</code>. All of these take the same steps
+whatever the secret bytes are, so their timing reveals nothing but lengths; a key or nonce of the
+wrong length is the fault <code>diag.crypto-length</code>.</p>
 <figure class="code"><div class="code-head"><span class="code-title">A key exchange and an encrypted message</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> main()
@@ -6931,7 +6936,9 @@ changed in transit: refused
 <tr><td><code>hkdf_sha256(salt, ikm, info, len)</code>, <code>hkdf_extract(salt, ikm)</code>, <code>hkdf_expand(prk, info, len)</code></td><td>HKDF (RFC 5869): <code>len</code> bytes of key material derived from a secret, bound to <code>info</code>; at most 8160 bytes from one extracted key</td></tr>
 <tr><td><code>chacha20_poly1305_seal(key, nonce, aad, plaintext)</code>, <code>chacha20_poly1305_open(key, nonce, aad, sealed)</code></td><td>authenticated encryption (RFC 8439): ciphertext and tag; the plaintext back, or <code>None</code> for anything changed</td></tr>
 <tr><td><code>chacha20(key, nonce, counter, data)</code>, <code>poly1305(key, message)</code></td><td>the stream cipher and the one-time MAC the AEAD is built from</td></tr>
+<tr><td><code>aes_gcm_seal(key, nonce, aad, plaintext)</code>, <code>aes_gcm_open(key, nonce, aad, sealed)</code>, <code>aes_encrypt_block(key, block)</code></td><td>AES-GCM (SP 800-38D) with a 16-, 24- or 32-byte key, as the ChaCha20-Poly1305 pair; the bare AES block cipher (FIPS 197)</td></tr>
 <tr><td><code>x25519_private_key()</code>, <code>x25519_public_key(private)</code>, <code>x25519(private, their_public)</code></td><td>key agreement (RFC 7748): a key pair, and the shared secret, <code>None</code> for a public key that must be refused</td></tr>
+<tr><td><code>p256_private_key()</code>, <code>p256_public_key(private)</code>, <code>p256_ecdh(private, their_public)</code></td><td>key agreement over P-256: a 65-byte public key, and the 32-byte shared secret, <code>None</code> for a key that must be refused</td></tr>
 <tr><td><code>sha512(data)</code>, <code>sha384(data)</code>, <code>Sha512</code>, <code>Sha384</code></td><td>the 64- and 48-byte SHA-2 digests, one-shot or streaming</td></tr>
 <tr><td><code>hash(kind, data)</code></td><td>the digest by a <code>HashKind</code>: <code>Sha2_256</code>, <code>Sha2_384</code> or <code>Sha2_512</code></td></tr>
 <tr><td><code>rsa_verify_pkcs1v15(&amp;key, kind, digest, sig)</code>, <code>rsa_verify_pss(&amp;key, kind, digest, sig)</code></td><td>whether an RSA signature (PKCS #1 v1.5, or PSS with a digest-length salt) is the key's over that digest</td></tr>
@@ -6999,7 +7006,8 @@ Revocation (CRL, OCSP) is not checked.</p>
 server's certificate chain against <code>roots</code> and <code>server_name</code>, and then <code>read</code>, <code>read_exact</code>, <code>write</code>
 and <code>close</code> carry data encrypted and authenticated. <code>TlsStream::client(tcp, …)</code> does the same over a
 <code>TcpStream</code> the program connected and configured itself (its timeouts apply). The client speaks only
-TLS 1.3 with ChaCha20-Poly1305 and X25519, which every public server offers; a failure is a <code>TlsError</code>
+TLS 1.3, with ChaCha20-Poly1305 or AES-128-GCM and X25519 or P-256, the set every TLS 1.3 server must
+support; a failure is a <code>TlsError</code>
 saying whether it was the network, the certificate, the handshake or an alert. The example is shown,
 not run: it needs the network.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Connecting to a DNS-over-TLS resolver (needs the network)</span></div><pre><code><span class="k">import</span> std;
