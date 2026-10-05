@@ -156,7 +156,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.100404</div>
+<div class="sub">Specification edition 2026.100501</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -323,7 +323,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100404</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100501</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -928,7 +928,8 @@ one subject alone (<code>import std::text;</code>). <a href="#s21">§21</a> cove
 <tr><td>Files</td><td><code>File</code> (open, create, append, open_rw, read, read_line, write, seek, len, close, …), <code>read_file</code>, <code>write_file</code>, <code>read_bytes</code>, <code>write_bytes</code>, <code>FileError</code></td><td><code>std::io</code></td></tr>
 <tr><td>The system</td><td><code>arg_count</code>, <code>arg</code> and the extern <code>arg_bytes</code>; <code>make_dir</code>, <code>remove_file</code>, <code>remove_dir</code>, <code>rename</code>, <code>list_dir</code>, <code>path_kind</code>, <code>make_dir_all</code>, <code>remove_dir_all</code>, <code>copy_file</code>, <code>file_info</code>, <code>set_current_dir</code>, <code>temp_dir</code>, <code>home_dir</code>, the <code>path_</code> functions (join, parent, file_name, stem, extension, is_absolute, normalize, canonical), <code>env_var</code>, <code>current_dir</code>, <code>monotonic_ns</code>, <code>unix_seconds</code>, <code>sleep_ms</code></td><td><code>std::sys</code></td></tr>
 <tr><td>Concurrency</td><td><code>Channel&lt;T&gt;</code> (new, send, recv, close)</td><td><code>std::sync</code></td></tr>
-<tr><td>Cryptography</td><td><code>sha256</code>, <code>sha384</code>, <code>sha512</code>, <code>hmac_sha256</code>, <code>digest_eq</code>, <code>hkdf_sha256</code>, <code>chacha20_poly1305_seal</code>/<code>open</code>, <code>aes_gcm_seal</code>/<code>open</code>, <code>x25519</code>, <code>p256_ecdh</code>, <code>rsa_verify_pss</code>, <code>ecdsa_verify</code>; <code>to_hex</code>, <code>from_hex</code>, <code>base64_encode</code>, <code>base64_decode</code> in <code>std::text</code></td><td><code>std::crypto</code></td></tr>
+<tr><td>Cryptography</td><td><code>sha256</code>, <code>sha384</code>, <code>sha512</code>, <code>blake2b</code>, <code>hmac_sha256</code>, <code>hmac</code>, <code>digest_eq</code>, <code>hkdf_sha256</code>, <code>chacha20_poly1305_seal</code>/<code>open</code>, <code>aes_gcm_seal</code>/<code>open</code>, <code>x25519</code>, <code>ecdh</code>, <code>ed25519_sign</code>/<code>verify</code>, <code>ecdsa_sign</code>/<code>verify</code>, <code>rsa_sign_pss</code>/<code>verify_pss</code>, <code>hash_password</code>/<code>verify_password</code>; <code>to_hex</code>, <code>from_hex</code>, <code>base64_encode</code>, <code>base64_decode</code> in <code>std::text</code></td><td><code>std::crypto</code></td></tr>
+<tr><td>HTTP</td><td><code>http_get</code>, <code>http_post</code>, <code>HttpClient</code>, <code>Url</code>; <code>HttpServer</code>, <code>HttpConnection::request</code>/<code>respond</code></td><td><code>std::http</code></td></tr>
 <tr><td>Big integers</td><td><code>BigUint</code> (add, sub, mul, div_rem, mod_pow, shifts, text, parse, bytes)</td><td><code>std::math</code></td></tr>
 <tr><td>Certificates and TLS</td><td><code>Certificate</code>, <code>TrustStore</code>, <code>verify_chain</code>; <code>TlsStream</code> (connect, client, read, read_exact, write, close)</td><td><code>std::x509</code>, <code>std::tls</code></td></tr>
 <tr><td>Dates and times</td><td><code>DateTime</code> (from_unix, now, new, to_unix, to_iso, from_iso, weekday, less, to_local), <code>Weekday</code>, <code>unix_ms</code>, <code>local_offset_seconds</code> — UTC, and the machine's local time</td><td><code>std::time</code></td></tr>
@@ -3364,7 +3365,7 @@ bitstruct Double : <span class="t">u64</span>
 {
     mantissa : <span class="n">52</span>;                    <span class="c">// bits 0 .. 52</span>
     exponent : <span class="n">11</span>;                    <span class="c">// bits 52 .. 63</span>
-    sign     : <span class="n">1</span>;                     <span class="c">// bit 63</span>
+    <span class="p">sign</span>     : <span class="n">1</span>;                     <span class="c">// bit 63</span>
 }
 
 bitstruct Instr : <span class="t">u32</span>
@@ -3378,7 +3379,7 @@ bitstruct Instr : <span class="t">u32</span>
 <span class="k">fn</span> main()
 {
     Double d = Double::from_bits(<span class="p">reinterpret</span>&lt;<span class="t">u64</span>&gt;(-<span class="n">2.5</span>));
-    <span class="p">assert</span>(d.sign == <span class="n">1</span> &amp;&amp; d.exponent == <span class="n">1024</span>);           <span class="c">// exponent: u16, sign: u8</span>
+    <span class="p">assert</span>(d.<span class="p">sign</span> == <span class="n">1</span> &amp;&amp; d.exponent == <span class="n">1024</span>);           <span class="c">// exponent: u16, sign: u8</span>
     d.exponent = <span class="n">1023</span>;                                    <span class="c">// fits in 11 bits: checked</span>
     <span class="p">assert</span>(<span class="p">reinterpret</span>&lt;<span class="t">f64</span>&gt;(Double::bits(d)) == -<span class="n">1.25</span>);
 
@@ -3602,14 +3603,14 @@ that one decoder reads can live inside that decoder.</p>
 
 <span class="k">fn</span> payload_len(<span class="t">u16</span> raw) : <span class="t">u16</span>
 {
-    bitstruct Header : <span class="t">u16</span>            <span class="c">// bits 0..4, 4..14, 14..16</span>
+    bitstruct <span class="p">Header</span> : <span class="t">u16</span>            <span class="c">// bits 0..4, 4..14, 14..16</span>
     {
         kind  : <span class="n">4</span>;
         len   : <span class="n">10</span>;
         flags : <span class="n">2</span>;
     }
 
-    Header h = Header::from_bits(raw);
+    <span class="p">Header</span> h = <span class="p">Header</span>::from_bits(raw);
     h.len
 }
 
@@ -4552,7 +4553,7 @@ names a local variable, calls a function or is not a <code>bool</code> is reject
 with <code>diag.static-assert-not-constant</code>, which says so.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Checked before the program runs</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
-<span class="k">struct</span> Header
+<span class="k">struct</span> <span class="p">Header</span>
 {
     <span class="t">u32</span> magic;
     <span class="t">u16</span> version;
@@ -4571,7 +4572,7 @@ with <code>diag.static-assert-not-constant</code>, which says so.</p>
 
 <span class="k">fn</span> main()
 {
-    <span class="p">static_assert</span>(<span class="p">sizeof</span>&lt;Header&gt;() == <span class="n">16</span>, <span class="s">&quot;Header must match the C struct&quot;</span>);
+    <span class="p">static_assert</span>(<span class="p">sizeof</span>&lt;<span class="p">Header</span>&gt;() == <span class="n">16</span>, <span class="s">&quot;Header must match the C struct&quot;</span>);
     <span class="p">static_assert</span>(BUF &amp; (BUF - <span class="n">1</span>) == <span class="n">0</span>, <span class="s">&quot;BUF must be a power of two&quot;</span>);
     <span class="p">assert</span>(word(<span class="n">5</span>: <span class="t">i64</span>) == <span class="n">5</span> &amp;&amp; word(<span class="n">2.5</span>) == <span class="n">2.5</span>);
 }</code></pre></figure>
@@ -5290,8 +5291,9 @@ as <code>std::collections::Vec</code>. A program that wants one subject alone ma
 <tr><td><code>std::time</code></td><td><code>DateTime</code>, <code>Weekday</code>, <code>unix_ms</code></td></tr>
 <tr><td><code>std::process</code></td><td><code>Command</code>, <code>Output</code>, <code>Child</code>, <code>watch_interrupts</code>, <code>interrupt_requested</code>, <code>exit</code></td></tr>
 <tr><td><code>std::net</code></td><td><code>IpAddr</code>, <code>SocketAddr</code>, <code>resolve</code>, <code>TcpListener</code>, <code>TcpStream</code>, <code>UdpSocket</code>, <code>Datagram</code>, <code>NetError</code></td></tr>
-<tr><td><code>std::crypto</code></td><td><code>Sha256</code>, <code>sha256</code>, <code>HmacSha256</code>, <code>hmac_sha256</code>, <code>digest_eq</code>, <code>hkdf_extract</code>, <code>hkdf_expand</code>, <code>hkdf_sha256</code>, <code>hkdf_expand_label</code>, <code>chacha20</code>, <code>poly1305</code>, <code>chacha20_poly1305_seal</code>, <code>chacha20_poly1305_open</code>, <code>x25519</code>, <code>x25519_public_key</code>, <code>x25519_private_key</code>, <code>aes_encrypt_block</code>, <code>aes_gcm_seal</code>, <code>aes_gcm_open</code>, <code>p256_private_key</code>, <code>p256_public_key</code>, <code>p256_ecdh</code>, <code>Sha512</code>, <code>sha512</code>, <code>Sha384</code>, <code>sha384</code>, <code>HashKind</code>, <code>hash</code>, <code>RsaPublicKey</code>, <code>rsa_verify_pkcs1v15</code>, <code>rsa_verify_pss</code>, <code>EcCurve</code>, <code>ecdsa_verify</code></td></tr>
-<tr><td><code>std::x509</code></td><td><code>Certificate</code>, <code>certificates_from_pem</code>, <code>TrustStore</code>, <code>verify_chain</code>, <code>verify_signature</code>, <code>CertError</code>, <code>Der</code>, <code>der_read</code></td></tr>
+<tr><td><code>std::crypto</code></td><td><code>Sha256</code>, <code>sha256</code>, <code>HmacSha256</code>, <code>hmac_sha256</code>, <code>digest_eq</code>, <code>hkdf_extract</code>, <code>hkdf_expand</code>, <code>hkdf_sha256</code>, <code>hkdf_expand_label</code>, <code>chacha20</code>, <code>poly1305</code>, <code>chacha20_poly1305_seal</code>, <code>chacha20_poly1305_open</code>, <code>x25519</code>, <code>x25519_public_key</code>, <code>x25519_private_key</code>, <code>aes_encrypt_block</code>, <code>aes_gcm_seal</code>, <code>aes_gcm_open</code>, <code>p256_private_key</code>, <code>p256_public_key</code>, <code>p256_ecdh</code>, <code>Sha512</code>, <code>sha512</code>, <code>Sha384</code>, <code>sha384</code>, <code>HashKind</code>, <code>hash</code>, <code>RsaPublicKey</code>, <code>rsa_verify_pkcs1v15</code>, <code>rsa_verify_pss</code>, <code>EcCurve</code>, <code>ecdsa_verify</code>, <code>Hasher</code>, <code>Hmac</code>, <code>hmac</code>, <code>hkdf_extract_with</code>, <code>hkdf_expand_with</code>, <code>hkdf_with</code>, <code>hkdf_expand_label_with</code>, <code>ec_private_key</code>, <code>ec_public_key</code>, <code>ecdh</code>, <code>ecdsa_sign</code>, <code>ed25519_private_key</code>, <code>ed25519_public_key</code>, <code>ed25519_sign</code>, <code>ed25519_verify</code>, <code>RsaPrivateKey</code>, <code>rsa_sign_pkcs1v15</code>, <code>rsa_sign_pss</code>, <code>rsa_generate_key</code>, <code>Blake2b</code>, <code>blake2b</code>, <code>pbkdf2</code>, <code>argon2id</code>, <code>hash_password</code>, <code>verify_password</code></td></tr>
+<tr><td><code>std::x509</code></td><td><code>Certificate</code>, <code>certificates_from_pem</code>, <code>TrustStore</code>, <code>verify_chain</code>, <code>verify_signature</code>, <code>CertError</code>, <code>Der</code>, <code>der_read</code>, <code>CertKey</code>, <code>PrivateKey</code>, <code>sign</code></td></tr>
+<tr><td><code>std::http</code></td><td><code>http_get</code>, <code>http_post</code>, <code>HttpClient</code>, <code>Request</code>, <code>Response</code>, <code>Header</code>, <code>find_header</code>, <code>Url</code>, <code>percent_encode</code>, <code>percent_decode</code>, <code>HttpServer</code>, <code>HttpConnection</code>, <code>HttpError</code>, <code>reason_phrase</code></td></tr>
 <tr><td><code>std::tls</code></td><td><code>TlsStream</code>, <code>TlsError</code></td></tr>
 </tbody>
 </table>
@@ -6726,7 +6728,7 @@ in many zones), so this program's output differs from place to place:</p>
     <span class="p">DateTime</span> now = <span class="p">DateTime</span>::now();
     <span class="p">DateTime</span> here = <span class="p">DateTime</span>::to_local(&amp;now);
     <span class="t">i64</span> offset = <span class="p">local_offset_seconds</span>(<span class="p">DateTime</span>::to_unix(&amp;now));
-    <span class="t">str</span> sign = <span class="k">if</span> (offset &lt; <span class="n">0</span>) { <span class="s">&quot;-&quot;</span> } <span class="k">else</span> { <span class="s">&quot;+&quot;</span> };
+    <span class="t">str</span> <span class="p">sign</span> = <span class="k">if</span> (offset &lt; <span class="n">0</span>) { <span class="s">&quot;-&quot;</span> } <span class="k">else</span> { <span class="s">&quot;+&quot;</span> };
     <span class="t">i64</span> magnitude = <span class="k">if</span> (offset &lt; <span class="n">0</span>) { <span class="n">0</span> - offset } <span class="k">else</span> { offset };
     <span class="p">printf</span>(
         <span class="s">&quot;%s UTC is %04d-%02d-%02d %02d:%02d:%02d here (UTC%s%02d:%02d)\n&quot;</span>,
@@ -6737,7 +6739,7 @@ in many zones), so this program's output differs from place to place:</p>
         here.hour,
         here.minute,
         here.second,
-        sign,
+        <span class="p">sign</span>,
         magnitude / <span class="n">3600</span>,
         magnitude % <span class="n">3600</span> / <span class="n">60</span>,
     );
@@ -6875,8 +6877,10 @@ a sender guessed right. A digest is shown with <code>to_hex</code> and read back
 must travel as text go through <code>base64_encode</code> and <code>base64_decode</code> (RFC 4648, padded). Random keys
 come from <code>os_random_bytes</code>. A secret is rarely used as it arrives: <code>hkdf_sha256(salt, secret, info, len)</code>
 derives <code>len</code> bytes of key material from it, bound to what they are for by <code>info</code>, so one secret
-never keys two purposes (RFC 5869; TLS 1.3's key schedule is this function). There is no
-signing and no password hashing in <code>std</code> yet; each is a decision of its own.</p>
+never keys two purposes (RFC 5869; TLS 1.3's key schedule is this function). When a protocol or
+a file format names its hash, <code>hash(kind, data)</code>, <code>Hasher</code>, <code>hmac(kind, key, data)</code>, <code>Hmac</code> and the
+<code>hkdf_*_with(kind, …)</code> forms take a <code>HashKind</code> (<code>Sha2_256</code>, <code>Sha2_384</code> or <code>Sha2_512</code>) at run time;
+the SHA-256 forms are the same functions with <code>Sha2_256</code>.</p>
 <p><strong>Encrypting.</strong> <code>chacha20_poly1305_seal(key, nonce, aad, plaintext)</code> encrypts and
 authenticates (RFC 8439): a 32-byte key, a 12-byte nonce that must never repeat under one key, and
 <code>aad</code>, data sent in the clear but protected from change; the result is the ciphertext and a 16-byte
@@ -6944,6 +6948,13 @@ changed in transit: refused
 <tr><td><code>rsa_verify_pkcs1v15(&amp;key, kind, digest, sig)</code>, <code>rsa_verify_pss(&amp;key, kind, digest, sig)</code></td><td>whether an RSA signature (PKCS #1 v1.5, or PSS with a digest-length salt) is the key's over that digest</td></tr>
 <tr><td><code>ecdsa_verify(curve, public_key, digest, sig)</code></td><td>whether a DER ECDSA signature on <code>P256</code> or <code>P384</code> is the key's over that digest</td></tr>
 <tr><td><code>hkdf_expand_label(secret, label, context, len)</code></td><td>TLS 1.3's key-schedule step (RFC 8446 §7.1)</td></tr>
+<tr><td><code>Hasher::new(kind)</code>, <code>hmac(kind, key, data)</code>, <code>Hmac::new(kind, key)</code>, <code>hkdf_with(kind, salt, ikm, info, len)</code>, <code>hkdf_extract_with</code>, <code>hkdf_expand_with</code>, <code>hkdf_expand_label_with</code></td><td>the same over a <code>HashKind</code> chosen at run time (SHA-256, SHA-384 or SHA-512); results are <code>Vec&lt;u8&gt;</code></td></tr>
+<tr><td><code>ed25519_private_key()</code>, <code>ed25519_public_key(private)</code>, <code>ed25519_sign(private, message)</code>, <code>ed25519_verify(public, message, sig)</code></td><td>Ed25519 (RFC 8032): 32-byte keys, 64-byte deterministic signatures over the whole message</td></tr>
+<tr><td><code>ec_private_key(curve)</code>, <code>ec_public_key(curve, private)</code>, <code>ecdh(curve, private, their_public)</code>, <code>ecdsa_sign(curve, private, digest)</code></td><td>P-256 or P-384 keys, key agreement, and a DER ECDSA signature over a digest with an RFC 6979 nonce</td></tr>
+<tr><td><code>rsa_generate_key(bits)</code>, <code>RsaPrivateKey::new(n, e, d, p, q)</code>, <code>RsaPrivateKey::public_key(&amp;key)</code>, <code>rsa_sign_pkcs1v15(&amp;key, kind, digest)</code>, <code>rsa_sign_pss(&amp;key, kind, digest)</code></td><td>an RSA key (1024 to 8192 bits), and signatures in the two encodings the verify functions check</td></tr>
+<tr><td><code>hash_password(password)</code>, <code>verify_password(stored, password)</code></td><td>Argon2id password storage as a PHC string, and its check</td></tr>
+<tr><td><code>argon2id(password, salt, passes, memory_kib, lanes, len)</code>, <code>pbkdf2(kind, password, salt, iterations, len)</code></td><td>the raw key-derivation functions (RFC 9106, RFC 8018)</td></tr>
+<tr><td><code>blake2b(data, len)</code>, <code>Blake2b::new(len)</code>, <code>Blake2b::new_keyed(key, len)</code>, <code>update</code>, <code>finish</code></td><td>BLAKE2b (RFC 7693): a digest of 1 to 64 bytes, optionally keyed</td></tr>
 <tr><td><code>to_hex(bytes)</code>, <code>from_hex(text)</code></td><td>lowercase hexadecimal and back (<code>ParseError</code> for a non-digit or an odd count)</td></tr>
 <tr><td><code>base64_encode(bytes)</code>, <code>base64_decode(text)</code></td><td>base64 with <code>=</code> padding and back (<code>ParseError</code> for a bad character or length)</td></tr>
 </tbody>
@@ -6964,14 +6975,67 @@ changed in transit: refused
 verified: true
 Zm9vYmFy
 </pre></div></figure>
-<p><strong>Checking signatures.</strong> A client checks what others signed and never signs, so
-<code>std</code> verifies only: <code>rsa_verify_pkcs1v15</code> and <code>rsa_verify_pss</code> for RSA, <code>ecdsa_verify</code> for ECDSA on
-P-256 and P-384, each given the digest made with <code>hash(kind, data)</code>. They use only public values and
-answer <code>false</code> for anything malformed. An RSA key is a <code>BigUint</code> modulus and exponent.</p>
+<p><strong>Signatures.</strong> Three families, each with a key pair, a signing function and a
+verifying one. <em>Ed25519</em> (RFC 8032) is the simplest and the one to choose where you can:
+<code>ed25519_private_key()</code>, <code>ed25519_public_key(&amp;private[0..$])</code>, <code>ed25519_sign(&amp;private[0..$],
+message)</code> gives 64 bytes, <code>ed25519_verify(&amp;public[0..$], message, &amp;sig[0..$])</code> says whether they are
+that key's signature of that message. Signing is deterministic: the same key and message give the
+same bytes, and no random number is involved that could repeat. <em>ECDSA</em> on <code>P256</code> or <code>P384</code>
+(what certificates and TLS mostly carry): <code>ec_private_key(curve)</code>, <code>ec_public_key(curve, &amp;k[0..$])</code>
+(the uncompressed point, 65 or 97 bytes), <code>ecdsa_sign(curve, &amp;k[0..$], &amp;digest[0..$])</code> (a DER
+signature over the digest made with <code>hash</code>; the nonce is derived from the key and the digest as
+RFC 6979 says, so it too is deterministic) and <code>ecdsa_verify(curve, public, digest, sig)</code>; the same
+keys do key agreement with <code>ecdh(curve, &amp;k[0..$], &amp;their_public[0..$])</code>, of which the <code>p256_*</code>
+functions are the P-256 case. <em>RSA</em>: <code>rsa_generate_key(2048)</code> makes an <code>RsaPrivateKey</code>
+(minutes under the interpreter, seconds compiled), or <code>RsaPrivateKey::new(n, e, d, p, q)</code> builds one
+from numbers read elsewhere (<code>None</code> if they do not fit together); <code>rsa_sign_pkcs1v15(&amp;key, kind,
+&amp;digest[0..$])</code> and <code>rsa_sign_pss(&amp;key, kind, &amp;digest[0..$])</code> sign the digest in the two standard
+encodings, <code>RsaPrivateKey::public_key(&amp;key)</code> gives the <code>RsaPublicKey</code> that <code>rsa_verify_pkcs1v15</code> and
+<code>rsa_verify_pss</code> check with. Signing with any of them takes the same steps whatever the key; the
+RSA operation is blinded and checked against the public key before its result leaves. Verification
+uses only public values and answers <code>false</code> for anything malformed.</p>
+<p><strong>Keys in files.</strong> Keys travel in the encodings every tool writes, in
+<code>std::x509</code>: a public key as a SubjectPublicKeyInfo (<code>CertKey::from_der</code>, <code>from_pem</code>, <code>to_der</code>,
+<code>to_pem</code>), a private key as PKCS #8 (<code>PrivateKey::from_der</code>, <code>from_pem</code>, <code>to_der</code>, <code>to_pem</code>), where
+<code>from_pem</code> also reads the older <code>RSA PRIVATE KEY</code> and <code>EC PRIVATE KEY</code> blocks. A <code>PrivateKey</code> is
+<code>RsaPrivate</code>, <code>EcPrivate</code> or <code>Ed25519Private</code>; <code>PrivateKey::public_key(&amp;key)</code> is its <code>CertKey</code>, and
+<code>sign(&amp;key, &amp;scheme, message)</code> signs a whole message under a <code>SignatureScheme</code> the way
+<code>verify_signature</code> checks it, hashing first where the scheme says so. A certificate's key is a
+<code>CertKey</code> too, so a program can check a signature against a certificate it parsed.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Signing a release note</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; private = <span class="p">ed25519_private_key</span>();
+    <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; public = <span class="p">ed25519_public_key</span>(&amp;private[<span class="n">0</span>..$]);
+    <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">64</span>&gt; sig = <span class="p">ed25519_sign</span>(&amp;private[<span class="n">0</span>..$], &amp;<span class="s">b&quot;release 1.4.0&quot;</span>[<span class="n">0</span>..$]);
+    <span class="p">printf</span>(<span class="s">&quot;genuine: %v\n&quot;</span>, <span class="p">ed25519_verify</span>(&amp;public[<span class="n">0</span>..$], &amp;<span class="s">b&quot;release 1.4.0&quot;</span>[<span class="n">0</span>..$], &amp;sig[<span class="n">0</span>..$]));
+    <span class="p">printf</span>(<span class="s">&quot;altered: %v\n&quot;</span>, <span class="p">ed25519_verify</span>(&amp;public[<span class="n">0</span>..$], &amp;<span class="s">b&quot;release 1.4.1&quot;</span>[<span class="n">0</span>..$], &amp;sig[<span class="n">0</span>..$]));
+    <span class="c">// The same key, written the way openssl would.</span>
+    <span class="p">PrivateKey</span> key = Ed25519Private(private);
+    <span class="p">String</span> pem = <span class="p">PrivateKey</span>::to_pem(&amp;key);
+    <span class="p">printf</span>(<span class="s">&quot;%s&quot;</span>, <span class="p">StringView</span>::sub(<span class="p">String</span>::as_view(&amp;pem), <span class="n">0</span>, <span class="n">27</span>));
+    <span class="p">printf</span>(<span class="s">&quot;\nread back: %v\n&quot;</span>, <span class="p">Result</span>::is_ok(&amp;<span class="p">PrivateKey</span>::from_pem(<span class="p">String</span>::as_view(&amp;pem))));
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>genuine: true
+altered: false
+-----BEGIN PRIVATE KEY-----
+read back: true
+</pre></div></figure>
+<p><strong>Passwords.</strong> Store <code>hash_password(&amp;password[0..$])</code>, a text like
+<code>$argon2id$v=19$m=19456,t=2,p=1$…$…</code> that records the Argon2id parameters and the random salt beside
+the result; check a login with <code>verify_password(stored, &amp;attempt[0..$])</code>. Argon2id (RFC 9106) costs
+memory as well as time (19 MiB and two passes here, the OWASP recommendation), so a stolen table
+cannot be searched at hardware speed; the parameters can be raised later and old entries still
+verify, since each carries its own. Never store a plain <code>sha256</code> of a password, salted or not. For
+the formats that predate Argon2, <code>pbkdf2(kind, password, salt, iterations, len)</code> is PBKDF2 over
+HMAC, and <code>argon2id(password, salt, passes, memory_kib, lanes, len)</code> is the raw function.
+<code>blake2b(data, len)</code> (RFC 7693, up to 64 bytes, <code>Blake2b::new_keyed</code> for a keyed MAC) is the fast
+hash Argon2 is built on. Under the interpreter <code>hash_password</code> takes many minutes (19 MiB of
+memory touched twice, word by word); compiled, well under a second.</p>
 <h3>Big integers</h3>
 <p><em>In <code>std::math</code>.</em></p>
 <p>A <code>BigUint</code> is an unsigned integer of any size: <code>add</code>, <code>sub</code>, <code>mul</code>, <code>div_rem</code> (a <code>BigDivision</code>
-of <code>quotient</code> and <code>remainder</code>), <code>rem</code>, <code>mod_pow</code>, shifts, <code>eq</code> and <code>less</code>, and conversions to and from
+of <code>quotient</code> and <code>remainder</code>), <code>rem</code>, <code>mod_pow</code>, <code>mod_inverse</code>, <code>clone</code>, shifts, <code>eq</code> and <code>less</code>, and conversions to and from
 big-endian bytes and decimal text. It owns its digits, so it is a resource: reassign one with
 <code>overwrite</code>, and take a division apart by destructuring. Its operations take time that depends on the
 numbers, so it is for public values, never for a secret key.</p>
@@ -7006,10 +7070,15 @@ Revocation (CRL, OCSP) is not checked.</p>
 server's certificate chain against <code>roots</code> and <code>server_name</code>, and then <code>read</code>, <code>read_exact</code>, <code>write</code>
 and <code>close</code> carry data encrypted and authenticated. <code>TlsStream::client(tcp, …)</code> does the same over a
 <code>TcpStream</code> the program connected and configured itself (its timeouts apply). The client speaks only
-TLS 1.3, with ChaCha20-Poly1305 or AES-128-GCM and X25519 or P-256, the set every TLS 1.3 server must
-support; a failure is a <code>TlsError</code>
-saying whether it was the network, the certificate, the handshake or an alert. The example is shown,
-not run: it needs the network.</p>
+TLS 1.3, with ChaCha20-Poly1305, AES-128-GCM or AES-256-GCM, X25519, P-256 or P-384, and ECDSA,
+RSA-PSS or Ed25519 signatures: the set every TLS 1.3 server must support and the common additions; a
+failure is a <code>TlsError</code> saying whether it was the network, the certificate, the handshake or an
+alert. The example is shown, not run: it needs the network.</p>
+<div class="callout note"><div class="callout-title">Note</div>Run TLS clients compiled. Checking a server's certificate chain is several public-key
+signature checks, a few milliseconds compiled but tens of seconds in the interpreter (<code>TrustStore::system()</code>
+alone parses every root certificate). Many servers close a connection whose handshake stalls for
+about ten seconds, and the interpreter's client then fails with the network error <code>closed</code>; under
+<code>cobc</code> the same program completes in well under a second.</div>
 <figure class="code"><div class="code-head"><span class="code-title">Connecting to a DNS-over-TLS resolver (needs the network)</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> main() : <span class="t">u8</span>
@@ -7033,6 +7102,96 @@ not run: it needs the network.</p>
     _ = <span class="p">TlsStream</span>::close(&amp;<span class="k">mut</span> s);
     <span class="n">0</span>
 }</code></pre></figure>
+<h3>HTTP</h3>
+<p><em>In <code>std::http</code>.</em></p>
+<p><code>http_get(url)</code> fetches a URL and <code>http_post(url, content_type, body)</code> posts to one; each gives
+a <code>Response</code> with its <code>status</code>, <code>reason</code>, <code>headers</code> and whole <code>body</code>, or an <code>HttpError</code> saying what
+went wrong (the network, TLS, a malformed URL or message, a limit). Both follow redirects, decode
+chunked bodies and speak <code>https</code> through <code>std::tls</code> with the system roots. A program that makes more
+than one request, or wants a timeout, a header on every request or a smaller body limit, keeps an
+<code>HttpClient</code> and calls <code>HttpClient::send(&amp;mut client, &amp;request)</code>: the roots are loaded once, at the
+first <code>https</code> request. <code>Url::parse</code> takes a URL apart (<code>scheme</code>, <code>host</code>, <code>port</code>, <code>path</code>, <code>query</code>),
+<code>percent_encode</code> and <code>percent_decode</code> handle the escaping, and <code>find_header</code> (or
+<code>Response::header</code>) finds a header whatever its case. HTTP/1.1 only, one connection per request, no
+compression and no cookies; what a server sends compressed it sends only when asked, so plain
+requests get plain bodies.</p>
+<p><strong>Serving.</strong> <code>HttpServer::bind(addr)</code> listens; <code>HttpServer::accept(&amp;mut server)</code>
+gives each client's <code>HttpConnection</code>, on which <code>HttpConnection::request(&amp;mut c)</code> parses the next
+request (<code>Ok(None)</code> once the client is done) and <code>HttpConnection::respond(&amp;mut c, status, &amp;headers,
+body)</code> writes the answer with the right <code>Content-Length</code>, reason phrase and <code>Connection</code> header,
+keeping the connection open when the client asked for that. A malformed request is an <code>Err</code> the
+program answers with 400 (or 413 for one over <code>max_body</code>); the connection then closes. Handle each
+connection in its own thread with <code>spawn</code>, as the example does; the server speaks plain HTTP (a TLS
+server is a later decision). The example is hermetic: its client and server are the same program.</p>
+<figure class="code"><div class="code-head"><span class="code-title">A health check and an echo, served and fetched</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> serve(<span class="p">HttpConnection</span> c) : <span class="t">u8</span>
+{
+    <span class="k">while</span> (<span class="k">true</span>)
+    {
+        <span class="p">Vec</span>&lt;<span class="p">Header</span>&gt; headers = <span class="p">Vec</span>::new();
+        <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> headers, <span class="p">Header</span>::new(<span class="s">&quot;Content-Type&quot;</span>, <span class="s">&quot;text/plain&quot;</span>));
+        <span class="k">match</span> (<span class="p">HttpConnection</span>::request(&amp;<span class="k">mut</span> c))
+        {
+            <span class="p">Ok</span>(<span class="p">Some</span>(req)) :
+            {
+                <span class="k">if</span> (req.url == <span class="s">&quot;/health&quot;</span>)
+                {
+                    _ = <span class="p">HttpConnection</span>::respond(&amp;<span class="k">mut</span> c, <span class="n">200</span>, &amp;headers[<span class="n">0</span>..$], &amp;<span class="s">b&quot;ok\n&quot;</span>[<span class="n">0</span>..$]);
+                }
+                <span class="k">else</span> <span class="k">if</span> (req.method == <span class="s">&quot;POST&quot;</span> &amp;&amp; req.url == <span class="s">&quot;/echo&quot;</span>)
+                {
+                    _ = <span class="p">HttpConnection</span>::respond(&amp;<span class="k">mut</span> c, <span class="n">200</span>, &amp;headers[<span class="n">0</span>..$], &amp;req.body[<span class="n">0</span>..$]);
+                }
+                <span class="k">else</span>
+                {
+                    _ = <span class="p">HttpConnection</span>::respond(&amp;<span class="k">mut</span> c, <span class="n">404</span>, &amp;headers[<span class="n">0</span>..$], &amp;<span class="s">b&quot;no such page\n&quot;</span>[<span class="n">0</span>..$]);
+                }
+            },
+            <span class="p">Ok</span>(<span class="p">None</span>) : <span class="k">return</span> <span class="n">0</span>,
+            <span class="p">Err</span>(_)   :
+            {
+                _ = <span class="p">HttpConnection</span>::respond(&amp;<span class="k">mut</span> c, <span class="n">400</span>, &amp;headers[<span class="n">0</span>..$], &amp;<span class="s">b&quot;bad request\n&quot;</span>[<span class="n">0</span>..$]);
+                <span class="k">return</span> <span class="n">1</span>;
+            },
+        }
+    }
+    <span class="n">0</span>
+}
+
+<span class="k">fn</span> accept_two(<span class="p">HttpServer</span> s) : <span class="t">u8</span>
+{
+    <span class="k">for</span> (<span class="t">usize</span> i = <span class="n">0</span>; i &lt; <span class="n">2</span>; i += <span class="n">1</span>)
+    {
+        <span class="k">match</span> (<span class="p">HttpServer</span>::accept(&amp;<span class="k">mut</span> s))
+        {
+            <span class="p">Ok</span>(c)  : { _ = <span class="p">join</span>(<span class="p">spawn</span>(serve, c)); },
+            <span class="p">Err</span>(_) : <span class="k">return</span> <span class="n">1</span>,
+        }
+    }
+    <span class="n">0</span>
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="p">HttpServer</span> s = <span class="p">Result</span>::unwrap(<span class="p">HttpServer</span>::bind(<span class="p">SocketAddr</span>::new(<span class="p">IpAddr</span>::localhost_v4(), <span class="n">0</span>)));
+    <span class="p">String</span> base = <span class="p">sprintf</span>(<span class="s">&quot;http://127.0.0.1:%u&quot;</span>, <span class="p">HttpServer</span>::local_addr(&amp;s).port);
+    <span class="k">auto</span> server = <span class="p">spawn</span>(accept_two, s);
+    <span class="k">match</span> (<span class="p">http_get</span>(<span class="p">String</span>::as_view(&amp;<span class="p">sprintf</span>(<span class="s">&quot;%s/health&quot;</span>, &amp;base))))
+    {
+        <span class="p">Ok</span>(r)  : <span class="p">printf</span>(<span class="s">&quot;%u %s: %s&quot;</span>, r.status, &amp;r.reason, &amp;<span class="p">Result</span>::unwrap_or(<span class="p">String</span>::from_utf8(<span class="p">Vec</span>::clone(&amp;r.body)), <span class="p">String</span>::new())),
+        <span class="p">Err</span>(e) : <span class="p">printf</span>(<span class="s">&quot;error: %s\n&quot;</span>, <span class="p">HttpError</span>::text(&amp;e)),
+    }
+    <span class="k">match</span> (<span class="p">http_post</span>(<span class="p">String</span>::as_view(&amp;<span class="p">sprintf</span>(<span class="s">&quot;%s/echo&quot;</span>, &amp;base)), <span class="s">&quot;text/plain&quot;</span>, &amp;<span class="s">b&quot;hello there&quot;</span>[<span class="n">0</span>..$]))
+    {
+        <span class="p">Ok</span>(r)  : <span class="p">printf</span>(<span class="s">&quot;%u, %s echoed %v bytes: %s\n&quot;</span>, r.status, <span class="p">Option</span>::unwrap_or(<span class="p">Response</span>::header(&amp;r, <span class="s">&quot;content-type&quot;</span>), <span class="p">StringView</span>::of(<span class="s">&quot;?&quot;</span>)), <span class="p">Vec</span>::len(&amp;r.body), &amp;<span class="p">Result</span>::unwrap_or(<span class="p">String</span>::from_utf8(<span class="p">Vec</span>::clone(&amp;r.body)), <span class="p">String</span>::new())),
+        <span class="p">Err</span>(e) : <span class="p">printf</span>(<span class="s">&quot;error: %s\n&quot;</span>, <span class="p">HttpError</span>::text(&amp;e)),
+    }
+    <span class="p">printf</span>(<span class="s">&quot;server thread: %u\n&quot;</span>, <span class="p">join</span>(server));
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>200 OK: ok
+200, text/plain echoed 11 bytes: hello there
+server thread: 0
+</pre></div></figure>
 <h3>Networking</h3>
 <p><em>In <code>std::net</code>.</em></p>
 <p>TCP connections, UDP datagrams and name resolution, over IPv4 and IPv6. Addresses are values:
