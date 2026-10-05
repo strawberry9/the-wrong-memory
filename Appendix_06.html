@@ -2182,7 +2182,7 @@ parameters.</p>
 }</code></pre></figure>
 <h4><code>const</code> means known when the program is compiled</h4>
 <p>A <code>const</code> can never change: assigning to it, or borrowing it with <code>&amp;mut</code>, is rejected when
-the program is compiled, as in Rust. A constant is not a variable at all, but stands for its value,
+the program is compiled. A constant is not a variable at all, but stands for its value,
 so assigning to it is like assigning to a literal. Copying its value out is fine: <code>i32 y = LIMIT;</code>
 gives a variable <code>y</code>, which can change, while <code>LIMIT</code> stays as it is.</p>
 <figure class="code"><div class="code-head"><span class="code-title">A constant cannot change</span><span class="badge bad">rejected: diag.type-mismatch</span></div><pre><code><span class="k">import</span> std;
@@ -4203,8 +4203,7 @@ memory (§20).</p>
 <h2><span class="secnum">§17</span>Modules and name resolution</h2>
 <div class="spec-ref">Governing specification file: <code>spec/17-modules.md</code></div><p class="blurb">module, export and import; re-export; private by default; a module's body may be another file; a fixed lookup order for every name.</p>
 <p>Modules group declarations and control which names are visible where. They introduce no
-new semantics: ownership, borrowing and every other rule apply unchanged across module boundaries.
-The vocabulary is C++20's: <code>module</code>, <code>import</code>, <code>export</code>.</p>
+new semantics: ownership, borrowing and every other rule apply unchanged across module boundaries.</p>
 <h3>Declaring modules</h3>
 <p><code>module name { … }</code> encloses any declarations, including nested modules. Everything is
 <em>private</em> by default: usable from its own module and the modules nested inside it. <code>export</code>
@@ -5197,8 +5196,8 @@ promises can be read and checked by eye.</p>
 <h3>Foreign functions</h3>
 <p><code>unsafe extern fn name(params) : ret;</code> declares a function provided from outside. Parameters and
 result may only be integers, floats, <code>bool</code>, <code>void</code> and <code>rawptr&lt;T&gt;</code>; anything else, including a
-<code>ref</code> or a struct, is rejected (<code>diag.extern-non-ffi-type</code>). The declaration itself says <code>unsafe</code>,
-as Rust 2024 requires: no tool can check that the C function really has that name and exactly those
+<code>ref</code> or a struct, is rejected (<code>diag.extern-non-ffi-type</code>). The declaration itself says <code>unsafe</code>:
+no tool can check that the C function really has that name and exactly those
 types, and if it does not, every call is wrong, so the promise is marked where it is made, where a
 search for <code>unsafe</code> finds it. Without <code>unsafe</code> the declaration is a syntax error. Calling it needs
 <code>unsafe</code> too, for what the function does. Its result
@@ -8324,9 +8323,7 @@ for every new key and goes through an <code>Option&lt;ref&lt;…&gt;&gt;</code> 
 <p>A kernel that must run at the speed of hand-written C can be hand-written C:
 <code>extern &quot;./kernel.c&quot;;</code> links it and <code>unsafe extern fn</code> declares it (§20). That code is outside every
 guarantee CobaltC makes: its memory safety, its aliasing and its arithmetic are yours to get right,
-and its declaration is an unchecked claim. Measure first: the programs in <code>bench/</code>, written as this chapter
-advises, run within about twice the time of the same programs in Rust with overflow checks
-(<code>bench/RESULTS.md</code>).</p>
+and its declaration is an unchecked claim. Measure first.</p>
 <div class="callout rule"><div class="callout-title">Rules of thumb</div><ul>
 <li>Measure the <code>-O2</code> build, never <code>coby</code> or <code>-O0</code>.</li>
 <li>Keep a hot <code>Vec</code> a local that only its own name reaches; hold no element references across the loop.</li>
