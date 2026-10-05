@@ -3450,6 +3450,77 @@ use a <code>Vec</code>.</p>
     <span class="t">array</span>&lt;<span class="t">i32</span>, <span class="n">3</span>&gt; a = [<span class="n">1</span>, <span class="n">2</span>, <span class="n">3</span>];
     get(a, <span class="n">3</span>);                        <span class="c">// <span class="bad">✗</span> <span class="dg">diag.index-out-of-bounds</span> (dynamic)</span>
 }</code></pre></figure>
+<h4>Arrays of arrays</h4>
+<p>CobaltC has no separate multidimensional array type. An array's element can itself be an
+array, so a grid, a cube, or anything with more dimensions is the one constructor used again:
+<code>array&lt;array&lt;i64, 3&gt;, 2&gt;</code> is an array of 2 elements, each an <code>array&lt;i64, 3&gt;</code>. The same holds for the
+literal forms, <code>[[1, 2, 3], [4, 5, 6]]</code> and <code>[[0; 3]; 2]</code>, and for <code>auto</code>, which infers the nesting
+from the literal.</p>
+<p>Two directions are worth keeping straight:</p>
+<ul>
+<li><strong>The type reads from the inside out.</strong> In <code>array&lt;array&lt;array&lt;i64, 3&gt;, 2&gt;, 4&gt;</code>
+    the innermost <code>array&lt;i64, 3&gt;</code> is a row of 3 numbers, the next <code>array&lt;…, 2&gt;</code> holds 2 such rows (a
+    block), and the outermost <code>array&lt;…, 4&gt;</code> holds 4 blocks. The length written last is the outermost
+    one.</li>
+<li><strong>Indexing and loops go from the outside in.</strong> <code>cube[i][j][k]</code> picks block <code>i</code>
+    (below 4), then row <code>j</code> of it (below 2), then element <code>k</code> of that row (below 3). Nested loops
+    follow the same order: the outer loop walks the blocks, the innermost the elements of one row,
+    so the elements are visited in the order they lie in memory.</li>
+</ul>
+<p>Each index is checked against its own length. Because every level is an ordinary array,
+<code>cube[1]</code> is a whole block and <code>cube[1][0]</code> a whole row, values you can copy, pass and loop over.
+Writing those inner types out gets long; where the type is clear from the right-hand side, <code>auto</code>
+reads better. To print every value, nest one <code>foreach</code> per level: <code>foreach (i, block in &amp;cube)</code>
+borrows each block, and the loop inside it over <code>block</code> borrows each row of that block, so nothing
+is copied.</p>
+<figure class="code"><div class="code-head"><span class="code-title">A three-dimensional array</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    <span class="c">// Read the type from the inside out: rows of 3 i64s, 2 rows to a</span>
+    <span class="c">// block, 4 blocks.</span>
+    <span class="t">array</span>&lt;<span class="t">array</span>&lt;<span class="t">array</span>&lt;<span class="t">i64</span>, <span class="n">3</span>&gt;, <span class="n">2</span>&gt;, <span class="n">4</span>&gt; cube = [[[<span class="n">0</span>; <span class="n">3</span>]; <span class="n">2</span>]; <span class="n">4</span>];
+    <span class="c">// Index from the outside in: cube[block][row][column].</span>
+    <span class="k">foreach</span> (i in <span class="n">0</span>..<span class="n">4</span>)
+    {
+        <span class="k">foreach</span> (j in <span class="n">0</span>..<span class="n">2</span>)
+        {
+            <span class="k">foreach</span> (k in <span class="n">0</span>..<span class="n">3</span>)
+            {
+                cube[i][j][k] = <span class="p">narrow</span>&lt;<span class="t">i64</span>&gt;(<span class="n">100</span> * i + <span class="n">10</span> * j + k);
+            }
+        }
+    }
+    <span class="p">printf</span>(<span class="s">&quot;cube[3][1][2] = %v\n&quot;</span>, cube[<span class="n">3</span>][<span class="n">1</span>][<span class="n">2</span>]);
+    <span class="c">// Print every value: each loop borrows one level of the one outside it.</span>
+    <span class="k">foreach</span> (i, block in &amp;cube)
+    {
+        <span class="k">foreach</span> (j, row in block)
+        {
+            <span class="p">printf</span>(<span class="s">&quot;cube[%v][%v]:&quot;</span>, i, j);
+            <span class="k">foreach</span> (x in row)
+            {
+                <span class="p">printf</span>(<span class="s">&quot; %v&quot;</span>, x);
+            }
+            <span class="p">printf</span>(<span class="s">&quot;\n&quot;</span>);
+        }
+    }
+    <span class="c">// `auto` spares spelling the inner types; each is a copy (the elements are plain).</span>
+    <span class="k">auto</span> block = cube[<span class="n">1</span>];             <span class="c">// array&lt;array&lt;i64, 3&gt;, 2&gt;</span>
+    <span class="k">auto</span> row = block[<span class="n">0</span>];              <span class="c">// array&lt;i64, 3&gt;</span>
+    <span class="k">auto</span> grid = [[<span class="n">1</span>, <span class="n">2</span>, <span class="n">3</span>], [<span class="n">4</span>, <span class="n">5</span>, <span class="n">6</span>]];    <span class="c">// array&lt;array&lt;i32, 3&gt;, 2&gt;</span>
+    <span class="p">printf</span>(<span class="s">&quot;row %v %v %v, grid[1][2] = %v\n&quot;</span>, row[<span class="n">0</span>], row[<span class="n">1</span>], row[<span class="n">2</span>], grid[<span class="n">1</span>][<span class="n">2</span>]);
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>cube[3][1][2] = 312
+cube[0][0]: 0 1 2
+cube[0][1]: 10 11 12
+cube[1][0]: 100 101 102
+cube[1][1]: 110 111 112
+cube[2][0]: 200 201 202
+cube[2][1]: 210 211 212
+cube[3][0]: 300 301 302
+cube[3][1]: 310 311 312
+row 100 101 102, grid[1][2] = 6
+</pre></div></figure>
 <p>For a growable sequence use <code>Vec&lt;T&gt;</code> (§21). A <code>Vec</code> is indexed the same way, <code>v[i]</code>: it
 reads through <code>Vec::index_shared</code>, and writes (an assignment, <code>&amp;mut v[i]</code>) through
 <code>Vec::index_exclusive</code>, so every rule about borrowing the <code>Vec</code> applies.</p>
