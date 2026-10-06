@@ -155,7 +155,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.100504</div>
+<div class="sub">Specification edition 2026.100601</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -324,7 +324,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100504</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100601</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -905,7 +905,8 @@ cannot <em>name</em> the <code>Result</code> type without it.</p>
 <p><code>key_hash</code>, <code>key_eq</code>, <code>key_less</code>, <code>key_less_at</code>, <code>swap_places</code>, <code>append_native</code>,
 <code>text_write</code>, <code>parse_check</code>, <code>parse_value</code>, <code>str_slice</code> (beneath <code>StringView::of</code>), and the names
 that begin with <code>$</code>: the machinery <code>std</code>'s own code is built on. A program cannot call them, nor
-<code>std</code>'s private extern <code>stderr_write</code>, which <code>eprintf</code> writes through.</p>
+<code>std</code>'s private externs <code>stderr_write</code>, which <code>eprintf</code> writes through, and <code>stdout_flush</code>, beneath
+<code>flush_stdout</code>.</p>
 <h3>std: needs import std;</h3>
 <p>Mostly written in CobaltC itself; a few parts are provided natively by each
 implementation. <code>std</code> is divided into submodules by subject, and <code>import std;</code> brings in all of
@@ -927,7 +928,7 @@ one subject alone (<code>import std::text;</code>). <a href="#s21">§21</a> cove
 <tr><td>Bytes</td><td><code>Vec::push_le</code>, <code>push_be</code>, <code>read_le</code>, <code>read_be</code></td><td><code>std::collections</code></td></tr>
 <tr><td>Checksum</td><td><code>crc32</code> (CRC-32/IEEE; catches accidents, not tampering)</td><td><code>std::crypto</code></td></tr>
 <tr><td>Text</td><td><code>String</code>, <code>StringView</code> (split, chars, find, trim, starts/ends_with, parse), <code>String::parse&lt;T&gt;</code>, <code>String::append</code>, <code>sprintf</code>, <code>String::appendf</code>, the ASCII tests and case changes, <code>Utf8Error</code>, <code>ParseError</code></td><td><code>std::text</code></td></tr>
-<tr><td>Output</td><td><code>printf</code>, <code>eprintf</code>; the extern <code>stdout_write</code></td><td><code>std::io</code></td></tr>
+<tr><td>Output</td><td><code>printf</code>, <code>eprintf</code>, <code>flush_stdout</code>; the extern <code>stdout_write</code></td><td><code>std::io</code></td></tr>
 <tr><td>Checks</td><td><code>assert</code></td><td><code>std::core</code></td></tr>
 <tr><td>Input</td><td><code>read_line</code>, <code>read_all</code>, <code>read_all_bytes</code>; the extern <code>stdin_read</code></td><td><code>std::io</code></td></tr>
 <tr><td>Files</td><td><code>File</code> (open, create, append, open_rw, read, read_line, write, seek, len, close, …), <code>read_file</code>, <code>write_file</code>, <code>read_bytes</code>, <code>write_bytes</code>, <code>FileError</code></td><td><code>std::fs</code></td></tr>
@@ -5392,7 +5393,7 @@ as <code>std::collections::Vec</code>. A program that wants one subject alone ma
 <tr><td><code>std::core</code></td><td><code>Option</code>, <code>Result</code>, <code>AllocError</code>, <code>assert</code>, <code>swap</code>, <code>replace</code>, <code>overwrite</code></td></tr>
 <tr><td><code>std::collections</code></td><td><code>Vec</code> (with sorting, <code>Vec::push_le</code>, <code>Vec::push_be</code>), <code>read_le</code>, <code>read_be</code>, <code>HashMap</code>, <code>HashSet</code>, <code>Queue</code>, <code>PriorityQueue</code></td></tr>
 <tr><td><code>std::text</code></td><td><code>String</code>, <code>StringView</code>, <code>sprintf</code>, <code>String::appendf</code>, the ASCII functions, <code>Utf8Error</code>, <code>ParseError</code></td></tr>
-<tr><td><code>std::io</code></td><td><code>printf</code>, <code>eprintf</code>, <code>read_line</code>, <code>read_all</code>, <code>read_all_bytes</code>: the standard streams</td></tr>
+<tr><td><code>std::io</code></td><td><code>printf</code>, <code>eprintf</code>, <code>flush_stdout</code>, <code>read_line</code>, <code>read_all</code>, <code>read_all_bytes</code>: the standard streams</td></tr>
 <tr><td><code>std::fs</code></td><td><code>File</code>, <code>FileError</code>, <code>read_file</code>, <code>write_file</code>, <code>read_bytes</code>, <code>write_bytes</code>, the directory and path functions, <code>file_info</code>, <code>copy_file</code></td></tr>
 <tr><td><code>std::env</code></td><td><code>arg_count</code>, <code>arg</code>, <code>env_var</code>, <code>current_dir</code>, <code>set_current_dir</code>, <code>temp_dir</code>, <code>home_dir</code></td></tr>
 <tr><td><code>std::memory</code></td><td><code>Box</code>, <code>Rc</code>, <code>Weak</code></td></tr>
@@ -5526,6 +5527,7 @@ is the rest, for finding a name quickly.</p>
 <tr><td><code>printf(&quot;%v&quot;, x)</code></td><td>write a <code>str</code>, a number, a <code>bool</code>, a <code>String</code> (through <code>&amp;</code>), a <code>StringView</code>, or an enum's variant name to standard output</td><td>§21</td></tr>
 <tr><td><code>printf(fmt, args…)</code>, <code>eprintf(fmt, args…)</code>, <code>sprintf(fmt, args…)</code>, <code>String::appendf(&amp;mut s, fmt, args…)</code></td><td>C-style formatted output, to standard output, to standard error, as a new <code>String</code> or into one, checked when compiled</td><td>§21</td></tr>
 <tr><td><code>assert(c)</code>, <code>assert(c, fmt, args…)</code></td><td>fault with <code>diag.assert-failed</code> (and the formatted message) when <code>c</code> is false</td><td>§18</td></tr>
+<tr><td><code>flush_stdout()</code></td><td>write out what <code>printf</code> has buffered, for output watched through a pipe while the program runs</td><td>§21</td></tr>
 <tr><td><code>read_line()</code></td><td>read the next line of standard input as a <code>String</code></td><td>§21</td></tr>
 <tr><td><code>read_all()</code>, <code>read_all_bytes()</code></td><td>the rest of standard input at once, as a <code>String</code> or as bytes</td><td>§21</td></tr>
 <tr><td><code>arg_count()</code>, <code>arg(i)</code></td><td>the number of program arguments, and argument <code>i</code> as a <code>String</code></td><td>§21</td></tr>
@@ -6168,7 +6170,7 @@ type until its position gives it one, so <code>String s = &quot;hi&quot;;</code>
 <code>str</code> or a <code>StringView</code>, either way round, by its bytes (<code>name == &quot;sha256&quot;</code>, D-0164); the orderings
 <code>&lt;</code> … <code>&gt;=</code> stay within one text type.</p>
 <h3>Printing: <code>printf</code></h3>
-<p><em>In <code>std::io</code> (<code>printf</code>, <code>eprintf</code>) and <code>std::text</code> (<code>sprintf</code>, <code>String::appendf</code>).</em></p>
+<p><em>In <code>std::io</code> (<code>printf</code>, <code>eprintf</code>, <code>flush_stdout</code>) and <code>std::text</code> (<code>sprintf</code>, <code>String::appendf</code>).</em></p>
 <p><code>printf</code> is the one way a program writes output. It is C's, with one difference that matters: the format is checked against its
 arguments when the program is compiled. The format must be a string literal; each <code>%</code> specifier
 must match its argument's type and there must be exactly one argument per specifier, or the
@@ -6177,6 +6179,13 @@ a <code>printf</code> can never misprint or crash at run time. <code>sprintf(fmt
 new <code>String</code> (C's <code>sprintf</code> without a buffer to overflow), and <code>String::appendf(&amp;mut s, fmt, args…)</code>
 adds it to an existing one. <code>eprintf(fmt, args…)</code> writes the same text to standard error, for
 messages that are not the program's output. There is no <code>println</code>; end a line with <code>\n</code>.</p>
+<p>Standard output is buffered, so printing line by line is fast. The text reaches the
+screen, a pipe or a file in pieces, but never later than the next <code>eprintf</code>, the next read of
+standard input, the start of a child that shares standard output (<code>Command::status</code>), and the
+program's end, however it ends. On a terminal each line also appears as soon as it is complete. So
+the two streams keep the program's order, and a prompt is shown before the program waits for the
+answer. Call <code>flush_stdout()</code> only when standard output goes to a pipe or a file and someone watches
+it while the program runs: a progress line, a log.</p>
 <table>
 <thead><tr><th>Specifier</th><th>Takes</th><th>Prints</th></tr></thead>
 <tbody>
@@ -8196,21 +8205,20 @@ compiler proves can never fail. Two kinds of check cost very differently:</p>
 values the compiler can see through, so that tracking is left out. The sections below are in order
 of how much they saved in the measurements.</p>
 <h3 id="perf-confined">Keep hot vectors confined</h3>
-<p><code>cobc</code> proves a local <code>Vec</code> <em>confined</em> when nothing but its own name can ever reach it.
+<p><code>cobc</code> proves a <code>Vec</code> <em>confined</em> when nothing but its own name can ever reach it.
 A confined <code>Vec</code>'s accesses compile to plain C with bounds and overflow checks and no tracking. A
-local <code>Vec</code> stays confined when it is:</p>
+local <code>Vec</code>, or one a function takes by value, stays confined when it is:</p>
 <ul>
-<li>made where it is declared (<code>Vec::new()</code>, or a function's result);</li>
-<li>used through <code>Vec::push</code>, <code>Vec::len</code>, <code>Vec::reserve</code>, indexing (<code>v[i]</code>, <code>v[i] = x</code>) and <code>foreach</code>;</li>
+<li>made where it is declared (<code>Vec::new()</code>, or a function's result), or received as a parameter <code>Vec&lt;T&gt; v</code>;</li>
+<li>used through <code>Vec::push</code>, <code>Vec::len</code>, <code>Vec::pop</code>, <code>Vec::reserve</code>, indexing (<code>v[i]</code>, <code>v[i] = x</code>, <code>v[i].f += x</code>) and <code>foreach</code>, also <code>foreach (p in &amp;mut v)</code> writing <code>p.f</code>;</li>
 <li>passed as <code>&amp;v</code> or <code>&amp;mut v</code> to functions that themselves use it only in those ways (the compiler checks each such function), and in no other argument of the same call;</li>
-<li>at most moved out as the function's result (or into a struct built as the function's result).</li>
+<li>at most moved out at the end: as the function's result (also inside a struct or <code>Ok(…)</code> built as the result), or into a call as its last use, such as <code>overwrite(&amp;mut h.v, v)</code>.</li>
 </ul>
-<p>Two things lose it, and they cost about ten times in a summing loop: <strong>holding a
-reference to an element</strong> (<code>ref&lt;i64, shared&gt; first = &amp;v[0];</code> kept across the loop) and
-<strong>reaching the vector through a struct</strong> (<code>h.v[i]</code>). Neither passing <code>&amp;h.v</code> to a
-helper nor moving the vector out of the struct for the loop and back again helped in the
-measurements: the move back into the struct is itself a use that ends confinement. Build and process
-a vector as a local, and store it in a struct afterwards, or as the function's result.
+<p>One thing loses it and costs about nine times in a summing loop: <strong>holding a reference
+to an element</strong> (<code>ref&lt;i64, shared&gt; first = &amp;v[0];</code> kept across the loop). A vector that is a
+field of a struct is reached through the struct, and indexing it in a loop (<code>h.v[i]</code>) is tracked;
+but handing it to a helper (<code>sum_helper(&amp;h.v)</code>), looping over it with <code>foreach (x in &amp;h.v)</code>, or moving
+it out for the loop and back (<code>replace</code> then <code>overwrite</code>) each compile as fast as a local.
 Confinement is decided per function: one function's use of a vector does not slow another
 function down.</p>
 <table>
@@ -8218,36 +8226,24 @@ function down.</p>
 <tbody>
 <tr><td>A local <code>Vec</code>, indexed</td><td>1</td></tr>
 <tr><td>The same <code>Vec</code>, passed as <code>&amp;v</code> to a helper that indexes it</td><td>1</td></tr>
-<tr><td>A local <code>Vec</code> while a reference to one element is held</td><td>9.5</td></tr>
-<tr><td>A <code>Vec</code> that is a field of a local struct (<code>h.v[i]</code>)</td><td>6.8</td></tr>
-<tr><td>The field passed to a helper (<code>sum_helper(&amp;h.v)</code>), or moved out for the loop and back</td><td>6.8</td></tr>
+<tr><td>A <code>Vec</code> field of a struct passed to that helper (<code>sum_helper(&amp;h.v)</code>), or moved out for the loop and back</td><td>1</td></tr>
+<tr><td>A local <code>Vec</code> while a reference to one element is held</td><td>9.3</td></tr>
+<tr><td>A <code>Vec</code> field of a local struct, indexed in the loop (<code>h.v[i]</code>)</td><td>6.8</td></tr>
 </tbody>
 </table>
-<h3 id="perf-elements">Update elements through a helper</h3>
-<p>Today the largest single difference in the measurements is how the elements of a <code>Vec</code> of
-structs are updated. A call that receives one element, <code>step(&amp;mut v[i])</code>, compiles to the element's
-address and a few plain instructions. Writing the fields in the loop itself, <code>v[i].x += v[i].vx</code>, or
-<code>foreach (p in &amp;mut v) { p.x += p.vx; }</code>, or naming the element with
-<code>ref&lt;P, exclusive&gt; p = &amp;mut v[i];</code>, is tracked, and was about two hundred times slower over
-100,000 elements. This is a gap in what <code>cobc</code> proves, not a property of the language, and a later
-<code>cobc</code> may compile all four forms alike; until then, put the update in a function:</p>
+<h3 id="perf-elements">Updating elements</h3>
+<p>Every way of updating the elements of a <code>Vec</code> of structs compiles to the element's address
+and a few plain instructions, as long as the vector is confined: <code>v[i].x += v[i].vx</code>,
+<code>foreach (p in &amp;mut v) { p.x += p.vx; }</code>, a call that receives one element, <code>step(&amp;mut v[i])</code>, and
+an element named for a block, <code>ref&lt;P, exclusive&gt; p = &amp;mut v[i];</code> (provided the rest of that block
+uses <code>p</code> and not <code>v</code>). Over 100,000 elements updated 100 times, all four took the same time. Choose
+whichever reads best:</p>
 <figure class="code"><div class="code-head"><span class="code-title">Updating a Vec of structs</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">struct</span> Particle
 {
     <span class="t">i64</span> x;
     <span class="t">i64</span> vx;
-}
-
-<span class="c">// One element in, plain code out: called as step(&amp;mut ps[i]), the</span>
-<span class="c">// compiler hands it the element&#x27;s address and tracks nothing.</span>
-<span class="k">fn</span> step(<span class="t">ref</span>&lt;Particle, <span class="t">exclusive</span>&gt; p)
-{
-    p.x += p.vx;
-    <span class="k">if</span> (p.x &lt; <span class="n">0</span> || p.x &gt; <span class="n">1000</span>)
-    {
-        p.vx = -p.vx;
-    }
 }
 
 <span class="k">fn</span> main()
@@ -8259,9 +8255,13 @@ address and a few plain instructions. Writing the fields in the loop itself, <co
     }
     <span class="k">foreach</span> (t in <span class="n">0</span>..<span class="n">100</span>)
     {
-        <span class="k">foreach</span> (i in <span class="n">0</span>..<span class="p">Vec</span>::len(&amp;ps))
+        <span class="k">foreach</span> (p in &amp;<span class="k">mut</span> ps)              <span class="c">// plain code: the loop holds ps for its length</span>
         {
-            step(&amp;<span class="k">mut</span> ps[i]);           <span class="c">// fast today; ps[i].x += ... is tracked</span>
+            p.x += p.vx;
+            <span class="k">if</span> (p.x &lt; <span class="n">0</span> || p.x &gt; <span class="n">1000</span>)
+            {
+                p.vx = -p.vx;
+            }
         }
     }
     <span class="p">printf</span>(<span class="s">&quot;%v %v\n&quot;</span>, ps[<span class="n">0</span>].x, ps[<span class="n">999</span>].x);
@@ -8275,16 +8275,16 @@ microseconds per call today. For a function of your own that a hot loop calls mi
 <table>
 <thead><tr><th>1,000,000 calls of a function that reads a 60-byte text</th><th>Time, relative</th></tr></thead>
 <tbody>
+<tr><td><code>fn f(StringView s)</code>, one view made before the loop and passed each time</td><td>0.3</td></tr>
 <tr><td><code>fn f(ref&lt;String, shared&gt; s)</code>, called <code>f(&amp;text)</code></td><td>1</td></tr>
-<tr><td><code>fn f(String s)</code>, called <code>f(String::clone(&amp;text))</code></td><td>29</td></tr>
-<tr><td><code>fn f(StringView s)</code>, one view made before the loop and passed each time</td><td>56</td></tr>
-<tr><td><code>fn f(StringView s)</code>, called <code>f(String::as_view(&amp;text))</code></td><td>190</td></tr>
+<tr><td><code>fn f(StringView s)</code>, called <code>f(String::as_view(&amp;text))</code></td><td>29</td></tr>
+<tr><td><code>fn f(String s)</code>, called <code>f(String::clone(&amp;text))</code></td><td>30</td></tr>
 </tbody>
 </table>
 <ul>
-<li>In a hot path, give your own functions <code>ref&lt;String, shared&gt;</code> parameters, and make any view once, outside the loop.</li>
-<li>To process input line by line, read it line by line: a <code>read_line</code> loop was twelve times faster than <code>read_all</code> followed by <code>String::split</code>, which makes a view per line.</li>
-<li>Calls to <code>std</code> that take a view are fine outside the hottest loops; their cost is per call, not per byte (a 620-byte text cost the same as a 60-byte one).</li>
+<li>A function that only reads its <code>StringView</code> (indexes it, takes its length, hands it to <code>std</code>'s readers) costs nothing to call: the view is passed as its address and length. Make the view once, outside a hot loop: each <code>String::as_view</code> costs about a microsecond.</li>
+<li>To process input line by line, read it line by line: a <code>read_line</code> loop was about 2.7 times faster than <code>read_all</code> followed by <code>String::split</code>, which makes a view per line.</li>
+<li>Calls to <code>std</code> that take a view cost per call, not per byte (a 620-byte text cost the same as a 60-byte one).</li>
 </ul>
 <h3 id="perf-output">Building and writing text</h3>
 <table>
@@ -8296,17 +8296,16 @@ microseconds per call today. For a function of your own that a hot loop calls mi
 </tbody>
 </table>
 <p><code>String::append</code> formats a number or a <code>bool</code> straight into the <code>String</code>, with no
-intermediate text, so build output with it. <code>printf</code> writes and flushes standard output on every
-call, so that standard output and standard error appear in the order the program wrote them; for
-many lines, building one <code>String</code> and printing it once took 30% less time in the measurements
-(2,000,000 lines to a file). Keep <code>printf</code> per line where a line must appear at
-once (progress, a prompt, output before a possible fault).</p>
+intermediate text, so build output with it. Standard output is buffered (§21), so
+<code>printf</code> per line is the fast way to write many lines: 2,000,000 lines to a file took 0.7 s with
+one <code>printf</code> per line and 2.7 s building one <code>String</code> and printing it once. Build a <code>String</code> when
+you need the text itself, not to save on printing.</p>
 <h3 id="perf-collections">Choose the collection by what you do most</h3>
 <table>
 <thead><tr><th>Operation</th><th>Fast</th><th>Slow</th><th>Measured</th></tr></thead>
 <tbody>
-<tr><td>Take elements from the front, in order</td><td><code>Queue::pop_front</code>, or <code>Vec::reverse</code> once then <code>Vec::pop</code></td><td><code>Vec::remove(&amp;mut v, 0)</code>, which moves every remaining element</td><td>10,000 elements: thousands of times</td></tr>
-<tr><td>Test membership</td><td><code>HashSet::contains</code>, or <code>Vec::sort</code> once then <code>Vec::binary_search</code></td><td><code>Vec::contains</code>, which compares element by element</td><td>20,000 keys, 5,000 queries: about 130 times</td></tr>
+<tr><td>Take elements from the front, in order</td><td><code>Queue::pop_front</code>, or <code>Vec::reverse</code> once then <code>Vec::pop</code></td><td><code>Vec::remove(&amp;mut v, 0)</code>, which moves every remaining element: the cost grows with the square of the length</td><td>10,000 elements: 2.6 times; 100,000: 47 times</td></tr>
+<tr><td>Test membership in a large set</td><td><code>HashSet::contains</code>, or <code>Vec::sort</code> once then <code>Vec::binary_search</code></td><td><code>Vec::contains</code>, which compares element by element</td><td>20,000 keys, 5,000 queries: 1.4 to 1.6 times, growing with the size</td></tr>
 <tr><td>Fill a <code>Vec</code> whose size you know</td><td><code>Vec::reserve(&amp;mut v, n)</code> first, then push</td><td>pushing alone, which grows the buffer as it goes</td><td>50,000,000 pushes: 14%</td></tr>
 </tbody>
 </table>
@@ -8317,7 +8316,7 @@ for every new key and goes through an <code>Option&lt;ref&lt;…&gt;&gt;</code> 
 <h3 id="perf-arith">Arithmetic and plain values</h3>
 <ul>
 <li>Every <code>+</code>, <code>-</code> and <code>*</code> on integers is checked for overflow (§06). Where wrapping around is what you mean (hashes, checksums, random number generators), say so with <code>wrapping_add</code>, <code>wrapping_mul</code> and their relatives: a tight sum ran 25–30% faster, and Clang executed less than half the instructions. Never use them to avoid a check on arithmetic that should not overflow: the check is what turns a wrong result into a diagnostic.</li>
-<li>Pass a small plain struct by value. A 64-byte struct of eight <code>i64</code> passed to a function that reads it was three to five times faster copied than as a <code>ref&lt;…, shared&gt;</code>, since a copy needs no tracking.</li>
+<li>Pass a struct by whichever reads best. A 64-byte struct of eight <code>i64</code> passed to a function that reads it was 1.5 to 2.3 times faster as a <code>ref&lt;…, shared&gt;</code> than copied: the reference is its address alone.</li>
 </ul>
 <h3 id="perf-c">When nothing else is enough</h3>
 <p>A kernel that must run at the speed of hand-written C can be hand-written C:
@@ -8326,11 +8325,11 @@ guarantee CobaltC makes: its memory safety, its aliasing and its arithmetic are 
 and its declaration is an unchecked claim. Measure first.</p>
 <div class="callout rule"><div class="callout-title">Rules of thumb</div><ul>
 <li>Measure the <code>-O2</code> build, never <code>coby</code> or <code>-O0</code>.</li>
-<li>Keep a hot <code>Vec</code> a local that only its own name reaches; hold no element references across the loop.</li>
-<li>Update struct elements through a helper called as <code>step(&amp;mut v[i])</code>.</li>
-<li>In hot code, pass <code>&amp;String</code>; make a view once, outside the loop.</li>
-<li>Build text with <code>String::append</code>; print large output once.</li>
-<li>Never <code>Vec::remove(&amp;mut v, 0)</code> in a loop; never <code>Vec::contains</code> on a large <code>Vec</code> in a loop.</li>
+<li>Keep a hot <code>Vec</code> a local (or a parameter it owns) that only its own name reaches; hold no element references across the loop.</li>
+<li>Loop over a struct's <code>Vec</code> field with <code>foreach</code> or a helper, not <code>h.v[i]</code>.</li>
+<li>Make a <code>StringView</code> once, outside a hot loop; passing it on is free.</li>
+<li>Build text with <code>String::append</code>; <code>printf</code> per line is fine.</li>
+<li>Never <code>Vec::remove(&amp;mut v, 0)</code> in a loop over a long <code>Vec</code>; use a <code>HashSet</code> for membership in a large set.</li>
 <li>Say <code>wrapping_</code> only where wrapping is the meaning.</li>
 </ul>
 </div>
