@@ -8219,21 +8219,24 @@ local <code>Vec</code>, or one a function takes by value, stays confined when it
 <li>passed as <code>&amp;v</code> or <code>&amp;mut v</code> to functions that themselves use it only in those ways (the compiler checks each such function), and in no other argument of the same call;</li>
 <li>at most moved out at the end: as the function's result (also inside a struct or <code>Ok(…)</code> built as the result), or into a call as its last use, such as <code>overwrite(&amp;mut h.v, v)</code>.</li>
 </ul>
-<p>One thing loses it and costs about nine times in a summing loop: <strong>holding a reference
-to an element</strong> (<code>ref&lt;i64, shared&gt; first = &amp;v[0];</code> kept across the loop). A vector that is a
-field of a struct is reached through the struct, and indexing it in a loop (<code>h.v[i]</code>) is tracked;
-but handing it to a helper (<code>sum_helper(&amp;h.v)</code>), looping over it with <code>foreach (x in &amp;h.v)</code>, or moving
-it out for the loop and back (<code>replace</code> then <code>overwrite</code>) each compile as fast as a local.
-Confinement is decided per function: one function's use of a vector does not slow another
-function down.</p>
+<p>One thing loses it and costs about ten times in a summing loop: <strong>holding a reference
+to an element</strong> (<code>ref&lt;i64, shared&gt; first = &amp;v[0];</code> kept across the loop).</p>
+<p>A vector that is a field of a local struct (<code>h.v</code>) is confined the same way while the function
+uses it only by indexing (<code>h.v[i]</code>, <code>h.v[i] = x</code>, <code>h.v[i].f += x</code>) and <code>Vec::len(&amp;h.v)</code>, and never
+uses <code>h</code> whole (moving it, borrowing it, capturing it); the struct's other fields are used freely.
+Where the function also pushes to <code>h.v</code>, borrows an element of it or hands it on, indexing it there
+is tracked; then hand it to a helper (<code>sum_helper(&amp;h.v)</code>), loop over it with
+<code>foreach (x in &amp;h.v)</code>, or move it out for the loop and back (<code>replace</code> then <code>overwrite</code>), each of
+which is as fast as a local. Confinement is decided per function: one function's use of a vector
+does not slow another function down.</p>
 <table>
 <thead><tr><th>The same sum of 20,000,000 elements, ten times</th><th>Time, relative</th></tr></thead>
 <tbody>
 <tr><td>A local <code>Vec</code>, indexed</td><td>1</td></tr>
 <tr><td>The same <code>Vec</code>, passed as <code>&amp;v</code> to a helper that indexes it</td><td>1</td></tr>
-<tr><td>A <code>Vec</code> field of a struct passed to that helper (<code>sum_helper(&amp;h.v)</code>), or moved out for the loop and back</td><td>1</td></tr>
-<tr><td>A local <code>Vec</code> while a reference to one element is held</td><td>9.3</td></tr>
-<tr><td>A <code>Vec</code> field of a local struct, indexed in the loop (<code>h.v[i]</code>)</td><td>6.8</td></tr>
+<tr><td>A <code>Vec</code> field of a local struct, indexed in the loop (<code>h.v[i]</code>)</td><td>1</td></tr>
+<tr><td>A <code>Vec</code> field of a struct passed to that helper (<code>sum_helper(&amp;h.v)</code>), or moved out for the loop and back</td><td>1.1</td></tr>
+<tr><td>A local <code>Vec</code> while a reference to one element is held</td><td>10</td></tr>
 </tbody>
 </table>
 <h3 id="perf-elements">Updating elements</h3>
@@ -8274,21 +8277,21 @@ whichever reads best:</p>
 </pre></div></figure>
 <h3 id="perf-text">Text in hot code</h3>
 <p><code>std</code> takes text it only reads as a <code>StringView</code> (D-0134), and for most code that is the
-right choice. In compiled code a view is not free, though: making one from a <code>String</code>
-(<code>String::as_view</code>, or <code>split</code>'s pieces) and passing one through a call are tracked, at a few
-microseconds per call today. For a function of your own that a hot loop calls millions of times:</p>
+right choice. In compiled code a view is not quite free, though: making one from a <code>String</code>
+(<code>String::as_view</code>) costs about a quarter of a microsecond for its checks, and <code>split</code> makes a
+tracked view for every piece. For a function of your own that a hot loop calls millions of times:</p>
 <table>
 <thead><tr><th>1,000,000 calls of a function that reads a 60-byte text</th><th>Time, relative</th></tr></thead>
 <tbody>
 <tr><td><code>fn f(StringView s)</code>, one view made before the loop and passed each time</td><td>0.3</td></tr>
 <tr><td><code>fn f(ref&lt;String, shared&gt; s)</code>, called <code>f(&amp;text)</code></td><td>1</td></tr>
-<tr><td><code>fn f(StringView s)</code>, called <code>f(String::as_view(&amp;text))</code></td><td>29</td></tr>
-<tr><td><code>fn f(String s)</code>, called <code>f(String::clone(&amp;text))</code></td><td>30</td></tr>
+<tr><td><code>fn f(StringView s)</code>, called <code>f(String::as_view(&amp;text))</code></td><td>8</td></tr>
+<tr><td><code>fn f(String s)</code>, called <code>f(String::clone(&amp;text))</code></td><td>28</td></tr>
 </tbody>
 </table>
 <ul>
-<li>A function that only reads its <code>StringView</code> (indexes it, takes its length, hands it to <code>std</code>'s readers) costs nothing to call: the view is passed as its address and length. Make the view once, outside a hot loop: each <code>String::as_view</code> costs about a microsecond.</li>
-<li>To process input line by line, read it line by line: a <code>read_line</code> loop was about 2.7 times faster than <code>read_all</code> followed by <code>String::split</code>, which makes a view per line.</li>
+<li>A function that only reads its <code>StringView</code> (indexes it, takes its length, hands it to <code>std</code>'s readers) costs nothing to call: the view is passed as its address and length. Make the view once, outside a hot loop: each <code>String::as_view</code> costs about a quarter of a microsecond.</li>
+<li>To process input line by line, read it line by line: a <code>read_line</code> loop was about 2.6 times faster than <code>read_all</code> followed by <code>String::split</code>, which makes a view per line.</li>
 <li>Calls to <code>std</code> that take a view cost per call, not per byte (a 620-byte text cost the same as a 60-byte one).</li>
 </ul>
 <h3 id="perf-output">Building and writing text</h3>
@@ -8296,28 +8299,30 @@ microseconds per call today. For a function of your own that a hot loop calls mi
 <thead><tr><th>Building one String from 2,000,000 numbers</th><th>Time, relative</th></tr></thead>
 <tbody>
 <tr><td><code>String::append(&amp;mut out, i)</code> then <code>String::append(&amp;mut out, &quot;,&quot;)</code></td><td>1</td></tr>
-<tr><td><code>sprintf(&quot;%v,&quot;, i)</code>, then append that</td><td>2.3</td></tr>
-<tr><td>A <code>Vec&lt;String&gt;</code> of pieces, then <code>String::join</code></td><td>3.9</td></tr>
+<tr><td><code>sprintf(&quot;%v,&quot;, i)</code>, then append that</td><td>11</td></tr>
+<tr><td>A <code>Vec&lt;String&gt;</code> of pieces (each made by <code>sprintf</code>), then <code>String::join</code></td><td>12</td></tr>
 </tbody>
 </table>
 <p><code>String::append</code> formats a number or a <code>bool</code> straight into the <code>String</code>, with no
-intermediate text, so build output with it. Standard output is buffered (§21), so
-<code>printf</code> per line is the fast way to write many lines: 2,000,000 lines to a file took 0.7 s with
-one <code>printf</code> per line and 2.7 s building one <code>String</code> and printing it once. Build a <code>String</code> when
-you need the text itself, not to save on printing.</p>
+intermediate text, so build output with it; <code>sprintf</code> makes a new <code>String</code> each time, about two
+microseconds a call. Standard output is buffered (§21), so <code>printf</code> per line is the fast way to
+write many lines: 2,000,000 lines to a file took 0.38 s with one <code>printf</code> per line and 0.59 s
+building one <code>String</code> and printing it once. Build a <code>String</code> when you need the text itself, not to
+save on printing.</p>
 <h3 id="perf-collections">Choose the collection by what you do most</h3>
 <table>
 <thead><tr><th>Operation</th><th>Fast</th><th>Slow</th><th>Measured</th></tr></thead>
 <tbody>
 <tr><td>Take elements from the front, in order</td><td><code>Queue::pop_front</code>, or <code>Vec::reverse</code> once then <code>Vec::pop</code></td><td><code>Vec::remove(&amp;mut v, 0)</code>, which moves every remaining element: the cost grows with the square of the length</td><td>10,000 elements: 2.6 times; 100,000: 47 times</td></tr>
 <tr><td>Test membership in a large set</td><td><code>HashSet::contains</code>, or <code>Vec::sort</code> once then <code>Vec::binary_search</code></td><td><code>Vec::contains</code>, which compares element by element</td><td>20,000 keys, 5,000 queries: 1.4 to 1.6 times, growing with the size</td></tr>
-<tr><td>Fill a <code>Vec</code> whose size you know</td><td><code>Vec::reserve(&amp;mut v, n)</code> first, then push</td><td>pushing alone, which grows the buffer as it goes</td><td>50,000,000 pushes: 14%</td></tr>
+<tr><td>Fill a <code>Vec</code> whose size you know</td><td><code>Vec::reserve(&amp;mut v, n)</code> first, then push</td><td>pushing alone, which grows the buffer as it goes</td><td>50,000,000 pushes: 13%</td></tr>
 </tbody>
 </table>
 <p>Counting with a <code>HashMap&lt;String, …&gt;</code>: <code>*HashMap::entry(&amp;mut counts, String::clone(w), 0) += 1</code>
-clones the key on every call, yet it was three times faster than looking the key up with
-<code>HashMap::get_mut</code> first and cloning only for a new key, because the second form does two lookups
-for every new key and goes through an <code>Option&lt;ref&lt;…&gt;&gt;</code> for every old one. Prefer <code>entry</code>.</p>
+clones the key on every call; looking the key up first,
+<code>match (HashMap::get_mut(&amp;mut counts, w)) { Some(c) : *c += 1, None : … }</code>, clones only for a new
+key. Over 1,000,000 words the second was about 20% faster, but both are a few hundred nanoseconds a
+word: write whichever reads better.</p>
 <h3 id="perf-arith">Arithmetic and plain values</h3>
 <ul>
 <li>Every <code>+</code>, <code>-</code> and <code>*</code> on integers is checked for overflow (§06). Where wrapping around is what you mean (hashes, checksums, random number generators), say so with <code>wrapping_add</code>, <code>wrapping_mul</code> and their relatives: a tight sum ran 25–30% faster, and Clang executed less than half the instructions. Never use them to avoid a check on arithmetic that should not overflow: the check is what turns a wrong result into a diagnostic.</li>
@@ -8331,7 +8336,7 @@ and its declaration is an unchecked claim. Measure first.</p>
 <div class="callout rule"><div class="callout-title">Rules of thumb</div><ul>
 <li>Measure the <code>-O2</code> build, never <code>coby</code> or <code>-O0</code>.</li>
 <li>Keep a hot <code>Vec</code> a local (or a parameter it owns) that only its own name reaches; hold no element references across the loop.</li>
-<li>Loop over a struct's <code>Vec</code> field with <code>foreach</code> or a helper, not <code>h.v[i]</code>.</li>
+<li>Index a struct's <code>Vec</code> field (<code>h.v[i]</code>) where the function only indexes it; where it also pushes to it or hands it on, loop with <code>foreach</code> or a helper.</li>
 <li>Make a <code>StringView</code> once, outside a hot loop; passing it on is free.</li>
 <li>Build text with <code>String::append</code>; <code>printf</code> per line is fine.</li>
 <li>Never <code>Vec::remove(&amp;mut v, 0)</code> in a loop over a long <code>Vec</code>; use a <code>HashSet</code> for membership in a large set.</li>
