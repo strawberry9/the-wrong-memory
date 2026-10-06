@@ -8219,8 +8219,13 @@ local <code>Vec</code>, or one a function takes by value, stays confined when it
 <li>passed as <code>&amp;v</code> or <code>&amp;mut v</code> to functions that themselves use it only in those ways (the compiler checks each such function), and in no other argument of the same call;</li>
 <li>at most moved out at the end: as the function's result (also inside a struct or <code>Ok(…)</code> built as the result), or into a call as its last use, such as <code>overwrite(&amp;mut h.v, v)</code>.</li>
 </ul>
-<p>One thing loses it and costs about ten times in a summing loop: <strong>holding a reference
-to an element</strong> (<code>ref&lt;i64, shared&gt; first = &amp;v[0];</code> kept across the loop).</p>
+<p>A <strong>shared</strong> reference to an element, held across the loop
+(<code>ref&lt;i64, shared&gt; first = &amp;v[0];</code>), leaves the loop's reads as fast as before: a read cannot clash
+with a shared reference. Writes to the vector and pushes onto it are then checked, since one of
+them could. What loses confinement altogether is an <strong>exclusive</strong> reference to an
+element (<code>&amp;mut v[i]</code> kept in a binding), <code>&amp;mut v</code> handed to a function that may keep a path to it,
+a closure that names <code>v</code>, or moving <code>v</code> to another binding; then every access in the loop is
+tracked, about seven times the cost in a summing loop.</p>
 <p>A vector that is a field of a local struct (<code>h.v</code>) is confined the same way while the function
 uses it only by indexing (<code>h.v[i]</code>, <code>h.v[i] = x</code>, <code>h.v[i].f += x</code>) and <code>Vec::len(&amp;h.v)</code>, and never
 uses <code>h</code> whole (moving it, borrowing it, capturing it); the struct's other fields are used freely.
@@ -8236,7 +8241,8 @@ does not slow another function down.</p>
 <tr><td>The same <code>Vec</code>, passed as <code>&amp;v</code> to a helper that indexes it</td><td>1</td></tr>
 <tr><td>A <code>Vec</code> field of a local struct, indexed in the loop (<code>h.v[i]</code>)</td><td>1</td></tr>
 <tr><td>A <code>Vec</code> field of a struct passed to that helper (<code>sum_helper(&amp;h.v)</code>), or moved out for the loop and back</td><td>1.1</td></tr>
-<tr><td>A local <code>Vec</code> while a reference to one element is held</td><td>10</td></tr>
+<tr><td>A local <code>Vec</code> while a shared reference to one element is held</td><td>1</td></tr>
+<tr><td>A local <code>Vec</code> that is moved to another binding after the loop</td><td>7</td></tr>
 </tbody>
 </table>
 <h3 id="perf-elements">Updating elements</h3>
@@ -8278,20 +8284,21 @@ whichever reads best:</p>
 <h3 id="perf-text">Text in hot code</h3>
 <p><code>std</code> takes text it only reads as a <code>StringView</code> (D-0134), and for most code that is the
 right choice. In compiled code a view is not quite free, though: making one from a <code>String</code>
-(<code>String::as_view</code>) costs about a quarter of a microsecond for its checks, and <code>split</code> makes a
-tracked view for every piece. For a function of your own that a hot loop calls millions of times:</p>
+(<code>String::as_view</code>) costs about a quarter of a microsecond for its checks, and every piece
+<code>split</code> returns holds its own borrow of the text. For a function of your own that a hot loop calls
+millions of times:</p>
 <table>
 <thead><tr><th>1,000,000 calls of a function that reads a 60-byte text</th><th>Time, relative</th></tr></thead>
 <tbody>
 <tr><td><code>fn f(StringView s)</code>, one view made before the loop and passed each time</td><td>0.3</td></tr>
 <tr><td><code>fn f(ref&lt;String, shared&gt; s)</code>, called <code>f(&amp;text)</code></td><td>1</td></tr>
 <tr><td><code>fn f(StringView s)</code>, called <code>f(String::as_view(&amp;text))</code></td><td>8</td></tr>
-<tr><td><code>fn f(String s)</code>, called <code>f(String::clone(&amp;text))</code></td><td>28</td></tr>
+<tr><td><code>fn f(String s)</code>, called <code>f(String::clone(&amp;text))</code></td><td>22</td></tr>
 </tbody>
 </table>
 <ul>
 <li>A function that only reads its <code>StringView</code> (indexes it, takes its length, hands it to <code>std</code>'s readers) costs nothing to call: the view is passed as its address and length. Make the view once, outside a hot loop: each <code>String::as_view</code> costs about a quarter of a microsecond.</li>
-<li>To process input line by line, read it line by line: a <code>read_line</code> loop was about 2.6 times faster than <code>read_all</code> followed by <code>String::split</code>, which makes a view per line.</li>
+<li>To process input line by line, either way is fine: <code>read_all</code> followed by <code>String::split</code> took 1.3 times as long as a <code>read_line</code> loop over the same 200,000 lines, the price of keeping every line's view at once.</li>
 <li>Calls to <code>std</code> that take a view cost per call, not per byte (a 620-byte text cost the same as a 60-byte one).</li>
 </ul>
 <h3 id="perf-output">Building and writing text</h3>
@@ -8299,13 +8306,13 @@ tracked view for every piece. For a function of your own that a hot loop calls m
 <thead><tr><th>Building one String from 2,000,000 numbers</th><th>Time, relative</th></tr></thead>
 <tbody>
 <tr><td><code>String::append(&amp;mut out, i)</code> then <code>String::append(&amp;mut out, &quot;,&quot;)</code></td><td>1</td></tr>
-<tr><td><code>sprintf(&quot;%v,&quot;, i)</code>, then append that</td><td>11</td></tr>
-<tr><td>A <code>Vec&lt;String&gt;</code> of pieces (each made by <code>sprintf</code>), then <code>String::join</code></td><td>12</td></tr>
+<tr><td><code>sprintf(&quot;%v,&quot;, i)</code>, then append that</td><td>6</td></tr>
+<tr><td>A <code>Vec&lt;String&gt;</code> of pieces (each made by <code>sprintf</code>), then <code>String::join</code></td><td>11</td></tr>
 </tbody>
 </table>
 <p><code>String::append</code> formats a number or a <code>bool</code> straight into the <code>String</code>, with no
-intermediate text, so build output with it; <code>sprintf</code> makes a new <code>String</code> each time, about two
-microseconds a call. Standard output is buffered (§21), so <code>printf</code> per line is the fast way to
+intermediate text, so build output with it; <code>sprintf</code> makes a new <code>String</code> each time, about a
+microsecond a call. Standard output is buffered (§21), so <code>printf</code> per line is the fast way to
 write many lines: 2,000,000 lines to a file took 0.38 s with one <code>printf</code> per line and 0.59 s
 building one <code>String</code> and printing it once. Build a <code>String</code> when you need the text itself, not to
 save on printing.</p>
@@ -8335,7 +8342,7 @@ guarantee CobaltC makes: its memory safety, its aliasing and its arithmetic are 
 and its declaration is an unchecked claim. Measure first.</p>
 <div class="callout rule"><div class="callout-title">Rules of thumb</div><ul>
 <li>Measure the <code>-O2</code> build, never <code>coby</code> or <code>-O0</code>.</li>
-<li>Keep a hot <code>Vec</code> a local (or a parameter it owns) that only its own name reaches; hold no element references across the loop.</li>
+<li>Keep a hot <code>Vec</code> a local (or a parameter it owns) that only its own name reaches; across a loop, hold shared element references only, never an exclusive one.</li>
 <li>Index a struct's <code>Vec</code> field (<code>h.v[i]</code>) where the function only indexes it; where it also pushes to it or hands it on, loop with <code>foreach</code> or a helper.</li>
 <li>Make a <code>StringView</code> once, outside a hot loop; passing it on is free.</li>
 <li>Build text with <code>String::append</code>; <code>printf</code> per line is fine.</li>
