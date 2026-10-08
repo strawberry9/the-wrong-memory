@@ -155,7 +155,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.100801</div>
+<div class="sub">Specification edition 2026.100802</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -324,7 +324,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100801</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100802</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -8619,7 +8619,7 @@ A confined <code>Vec</code>'s accesses compile to plain C with bounds and overfl
 local <code>Vec</code>, or one a function takes by value, stays confined when it is:</p>
 <ul>
 <li>made where it is declared (<code>Vec::new()</code>, or a function's result), or received as a parameter <code>Vec&lt;T&gt; v</code>;</li>
-<li>used through <code>Vec::push</code>, <code>Vec::len</code>, <code>Vec::pop</code>, <code>Vec::reserve</code>, indexing (<code>v[i]</code>, <code>v[i] = x</code>, <code>v[i].f += x</code>) and <code>foreach</code>, also <code>foreach (p in &amp;mut v)</code> writing <code>p.f</code>;</li>
+<li>used through <code>Vec::push</code>, <code>Vec::len</code>, <code>Vec::pop</code>, <code>Vec::reserve</code>, <code>Vec::swap</code>, <code>Vec::reverse</code>, <code>Vec::insert</code>, <code>Vec::remove</code>, <code>Vec::truncate</code>, <code>Vec::clear</code>, <code>Vec::sort</code>, <code>Vec::contains</code>, <code>Vec::index_of</code>, <code>Vec::binary_search</code>, indexing (<code>v[i]</code>, <code>v[i] = x</code>, <code>v[i].f += x</code>) and <code>foreach</code>, also <code>foreach (p in &amp;mut v)</code> writing <code>p.f</code>;</li>
 <li>passed as <code>&amp;v</code> or <code>&amp;mut v</code> to functions that themselves use it only in those ways (the compiler checks each such function), and in no other argument of the same call;</li>
 <li>at most moved out at the end: as the function's result (also inside a struct or <code>Ok(…)</code> built as the result), or into a call as its last use, such as <code>overwrite(&amp;mut h.v, v)</code>.</li>
 </ul>
@@ -8638,6 +8638,56 @@ is tracked; then hand it to a helper (<code>sum_helper(&amp;h.v)</code>), loop o
 <code>foreach (x in &amp;h.v)</code>, or move it out for the loop and back (<code>replace</code> then <code>overwrite</code>), each of
 which is as fast as a local. Confinement is decided per function: one function's use of a vector
 does not slow another function down.</p>
+<p>A function that takes a <strong>struct by reference</strong> and loops over the struct's
+vectors (the shape of most programs: <code>fn restock(ref&lt;Inventory, exclusive&gt; inv, …)</code>) runs as plain
+code too, wherever the struct lives, when that reference is the function's only one, its other
+parameters are plain values, and it uses each such vector only in the ways listed above (no
+<code>&amp;inv.counts</code> handed to another function, no element borrowed and kept). The function then
+checks once, as it starts, that no element of those vectors is borrowed elsewhere, and otherwise
+runs its checked code, which faults where §08 says it must. Its other fields (<code>inv.owner</code>,
+<code>inv.total</code>) are used freely. Over 1,000,000 elements through such a reference, a write
+<code>v[i] = v[i] + 1</code> went from 546 to 1.8 ns an element, <code>pop</code> from 280 to 8, <code>push</code> from 41 to 9:
+the speed of a local.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Functions over a struct that owns vectors</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">struct</span> Inventory
+{
+    <span class="p">String</span> owner;
+    <span class="p">Vec</span>&lt;<span class="t">i64</span>&gt; counts;
+    <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; flags;
+    <span class="t">i64</span> total;
+}
+
+<span class="c">// One reference, to a struct whose vectors it only indexes, pushes,</span>
+<span class="c">// swaps and measures: checked once as it starts, then plain code.</span>
+<span class="k">fn</span> restock(<span class="t">ref</span>&lt;Inventory, <span class="t">exclusive</span>&gt; inv, <span class="t">i64</span> amount)
+{
+    <span class="k">for</span> (<span class="t">usize</span> i = <span class="n">0</span>; i &lt; <span class="p">Vec</span>::len(&amp;inv.counts); i += <span class="n">1</span>)
+    {
+        <span class="k">if</span> (inv.counts[i] &lt; <span class="n">3</span>)
+        {
+            inv.counts[i] += amount;
+            inv.flags[i] = <span class="n">1</span>;
+        }
+        inv.total += inv.counts[i];
+    }
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> inv.counts, amount);
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> inv.flags, <span class="n">0</span>);
+    <span class="p">Vec</span>::<span class="p">swap</span>(&amp;<span class="k">mut</span> inv.counts, <span class="n">0</span>, <span class="p">Vec</span>::len(&amp;inv.counts) - <span class="n">1</span>);
+}
+
+<span class="k">fn</span> main()
+{
+    Inventory inv = Inventory { .owner = <span class="p">String</span>::from_str(<span class="s">&quot;shop&quot;</span>), .counts = <span class="p">Vec</span>::new(), .flags = <span class="p">Vec</span>::new(), .total = <span class="n">0</span> };
+    <span class="k">foreach</span> (i in <span class="n">0</span>..<span class="n">8</span>: <span class="t">i64</span>)
+    {
+        <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> inv.counts, i % <span class="n">5</span>);
+        <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> inv.flags, <span class="n">0</span>);
+    }
+    restock(&amp;<span class="k">mut</span> inv, <span class="n">10</span>);
+    <span class="p">printf</span>(<span class="s">&quot;%s: %v items, total %v, first %v\n&quot;</span>, &amp;inv.owner, <span class="p">Vec</span>::len(&amp;inv.counts), inv.total, inv.counts[<span class="n">0</span>]);
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>shop: 9 items, total 73, first 10
+</pre></div></figure>
 <table>
 <thead><tr><th>The same sum of 20,000,000 elements, ten times</th><th>Time, relative</th></tr></thead>
 <tbody>
@@ -8684,6 +8734,77 @@ whichever reads best:</p>
     }
     <span class="p">printf</span>(<span class="s">&quot;%v %v\n&quot;</span>, ps[<span class="n">0</span>].x, ps[<span class="n">999</span>].x);
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>294 803
+</pre></div></figure>
+<h3 id="perf-refs">Functions that take references</h3>
+<p>A function that takes a reference (<code>ref&lt;T, …&gt;</code>) or a slice runs as plain code, with no
+tracking inside it, when <code>cobc</code> can see that nothing else can clash with that reference while the
+call runs. It can see it in three cases: the reference is the function's only one; all its
+references are <code>shared</code>; or, the usual shape of code that builds something from its input, some
+are <code>exclusive</code> and the rest <code>shared</code> and every one is to plain data. In the third case the function
+checks once, as it starts, that its arguments do not overlap, and then runs unchecked; where they
+do overlap (<code>count(&amp;mut c, &amp;c.buf[0..4])</code>), it runs the checked code instead, which faults where
+§08 says it must. Plain data is numbers, <code>bool</code> and <code>char</code>, and arrays, structs and enums of them;
+not a <code>String</code>, a <code>Vec</code>, a <code>Box</code> or a reference. And in every case the body must use each reference
+only directly:</p>
+<ul>
+<li>through it: reads and writes of the value, its fields and its elements, and <code>slice_len</code>;</li>
+<li>never handed to another function, kept in a variable or a struct, or borrowed from (an only reference may still be handed whole to a function that returns plain data or nothing);</li>
+<li>beside parameters that are plain values, in the third case.</li>
+</ul>
+<table>
+<thead><tr><th>10,000,000 bytes summed into a struct of two counters</th><th>Time, relative</th></tr></thead>
+<tbody>
+<tr><td><code>fn feed(ref&lt;Acc, exclusive&gt; a, slice&lt;u8, shared&gt; data)</code></td><td>1</td></tr>
+<tr><td><code>fn feed(Acc a, slice&lt;u8, shared&gt; data) : Acc</code>, the counters passed in and returned</td><td>0.6</td></tr>
+<tr><td>The first, each byte read through a helper, <code>a.sum += byte_at(data, i)</code></td><td>70</td></tr>
+<tr><td>The first, with <code>Acc</code> also holding a <code>Vec</code></td><td>80</td></tr>
+</tbody>
+</table>
+<p>So keep the loop over the input in the function itself, and keep the state it updates in a
+struct of plain fields. Where that state belongs to something larger (a struct that also holds a
+<code>String</code> or a <code>Vec</code>), pass the plain part alone, as <code>count(&amp;mut r.counts, …)</code> does here:</p>
+<figure class="code"><div class="code-head"><span class="code-title">State and input</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">struct</span> Counts
+{
+    <span class="t">u64</span> bytes;
+    <span class="t">u64</span> newlines;
+    <span class="t">u64</span> sum;
+}
+
+<span class="k">struct</span> Report
+{
+    <span class="p">String</span> name;
+    Counts counts;
+}
+
+<span class="c">// One exclusive reference to plain data beside a shared slice, each used</span>
+<span class="c">// only directly: checked once as the call starts, then plain code.</span>
+<span class="k">fn</span> count(<span class="t">ref</span>&lt;Counts, <span class="t">exclusive</span>&gt; c, <span class="t">slice</span>&lt;<span class="t">u8</span>, <span class="t">shared</span>&gt; data)
+{
+    <span class="k">for</span> (<span class="t">usize</span> i = <span class="n">0</span>; i &lt; slice_len(data); i += <span class="n">1</span>)
+    {
+        c.bytes += <span class="n">1</span>;
+        c.sum = <span class="p">wrapping_add</span>(c.sum, <span class="p">widen</span>&lt;<span class="t">u64</span>&gt;(data[i]));
+        <span class="k">if</span> (data[i] == <span class="n">10</span>)
+        {
+            c.newlines += <span class="n">1</span>;
+        }
+    }
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; data = <span class="p">Vec</span>::new();
+    <span class="k">foreach</span> (k in <span class="n">0</span>..<span class="n">1000</span>)
+    {
+        <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> data, <span class="p">narrow_wrapping</span>&lt;<span class="t">u8</span>&gt;(k * <span class="n">7</span>));
+    }
+    Report r = Report { .name = <span class="p">String</span>::from_str(<span class="s">&quot;input&quot;</span>), .counts = Counts { .bytes = <span class="n">0</span>, .newlines = <span class="n">0</span>, .sum = <span class="n">0</span> } };
+    count(&amp;<span class="k">mut</span> r.counts, &amp;data[<span class="n">0</span>..$]);    <span class="c">// the struct holds a String: pass only its plain part</span>
+    count(&amp;<span class="k">mut</span> r.counts, &amp;data[<span class="n">0</span>..<span class="n">10</span>]);
+    <span class="p">printf</span>(<span class="s">&quot;%v: %v bytes, %v newlines, sum %v\n&quot;</span>, &amp;r.name, r.counts.bytes, r.counts.newlines, r.counts.sum);
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>input: 1010 bytes, 4 newlines, sum 126831
 </pre></div></figure>
 <h3 id="perf-text">Text in hot code</h3>
 <p><code>std</code> takes text it only reads as a <code>StringView</code> (D-0134), and for most code that is the
@@ -8748,6 +8869,8 @@ and its declaration is an unchecked claim. Measure first.</p>
 <li>Measure the <code>-O2</code> build, never <code>coby</code> or <code>-O0</code>.</li>
 <li>Keep a hot <code>Vec</code> a local (or a parameter it owns) that only its own name reaches; across a loop, hold shared element references only, never an exclusive one.</li>
 <li>Index a struct's <code>Vec</code> field (<code>h.v[i]</code>) where the function only indexes it; where it also pushes to it or hands it on, loop with <code>foreach</code> or a helper.</li>
+<li>Give a function over a struct's vectors the struct as its only reference, and keep its uses of the vectors to indexing and the <code>Vec</code> calls listed above.</li>
+<li>In a function that takes references, use them only directly: loop over a slice in the function itself, and update plain state through one <code>exclusive</code> reference (or pass it by value).</li>
 <li>Make a <code>StringView</code> once, outside a hot loop; passing it on is free.</li>
 <li>Build text with <code>String::append</code>; <code>printf</code> per line is fine.</li>
 <li>Never <code>Vec::remove(&amp;mut v, 0)</code> in a loop over a long <code>Vec</code>; use a <code>HashSet</code> for membership in a large set.</li>
