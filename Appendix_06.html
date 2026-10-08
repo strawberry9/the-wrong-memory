@@ -155,7 +155,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.100804</div>
+<div class="sub">Specification edition 2026.100805</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -324,7 +324,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100804</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100805</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -8705,8 +8705,10 @@ as plain loops when the function they are given is a closure literal written at 
 function, or a <code>fn</code> value holding a named function, provided it only reads the elements it is
 given (<code>Vec::sort_by</code> does so for a closure literal): 1,000,000 elements through <code>retain</code> took 3 to
 9 ns each. A closure stored in a
-variable first (<code>fn(…) : bool p = [lim](…) { … };</code>) may keep what it is given, so each element is lent
-to it through the runtime: about a microsecond each. Write the closure at the call.</p>
+variable first (<code>fn(…) : bool p = [lim](…) { … };</code>) is tested when the call starts: one that only
+reads what it is given is called with bare element addresses, about 150 ns an element (the cost of
+calling through the variable); one that may keep what it is given is lent each element through the
+runtime, about a microsecond. Writing the closure at the call is fastest.</p>
 <h3 id="perf-elements">Updating elements</h3>
 <p>Every way of updating the elements of a <code>Vec</code> of structs compiles to the element's address
 and a few plain instructions, as long as the vector is confined: <code>v[i].x += v[i].vx</code>,
@@ -8854,7 +8856,7 @@ save on printing.</p>
 <thead><tr><th>Operation</th><th>Fast</th><th>Slow</th><th>Measured</th></tr></thead>
 <tbody>
 <tr><td>Take elements from the front, in order</td><td><code>Queue::pop_front</code>, or <code>Vec::reverse</code> once then <code>Vec::pop</code></td><td><code>Vec::remove(&amp;mut v, 0)</code>, which moves every remaining element: the cost grows with the square of the length</td><td>10,000 elements: 2.4 times; 100,000: 51 times</td></tr>
-<tr><td>Test membership in a large set</td><td><code>Vec::sort</code> once then <code>Vec::binary_search</code>, or <code>HashSet::contains</code></td><td><code>Vec::contains</code>, which compares element by element</td><td>20,000 keys, 5,000 queries: <code>binary_search</code> 6.5 times as fast, <code>HashSet</code> 1.45 times, growing with the size</td></tr>
+<tr><td>Test membership in a large set</td><td><code>Vec::sort</code> once then <code>Vec::binary_search</code>, or <code>HashSet::contains</code></td><td><code>Vec::contains</code>, which compares element by element</td><td>20,000 keys, 5,000 queries: <code>binary_search</code> 7.4 times as fast, <code>HashSet</code> 1.5 times, growing with the size</td></tr>
 <tr><td>Fill a <code>Vec</code> whose size you know</td><td><code>Vec::filled(n, x)</code>, then write the elements</td><td>pushing one by one (with or without <code>Vec::reserve</code> first, which no longer saves anything measurable)</td><td>50,000,000 elements: 5 to 6 times</td></tr>
 </tbody>
 </table>
