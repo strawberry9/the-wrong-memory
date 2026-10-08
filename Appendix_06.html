@@ -155,7 +155,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.100803</div>
+<div class="sub">Specification edition 2026.100804</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -324,7 +324,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100803</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100804</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -7152,7 +7152,8 @@ alternatives.</strong> <code>aes_gcm_seal</code> and <code>aes_gcm_open</code> a
 800-38D), for formats and protocols that require it: the key is 16, 24 or 32 bytes (AES-128, AES-192
 or AES-256), the nonce 12. <code>p256_private_key</code>, <code>p256_public_key</code> and <code>p256_ecdh</code> agree on a key over
 the P-256 curve; the public key is 65 bytes, and <code>None</code> means a key that must be refused. Where you
-choose, ChaCha20-Poly1305 and X25519 are the faster pair in <code>std</code>. All of these take the same steps
+choose, X25519 agrees on a key in about half the time P-256 takes; the two AEADs run at about the
+same speed (AES-128-GCM and ChaCha20-Poly1305 each about 50 ms a MiB here). All of these take the same steps
 whatever the secret bytes are, so their timing reveals nothing but lengths; a key or nonce of the
 wrong length is the fault <code>diag.crypto-length</code>.</p>
 <figure class="code"><div class="code-head"><span class="code-title">A key exchange and an encrypted message</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
@@ -8629,7 +8630,7 @@ with a shared reference. Writes to the vector and pushes onto it are then checke
 them could. What loses confinement altogether is an <strong>exclusive</strong> reference to an
 element (<code>&amp;mut v[i]</code> kept in a binding), <code>&amp;mut v</code> handed to a function that may keep a path to it,
 a closure that names <code>v</code>, or moving <code>v</code> to another binding; then every access in the loop is
-tracked, about seven times the cost in a summing loop.</p>
+tracked, about ten times the cost in a summing loop.</p>
 <p>A vector that is a field of a local struct (<code>h.v</code>) is confined the same way while the function
 uses it only by indexing (<code>h.v[i]</code>, <code>h.v[i] = x</code>, <code>h.v[i].f += x</code>) and <code>Vec::len(&amp;h.v)</code>, and never
 uses <code>h</code> whole (moving it, borrowing it, capturing it); the struct's other fields are used freely.
@@ -8694,11 +8695,18 @@ the speed of a local.</p>
 <tr><td>A local <code>Vec</code>, indexed</td><td>1</td></tr>
 <tr><td>The same <code>Vec</code>, passed as <code>&amp;v</code> to a helper that indexes it</td><td>1</td></tr>
 <tr><td>A <code>Vec</code> field of a local struct, indexed in the loop (<code>h.v[i]</code>)</td><td>1</td></tr>
-<tr><td>A <code>Vec</code> field of a struct passed to that helper (<code>sum_helper(&amp;h.v)</code>), or moved out for the loop and back</td><td>1.1</td></tr>
+<tr><td>A <code>Vec</code> field of a struct passed to that helper (<code>sum_helper(&amp;h.v)</code>), or moved out for the loop and back</td><td>1</td></tr>
 <tr><td>A local <code>Vec</code> while a shared reference to one element is held</td><td>1</td></tr>
-<tr><td>A local <code>Vec</code> that is moved to another binding after the loop</td><td>7</td></tr>
+<tr><td>A local <code>Vec</code> that is moved to another binding after the loop</td><td>10</td></tr>
 </tbody>
 </table>
+<p><strong>Predicates.</strong> <code>Vec::retain</code>, <code>Vec::position</code> and <code>Vec::binary_search_by</code> run
+as plain loops when the function they are given is a closure literal written at the call, a named
+function, or a <code>fn</code> value holding a named function, provided it only reads the elements it is
+given (<code>Vec::sort_by</code> does so for a closure literal): 1,000,000 elements through <code>retain</code> took 3 to
+9 ns each. A closure stored in a
+variable first (<code>fn(…) : bool p = [lim](…) { … };</code>) may keep what it is given, so each element is lent
+to it through the runtime: about a microsecond each. Write the closure at the call.</p>
 <h3 id="perf-elements">Updating elements</h3>
 <p>Every way of updating the elements of a <code>Vec</code> of structs compiles to the element's address
 and a few plain instructions, as long as the vector is confined: <code>v[i].x += v[i].vx</code>,
@@ -8755,9 +8763,9 @@ only directly:</p>
 <thead><tr><th>10,000,000 bytes summed into a struct of two counters</th><th>Time, relative</th></tr></thead>
 <tbody>
 <tr><td><code>fn feed(ref&lt;Acc, exclusive&gt; a, slice&lt;u8, shared&gt; data)</code></td><td>1</td></tr>
-<tr><td><code>fn feed(Acc a, slice&lt;u8, shared&gt; data) : Acc</code>, the counters passed in and returned</td><td>0.6</td></tr>
-<tr><td>The first, each byte read through a helper, <code>a.sum += byte_at(data, i)</code></td><td>70</td></tr>
-<tr><td>The first, with <code>Acc</code> also holding a <code>Vec</code></td><td>80</td></tr>
+<tr><td><code>fn feed(Acc a, slice&lt;u8, shared&gt; data) : Acc</code>, the counters passed in and returned</td><td>0.7</td></tr>
+<tr><td>The first, each byte read through a helper, <code>a.sum += byte_at(data, i)</code></td><td>80</td></tr>
+<tr><td>The first, with <code>Acc</code> also holding a <code>Vec</code></td><td>90</td></tr>
 </tbody>
 </table>
 <p>So keep the loop over the input in the function itself, and keep the state it updates in a
@@ -8815,15 +8823,15 @@ millions of times:</p>
 <table>
 <thead><tr><th>1,000,000 calls of a function that reads a 60-byte text</th><th>Time, relative</th></tr></thead>
 <tbody>
-<tr><td><code>fn f(StringView s)</code>, one view made before the loop and passed each time</td><td>0.3</td></tr>
+<tr><td><code>fn f(StringView s)</code>, one view made before the loop and passed each time</td><td>0.2</td></tr>
 <tr><td><code>fn f(ref&lt;String, shared&gt; s)</code>, called <code>f(&amp;text)</code></td><td>1</td></tr>
-<tr><td><code>fn f(StringView s)</code>, called <code>f(String::as_view(&amp;text))</code></td><td>8</td></tr>
-<tr><td><code>fn f(String s)</code>, called <code>f(String::clone(&amp;text))</code></td><td>22</td></tr>
+<tr><td><code>fn f(StringView s)</code>, called <code>f(String::as_view(&amp;text))</code></td><td>9</td></tr>
+<tr><td><code>fn f(String s)</code>, called <code>f(String::clone(&amp;text))</code></td><td>23</td></tr>
 </tbody>
 </table>
 <ul>
 <li>A function that only reads its <code>StringView</code> (indexes it, takes its length, hands it to <code>std</code>'s readers) costs nothing to call: the view is passed as its address and length. Make the view once, outside a hot loop: each <code>String::as_view</code> costs about a quarter of a microsecond.</li>
-<li>To process input line by line, either way is fine: <code>read_all</code> followed by <code>String::split</code> took 1.3 times as long as a <code>read_line</code> loop over the same 200,000 lines, the price of keeping every line's view at once.</li>
+<li>To process input line by line, either way is fine: <code>read_all</code> followed by <code>String::split</code> took 1.2 times as long as a <code>read_line</code> loop over the same 200,000 lines, the price of keeping every line's view at once.</li>
 <li>Calls to <code>std</code> that take a view cost per call, not per byte (a 620-byte text cost the same as a 60-byte one).</li>
 </ul>
 <h3 id="perf-output">Building and writing text</h3>
@@ -8832,33 +8840,33 @@ millions of times:</p>
 <tbody>
 <tr><td><code>String::append(&amp;mut out, i)</code> then <code>String::append(&amp;mut out, &quot;,&quot;)</code></td><td>1</td></tr>
 <tr><td><code>sprintf(&quot;%v,&quot;, i)</code>, then append that</td><td>6</td></tr>
-<tr><td>A <code>Vec&lt;String&gt;</code> of pieces (each made by <code>sprintf</code>), then <code>String::join</code></td><td>11</td></tr>
+<tr><td>A <code>Vec&lt;String&gt;</code> of pieces (each made by <code>sprintf</code>), then <code>String::join</code></td><td>12</td></tr>
 </tbody>
 </table>
 <p><code>String::append</code> formats a number or a <code>bool</code> straight into the <code>String</code>, with no
 intermediate text, so build output with it; <code>sprintf</code> makes a new <code>String</code> each time, about a
 microsecond a call. Standard output is buffered (§21), so <code>printf</code> per line is the fast way to
-write many lines: 2,000,000 lines to a file took 0.38 s with one <code>printf</code> per line and 0.59 s
+write many lines: 2,000,000 lines to a file took 0.38 s with one <code>printf</code> per line and 0.52 s
 building one <code>String</code> and printing it once. Build a <code>String</code> when you need the text itself, not to
 save on printing.</p>
 <h3 id="perf-collections">Choose the collection by what you do most</h3>
 <table>
 <thead><tr><th>Operation</th><th>Fast</th><th>Slow</th><th>Measured</th></tr></thead>
 <tbody>
-<tr><td>Take elements from the front, in order</td><td><code>Queue::pop_front</code>, or <code>Vec::reverse</code> once then <code>Vec::pop</code></td><td><code>Vec::remove(&amp;mut v, 0)</code>, which moves every remaining element: the cost grows with the square of the length</td><td>10,000 elements: 2.6 times; 100,000: 47 times</td></tr>
-<tr><td>Test membership in a large set</td><td><code>HashSet::contains</code>, or <code>Vec::sort</code> once then <code>Vec::binary_search</code></td><td><code>Vec::contains</code>, which compares element by element</td><td>20,000 keys, 5,000 queries: 1.4 to 1.6 times, growing with the size</td></tr>
-<tr><td>Fill a <code>Vec</code> whose size you know</td><td><code>Vec::reserve(&amp;mut v, n)</code> first, then push</td><td>pushing alone, which grows the buffer as it goes</td><td>50,000,000 pushes: 13%</td></tr>
+<tr><td>Take elements from the front, in order</td><td><code>Queue::pop_front</code>, or <code>Vec::reverse</code> once then <code>Vec::pop</code></td><td><code>Vec::remove(&amp;mut v, 0)</code>, which moves every remaining element: the cost grows with the square of the length</td><td>10,000 elements: 2.4 times; 100,000: 51 times</td></tr>
+<tr><td>Test membership in a large set</td><td><code>Vec::sort</code> once then <code>Vec::binary_search</code>, or <code>HashSet::contains</code></td><td><code>Vec::contains</code>, which compares element by element</td><td>20,000 keys, 5,000 queries: <code>binary_search</code> 6.5 times as fast, <code>HashSet</code> 1.45 times, growing with the size</td></tr>
+<tr><td>Fill a <code>Vec</code> whose size you know</td><td><code>Vec::filled(n, x)</code>, then write the elements</td><td>pushing one by one (with or without <code>Vec::reserve</code> first, which no longer saves anything measurable)</td><td>50,000,000 elements: 5 to 6 times</td></tr>
 </tbody>
 </table>
 <p>Counting with a <code>HashMap&lt;String, …&gt;</code>: <code>*HashMap::entry(&amp;mut counts, String::clone(w), 0) += 1</code>
 clones the key on every call; looking the key up first,
 <code>match (HashMap::get_mut(&amp;mut counts, w)) { Some(c) : *c += 1, None : … }</code>, clones only for a new
-key. Over 1,000,000 words the second was about 20% faster, but both are a few hundred nanoseconds a
+key. Over 1,000,000 words the second was about 10% faster, but both are a few hundred nanoseconds a
 word: write whichever reads better.</p>
 <h3 id="perf-arith">Arithmetic and plain values</h3>
 <ul>
-<li>Every <code>+</code>, <code>-</code> and <code>*</code> on integers is checked for overflow (§06). Where wrapping around is what you mean (hashes, checksums, random number generators), say so with <code>wrapping_add</code>, <code>wrapping_mul</code> and their relatives: a tight sum ran 25–30% faster, and Clang executed less than half the instructions. Never use them to avoid a check on arithmetic that should not overflow: the check is what turns a wrong result into a diagnostic.</li>
-<li>Pass a struct by whichever reads best. A 64-byte struct of eight <code>i64</code> passed to a function that reads it was 1.5 to 2.3 times faster as a <code>ref&lt;…, shared&gt;</code> than copied: the reference is its address alone.</li>
+<li>Every <code>+</code>, <code>-</code> and <code>*</code> on integers is checked for overflow (§06). Where wrapping around is what you mean (hashes, checksums, random number generators), say so with <code>wrapping_add</code>, <code>wrapping_mul</code> and their relatives: a tight sum took a third less time, and Clang executed 40% of the instructions. Never use them to avoid a check on arithmetic that should not overflow: the check is what turns a wrong result into a diagnostic.</li>
+<li>Pass a struct by whichever reads best. A 64-byte struct of eight <code>i64</code> passed to a function that reads it took the same time copied as through a <code>ref&lt;…, shared&gt;</code>.</li>
 </ul>
 <h3 id="perf-c">When nothing else is enough</h3>
 <p>A kernel that must run at the speed of hand-written C can be hand-written C:
@@ -8873,7 +8881,8 @@ and its declaration is an unchecked claim. Measure first.</p>
 <li>In a function that takes references, use them only directly: loop over a slice in the function itself, and update plain state through one <code>exclusive</code> reference (or pass it by value).</li>
 <li>Make a <code>StringView</code> once, outside a hot loop; passing it on is free.</li>
 <li>Build text with <code>String::append</code>; <code>printf</code> per line is fine.</li>
-<li>Never <code>Vec::remove(&amp;mut v, 0)</code> in a loop over a long <code>Vec</code>; use a <code>HashSet</code> for membership in a large set.</li>
+<li>Never <code>Vec::remove(&amp;mut v, 0)</code> in a loop over a long <code>Vec</code>; for membership in a large set, sort once and <code>Vec::binary_search</code>, or use a <code>HashSet</code>.</li>
+<li>Make a <code>Vec</code> of a known size with <code>Vec::filled</code>, then write its elements.</li>
 <li>Say <code>wrapping_</code> only where wrapping is the meaning.</li>
 </ul>
 </div>
