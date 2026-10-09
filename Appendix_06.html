@@ -161,7 +161,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.100902</div>
+<div class="sub">Specification edition 2026.100903</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -330,7 +330,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100902</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100903</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -9180,7 +9180,7 @@ struct of plain fields. Where that state belongs to something larger (a struct t
 <h3 id="perf-text">Text in hot code</h3>
 <p><code>std</code> takes text it only reads as a <code>StringView</code> (D-0134), and for most code that is the
 right choice. In compiled code a view is not quite free, though: making one from a <code>String</code>
-(<code>String::as_view</code>) costs about a quarter of a microsecond for its checks, and every piece
+(<code>String::as_view</code>) costs about 60 nanoseconds for its checks, and every piece
 <code>split</code> returns holds its own borrow of the text. For a function of your own that a hot loop calls
 millions of times:</p>
 <table>
@@ -9188,13 +9188,13 @@ millions of times:</p>
 <tbody>
 <tr><td><code>fn f(StringView s)</code>, one view made before the loop and passed each time</td><td>0.2</td></tr>
 <tr><td><code>fn f(ref&lt;String, shared&gt; s)</code>, called <code>f(&amp;text)</code></td><td>1</td></tr>
-<tr><td><code>fn f(StringView s)</code>, called <code>f(String::as_view(&amp;text))</code></td><td>9</td></tr>
-<tr><td><code>fn f(String s)</code>, called <code>f(String::clone(&amp;text))</code></td><td>23</td></tr>
+<tr><td><code>fn f(StringView s)</code>, called <code>f(String::as_view(&amp;text))</code></td><td>3</td></tr>
+<tr><td><code>fn f(String s)</code>, called <code>f(String::clone(&amp;text))</code></td><td>24</td></tr>
 </tbody>
 </table>
 <ul>
-<li>A function that only reads its <code>StringView</code> (indexes it, takes its length, hands it to <code>std</code>'s readers) costs nothing to call: the view is passed as its address and length. Make the view once, outside a hot loop: each <code>String::as_view</code> costs about a quarter of a microsecond.</li>
-<li>To process input line by line, either way is fine: <code>read_all</code> followed by <code>String::split</code> took 1.2 times as long as a <code>read_line</code> loop over the same 200,000 lines, the price of keeping every line's view at once.</li>
+<li>A function that only reads its <code>StringView</code> (indexes it, takes its length, hands it to <code>std</code>'s readers) costs nothing to call: the view is passed as its address and length. Make the view once, outside a hot loop: each <code>String::as_view</code> costs about 60 nanoseconds.</li>
+<li>To process input line by line, use a <code>read_line</code> loop: <code>read_all</code> followed by <code>String::split</code> took about nine times as long over the same 200,000 lines, the price of keeping every line's view at once.</li>
 <li>Calls to <code>std</code> that take a view cost per call, not per byte (a 620-byte text cost the same as a 60-byte one).</li>
 </ul>
 <h3 id="perf-output">Building and writing text</h3>
@@ -9202,29 +9202,30 @@ millions of times:</p>
 <thead><tr><th>Building one String from 2,000,000 numbers</th><th>Time, relative</th></tr></thead>
 <tbody>
 <tr><td><code>String::append(&amp;mut out, i)</code> then <code>String::append(&amp;mut out, &quot;,&quot;)</code></td><td>1</td></tr>
-<tr><td><code>sprintf(&quot;%v,&quot;, i)</code>, then append that</td><td>6</td></tr>
-<tr><td>A <code>Vec&lt;String&gt;</code> of pieces (each made by <code>sprintf</code>), then <code>String::join</code></td><td>12</td></tr>
+<tr><td><code>sprintf(&quot;%v,&quot;, i)</code>, then append that</td><td>9</td></tr>
+<tr><td>A <code>Vec&lt;String&gt;</code> of pieces (each made by <code>sprintf</code>), then <code>String::join</code></td><td>18</td></tr>
 </tbody>
 </table>
 <p><code>String::append</code> formats a number or a <code>bool</code> straight into the <code>String</code>, with no
-intermediate text, so build output with it; <code>sprintf</code> makes a new <code>String</code> each time, about a
-microsecond a call. Standard output is buffered (§21), so <code>printf</code> per line is the fast way to
-write many lines: 2,000,000 lines to a file took 0.38 s with one <code>printf</code> per line and 0.52 s
-building one <code>String</code> and printing it once. Build a <code>String</code> when you need the text itself, not to
-save on printing.</p>
+intermediate text, so build output with it; <code>sprintf</code> makes a new <code>String</code> each time, about
+two-thirds of a microsecond a call. Standard output is buffered (§21), so <code>printf</code> per line is a
+fast way to write many lines: 2,000,000 lines to a file took 0.38 s with one <code>printf</code> per line and
+0.24 s building one <code>String</code> with <code>String::append</code> and printing it once. Printing as you go is
+fast enough for most programs and keeps no text in memory; building one <code>String</code> saves a little
+more where all the text fits.</p>
 <h3 id="perf-collections">Choose the collection by what you do most</h3>
 <table>
 <thead><tr><th>Operation</th><th>Fast</th><th>Slow</th><th>Measured</th></tr></thead>
 <tbody>
 <tr><td>Take elements from the front, in order</td><td><code>Queue::pop_front</code>, or <code>Vec::reverse</code> once then <code>Vec::pop</code></td><td><code>Vec::remove(&amp;mut v, 0)</code>, which moves every remaining element: the cost grows with the square of the length</td><td>10,000 elements: 2.4 times; 100,000: 51 times</td></tr>
-<tr><td>Test membership in a large set</td><td><code>Vec::sort</code> once then <code>Vec::binary_search</code>, or <code>HashSet::contains</code></td><td><code>Vec::contains</code>, which compares element by element</td><td>20,000 keys, 5,000 queries: <code>binary_search</code> 7.4 times as fast, <code>HashSet</code> 1.5 times, growing with the size</td></tr>
+<tr><td>Test membership in a large set</td><td><code>Vec::sort</code> once then <code>Vec::binary_search</code>, or <code>HashSet::contains</code></td><td><code>Vec::contains</code>, which compares element by element</td><td>20,000 keys, 5,000 queries: <code>binary_search</code> 5 to 6 times as fast, <code>HashSet</code> 1.3 times, growing with the size</td></tr>
 <tr><td>Fill a <code>Vec</code> whose size you know</td><td><code>Vec::filled(n, x)</code>, then write the elements</td><td>pushing one by one (with or without <code>Vec::reserve</code> first, which no longer saves anything measurable)</td><td>50,000,000 elements: 5 to 6 times</td></tr>
 </tbody>
 </table>
 <p>Counting with a <code>HashMap&lt;String, …&gt;</code>: <code>*HashMap::entry(&amp;mut counts, String::clone(w), 0) += 1</code>
 clones the key on every call; looking the key up first,
 <code>match (HashMap::get_mut(&amp;mut counts, w)) { Some(c) : *c += 1, None : … }</code>, clones only for a new
-key. Over 1,000,000 words the second was about 10% faster, but both are a few hundred nanoseconds a
+key. Over 1,000,000 words the second was about 8% faster, but both are a few hundred nanoseconds a
 word: write whichever reads better.</p>
 <h3 id="perf-arith">Arithmetic and plain values</h3>
 <ul>
