@@ -155,7 +155,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.100805</div>
+<div class="sub">Specification edition 2026.100901</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -324,7 +324,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100805</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100901</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -916,7 +916,7 @@ one subject alone (<code>import std::text;</code>). <a href="#s21">§21</a> cove
 <thead><tr><th>Area</th><th>Items</th><th>Submodule</th></tr></thead>
 <tbody>
 <tr><td>Core types</td><td><code>Option&lt;T&gt;</code>, <code>Result&lt;T, E&gt;</code>, <code>AllocError</code>; <code>unwrap</code>, <code>unwrap_or</code>, <code>expect</code>, <code>ok_or</code>, <code>is_some</code>/<code>is_none</code>/<code>is_ok</code>/<code>is_err</code>; <code>map_err</code></td><td><code>std::core</code></td></tr>
-<tr><td>Collections</td><td><code>Vec&lt;T&gt;</code> (push, pop, index, insert, remove, retain, dedup, clone, from_slice, filled, from_fn, append, contains, position, reverse, truncate, swap, clear, …), <code>HashMap&lt;K, V&gt;</code>, <code>HashSet&lt;K&gt;</code>, <code>Queue&lt;T&gt;</code>, <code>PriorityQueue&lt;T&gt;</code></td><td><code>std::collections</code></td></tr>
+<tr><td>Collections</td><td><code>Vec&lt;T&gt;</code> (push, pop, index, insert, remove, swap_remove, retain, dedup, clone, from_slice, filled, from_fn, append, contains, position, reverse, truncate, swap, clear, …), <code>HashMap&lt;K, V&gt;</code>, <code>HashSet&lt;K&gt;</code>, <code>Queue&lt;T&gt;</code>, <code>PriorityQueue&lt;T&gt;</code></td><td><code>std::collections</code></td></tr>
 <tr><td>Sorting</td><td><code>Vec::sort</code>, <code>sort_by</code>, <code>binary_search</code>, <code>binary_search_by</code></td><td><code>std::collections</code></td></tr>
 <tr><td>Ownership helpers</td><td><code>Box&lt;T&gt;</code>, <code>Rc&lt;T&gt;</code>, <code>Weak&lt;T&gt;</code></td><td><code>std::memory</code></td></tr>
 <tr><td>Values behind references</td><td><code>swap</code>, <code>replace</code>, <code>overwrite</code></td><td><code>std::core</code></td></tr>
@@ -1432,13 +1432,16 @@ destroyed after the struct's own destructor, innermost first, in reverse declara
 resource, so there is no leak diagnostic.</p>
 <p>You can also destroy a resource early with <code>drop(x)</code>. Afterwards <code>x</code> is stale until you give
 it a new value: once <code>x</code>'s value has gone, moved away or dropped, <code>x = e</code> gives it a new one, which
-is destroyed at the end of <code>x</code>'s own block like its first value. Assigning over a value that is
-still there is an error for a resource (<code>diag.overwrite-of-live-resource</code>): write
-<code>overwrite(&amp;mut x, e)</code>, which destroys the old value and stores the new one, or drop it first. Either
-way the destruction is visible where it happens. The same holds for a field (<code>g.name = s;</code>) and for a
-write through a reference (<code>*r = v;</code>, <code>r.rows = v;</code>): where the compiler can see the old value is still
-there, it rejects the assignment before the program runs; elsewhere, the run does. What counts is whether the value there owns anything: a <code>None</code> of an
-<code>Option&lt;String&gt;</code> owns nothing, so <code>o = Some(s);</code> over it is fine, while a <code>Some</code> must be dropped
+is destroyed at the end of <code>x</code>'s own block like its first value. A value whose end only frees memory
+(a <code>String</code>, a <code>Vec</code>, a <code>HashMap</code>, an <code>Option</code> or struct made of such: a *quiet* type, D-0194) is simply
+replaced: <code>s = String::from_str(&quot;new&quot;);</code> destroys the old <code>String</code> there. Assigning over any other
+resource that is still there is an error (<code>diag.overwrite-of-live-resource</code>), because its end does
+something you should see: a destructor of yours runs, a file closes, a thread is joined. Write
+<code>overwrite(&amp;mut x, e)</code>, which destroys the old value and stores the new one, or drop it first. The same
+holds for a field (<code>g.file = f;</code>) and for a write through a reference (<code>*r = v;</code>, <code>r.rows = v;</code>): where
+the compiler can see the old value is still there, it rejects the assignment before the program runs;
+elsewhere, the run does. What counts is whether the value there owns anything: a <code>None</code> of an
+<code>Option&lt;File&gt;</code> owns nothing, so <code>o = Some(f);</code> over it is fine, while a <code>Some</code> must be dropped
 first. A type declared <code>resource</code>, or with a destructor, always owns. Declaring the name again in
 the same block does not: that is <code>diag.duplicate-local</code> (§11).</p>
 <figure class="code"><div class="code-head"><span class="code-title">Where destruction happens</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
@@ -1501,13 +1504,25 @@ followed by <code>4321</code>.</div>
 <h3>Things the rules forbid</h3>
 <figure class="code"><div class="code-head"><span class="code-title">Overwriting a live resource</span><span class="badge bad">rejected: diag.overwrite-of-live-resource</span></div><pre><code><span class="k">import</span> std;
 
+<span class="k">resource</span> <span class="k">struct</span> Lock
+{
+    <span class="t">u32</span> id;
+}
+
+<span class="k">fn</span> Lock::<span class="p">drop</span>(<span class="t">ref</span>&lt;Lock, <span class="t">exclusive</span>&gt; self)
+{
+    <span class="p">printf</span>(<span class="s">&quot;released %u\n&quot;</span>, self.id);
+}
+
 <span class="k">fn</span> main()
 {
     <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v = <span class="p">Vec</span>::new();
-    v = <span class="p">Vec</span>::new();                   <span class="c">// <span class="bad">✗</span> <span class="dg">diag.overwrite-of-live-resource</span>: the old Vec would be lost</span>
+    v = <span class="p">Vec</span>::new();                   <span class="c">// fine: a Vec of numbers is quiet, the old one is destroyed</span>
+    Lock l = Lock { .id = <span class="n">1</span> };
+    l = Lock { .id = <span class="n">2</span> };             <span class="c">// <span class="bad">✗</span> <span class="dg">diag.overwrite-of-live-resource</span>: lock 1&#x27;s release would be hidden</span>
 }</code></pre></figure>
-<p>The fix is <code>overwrite(&amp;mut v, Vec::new());</code>, which destroys the old <code>Vec</code> there, or <code>drop(v);</code>
-first. Two more rejections you will meet:
+<p>The fix is <code>overwrite(&amp;mut l, Lock { .id = 2 });</code>, which destroys the old <code>Lock</code> there (and
+prints its release where you wrote it), or <code>drop(l);</code> first. Two more rejections you will meet:
 <code>drop(v)</code> twice is <code>diag.stale-binding</code> (the first drop ended <code>v</code>); and moving a resource out of a
 field of a live struct (<code>auto inner = holder.field;</code>) is <code>diag.move-out-of-field</code>, because the struct
 would be left half-owned. Move the whole struct, or take a reference to the field.</p>
@@ -4724,7 +4739,7 @@ error". Where a default will do, <code>Option::unwrap_or(o, d)</code> and
 error) is evaluated either way, and one that goes unused is destroyed. Where there must be a value,
 <code>Option::unwrap(o)</code> and <code>Result::unwrap(r)</code> give it or fault with <code>diag.unwrap-failed</code>, and
 <code>Option::expect(o, &quot;…&quot;)</code> and <code>Result::expect(r, &quot;…&quot;)</code> do the same with your message.</p>
-<figure class="code"><div class="code-head"><span class="code-title">unwrap, expect, overwrite and clone_by</span><span class="badge bad">rejected: diag.unwrap-failed</span></div><pre><code><span class="k">import</span> std;
+<figure class="code"><div class="code-head"><span class="code-title">unwrap, expect, replacing a String, and clone_by</span><span class="badge bad">rejected: diag.unwrap-failed</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> main()
 {
@@ -4732,7 +4747,7 @@ error) is evaluated either way, and one that goes unused is destroyed. Where the
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> names, <span class="p">String</span>::from_str(<span class="s">&quot;ada&quot;</span>));
     <span class="p">Vec</span>&lt;<span class="p">String</span>&gt; copy = <span class="p">Vec</span>::clone(&amp;names);                    <span class="c">// each String copied by its clone (§12)</span>
     <span class="p">String</span> first = <span class="p">Option</span>::expect(<span class="p">Vec</span>::pop(&amp;<span class="k">mut</span> copy), <span class="s">&quot;the copy has one name&quot;</span>);
-    overwrite(&amp;<span class="k">mut</span> first, <span class="p">String</span>::from_str(<span class="s">&quot;grace&quot;</span>));         <span class="c">// the old String is destroyed here</span>
+    first = <span class="p">String</span>::from_str(<span class="s">&quot;grace&quot;</span>);                        <span class="c">// a String is quiet: the old one is destroyed</span>
     <span class="t">u32</span> n = <span class="p">Result</span>::unwrap(<span class="p">String</span>::<span class="p">parse</span>&lt;<span class="t">u32</span>&gt;(&amp;<span class="p">String</span>::from_str(<span class="s">&quot;42&quot;</span>)));
     <span class="p">assert</span>(<span class="p">String</span>::eq_str(&amp;first, <span class="s">&quot;grace&quot;</span>) &amp;&amp; n == <span class="n">42</span> &amp;&amp; <span class="p">Vec</span>::len(&amp;names) == <span class="n">1</span>);
     <span class="p">Option</span>&lt;<span class="t">u32</span>&gt; none = <span class="p">None</span>;
@@ -5650,6 +5665,7 @@ destructor destroys each element and frees the buffer. A plain element is copied
 <tr><td><code>Vec::pop</code></td><td><code>(ref&lt;Vec&lt;T&gt;, exclusive&gt;) : Option&lt;T&gt;</code></td><td><code>None</code> when empty; moves a resource element out</td></tr>
 <tr><td><code>Vec::insert</code></td><td><code>(ref&lt;Vec&lt;T&gt;, exclusive&gt;, usize i, T)</code></td><td>puts the value at <code>i</code> (<code>i ≤ len</code>), moving the later elements up one</td></tr>
 <tr><td><code>Vec::remove</code></td><td><code>(ref&lt;Vec&lt;T&gt;, exclusive&gt;, usize i) : T</code></td><td>takes the element at <code>i</code> out, moving the later elements down one</td></tr>
+<tr><td><code>Vec::swap_remove</code></td><td><code>(ref&lt;Vec&lt;T&gt;, exclusive&gt;, usize i) : T</code></td><td>takes the element at <code>i</code> out and moves the last element into its place: no other element moves, the order is not kept</td></tr>
 <tr><td><code>Vec::retain</code></td><td><code>(ref&lt;Vec&lt;T&gt;, exclusive&gt;, fn(ref&lt;T, shared&gt;) : bool keep)</code></td><td>keeps the elements <code>keep</code> accepts, in order, and destroys the rest (D-0181)</td></tr>
 <tr><td><code>Vec::dedup</code></td><td><code>(ref&lt;Vec&lt;T&gt;, exclusive&gt;)</code></td><td>removes each element equal to the one before it, so a sorted <code>Vec</code> keeps one of each value (<code>T</code> must be <code>eq</code>, D-0181)</td></tr>
 <tr><td><code>Vec::index_shared</code></td><td><code>(ref&lt;Vec&lt;T&gt;, shared&gt;, usize) : ref&lt;T, shared&gt;</code></td><td>bounds-checked: <code>diag.index-out-of-bounds</code></td></tr>
@@ -5947,7 +5963,8 @@ Unicode case is not provided.</p>
 {
     <span class="p">String</span> owned = <span class="s">&quot;caf\u{e9}&quot;</span>;   <span class="c">// a str&#x27;s bytes, copied; no validation needed</span>
     <span class="p">assert</span>(<span class="p">String</span>::len(&amp;owned) == <span class="n">5</span>);                <span class="c">// 5 bytes: é is two of them</span>
-    <span class="p">assert</span>(<span class="p">Vec</span>::len(&amp;<span class="p">String</span>::chars(&amp;owned)) == <span class="n">4</span>);   <span class="c">// but 4 characters</span>
+    <span class="p">assert</span>(<span class="p">String</span>::char_count(&amp;owned) == <span class="n">4</span>);         <span class="c">// but 4 characters</span>
+    <span class="p">assert</span>(<span class="p">Vec</span>::len(&amp;<span class="p">String</span>::chars(&amp;owned)) == <span class="n">4</span>);   <span class="c">// each a view of its bytes</span>
 
     <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; good = <span class="p">Vec</span>::new();
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> good, <span class="n">226</span>);        <span class="c">// the three bytes of U+20AC, the euro sign</span>
@@ -6000,12 +6017,13 @@ prints with <code>%s</code>, compares with <code>==</code> to another view or a 
 <tr><td><code>StringView::trim(v)</code>, <code>trim_start</code>, <code>trim_end</code></td><td>the view without ASCII white space at its ends</td></tr>
 <tr><td><code>StringView::split(v, &quot;,&quot;)</code></td><td>a <code>Vec&lt;StringView&gt;</code> of the parts, each a view of the same <code>String</code></td></tr>
 <tr><td><code>StringView::chars(v)</code></td><td>a <code>Vec&lt;StringView&gt;</code> of its characters, in order, one view each (D-0128)</td></tr>
+<tr><td><code>StringView::char_count(v)</code></td><td>how many characters it holds (<code>len</code> counts bytes; D-0193)</td></tr>
 <tr><td><code>StringView::contains(v, t)</code></td><td><code>bool</code>: whether the text of <code>t</code> occurs in <code>v</code> (D-0139)</td></tr>
 <tr><td><code>StringView::replace(v, from, to)</code></td><td>a new <code>String</code>: <code>v</code> with every occurrence of <code>from</code> replaced by <code>to</code>, left to right, no overlap; an empty <code>from</code> occurs nowhere</td></tr>
 <tr><td><code>StringView::join(&amp;parts[0..$], sep)</code>, <code>String::join(&amp;strings[0..$], sep)</code></td><td>a new <code>String</code>: the parts with <code>sep</code> between each two; the inverse of <code>split</code></td></tr>
 <tr><td><code>StringView::parse&lt;T&gt;(v)</code></td><td>a number, as <code>String::parse</code></td></tr>
 <tr><td><code>String::from_view(v)</code>, <code>String::append(&amp;mut s, v)</code></td><td>the text copied into a <code>String</code></td></tr>
-<tr><td><code>String::find(&amp;s, t)</code>, <code>starts_with</code>, <code>ends_with</code>, <code>contains</code>, <code>replace</code>, <code>trim</code>, <code>trim_start</code>, <code>trim_end</code>, <code>split</code>, <code>chars</code>, <code>as_view</code></td><td>the same, straight from a <code>String</code>: each is the <code>StringView::</code> function applied to <code>&amp;s[0..$]</code>, the whole-string view (D-0113)</td></tr>
+<tr><td><code>String::find(&amp;s, t)</code>, <code>starts_with</code>, <code>ends_with</code>, <code>contains</code>, <code>replace</code>, <code>trim</code>, <code>trim_start</code>, <code>trim_end</code>, <code>split</code>, <code>chars</code>, <code>char_count</code>, <code>as_view</code></td><td>the same, straight from a <code>String</code>: each is the <code>StringView::</code> function applied to <code>&amp;s[0..$]</code>, the whole-string view (D-0113)</td></tr>
 </tbody>
 </table>
 <p>Text that a function only reads is a <code>StringView</code> throughout <code>std</code>: a file's path, the text
@@ -7119,6 +7137,13 @@ lock 1 released
 line at a time, as <code>read_output_line</code> does its output; <code>Child::terminate(&amp;mut ch)</code> asks it to stop
 (SIGTERM on Unix, which a program may catch to finish cleanly) where <code>kill</code> ends it at once; and
 <code>process_id()</code> is this program's own number, for a pid file.</p>
+<p><strong>Streaming between processes</strong> (D-0195). A <code>Child</code>'s pipes all belong to it, and
+every call borrows it exclusively, so one thread cannot write a child's input while another reads
+its output. <code>Child::take_input(&amp;mut ch)</code> and <code>Child::take_output(&amp;mut ch)</code> move a pipe out into a
+<code>ChildInput</code> or <code>ChildOutput</code> of its own (<code>None</code> if it was already taken): give one to a thread
+(<code>spawn(pump, out_a, in_b)</code>) and keep reading the other child here. <code>ChildInput::write</code>,
+<code>ChildOutput::read</code> and <code>read_line</code> work as the <code>Child</code>'s own calls do; dropping an end closes it, and
+an end outlives its <code>Child</code>.</p>
 <h3>Cryptography, and bytes as text</h3>
 <p><em>In <code>std::crypto</code>, with the encodings in <code>std::text</code>.</em></p>
 <p><code>sha256(data)</code> is the SHA-256 digest of some bytes, 32 of them as an <code>array&lt;u8, 32&gt;</code>;
@@ -7413,9 +7438,12 @@ chunked bodies and speak <code>https</code> through <code>std::tls</code> with t
 than one request, or wants a timeout, a header on every request or a smaller body limit, keeps an
 <code>HttpClient</code> and calls <code>HttpClient::send(&amp;mut client, &amp;request)</code>: the roots are loaded once, at the
 first <code>https</code> request. <code>Url::parse</code> takes a URL apart (<code>scheme</code>, <code>host</code>, <code>port</code>, <code>path</code>, <code>query</code>),
-<code>percent_encode</code> and <code>percent_decode</code> handle the escaping, and <code>find_header</code> (or
-<code>Response::header</code>) finds a header whatever its case. HTTP/1.1 only, one connection per request, no
-compression and no cookies; what a server sends compressed it sends only when asked, so plain
+<code>percent_encode</code> and <code>percent_decode</code> handle the escaping, <code>find_header</code> (or
+<code>Response::header</code>) finds a header whatever its case, and <code>Response::text</code> gives the body as a <code>String</code>
+(an error when it is not UTF-8). HTTP/1.1 only and one connection per request, unless the
+client's <code>keep_alive</code> is set (D-0195): then the connection stays open while the server allows, and
+the next request to the same host and port goes on it (a server for such a client must not count
+on one connection per request). No compression and no cookies; what a server sends compressed it sends only when asked, so plain
 requests get plain bodies.</p>
 <p><strong>Serving.</strong> <code>HttpServer::bind(addr)</code> listens; <code>HttpServer::accept(&amp;mut server)</code>
 gives each client's <code>HttpConnection</code>, on which <code>HttpConnection::request(&amp;mut c)</code> parses the next
@@ -7481,12 +7509,12 @@ server is a later decision). The example is hermetic: its client and server are 
     <span class="k">auto</span> server = <span class="p">spawn</span>(accept_two, s);
     <span class="k">match</span> (<span class="p">http_get</span>(<span class="p">String</span>::as_view(&amp;<span class="p">sprintf</span>(<span class="s">&quot;%s/health&quot;</span>, &amp;base))))
     {
-        <span class="p">Ok</span>(r)  : <span class="p">printf</span>(<span class="s">&quot;%u %s: %s&quot;</span>, r.status, &amp;r.reason, &amp;<span class="p">Result</span>::unwrap_or(<span class="p">String</span>::from_utf8(<span class="p">Vec</span>::clone(&amp;r.body)), <span class="p">String</span>::new())),
+        <span class="p">Ok</span>(r)  : <span class="p">printf</span>(<span class="s">&quot;%u %s: %s&quot;</span>, r.status, &amp;r.reason, &amp;<span class="p">Result</span>::unwrap_or(<span class="p">Response</span>::text(&amp;r), <span class="p">String</span>::new())),
         <span class="p">Err</span>(e) : <span class="p">printf</span>(<span class="s">&quot;error: %s\n&quot;</span>, <span class="p">HttpError</span>::text(&amp;e)),
     }
     <span class="k">match</span> (<span class="p">http_post</span>(<span class="p">String</span>::as_view(&amp;<span class="p">sprintf</span>(<span class="s">&quot;%s/echo&quot;</span>, &amp;base)), <span class="s">&quot;text/plain&quot;</span>, &amp;<span class="s">b&quot;hello there&quot;</span>[<span class="n">0</span>..$]))
     {
-        <span class="p">Ok</span>(r)  : <span class="p">printf</span>(<span class="s">&quot;%u, %s echoed %v bytes: %s\n&quot;</span>, r.status, <span class="p">Option</span>::unwrap_or(<span class="p">Response</span>::header(&amp;r, <span class="s">&quot;content-type&quot;</span>), <span class="p">StringView</span>::of(<span class="s">&quot;?&quot;</span>)), <span class="p">Vec</span>::len(&amp;r.body), &amp;<span class="p">Result</span>::unwrap_or(<span class="p">String</span>::from_utf8(<span class="p">Vec</span>::clone(&amp;r.body)), <span class="p">String</span>::new())),
+        <span class="p">Ok</span>(r)  : <span class="p">printf</span>(<span class="s">&quot;%u, %s echoed %v bytes: %s\n&quot;</span>, r.status, <span class="p">Option</span>::unwrap_or(<span class="p">Response</span>::header(&amp;r, <span class="s">&quot;content-type&quot;</span>), <span class="p">StringView</span>::of(<span class="s">&quot;?&quot;</span>)), <span class="p">Vec</span>::len(&amp;r.body), &amp;<span class="p">Result</span>::unwrap_or(<span class="p">Response</span>::text(&amp;r), <span class="p">String</span>::new())),
         <span class="p">Err</span>(e) : <span class="p">printf</span>(<span class="s">&quot;error: %s\n&quot;</span>, <span class="p">HttpError</span>::text(&amp;e)),
     }
     <span class="p">printf</span>(<span class="s">&quot;server thread: %u\n&quot;</span>, <span class="p">join</span>(server));
@@ -8932,7 +8960,7 @@ rule is applied statically where the checker can see the problem and dynamically
 <tr><td><code>diag.move-out-of-field</code></td><td>static</td><td>moving a resource out of a live struct's field or through a reference</td><td>move the whole container, or match a reference (<code>match (&amp;e)</code>)</td></tr>
 <tr><td><code>diag.borrow-of-non-place</code>, <code>diag.borrow-of-temporary</code></td><td>static</td><td><code>&amp;</code> applied to a value or temporary</td><td>bind it first</td></tr>
 <tr><td><code>diag.no-destroy-authority</code>, <code>diag.transfer-without-authority</code></td><td>both</td><td>destroying or moving something this thread does not own</td><td>destroy in the owning thread, once</td></tr>
-<tr><td><code>diag.overwrite-of-live-resource</code></td><td>both</td><td>assigning over a resource that is still owned</td><td><code>overwrite(&amp;mut x, v)</code>, or <code>drop</code> first</td></tr>
+<tr><td><code>diag.overwrite-of-live-resource</code></td><td>both</td><td>assigning over a resource that is still owned and is not quiet (its end runs a destructor or releases something)</td><td><code>overwrite(&amp;mut x, v)</code>, or <code>drop</code> first</td></tr>
 <tr><td><code>diag.unwrap-failed</code></td><td>dynamic</td><td><code>unwrap</code> or <code>expect</code> of a <code>None</code> or an <code>Err</code></td><td><code>match</code>, or <code>unwrap_or</code> with a default</td></tr>
 <tr><td><code>diag.assert-failed</code></td><td>dynamic</td><td>an <code>assert</code> condition is false (the formatted message, if any, is shown)</td><td>the condition names what was assumed; find why it did not hold</td></tr>
 <tr><td><code>diag.read-of-resource</code></td><td>static</td><td>a resource used where a copy would be made (<code>==</code>, a value read)</td><td>move it or take a reference</td></tr>
