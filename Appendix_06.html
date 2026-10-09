@@ -44,6 +44,12 @@ a:hover { text-decoration: underline; }
    The fallbacks (Consolas, Menlo) mark their zeros too. */
 code, pre { font-family: "Cascadia Mono", Consolas, ui-monospace, SFMono-Regular, Menlo, "DejaVu Sans Mono", "Liberation Mono", monospace; }
 code { background: var(--code-bg); border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; font-size: 0.9em; color: #e6ebf3; white-space: nowrap; }
+code.priv { color: var(--bad); opacity: 0.55; background: none; border-color: transparent; font-size: 0.8em; }
+.nat { color: var(--muted); font-size: 0.7em; margin-left: 1px; }
+.std-file { color: var(--muted); font-size: 0.8rem; font-weight: normal; margin-left: 8px; }
+.std-nav { line-height: 2; }
+table.std-inv td:first-child { white-space: nowrap; vertical-align: top; }
+table.std-inv td:last-child { line-height: 1.9; }
 pre code { background: none; border: none; padding: 0; white-space: pre; font-size: inherit; color: inherit; }
 .layout { display: flex; min-height: 100vh; }
 .sidebar {
@@ -155,7 +161,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.100901</div>
+<div class="sub">Specification edition 2026.100902</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -324,7 +330,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100901</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100902</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -936,9 +942,9 @@ one subject alone (<code>import std::text;</code>). <a href="#s21">§21</a> cove
 <tr><td>Arguments and environment</td><td><code>arg_count</code>, <code>arg</code> and the extern <code>arg_bytes</code>; <code>Args</code> (flag, option, options, finish, help); <code>env_var</code>, <code>current_dir</code>, <code>set_current_dir</code>, <code>temp_dir</code>, <code>home_dir</code>, <code>current_exe</code>, <code>hostname</code></td><td><code>std::env</code></td></tr>
 <tr><td>Clocks</td><td><code>monotonic_ns</code>, <code>unix_seconds</code>, <code>sleep_ms</code>; dates and times are <code>DateTime</code></td><td><code>std::time</code></td></tr>
 <tr><td>Concurrency</td><td><code>Channel&lt;T&gt;</code> (new, send, recv, try_recv, recv_timeout_ms, close), <code>cpu_count</code></td><td><code>std::sync</code></td></tr>
-<tr><td>Cryptography</td><td><code>sha256</code>, <code>sha384</code>, <code>sha512</code>, <code>sha1</code> (legacy), <code>blake2b</code>, <code>hmac_sha256</code>, <code>hmac</code>, <code>digest_eq</code>, <code>hkdf_sha256</code>, <code>chacha20_poly1305_seal</code>/<code>open</code>, <code>aes_gcm_seal</code>/<code>open</code>, <code>x25519</code>, <code>ecdh</code>, <code>ed25519_sign</code>/<code>verify</code>, <code>ecdsa_sign</code>/<code>verify</code>, <code>rsa_sign_pss</code>/<code>verify_pss</code>, <code>hash_password</code>/<code>verify_password</code>; <code>to_hex</code>, <code>from_hex</code>, <code>base64_encode</code>, <code>base64_decode</code> in <code>std::text</code></td><td><code>std::crypto</code></td></tr>
+<tr><td>Cryptography</td><td><code>sha256</code>, <code>sha384</code>, <code>sha512</code>, <code>sha1</code> (legacy), <code>blake2b</code>, <code>hmac_sha256</code>, <code>hmac</code>, <code>digest_eq</code>, <code>hkdf_sha256</code>, <code>chacha20_poly1305_seal</code>/<code>open</code>, <code>aes_gcm_seal</code>/<code>open</code>, <code>x25519</code>, <code>ecdh</code>, <code>ed25519_sign</code>/<code>verify</code>, <code>ecdsa_sign</code>/<code>verify</code>, <code>rsa_sign_pss</code>/<code>verify_pss</code>, <code>hash_password</code>/<code>verify_password</code>; <code>to_hex</code>, <code>from_hex</code>, <code>base64_encode</code>, <code>base64_decode</code> in <code>std::text</code></td><td><code>std::crypto</code>; <code>to_hex</code>, <code>from_hex</code>, <code>base64_encode</code>, <code>base64_decode</code>: <code>std::encoding</code></td></tr>
 <tr><td>HTTP</td><td><code>http_get</code>, <code>http_post</code>, <code>HttpClient</code>, <code>Url</code>, <code>form_decode</code>/<code>form_encode</code>; <code>HttpServer</code> (<code>bind</code>, <code>bind_tls</code>), <code>HttpConnection::request</code>/<code>respond</code></td><td><code>std::http</code></td></tr>
-<tr><td>JSON</td><td><code>Json</code> (parse, text, pretty, get, at, as_*, set, push), <code>JsonMember</code></td><td><code>std::json</code></td></tr>
+<tr><td>JSON</td><td><code>Json</code> (parse, text, pretty, get, at, as_*, set, push), <code>JsonMember</code></td><td><code>std::encoding::json</code></td></tr>
 <tr><td>Compression</td><td><code>deflate</code>/<code>inflate</code>, <code>zlib_deflate</code>/<code>zlib_inflate</code>, <code>gzip</code>/<code>gunzip</code>, <code>adler32</code>, <code>CompressError</code></td><td><code>std::compress</code></td></tr>
 <tr><td>Databases</td><td><code>PgConnection::connect</code>, <code>query</code>, <code>execute</code>, <code>run_script</code>; <code>PgValue</code>, <code>PgResult</code>, <code>PgRow::get</code>, <code>get_i64</code>, <code>get_f64</code>, <code>get_bool</code>, <code>get_bytes</code></td><td><code>std::database::postgres</code></td></tr>
 <tr><td>Big integers</td><td><code>BigUint</code> (add, sub, mul, div_rem, mod_pow, shifts, text, parse, bytes)</td><td><code>std::math</code></td></tr>
@@ -5409,44 +5415,359 @@ a module, it keeps its private parts private: no program can touch <code>Vec</co
 <code>String</code>'s bytes, a <code>HashMap</code>'s table or <code>Rc</code>'s count.</p>
 <p><code>std</code> is divided into submodules by subject, and its root passes each one's items on as its
 own (<code>export import</code>, §17), so <code>import std;</code> brings in everything and <code>std::Vec</code> names the same type
-as <code>std::collections::Vec</code>. A program that wants one subject alone may import just that one. Three
+as <code>std::collections::Vec</code>. A program that wants one subject alone may import just that one. Four
 submodules divide again, the same way: <code>std::crypto</code> into <code>digest</code>, <code>kdf</code>, <code>aead</code> and <code>pk</code>,
-<code>std::http</code> into <code>client</code> and <code>server</code>, and <code>std::database</code> into one submodule per database server,
-<code>postgres</code> today; each is re-exported by its parent, so <code>sha256</code> is also <code>std::crypto::digest::sha256</code>
-and <code>PgConnection</code> is <code>std::database::postgres::PgConnection</code>. One submodule is declared and not
+<code>std::http</code> into <code>client</code> and <code>server</code>, <code>std::database</code> into one submodule per database server,
+<code>postgres</code> today, and <code>std::encoding</code> into one submodule per data format or encoding of bytes as
+text, <code>json</code>, <code>hex</code> and <code>base64</code>. Each is
+re-exported by its parent, so <code>sha256</code> is also <code>std::crypto::digest::sha256</code>, <code>PgConnection</code> is
+<code>std::database::postgres::PgConnection</code> and <code>Json</code> is <code>std::encoding::json::Json</code>. One submodule is declared and not
 re-exported: <code>std::extensions</code>, the area an implementation may fill with modules of its own, which the
 specification leaves undefined and conformance never tests. A program reaches one only by naming it
 (<code>import std::extensions::m;</code>), so its dependence on that implementation shows in its source; the
-reference implementation's <code>std::extensions</code> is empty:</p>
-<table>
-<thead><tr><th>Submodule</th><th>What it holds</th></tr></thead>
+reference implementation's <code>std::extensions</code> is empty.</p>
+<h3>Every module and its items</h3>
+<p>Below is every module of <code>std</code> with every item it declares, generated from the
+reference implementation's source. Names <code class="priv">in faint red</code> are not exported: they are the
+module's own working parts, which a program cannot name or call, listed so that nothing in the source
+is left out. Everything else is exported. An item marked <sup class="nat">n</sup> has no CobaltC body: both
+tools build it in (<code>printf</code>, <code>sqrt</code>, <code>exit</code>, …). A row headed <code>T::</code> lists <code>T</code>'s
+associated functions. A parent module also re-exports the submodules it lists, so their items are its
+own too.</p>
+<p class="std-nav"><a href="#stdmod-std"><code>std</code></a>, <a href="#stdmod-std-core"><code>std::core</code></a>, <a href="#stdmod-std-collections"><code>std::collections</code></a>, <a href="#stdmod-std-text"><code>std::text</code></a>, <a href="#stdmod-std-io"><code>std::io</code></a>, <a href="#stdmod-std-fs"><code>std::fs</code></a>, <a href="#stdmod-std-env"><code>std::env</code></a>, <a href="#stdmod-std-memory"><code>std::memory</code></a>, <a href="#stdmod-std-sync"><code>std::sync</code></a>, <a href="#stdmod-std-random"><code>std::random</code></a>, <a href="#stdmod-std-math"><code>std::math</code></a>, <a href="#stdmod-std-time"><code>std::time</code></a>, <a href="#stdmod-std-process"><code>std::process</code></a>, <a href="#stdmod-std-net"><code>std::net</code></a>, <a href="#stdmod-std-crypto"><code>std::crypto</code></a>, <a href="#stdmod-std-crypto-digest"><code>std::crypto::digest</code></a>, <a href="#stdmod-std-crypto-kdf"><code>std::crypto::kdf</code></a>, <a href="#stdmod-std-crypto-aead"><code>std::crypto::aead</code></a>, <a href="#stdmod-std-crypto-pk"><code>std::crypto::pk</code></a>, <a href="#stdmod-std-x509"><code>std::x509</code></a>, <a href="#stdmod-std-tls"><code>std::tls</code></a>, <a href="#stdmod-std-http"><code>std::http</code></a>, <a href="#stdmod-std-http-client"><code>std::http::client</code></a>, <a href="#stdmod-std-http-server"><code>std::http::server</code></a>, <a href="#stdmod-std-database"><code>std::database</code></a>, <a href="#stdmod-std-database-postgres"><code>std::database::postgres</code></a>, <a href="#stdmod-std-encoding"><code>std::encoding</code></a>, <a href="#stdmod-std-encoding-json"><code>std::encoding::json</code></a>, <a href="#stdmod-std-encoding-hex"><code>std::encoding::hex</code></a>, <a href="#stdmod-std-encoding-base64"><code>std::encoding::base64</code></a>, <a href="#stdmod-std-compress"><code>std::compress</code></a>, <a href="#stdmod-std-extensions"><code>std::extensions</code></a></p>
+<h4 id="stdmod-std"><code>std</code> <span class="std-file">impl/std/std.cb</span></h4>
+<table class="std-inv">
+<thead><tr><th>Kind</th><th>Items</th></tr></thead>
 <tbody>
-<tr><td><code>std::core</code></td><td><code>Option</code>, <code>Result</code>, <code>AllocError</code>, <code>assert</code>, <code>swap</code>, <code>replace</code>, <code>overwrite</code></td></tr>
-<tr><td><code>std::collections</code></td><td><code>Vec</code> (with sorting, <code>retain</code>, <code>dedup</code>, <code>Vec::push_le</code>, <code>Vec::push_be</code>), <code>read_le</code>, <code>read_be</code>, <code>HashMap</code>, <code>HashSet</code>, <code>Queue</code>, <code>PriorityQueue</code></td></tr>
-<tr><td><code>std::text</code></td><td><code>String</code>, <code>StringView</code> (with <code>lines</code>, <code>split_whitespace</code>, <code>strip_prefix</code>, <code>code_point</code>), <code>sprintf</code>, <code>String::appendf</code>, the ASCII functions, <code>Utf8Error</code>, <code>ParseError</code></td></tr>
-<tr><td><code>std::io</code></td><td><code>printf</code>, <code>eprintf</code>, <code>flush_stdout</code>, <code>read_line</code>, <code>read_all</code>, <code>read_all_bytes</code>: the standard streams</td></tr>
-<tr><td><code>std::fs</code></td><td><code>File</code> (with <code>create_new</code>, <code>flush</code>, <code>position</code>), <code>FileError</code>, <code>read_file</code>, <code>write_file</code>, <code>read_bytes</code>, <code>write_bytes</code>, the directory and path functions, <code>file_info</code>, <code>copy_file</code></td></tr>
-<tr><td><code>std::env</code></td><td><code>arg_count</code>, <code>arg</code>, <code>Args</code>, <code>env_var</code>, <code>current_dir</code>, <code>set_current_dir</code>, <code>temp_dir</code>, <code>home_dir</code>, <code>current_exe</code>, <code>hostname</code></td></tr>
-<tr><td><code>std::memory</code></td><td><code>Box</code>, <code>Rc</code>, <code>Weak</code></td></tr>
-<tr><td><code>std::sync</code></td><td><code>Channel</code>, <code>cpu_count</code></td></tr>
-<tr><td><code>std::random</code></td><td><code>Rng</code> (with <code>shuffle</code>), <code>os_random_bytes</code>, <code>os_random_u64</code>, <code>uuid_v4</code></td></tr>
-<tr><td><code>std::math</code></td><td><code>min</code>, <code>max</code>, <code>abs</code>, <code>pow</code>, <code>clamp</code>, <code>gcd</code>, <code>is_nan</code>, <code>is_finite</code>, <code>BigUint</code>, <code>BigDivision</code>, <code>sqrt</code>, <code>floor</code>, <code>ceil</code>, <code>round</code>, <code>trunc</code>, <code>ln</code>, <code>exp</code>, <code>log2</code>, <code>log10</code>, <code>sin</code>, <code>cos</code>, <code>tan</code>, <code>asin</code>, <code>acos</code>, <code>atan</code>, <code>atan2</code>, <code>powf</code></td></tr>
-<tr><td><code>std::time</code></td><td><code>DateTime</code> (with <code>to_http_date</code>, <code>from_http_date</code>), <code>Weekday</code>, <code>unix_ms</code>, <code>iso_from_unix_ms</code>, <code>unix_ms_from_iso</code>, <code>monotonic_ns</code>, <code>unix_seconds</code>, <code>sleep_ms</code></td></tr>
-<tr><td><code>std::process</code></td><td><code>Command</code>, <code>Output</code>, <code>Child</code> (with <code>terminate</code>, <code>read_error_line</code>), <code>process_id</code>, <code>watch_interrupts</code>, <code>interrupt_requested</code>, <code>exit</code></td></tr>
-<tr><td><code>std::net</code></td><td><code>IpAddr</code>, <code>SocketAddr</code>, <code>resolve</code>, <code>TcpListener</code>, <code>TcpStream</code> (with <code>try_clone</code>, <code>set_keepalive</code>), <code>UdpSocket</code> (with <code>connect</code>, <code>send</code>, <code>recv</code>), <code>Datagram</code>, <code>NetError</code></td></tr>
-<tr><td><code>std::crypto</code></td><td><code>crc32</code> (not cryptographic), <code>Sha256</code>, <code>sha256</code>, <code>HmacSha256</code>, <code>hmac_sha256</code>, <code>digest_eq</code>, <code>hkdf_extract</code>, <code>hkdf_expand</code>, <code>hkdf_sha256</code>, <code>hkdf_expand_label</code>, <code>chacha20</code>, <code>poly1305</code>, <code>chacha20_poly1305_seal</code>, <code>chacha20_poly1305_open</code>, <code>x25519</code>, <code>x25519_public_key</code>, <code>x25519_private_key</code>, <code>aes_encrypt_block</code>, <code>aes_gcm_seal</code>, <code>aes_gcm_open</code>, <code>p256_private_key</code>, <code>p256_public_key</code>, <code>p256_ecdh</code>, <code>Sha512</code>, <code>sha512</code>, <code>Sha384</code>, <code>sha384</code>, <code>HashKind</code>, <code>hash</code>, <code>RsaPublicKey</code>, <code>rsa_verify_pkcs1v15</code>, <code>rsa_verify_pss</code>, <code>EcCurve</code>, <code>ecdsa_verify</code>, <code>Hasher</code>, <code>Hmac</code>, <code>hmac</code>, <code>hkdf_extract_with</code>, <code>hkdf_expand_with</code>, <code>hkdf_with</code>, <code>hkdf_expand_label_with</code>, <code>ec_private_key</code>, <code>ec_public_key</code>, <code>ecdh</code>, <code>ecdsa_sign</code>, <code>ed25519_private_key</code>, <code>ed25519_public_key</code>, <code>ed25519_sign</code>, <code>ed25519_verify</code>, <code>RsaPrivateKey</code>, <code>rsa_sign_pkcs1v15</code>, <code>rsa_sign_pss</code>, <code>rsa_generate_key</code>, <code>Blake2b</code>, <code>blake2b</code>, <code>pbkdf2</code>, <code>argon2id</code>, <code>hash_password</code>, <code>verify_password</code>, <code>Sha1</code>, <code>sha1</code> (legacy)</td></tr>
-<tr><td><code>std::crypto::digest</code> / <code>kdf</code> / <code>aead</code> / <code>pk</code></td><td>the hashes, <code>digest_eq</code> and <code>crc32</code>; HMAC, HKDF, PBKDF2, Argon2id and password hashing; ChaCha20-Poly1305 and AES-GCM; X25519, P-256/P-384, ECDSA, Ed25519 and RSA</td></tr>
-<tr><td><code>std::x509</code></td><td><code>Certificate</code>, <code>certificates_from_pem</code>, <code>TrustStore</code>, <code>verify_chain</code>, <code>verify_signature</code>, <code>CertError</code>, <code>Der</code>, <code>der_read</code>, <code>CertKey</code>, <code>PrivateKey</code>, <code>sign</code></td></tr>
-<tr><td><code>std::http</code></td><td><code>http_get</code>, <code>http_post</code>, <code>HttpClient</code>, <code>Request</code>, <code>Response</code>, <code>Header</code>, <code>find_header</code>, <code>Url</code>, <code>percent_encode</code>, <code>percent_decode</code>, <code>Param</code>, <code>find_param</code>, <code>form_decode</code>, <code>form_encode</code>, <code>HttpServer</code> (<code>bind</code>, <code>bind_tls</code>), <code>HttpConnection</code>, <code>HttpError</code>, <code>reason_phrase</code></td></tr>
-<tr><td><code>std::http::client</code> / <code>server</code></td><td><code>HttpClient</code>, <code>http_get</code>, <code>http_post</code>; <code>HttpServer</code>, <code>HttpConnection</code>: the two sides, over the URLs, headers and messages <code>std::http</code> itself declares</td></tr>
-<tr><td><code>std::database</code></td><td><code>PgConnection</code>, <code>PgUrl</code>, <code>PgSslMode</code>, <code>PgValue</code>, <code>PgColumn</code>, <code>PgRow</code> (with <code>get_i64</code>, <code>get_f64</code>, <code>get_bool</code>, <code>get_bytes</code>), <code>PgResult</code>, <code>PgError</code>, <code>PgServerError</code>, <code>Scram</code>, <code>scram_salted_password</code></td></tr>
-<tr><td><code>std::database::postgres</code></td><td>the <code>Pg*</code> items; <code>std::database</code> itself holds what every database client shares (SCRAM-SHA-256)</td></tr>
-<tr><td><code>std::extensions</code></td><td>nothing the specification defines: an implementation's own modules, reached only by name</td></tr>
-<tr><td><code>std::tls</code></td><td><code>TlsStream</code> (client and server), <code>TlsError</code></td></tr>
-<tr><td><code>std::json</code></td><td><code>Json</code>, <code>JsonMember</code></td></tr>
-<tr><td><code>std::compress</code></td><td><code>deflate</code>, <code>inflate</code>, <code>zlib_deflate</code>, <code>zlib_inflate</code>, <code>gzip</code>, <code>gunzip</code>, <code>adler32</code>, <code>CompressError</code></td></tr>
+<tr><td>Submodules</td><td><a href="#stdmod-std-core"><code>core</code></a>, <a href="#stdmod-std-collections"><code>collections</code></a>, <a href="#stdmod-std-text"><code>text</code></a>, <a href="#stdmod-std-io"><code>io</code></a>, <a href="#stdmod-std-fs"><code>fs</code></a>, <a href="#stdmod-std-env"><code>env</code></a>, <a href="#stdmod-std-memory"><code>memory</code></a>, <a href="#stdmod-std-sync"><code>sync</code></a>, <a href="#stdmod-std-random"><code>random</code></a>, <a href="#stdmod-std-math"><code>math</code></a>, <a href="#stdmod-std-time"><code>time</code></a>, <a href="#stdmod-std-process"><code>process</code></a>, <a href="#stdmod-std-net"><code>net</code></a>, <a href="#stdmod-std-crypto"><code>crypto</code></a>, <a href="#stdmod-std-x509"><code>x509</code></a>, <a href="#stdmod-std-tls"><code>tls</code></a>, <a href="#stdmod-std-http"><code>http</code></a>, <a href="#stdmod-std-database"><code>database</code></a>, <a href="#stdmod-std-encoding"><code>encoding</code></a>, <a href="#stdmod-std-compress"><code>compress</code></a>, <a href="#stdmod-std-extensions"><code class="priv">extensions</code></a></td></tr>
+<tr><td>Functions</td><td><code class="priv">byte_answer</code>, <code class="priv">byte_op</code>, <code class="priv">bytes_ptr</code>, <code class="priv">code_error</code>, <code class="priv">file_error</code>, <code class="priv">fs_answer</code>, <code class="priv">path_result</code>, <code class="priv">path_text</code>, <code class="priv">print</code><sup class="nat">n</sup></td></tr>
+<tr><td>Externs (<code>unsafe</code>)</td><td><code class="priv">clock_read</code>, <code class="priv">event_op</code>, <code class="priv">file_at</code>, <code class="priv">file_op</code>, <code class="priv">file_read</code>, <code class="priv">file_write</code>, <code class="priv">fs_op</code>, <code class="priv">fs_query</code>, <code class="priv">net_op</code>, <code class="priv">os_random</code>, <code class="priv">path_op</code>, <code class="priv">proc_op</code>, <code class="priv">sleep_ns</code>, <code class="priv">stderr_write</code>, <code class="priv">stdin_read_line</code>, <code class="priv">stdout_flush</code>, <code class="priv">tz_offset</code></td></tr>
 </tbody>
 </table>
+<h4 id="stdmod-std-core"><code>std::core</code> <span class="std-file">impl/std/core.cb</span></h4>
+<table class="std-inv">
+<thead><tr><th>Kind</th><th>Items</th></tr></thead>
+<tbody>
+<tr><td>Types</td><td><code>AllocError</code>, <code>Option</code>, <code>Result</code></td></tr>
+<tr><td>Functions</td><td><code>assert</code><sup class="nat">n</sup>, <code>overwrite</code>, <code>replace</code>, <code>swap</code></td></tr>
+<tr><td><code>Option::</code></td><td><code>expect</code>, <code>is_none</code>, <code>is_some</code>, <code>ok_or</code>, <code>unwrap</code>, <code>unwrap_or</code></td></tr>
+<tr><td><code>Result::</code></td><td><code>expect</code>, <code>is_err</code>, <code>is_ok</code>, <code>map_err</code><sup class="nat">n</sup>, <code>unwrap</code>, <code>unwrap_or</code></td></tr>
+</tbody>
+</table>
+<h4 id="stdmod-std-collections"><code>std::collections</code> <span class="std-file">impl/std/collections.cb</span></h4>
+<table class="std-inv">
+<thead><tr><th>Kind</th><th>Items</th></tr></thead>
+<tbody>
+<tr><td>Types</td><td><code class="priv">Drain</code>, <code class="priv">HashDrain</code>, <code>HashMap</code>, <code>HashSet</code>, <code>PriorityQueue</code>, <code>Queue</code>, <code class="priv">SetDrain</code>, <code>Vec</code></td></tr>
+<tr><td>Functions</td><td><code class="priv">key_before</code>, <code>read_be</code>, <code>read_le</code>, <code>slice_swap</code></td></tr>
+<tr><td><code>Vec::</code></td><td><code>append</code>, <code class="priv">apply_order</code>, <code>binary_search</code>, <code>binary_search_by</code>, <code>clear</code>, <code>clone</code>, <code>clone_by</code>, <code>contains</code>, <code>dedup</code>, <code class="priv">drain</code>, <code>drop</code>, <code>extend_from</code>, <code>filled</code>, <code>from_fn</code>, <code>from_slice</code>, <code class="priv">grow</code>, <code>index_exclusive</code>, <code>index_of</code>, <code>index_shared</code>, <code>insert</code>, <code>len</code>, <code>new</code>, <code>pop</code>, <code>position</code>, <code>push</code>, <code>push_be</code>, <code>push_le</code>, <code>remove</code>, <code class="priv">remove_at</code>, <code class="priv">replace</code>, <code>reserve</code>, <code>retain</code>, <code>reverse</code>, <code>sort</code>, <code>sort_by</code>, <code class="priv">sorted_order</code>, <code class="priv">sorted_order_keys</code>, <code>swap</code>, <code>swap_remove</code>, <code class="priv">take_raw</code>, <code>truncate</code></td></tr>
+<tr><td><code>Drain::</code></td><td><code class="priv">drop</code>, <code class="priv">take</code>, <code class="priv">total</code></td></tr>
+<tr><td><code>HashMap::</code></td><td><code>clear</code>, <code>clone</code>, <code>contains</code>, <code>contains_str</code>, <code class="priv">drain</code>, <code>entry</code>, <code class="priv">find</code>, <code class="priv">find_str</code>, <code>get</code>, <code>get_mut</code>, <code>get_mut_str</code>, <code>get_str</code>, <code class="priv">index_of</code>, <code>insert</code>, <code>key_at</code>, <code>len</code>, <code>new</code>, <code>remove</code>, <code class="priv">remove_slot</code>, <code>remove_str</code>, <code class="priv">reserve_one</code>, <code class="priv">reslot</code>, <code>swap_remove</code>, <code class="priv">unslot</code>, <code>value_at</code></td></tr>
+<tr><td><code>HashDrain::</code></td><td><code class="priv">drop</code>, <code class="priv">take_key</code>, <code class="priv">take_value</code>, <code class="priv">total</code></td></tr>
+<tr><td><code>HashSet::</code></td><td><code>clear</code>, <code>clone</code>, <code>contains</code>, <code>contains_str</code>, <code>difference</code>, <code class="priv">drain</code>, <code>insert</code>, <code>intersection</code>, <code>key_at</code>, <code>len</code>, <code>new</code>, <code>remove</code>, <code>remove_str</code>, <code>swap_remove</code>, <code>union</code></td></tr>
+<tr><td><code>SetDrain::</code></td><td><code class="priv">take</code>, <code class="priv">total</code></td></tr>
+<tr><td><code>Queue::</code></td><td><code>back</code>, <code>clear</code>, <code>drop</code>, <code>front</code>, <code>len</code>, <code>new</code>, <code>pop_back</code>, <code>pop_front</code>, <code>push_back</code>, <code>push_front</code>, <code class="priv">shift</code></td></tr>
+<tr><td><code>PriorityQueue::</code></td><td><code class="priv">before</code>, <code>clear</code>, <code>len</code>, <code>new</code>, <code>new_by</code>, <code>peek</code>, <code>pop</code>, <code>push</code>, <code class="priv">sift_up</code></td></tr>
+</tbody>
+</table>
+<h4 id="stdmod-std-text"><code>std::text</code> <span class="std-file">impl/std/text.cb</span></h4>
+<table class="std-inv">
+<thead><tr><th>Kind</th><th>Items</th></tr></thead>
+<tbody>
+<tr><td>Types</td><td><code>ParseError</code>, <code>String</code>, <code>StringView</code>, <code>Utf8Error</code></td></tr>
+<tr><td>Functions</td><td><code>ascii_is_alnum</code>, <code>ascii_is_alpha</code>, <code>ascii_is_digit</code>, <code>ascii_is_lower</code>, <code>ascii_is_space</code>, <code>ascii_is_upper</code>, <code>ascii_to_lower</code>, <code>ascii_to_upper</code>, <code class="priv">byte_index_from</code>, <code class="priv">parse_bytes</code>, <code class="priv">space_run_end</code>, <code>sprintf</code><sup class="nat">n</sup>, <code class="priv">utf8_error_at</code></td></tr>
+<tr><td><code>Utf8Error::</code></td><td><code>text</code></td></tr>
+<tr><td><code>ParseError::</code></td><td><code>text</code></td></tr>
+<tr><td><code>String::</code></td><td><code>append</code>, <code class="priv">append_str</code>, <code class="priv">append_string</code>, <code class="priv">append_text</code>, <code class="priv">append_view</code>, <code>appendf</code><sup class="nat">n</sup>, <code>as_bytes</code>, <code>as_view</code>, <code>char_count</code>, <code>chars</code>, <code>clear</code>, <code>clone</code>, <code>code_point</code>, <code>contains</code>, <code>ends_with</code>, <code>eq</code>, <code>eq_str</code>, <code>eq_view</code>, <code>find</code>, <code>from_str</code>, <code>from_utf8</code>, <code>from_view</code>, <code>into_bytes</code>, <code>join</code>, <code>len</code>, <code>less</code>, <code>lines</code>, <code>new</code>, <code>parse</code>, <code>push_ascii</code>, <code>push_code_point</code>, <code>replace</code>, <code>reserve</code>, <code>split</code>, <code>split_whitespace</code>, <code>starts_with</code>, <code>strip_prefix</code>, <code>strip_suffix</code>, <code>to_ascii_lower</code>, <code>to_ascii_upper</code>, <code>trim</code>, <code>trim_end</code>, <code>trim_start</code>, <code>truncate</code>, <code>view</code></td></tr>
+<tr><td><code>StringView::</code></td><td><code>as_bytes</code>, <code class="priv">at</code>, <code class="priv">boundary</code>, <code>char_count</code>, <code>chars</code>, <code>code_point</code>, <code>contains</code>, <code>ends_with</code>, <code>eq</code>, <code>eq_str</code>, <code>find</code>, <code>join</code>, <code>len</code>, <code>less</code>, <code>lines</code>, <code>of</code>, <code>parse</code>, <code class="priv">ptr</code>, <code>replace</code>, <code class="priv">space</code>, <code>split</code>, <code>split_whitespace</code>, <code>starts_with</code>, <code>strip_prefix</code>, <code>strip_suffix</code>, <code>sub</code>, <code>trim</code>, <code>trim_end</code>, <code>trim_start</code></td></tr>
+</tbody>
+</table>
+<h4 id="stdmod-std-io"><code>std::io</code> <span class="std-file">impl/std/io.cb</span></h4>
+<table class="std-inv">
+<thead><tr><th>Kind</th><th>Items</th></tr></thead>
+<tbody>
+<tr><td>Functions</td><td><code class="priv">eprint_str</code>, <code>eprintf</code><sup class="nat">n</sup>, <code>flush_stdout</code>, <code class="priv">print_str</code>, <code class="priv">print_string</code>, <code>printf</code><sup class="nat">n</sup>, <code>read_all</code>, <code>read_all_bytes</code>, <code>read_line</code></td></tr>
+<tr><td><code>File::</code></td><td><code>printf</code><sup class="nat">n</sup></td></tr>
+<tr><td>Externs (<code>unsafe</code>)</td><td><code>stdin_read</code>, <code>stdout_write</code></td></tr>
+</tbody>
+</table>
+<h4 id="stdmod-std-fs"><code>std::fs</code> <span class="std-file">impl/std/fs.cb</span></h4>
+<table class="std-inv">
+<thead><tr><th>Kind</th><th>Items</th></tr></thead>
+<tbody>
+<tr><td>Types</td><td><code>File</code>, <code>FileError</code>, <code>FileInfo</code>, <code>PathKind</code></td></tr>
+<tr><td>Functions</td><td><code>copy_file</code>, <code class="priv">file_error_at</code>, <code>file_info</code>, <code class="priv">fs_path_op</code>, <code>list_dir</code>, <code>make_dir</code>, <code>make_dir_all</code>, <code>path_canonical</code>, <code>path_extension</code>, <code>path_file_name</code>, <code>path_is_absolute</code>, <code>path_join</code>, <code>path_kind</code>, <code>path_normalize</code>, <code>path_parent</code>, <code>path_stem</code>, <code>read_bytes</code>, <code>read_file</code>, <code>remove_dir</code>, <code>remove_dir_all</code>, <code>remove_file</code>, <code>rename</code>, <code>write_bytes</code>, <code>write_file</code></td></tr>
+<tr><td><code>FileError::</code></td><td><code>text</code></td></tr>
+<tr><td><code>File::</code></td><td><code>append</code>, <code>close</code>, <code>create</code>, <code>create_new</code>, <code>drop</code>, <code>flush</code>, <code>len</code>, <code>open</code>, <code>open_rw</code>, <code>position</code>, <code>read</code>, <code>read_line</code>, <code>read_to_end</code>, <code>seek</code>, <code class="priv">start</code>, <code class="priv">take</code>, <code>write</code>, <code class="priv">write_formatted</code>, <code>write_text</code></td></tr>
+</tbody>
+</table>
+<h4 id="stdmod-std-env"><code>std::env</code> <span class="std-file">impl/std/env.cb</span></h4>
+<table class="std-inv">
+<thead><tr><th>Kind</th><th>Items</th></tr></thead>
+<tbody>
+<tr><td>Types</td><td><code>Args</code></td></tr>
+<tr><td>Functions</td><td><code>arg</code>, <code>arg_count</code>, <code>current_dir</code>, <code>current_exe</code>, <code>env_var</code>, <code>home_dir</code>, <code>hostname</code>, <code>set_current_dir</code>, <code>temp_dir</code></td></tr>
+<tr><td><code>Args::</code></td><td><code>finish</code>, <code>flag</code>, <code>from</code>, <code>help</code>, <code class="priv">is_option</code>, <code>new</code>, <code>option</code>, <code>options</code>, <code class="priv">spec</code></td></tr>
+<tr><td>Externs (<code>unsafe</code>)</td><td><code>arg_bytes</code></td></tr>
+</tbody>
+</table>
+<h4 id="stdmod-std-memory"><code>std::memory</code> <span class="std-file">impl/std/memory.cb</span></h4>
+<table class="std-inv">
+<thead><tr><th>Kind</th><th>Items</th></tr></thead>
+<tbody>
+<tr><td>Types</td><td><code>Box</code>, <code>Rc</code>, <code class="priv">RcBox</code>, <code>Weak</code></td></tr>
+<tr><td><code>Rc::</code></td><td><code>clone</code>, <code>downgrade</code>, <code>drop</code>, <code>get</code>, <code>new</code></td></tr>
+<tr><td><code>Weak::</code></td><td><code>clone</code>, <code>drop</code>, <code>upgrade</code></td></tr>
+<tr><td><code>Box::</code></td><td><code class="priv">cells</code>, <code>clone</code>, <code>drop</code>, <code>get</code>, <code>get_mut</code>, <code>into_inner</code>, <code>new</code></td></tr>
+</tbody>
+</table>
+<h4 id="stdmod-std-sync"><code>std::sync</code> <span class="std-file">impl/std/sync.cb</span></h4>
+<table class="std-inv">
+<thead><tr><th>Kind</th><th>Items</th></tr></thead>
+<tbody>
+<tr><td>Types</td><td><code>Channel</code>, <code class="priv">ChannelState</code></td></tr>
+<tr><td>Functions</td><td><code>cpu_count</code></td></tr>
+<tr><td><code>ChannelState::</code></td><td><code class="priv">pop</code></td></tr>
+<tr><td><code>Channel::</code></td><td><code>close</code>, <code>drop</code>, <code>new</code>, <code>recv</code>, <code>recv_timeout_ms</code>, <code>send</code>, <code>try_recv</code></td></tr>
+</tbody>
+</table>
+<h4 id="stdmod-std-random"><code>std::random</code> <span class="std-file">impl/std/random.cb</span></h4>
+<table class="std-inv">
+<thead><tr><th>Kind</th><th>Items</th></tr></thead>
+<tbody>
+<tr><td>Types</td><td><code>Rng</code></td></tr>
+<tr><td>Functions</td><td><code>os_random_bytes</code>, <code>os_random_u64</code>, <code class="priv">os_random_vec</code>, <code>uuid_v4</code></td></tr>
+<tr><td><code>Rng::</code></td><td><code>below</code>, <code>from_os</code>, <code>new</code>, <code>next_u64</code>, <code class="priv">rotl</code>, <code>shuffle</code>, <code class="priv">splitmix</code>, <code>unit_f64</code></td></tr>
+</tbody>
+</table>
+<h4 id="stdmod-std-math"><code>std::math</code> <span class="std-file">impl/std/math.cb</span></h4>
+<table class="std-inv">
+<thead><tr><th>Kind</th><th>Items</th></tr></thead>
+<tbody>
+<tr><td>Types</td><td><code>BigDivision</code>, <code>BigUint</code></td></tr>
+<tr><td>Functions</td><td><code>abs</code>, <code>acos</code><sup class="nat">n</sup>, <code>asin</code><sup class="nat">n</sup>, <code>atan</code><sup class="nat">n</sup>, <code>atan2</code><sup class="nat">n</sup>, <code>ceil</code><sup class="nat">n</sup>, <code>clamp</code>, <code>cos</code><sup class="nat">n</sup>, <code>exp</code><sup class="nat">n</sup>, <code>floor</code><sup class="nat">n</sup>, <code>gcd</code>, <code>is_finite</code>, <code>is_nan</code>, <code>ln</code><sup class="nat">n</sup>, <code>log10</code><sup class="nat">n</sup>, <code>log2</code><sup class="nat">n</sup>, <code>max</code>, <code>min</code>, <code>pow</code>, <code>powf</code><sup class="nat">n</sup>, <code>round</code><sup class="nat">n</sup>, <code>sin</code><sup class="nat">n</sup>, <code>sqrt</code><sup class="nat">n</sup>, <code>tan</code><sup class="nat">n</sup>, <code>trunc</code><sup class="nat">n</sup></td></tr>
+<tr><td><code>BigUint::</code></td><td><code>add</code>, <code>bit</code>, <code>bit_len</code>, <code>clone</code>, <code class="priv">compare</code>, <code>div_rem</code>, <code>eq</code>, <code>from_bytes_be</code>, <code>from_u64</code>, <code>is_zero</code>, <code>less</code>, <code>mod_inverse</code>, <code>mod_pow</code>, <code>mul</code>, <code>parse</code>, <code>rem</code>, <code>shift_left</code>, <code>shift_right</code>, <code class="priv">shifted_limbs</code>, <code>sub</code>, <code>text</code>, <code>to_bytes_be</code>, <code>to_bytes_be_padded</code>, <code class="priv">trim</code>, <code>zero</code></td></tr>
+</tbody>
+</table>
+<h4 id="stdmod-std-time"><code>std::time</code> <span class="std-file">impl/std/time.cb</span></h4>
+<table class="std-inv">
+<thead><tr><th>Kind</th><th>Items</th></tr></thead>
+<tbody>
+<tr><td>Types</td><td><code>DateTime</code>, <code>Weekday</code></td></tr>
+<tr><td>Functions</td><td><code class="priv">days_in_month</code>, <code class="priv">floor_div</code>, <code class="priv">floor_mod</code>, <code class="priv">http_date_words</code>, <code class="priv">http_time</code>, <code class="priv">iso_byte</code>, <code class="priv">iso_digits</code>, <code>iso_from_unix_ms</code>, <code class="priv">leap_year</code>, <code>local_offset_seconds</code>, <code>monotonic_ns</code>, <code class="priv">month_name</code>, <code class="priv">month_number</code>, <code>sleep_ms</code>, <code>unix_ms</code>, <code>unix_ms_from_iso</code>, <code>unix_seconds</code></td></tr>
+<tr><td><code>DateTime::</code></td><td><code>eq</code>, <code>from_http_date</code>, <code>from_iso</code>, <code>from_unix</code>, <code>less</code>, <code>new</code>, <code>now</code>, <code class="priv">read_iso</code>, <code>to_http_date</code>, <code>to_iso</code>, <code>to_local</code>, <code>to_unix</code>, <code class="priv">valid</code>, <code>weekday</code></td></tr>
+<tr><td><code>Weekday::</code></td><td><code>text</code></td></tr>
+</tbody>
+</table>
+<h4 id="stdmod-std-process"><code>std::process</code> <span class="std-file">impl/std/process.cb</span></h4>
+<table class="std-inv">
+<thead><tr><th>Kind</th><th>Items</th></tr></thead>
+<tbody>
+<tr><td>Types</td><td><code>Child</code>, <code>ChildInput</code>, <code>ChildOutput</code>, <code>Command</code>, <code>Output</code></td></tr>
+<tr><td>Functions</td><td><code>exit</code><sup class="nat">n</sup>, <code>interrupt_requested</code>, <code class="priv">pipe_op</code>, <code>process_id</code>, <code>watch_interrupts</code></td></tr>
+<tr><td><code>Command::</code></td><td><code>arg</code>, <code>clear_env</code>, <code>current_dir</code>, <code class="priv">encode</code>, <code>env</code>, <code>new</code>, <code>output</code>, <code>output_with_input</code>, <code class="priv">put</code>, <code class="priv">run</code>, <code>spawn</code>, <code>status</code></td></tr>
+<tr><td><code>Child::</code></td><td><code class="priv">cap</code>, <code>close_input</code>, <code class="priv">done</code>, <code>drop</code>, <code>id</code>, <code>kill</code>, <code class="priv">op</code>, <code>read_error</code>, <code>read_error_line</code>, <code>read_output</code>, <code>read_output_line</code>, <code class="priv">take</code>, <code>take_input</code>, <code>take_output</code>, <code>terminate</code>, <code>try_wait</code>, <code>wait</code>, <code>write_input</code></td></tr>
+<tr><td><code>ChildInput::</code></td><td><code>drop</code>, <code>write</code></td></tr>
+<tr><td><code>ChildOutput::</code></td><td><code>drop</code>, <code>read</code>, <code>read_line</code></td></tr>
+</tbody>
+</table>
+<h4 id="stdmod-std-net"><code>std::net</code> <span class="std-file">impl/std/net.cb</span></h4>
+<table class="std-inv">
+<thead><tr><th>Kind</th><th>Items</th></tr></thead>
+<tbody>
+<tr><td>Types</td><td><code>Datagram</code>, <code>IpAddr</code>, <code>NetError</code>, <code>SocketAddr</code>, <code>TcpListener</code>, <code>TcpStream</code>, <code>UdpSocket</code></td></tr>
+<tr><td>Functions</td><td><code class="priv">net_addr</code>, <code class="priv">net_error</code>, <code class="priv">net_num</code>, <code class="priv">net_open</code>, <code>resolve</code></td></tr>
+<tr><td><code>IpAddr::</code></td><td><code>localhost_v4</code>, <code>localhost_v6</code>, <code>parse</code>, <code>text</code>, <code>unspecified_v4</code>, <code>unspecified_v6</code></td></tr>
+<tr><td><code>SocketAddr::</code></td><td><code class="priv">from_record</code>, <code>new</code>, <code>parse</code>, <code class="priv">record</code>, <code>text</code></td></tr>
+<tr><td><code>NetError::</code></td><td><code>text</code></td></tr>
+<tr><td><code>TcpListener::</code></td><td><code>accept</code>, <code>bind</code>, <code>drop</code>, <code>local_addr</code>, <code>set_accept_timeout_ms</code></td></tr>
+<tr><td><code>TcpStream::</code></td><td><code>connect</code>, <code>connect_timeout</code>, <code>drop</code>, <code>local_addr</code>, <code>peer_addr</code>, <code>printf</code><sup class="nat">n</sup>, <code>read</code>, <code>read_exact</code>, <code>read_line</code>, <code>set_keepalive</code>, <code>set_nodelay</code>, <code>set_read_timeout_ms</code>, <code>set_write_timeout_ms</code>, <code>shutdown_write</code>, <code class="priv">take</code>, <code>try_clone</code>, <code>write</code>, <code class="priv">write_formatted</code>, <code>write_text</code></td></tr>
+<tr><td><code>UdpSocket::</code></td><td><code>bind</code>, <code>connect</code>, <code>drop</code>, <code>local_addr</code>, <code>recv</code>, <code>recv_from</code>, <code>send</code>, <code>send_to</code>, <code>set_read_timeout_ms</code></td></tr>
+</tbody>
+</table>
+<h4 id="stdmod-std-crypto"><code>std::crypto</code> <span class="std-file">impl/std/crypto.cb</span></h4>
+<table class="std-inv">
+<thead><tr><th>Kind</th><th>Items</th></tr></thead>
+<tbody>
+<tr><td>Submodules</td><td><a href="#stdmod-std-crypto-digest"><code>digest</code></a>, <a href="#stdmod-std-crypto-kdf"><code>kdf</code></a>, <a href="#stdmod-std-crypto-aead"><code>aead</code></a>, <a href="#stdmod-std-crypto-pk"><code>pk</code></a></td></tr>
+<tr><td>Functions</td><td><code class="priv">block_len</code>, <code class="priv">hash_len</code></td></tr>
+<tr><td>Constants</td><td><code class="priv">BLAKE2B_G</code></td></tr>
+</tbody>
+</table>
+<h4 id="stdmod-std-crypto-digest"><code>std::crypto::digest</code> <span class="std-file">impl/std/crypto/digest.cb</span></h4>
+<table class="std-inv">
+<thead><tr><th>Kind</th><th>Items</th></tr></thead>
+<tbody>
+<tr><td>Types</td><td><code>Blake2b</code>, <code>Hasher</code>, <code>HashKind</code>, <code>Sha1</code>, <code>Sha256</code>, <code>Sha384</code>, <code>Sha512</code></td></tr>
+<tr><td>Functions</td><td><code>blake2b</code>, <code class="priv">blake2b_absorb</code>, <code class="priv">blake2b_block</code>, <code>crc32</code>, <code>digest_eq</code>, <code>hash</code>, <code>sha1</code>, <code class="priv">sha1_absorb</code>, <code class="priv">sha1_block</code>, <code>sha256</code>, <code class="priv">sha256_absorb</code>, <code class="priv">sha256_block</code>, <code>sha384</code>, <code>sha512</code>, <code class="priv">sha512_absorb</code>, <code class="priv">sha512_block</code>, <code class="priv">sha512_bytes</code></td></tr>
+<tr><td><code>Sha256::</code></td><td><code>finish</code>, <code>new</code>, <code>update</code></td></tr>
+<tr><td><code>Sha512::</code></td><td><code class="priv">final_words</code>, <code>finish</code>, <code>new</code>, <code>update</code></td></tr>
+<tr><td><code>Sha384::</code></td><td><code>finish</code>, <code>new</code>, <code>update</code></td></tr>
+<tr><td><code>Sha1::</code></td><td><code>finish</code>, <code>new</code>, <code>update</code></td></tr>
+<tr><td><code>Hasher::</code></td><td><code>finish</code>, <code>new</code>, <code>update</code></td></tr>
+<tr><td><code>Blake2b::</code></td><td><code>finish</code>, <code>new</code>, <code>new_keyed</code>, <code>update</code></td></tr>
+<tr><td>Constants</td><td><code class="priv">BLAKE2B_IV</code>, <code class="priv">BLAKE2B_SIGMA</code>, <code class="priv">SHA256_K</code>, <code class="priv">SHA512_K</code></td></tr>
+</tbody>
+</table>
+<h4 id="stdmod-std-crypto-kdf"><code>std::crypto::kdf</code> <span class="std-file">impl/std/crypto/kdf.cb</span></h4>
+<table class="std-inv">
+<thead><tr><th>Kind</th><th>Items</th></tr></thead>
+<tbody>
+<tr><td>Types</td><td><code>Hmac</code>, <code>HmacSha256</code></td></tr>
+<tr><td>Functions</td><td><code class="priv">argon2_g</code>, <code class="priv">argon2_get</code>, <code class="priv">argon2_h_prime</code>, <code class="priv">argon2_load</code>, <code class="priv">argon2_p</code>, <code class="priv">argon2_put</code>, <code>argon2id</code>, <code class="priv">b64_decode_unpadded</code>, <code class="priv">b64_unpadded</code>, <code>hash_password</code>, <code>hkdf_expand</code>, <code>hkdf_expand_label</code>, <code>hkdf_expand_label_with</code>, <code>hkdf_expand_with</code>, <code>hkdf_extract</code>, <code>hkdf_extract_with</code>, <code>hkdf_sha256</code>, <code>hkdf_with</code>, <code>hmac</code>, <code>hmac_sha256</code>, <code>pbkdf2</code>, <code class="priv">pbkdf2_sha256</code>, <code>verify_password</code></td></tr>
+<tr><td><code>HmacSha256::</code></td><td><code>finish</code>, <code>new</code>, <code>update</code></td></tr>
+<tr><td><code>Hmac::</code></td><td><code>finish</code>, <code>new</code>, <code>update</code></td></tr>
+</tbody>
+</table>
+<h4 id="stdmod-std-crypto-aead"><code>std::crypto::aead</code> <span class="std-file">impl/std/crypto/aead.cb</span></h4>
+<table class="std-inv">
+<thead><tr><th>Kind</th><th>Items</th></tr></thead>
+<tbody>
+<tr><td>Types</td><td><code class="priv">AesKey</code>, <code class="priv">Poly1305</code></td></tr>
+<tr><td>Functions</td><td><code class="priv">aead_tag</code>, <code class="priv">aes_block</code>, <code class="priv">aes_encrypt4</code>, <code>aes_encrypt_block</code>, <code class="priv">aes_expand</code>, <code>aes_gcm_open</code>, <code>aes_gcm_seal</code>, <code class="priv">aes_mix_columns</code>, <code class="priv">aes_pack</code>, <code class="priv">aes_rot1</code>, <code class="priv">aes_rot2</code>, <code class="priv">aes_rot3</code>, <code class="priv">aes_sbox_bytes</code>, <code class="priv">aes_sbox_ct</code>, <code class="priv">aes_shift_rows</code>, <code class="priv">aes_transpose8</code>, <code class="priv">aes_unpack</code>, <code class="priv">aes_xtime</code>, <code>chacha20</code>, <code>chacha20_poly1305_open</code>, <code>chacha20_poly1305_seal</code>, <code class="priv">chacha_block</code>, <code class="priv">chacha_quarter</code>, <code class="priv">crypto_check_lengths</code>, <code class="priv">gcm_block</code>, <code class="priv">gcm_bytes</code>, <code class="priv">gcm_ctr</code>, <code class="priv">gcm_j0</code>, <code class="priv">gcm_tag</code>, <code class="priv">ghash_bmul64</code>, <code class="priv">ghash_mul</code>, <code class="priv">ghash_rev64</code>, <code class="priv">ghash_update</code>, <code>poly1305</code>, <code class="priv">poly1305_blocks</code></td></tr>
+<tr><td><code>Poly1305::</code></td><td><code class="priv">block</code>, <code class="priv">finish</code>, <code class="priv">new</code>, <code class="priv">update_last</code>, <code class="priv">update_padded</code></td></tr>
+<tr><td>Constants</td><td><code class="priv">AES_ROW0</code>, <code class="priv">AES_ROW1_HI</code>, <code class="priv">AES_ROW1_LO</code>, <code class="priv">AES_ROW2_HI</code>, <code class="priv">AES_ROW2_LO</code>, <code class="priv">AES_ROW3_HI</code>, <code class="priv">AES_ROW3_LO</code></td></tr>
+</tbody>
+</table>
+<h4 id="stdmod-std-crypto-pk"><code>std::crypto::pk</code> <span class="std-file">impl/std/crypto/pk.cb</span></h4>
+<table class="std-inv">
+<thead><tr><th>Kind</th><th>Items</th></tr></thead>
+<tbody>
+<tr><td>Types</td><td><code class="priv">Borrowed</code>, <code class="priv">DerSpan</code>, <code>EcCurve</code>, <code class="priv">Ed</code>, <code class="priv">EdExpanded</code>, <code class="priv">Field</code>, <code class="priv">Jacobian</code>, <code class="priv">Mont</code>, <code>RsaPrivateKey</code>, <code>RsaPublicKey</code></td></tr>
+<tr><td>Functions</td><td><code class="priv">biguint_of</code>, <code class="priv">curve_b_hex</code>, <code class="priv">curve_base</code>, <code class="priv">curve_hex</code>, <code class="priv">curve_point</code>, <code class="priv">der_positive_int</code>, <code class="priv">der_push_uint</code>, <code class="priv">digest_info_prefix</code>, <code class="priv">digest_scalar</code>, <code class="priv">ec_affine</code>, <code class="priv">ec_mul</code>, <code>ec_private_key</code>, <code>ec_public_key</code>, <code class="priv">ec_scalar</code>, <code>ecdh</code>, <code>ecdsa_sign</code>, <code>ecdsa_verify</code>, <code>ed25519_private_key</code>, <code>ed25519_public_key</code>, <code>ed25519_sign</code>, <code>ed25519_verify</code>, <code class="priv">ed_add</code>, <code class="priv">ed_base</code>, <code class="priv">ed_decode</code>, <code class="priv">ed_double</code>, <code class="priv">ed_encode</code>, <code class="priv">ed_expand</code>, <code class="priv">ed_identity</code>, <code class="priv">ed_mul</code>, <code class="priv">ed_order</code>, <code class="priv">ed_select</code>, <code class="priv">f_add</code>, <code class="priv">f_add_raw</code>, <code class="priv">f_bit</code>, <code class="priv">f_from_be</code>, <code class="priv">f_from_mont</code>, <code class="priv">f_invert</code>, <code class="priv">f_is_zero</code>, <code class="priv">f_less</code>, <code class="priv">f_nibble</code>, <code class="priv">f_select</code>, <code class="priv">f_small</code>, <code class="priv">f_sub</code>, <code class="priv">f_sub_borrow</code>, <code class="priv">f_sub_raw</code>, <code class="priv">f_to_mont</code>, <code class="priv">fe_add</code>, <code class="priv">fe_carry</code>, <code class="priv">fe_cswap</code>, <code class="priv">fe_eq</code>, <code class="priv">fe_from_bytes</code>, <code class="priv">fe_invert</code>, <code class="priv">fe_is_zero</code>, <code class="priv">fe_mul</code>, <code class="priv">fe_neg</code>, <code class="priv">fe_pow_p58</code>, <code class="priv">fe_select</code>, <code class="priv">fe_sub</code>, <code class="priv">fe_to_bytes</code>, <code class="priv">field_of</code>, <code class="priv">jac_add</code>, <code class="priv">jac_double</code>, <code class="priv">jac_select</code>, <code class="priv">jac_table</code>, <code class="priv">jac_twin</code>, <code class="priv">jac_twin_bits</code>, <code class="priv">le_limbs</code>, <code class="priv">limbs7_add</code>, <code class="priv">limbs_be</code>, <code class="priv">limbs_of</code>, <code class="priv">limbs_sub_mod</code>, <code class="priv">mgf1</code>, <code class="priv">mont_mul</code>, <code class="priv">mont_mul_v</code>, <code class="priv">mont_new</code>, <code class="priv">mont_pow</code>, <code class="priv">mont_pow_limbs</code>, <code>p256_ecdh</code>, <code>p256_private_key</code>, <code>p256_public_key</code>, <code class="priv">pkcs1v15_encode</code>, <code class="priv">probably_prime</code>, <code class="priv">random_prime</code>, <code>rsa_generate_key</code>, <code class="priv">rsa_open</code>, <code class="priv">rsa_private_op</code>, <code>rsa_sign_pkcs1v15</code>, <code>rsa_sign_pss</code>, <code>rsa_verify_pkcs1v15</code>, <code>rsa_verify_pss</code>, <code class="priv">sc_bytes</code>, <code class="priv">sc_from_hash</code>, <code class="priv">sc_mont</code>, <code class="priv">small_primes</code>, <code>x25519</code>, <code class="priv">x25519_ladder</code>, <code>x25519_private_key</code>, <code>x25519_public_key</code></td></tr>
+<tr><td><code>RsaPrivateKey::</code></td><td><code>new</code>, <code>public_key</code></td></tr>
+<tr><td>Constants</td><td><code class="priv">ED_2D</code>, <code class="priv">ED_BX</code>, <code class="priv">ED_BY</code>, <code class="priv">ED_D</code>, <code class="priv">ED_SQRT_M1</code>, <code class="priv">FE_MASK</code></td></tr>
+</tbody>
+</table>
+<h4 id="stdmod-std-x509"><code>std::x509</code> <span class="std-file">impl/std/x509.cb</span></h4>
+<table class="std-inv">
+<thead><tr><th>Kind</th><th>Items</th></tr></thead>
+<tbody>
+<tr><td>Types</td><td><code>CertError</code>, <code>Certificate</code>, <code>CertKey</code>, <code>Der</code>, <code>EcPrivateKey</code>, <code>EcPublicKey</code>, <code>PrivateKey</code>, <code>SignatureScheme</code>, <code>TrustStore</code></td></tr>
+<tr><td>Functions</td><td><code class="priv">ascii_lower_eq</code>, <code>certificates_from_pem</code>, <code class="priv">check_time</code>, <code class="priv">common_name_of</code>, <code class="priv">curve_oid_hex</code>, <code class="priv">der_big</code>, <code class="priv">der_bit_string</code>, <code class="priv">der_bytes</code>, <code class="priv">der_eq_hex</code>, <code class="priv">der_expect</code>, <code class="priv">der_oid_hex</code>, <code class="priv">der_push_len</code>, <code>der_read</code>, <code class="priv">der_text</code>, <code class="priv">der_time</code>, <code class="priv">der_uint</code>, <code class="priv">der_wrap</code>, <code class="priv">digits</code>, <code class="priv">ec_private_of</code>, <code class="priv">hash_oid</code>, <code class="priv">key_algorithm</code>, <code class="priv">name_matches</code>, <code class="priv">pem_block</code>, <code class="priv">pem_of</code>, <code class="priv">public_key_of</code>, <code class="priv">rsa_private_of</code>, <code class="priv">same_bytes</code>, <code>sign</code>, <code class="priv">signature_algorithm</code>, <code>verify_chain</code>, <code>verify_signature</code></td></tr>
+<tr><td><code>CertError::</code></td><td><code>text</code></td></tr>
+<tr><td><code>CertKey::</code></td><td><code>from_der</code>, <code>from_pem</code>, <code>to_der</code>, <code>to_pem</code></td></tr>
+<tr><td><code>Certificate::</code></td><td><code>matches_host</code>, <code>parse</code></td></tr>
+<tr><td><code>TrustStore::</code></td><td><code>add</code>, <code>from_pem_file</code>, <code>new</code>, <code>system</code></td></tr>
+<tr><td><code>PrivateKey::</code></td><td><code>from_der</code>, <code>from_pem</code>, <code>public_key</code>, <code>to_der</code>, <code>to_pem</code></td></tr>
+</tbody>
+</table>
+<h4 id="stdmod-std-tls"><code>std::tls</code> <span class="std-file">impl/std/tls.cb</span></h4>
+<table class="std-inv">
+<thead><tr><th>Kind</th><th>Items</th></tr></thead>
+<tbody>
+<tr><td>Types</td><td><code class="priv">ClientHello</code>, <code class="priv">Handshake</code>, <code class="priv">Inner</code>, <code class="priv">Record</code>, <code class="priv">RecordKeys</code>, <code class="priv">ServerHello</code>, <code>TlsError</code>, <code>TlsStream</code></td></tr>
+<tr><td>Functions</td><td><code class="priv">certificate_list</code>, <code class="priv">certificate_verify_ok</code>, <code class="priv">client_hello</code>, <code class="priv">client_hello_parse</code>, <code class="priv">derive_secret</code>, <code class="priv">finished_data</code>, <code class="priv">handshake_record</code>, <code class="priv">keys_from</code>, <code class="priv">next_message</code>, <code class="priv">open_record</code>, <code class="priv">push_extension</code>, <code class="priv">push_u24</code>, <code class="priv">read_record</code>, <code class="priv">record_nonce</code>, <code class="priv">same_session</code>, <code class="priv">scheme_of</code>, <code class="priv">seal_record</code>, <code class="priv">send_handshake</code>, <code class="priv">send_plain_alert</code>, <code class="priv">server_hello</code>, <code class="priv">server_hello_bytes</code>, <code class="priv">server_scheme</code>, <code class="priv">suite_hash</code>, <code class="priv">suite_key_len</code>, <code class="priv">transcript_add</code>, <code class="priv">transcript_hash</code>, <code class="priv">u16_list</code>, <code class="priv">write_all</code></td></tr>
+<tr><td><code>TlsError::</code></td><td><code>text</code></td></tr>
+<tr><td><code>TlsStream::</code></td><td><code>client</code>, <code>close</code>, <code>connect</code>, <code class="priv">fill</code>, <code>local_addr</code>, <code>peer_addr</code>, <code>peer_certificate</code>, <code>read</code>, <code>read_exact</code>, <code>read_line</code>, <code>server</code>, <code>write</code>, <code>write_text</code></td></tr>
+</tbody>
+</table>
+<h4 id="stdmod-std-http"><code>std::http</code> <span class="std-file">impl/std/http.cb</span></h4>
+<table class="std-inv">
+<thead><tr><th>Kind</th><th>Items</th></tr></thead>
+<tbody>
+<tr><td>Submodules</td><td><a href="#stdmod-std-http-client"><code>client</code></a>, <a href="#stdmod-std-http-server"><code>server</code></a></td></tr>
+<tr><td>Types</td><td><code class="priv">BodyLength</code>, <code class="priv">Conn</code>, <code>Header</code>, <code>HttpError</code>, <code>Param</code>, <code class="priv">Reader</code>, <code>Request</code>, <code>Response</code>, <code>Url</code></td></tr>
+<tr><td>Functions</td><td><code class="priv">ascii_ieq</code>, <code class="priv">ascii_ieq_str</code>, <code class="priv">available</code>, <code class="priv">body_length</code>, <code class="priv">conn_close</code>, <code class="priv">conn_read</code>, <code class="priv">conn_write</code>, <code class="priv">default_port</code>, <code class="priv">fill_buffer</code>, <code>find_header</code>, <code>find_param</code>, <code>form_decode</code>, <code>form_encode</code>, <code class="priv">form_encode_part</code>, <code class="priv">form_part</code>, <code class="priv">has_header</code>, <code class="priv">hex_digit</code>, <code class="priv">host_text</code>, <code class="priv">http_line</code>, <code class="priv">http_newline_from</code>, <code class="priv">is_unreserved</code>, <code class="priv">name_eq</code>, <code class="priv">names_eq</code>, <code>percent_decode</code>, <code>percent_encode</code>, <code class="priv">read_body</code>, <code class="priv">read_headers</code>, <code class="priv">read_n</code>, <code class="priv">read_to_end</code>, <code>reason_phrase</code></td></tr>
+<tr><td><code>HttpError::</code></td><td><code>text</code></td></tr>
+<tr><td><code>Url::</code></td><td><code>parse</code>, <code>query_pairs</code>, <code>target</code>, <code>text</code></td></tr>
+<tr><td><code>Param::</code></td><td><code>new</code></td></tr>
+<tr><td><code>Header::</code></td><td><code>new</code></td></tr>
+<tr><td><code>Request::</code></td><td><code>header</code>, <code>new</code></td></tr>
+<tr><td><code>Response::</code></td><td><code>header</code>, <code>text</code></td></tr>
+<tr><td>Constants</td><td><code class="priv">MAX_HEAD</code></td></tr>
+</tbody>
+</table>
+<h4 id="stdmod-std-http-client"><code>std::http::client</code> <span class="std-file">impl/std/http/client.cb</span></h4>
+<table class="std-inv">
+<thead><tr><th>Kind</th><th>Items</th></tr></thead>
+<tbody>
+<tr><td>Types</td><td><code>HttpClient</code>, <code class="priv">IdleConn</code>, <code class="priv">StatusLine</code></td></tr>
+<tr><td>Functions</td><td><code class="priv">exchange</code>, <code class="priv">exchange_on</code>, <code>http_get</code>, <code>http_post</code>, <code class="priv">method_has_body</code>, <code class="priv">not_content_encoding</code>, <code class="priv">open_connection</code>, <code class="priv">origin_of</code>, <code class="priv">parse_status_line</code>, <code class="priv">redirect_target</code>, <code class="priv">request_bytes</code></td></tr>
+<tr><td><code>HttpClient::</code></td><td><code>new</code>, <code>send</code></td></tr>
+</tbody>
+</table>
+<h4 id="stdmod-std-http-server"><code>std::http::server</code> <span class="std-file">impl/std/http/server.cb</span></h4>
+<table class="std-inv">
+<thead><tr><th>Kind</th><th>Items</th></tr></thead>
+<tbody>
+<tr><td>Types</td><td><code>HttpConnection</code>, <code>HttpServer</code></td></tr>
+<tr><td><code>HttpServer::</code></td><td><code>accept</code>, <code>bind</code>, <code>bind_tls</code>, <code>local_addr</code></td></tr>
+<tr><td><code>HttpConnection::</code></td><td><code>close</code>, <code>peer_addr</code>, <code>request</code>, <code>respond</code></td></tr>
+</tbody>
+</table>
+<h4 id="stdmod-std-database"><code>std::database</code> <span class="std-file">impl/std/database.cb</span></h4>
+<table class="std-inv">
+<thead><tr><th>Kind</th><th>Items</th></tr></thead>
+<tbody>
+<tr><td>Submodules</td><td><a href="#stdmod-std-database-postgres"><code>postgres</code></a></td></tr>
+<tr><td>Types</td><td><code>Scram</code></td></tr>
+<tr><td>Functions</td><td><code class="priv">attribute</code>, <code>scram_salted_password</code></td></tr>
+<tr><td><code>Scram::</code></td><td><code>client_first</code>, <code>respond</code>, <code>start</code>, <code>verify</code></td></tr>
+</tbody>
+</table>
+<h4 id="stdmod-std-database-postgres"><code>std::database::postgres</code> <span class="std-file">impl/std/database/postgres.cb</span></h4>
+<table class="std-inv">
+<thead><tr><th>Kind</th><th>Items</th></tr></thead>
+<tbody>
+<tr><td>Types</td><td><code class="priv">Message</code>, <code>PgColumn</code>, <code class="priv">PgConn</code>, <code>PgConnection</code>, <code>PgError</code>, <code class="priv">PgParameter</code>, <code class="priv">PgReader</code>, <code>PgResult</code>, <code>PgRow</code>, <code>PgServerError</code>, <code>PgSslMode</code>, <code>PgUrl</code>, <code>PgValue</code></td></tr>
+<tr><td>Functions</td><td><code class="priv">authenticate</code>, <code class="priv">broken</code>, <code class="priv">collect</code>, <code class="priv">connect_url</code>, <code class="priv">cstr_at</code>, <code class="priv">decode_columns</code>, <code class="priv">decode_row</code>, <code class="priv">decode_server_error</code>, <code class="priv">decoded</code>, <code class="priv">float_text</code>, <code class="priv">frame</code>, <code class="priv">open_tcp</code>, <code class="priv">pg_available</code>, <code class="priv">pg_close</code>, <code class="priv">pg_fill</code>, <code class="priv">pg_read</code>, <code class="priv">pg_read_n</code>, <code class="priv">pg_write</code>, <code class="priv">push_cstr</code>, <code class="priv">read_message</code>, <code class="priv">tag_count</code></td></tr>
+<tr><td><code>PgError::</code></td><td><code>text</code></td></tr>
+<tr><td><code>PgUrl::</code></td><td><code>parse</code></td></tr>
+<tr><td><code>PgValue::</code></td><td><code>text</code></td></tr>
+<tr><td><code>PgRow::</code></td><td><code>get</code>, <code>get_bool</code>, <code>get_bytes</code>, <code>get_f64</code>, <code>get_i64</code></td></tr>
+<tr><td><code>PgResult::</code></td><td><code>column</code></td></tr>
+<tr><td><code>PgConnection::</code></td><td><code>close</code>, <code>connect</code>, <code>connect_with</code>, <code>execute</code>, <code>parameter</code>, <code>query</code>, <code>run_script</code></td></tr>
+<tr><td>Constants</td><td><code class="priv">MAX_MESSAGE</code></td></tr>
+</tbody>
+</table>
+<h4 id="stdmod-std-encoding"><code>std::encoding</code> <span class="std-file">impl/std/encoding.cb</span></h4>
+<table class="std-inv">
+<thead><tr><th>Kind</th><th>Items</th></tr></thead>
+<tbody>
+<tr><td>Submodules</td><td><a href="#stdmod-std-encoding-json"><code>json</code></a>, <a href="#stdmod-std-encoding-hex"><code>hex</code></a>, <a href="#stdmod-std-encoding-base64"><code>base64</code></a></td></tr>
+</tbody>
+</table>
+<h4 id="stdmod-std-encoding-json"><code>std::encoding::json</code> <span class="std-file">impl/std/encoding/json.cb</span></h4>
+<table class="std-inv">
+<thead><tr><th>Kind</th><th>Items</th></tr></thead>
+<tbody>
+<tr><td>Types</td><td><code>Json</code>, <code>JsonMember</code>, <code class="priv">JsonReader</code>, <code class="priv">JsonStr</code></td></tr>
+<tr><td>Functions</td><td><code class="priv">json_digits_end</code>, <code class="priv">json_hex4</code>, <code class="priv">json_indent</code>, <code class="priv">json_number</code>, <code class="priv">json_quote</code>, <code class="priv">json_quote_bytes</code>, <code class="priv">json_space_end</code>, <code class="priv">json_string</code>, <code class="priv">json_write</code></td></tr>
+<tr><td><code>Json::</code></td><td><code>as_array</code>, <code>as_bool</code>, <code>as_f64</code>, <code>as_i64</code>, <code>as_object</code>, <code>as_text</code>, <code>at</code>, <code>get</code>, <code>is_null</code>, <code>parse</code>, <code>pretty</code>, <code>push</code>, <code>set</code>, <code>text</code></td></tr>
+<tr><td><code>JsonReader::</code></td><td><code class="priv">digits</code>, <code class="priv">number</code>, <code class="priv">peek</code>, <code class="priv">skip_space</code>, <code class="priv">text</code>, <code class="priv">value</code>, <code class="priv">word</code></td></tr>
+<tr><td>Constants</td><td><code class="priv">MAX_DEPTH</code></td></tr>
+</tbody>
+</table>
+<h4 id="stdmod-std-encoding-hex"><code>std::encoding::hex</code> <span class="std-file">impl/std/encoding/hex.cb</span></h4>
+<table class="std-inv">
+<thead><tr><th>Kind</th><th>Items</th></tr></thead>
+<tbody>
+<tr><td>Functions</td><td><code>from_hex</code>, <code class="priv">hex_decode</code>, <code class="priv">hex_value</code>, <code>to_hex</code></td></tr>
+</tbody>
+</table>
+<h4 id="stdmod-std-encoding-base64"><code>std::encoding::base64</code> <span class="std-file">impl/std/encoding/base64.cb</span></h4>
+<table class="std-inv">
+<thead><tr><th>Kind</th><th>Items</th></tr></thead>
+<tbody>
+<tr><td>Functions</td><td><code>base64_decode</code>, <code class="priv">base64_decode_bytes</code>, <code>base64_encode</code>, <code class="priv">base64_value</code></td></tr>
+</tbody>
+</table>
+<h4 id="stdmod-std-compress"><code>std::compress</code> <span class="std-file">impl/std/compress.cb</span></h4>
+<table class="std-inv">
+<thead><tr><th>Kind</th><th>Items</th></tr></thead>
+<tbody>
+<tr><td>Types</td><td><code class="priv">BitOut</code>, <code class="priv">BitReader</code>, <code class="priv">BitsStep</code>, <code class="priv">BitWriter</code>, <code>CompressError</code>, <code class="priv">DeflateScan</code>, <code class="priv">Huffman</code>, <code class="priv">HuffStep</code>, <code class="priv">InflateRun</code>, <code class="priv">Token</code>, <code class="priv">TokenCounts</code></td></tr>
+<tr><td>Functions</td><td><code>adler32</code>, <code class="priv">bits_step</code>, <code class="priv">canonical_codes</code>, <code class="priv">code_lengths</code>, <code>deflate</code>, <code class="priv">deflate_scan</code>, <code class="priv">distance_code</code>, <code class="priv">fixed_codes</code>, <code class="priv">fixed_distances</code>, <code>gunzip</code>, <code>gzip</code>, <code class="priv">hash3</code>, <code class="priv">huff_step</code>, <code>inflate</code>, <code class="priv">inflate_codes</code>, <code class="priv">inflate_from</code>, <code class="priv">inflate_run</code>, <code class="priv">length_code</code>, <code class="priv">put_tokens</code>, <code class="priv">read_dynamic</code>, <code class="priv">token_counts</code>, <code class="priv">write_block</code>, <code>zlib_deflate</code>, <code>zlib_inflate</code></td></tr>
+<tr><td><code>CompressError::</code></td><td><code>text</code></td></tr>
+<tr><td><code>BitReader::</code></td><td><code class="priv">align</code>, <code class="priv">take</code></td></tr>
+<tr><td><code>Huffman::</code></td><td><code class="priv">build</code>, <code class="priv">decode</code></td></tr>
+<tr><td><code>BitWriter::</code></td><td><code class="priv">flush</code>, <code class="priv">put</code>, <code class="priv">put_code</code></td></tr>
+<tr><td>Constants</td><td><code class="priv">CHAIN_LIMIT</code>, <code class="priv">CLEN_ORDER</code>, <code class="priv">DIST_BASE</code>, <code class="priv">DIST_EXTRA</code>, <code class="priv">HASH_SIZE</code>, <code class="priv">LENGTH_BASE</code>, <code class="priv">LENGTH_EXTRA</code>, <code class="priv">MAX_TOKENS</code>, <code class="priv">WINDOW</code></td></tr>
+</tbody>
+</table>
+<h4 id="stdmod-std-extensions"><code>std::extensions</code> <span class="std-file">impl/std/extensions.cb</span></h4>
+<p>No items: the reference implementation declares nothing here.</p>
 <figure class="code"><div class="code-head"><span class="code-title">One subject at a time</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std::text;
 <span class="k">import</span> std::io;
 
@@ -5831,12 +6152,54 @@ crosses into bytes the same way, through <code>Name::bits(v)</code>.</p>
     <span class="p">String</span> text = <span class="s">&quot;123456789&quot;</span>;
     <span class="p">assert</span>(crc32(&amp;<span class="p">String</span>::as_bytes(&amp;text)[<span class="n">0</span>..$]) == <span class="n">0</span>xCBF43926);
 }</code></pre></figure>
+<p>A <code>Vec</code> can hold references. While it does, they count as live borrows: the referent
+cannot be written past them, and a stored <code>&amp;mut</code> is the only way in until the element is popped or
+the <code>Vec</code> is destroyed.</p>
+<figure class="code"><div class="code-head"><span class="code-title">A Vec of references</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    <span class="t">i32</span> a = <span class="n">10</span>;
+    <span class="t">i32</span> x = <span class="n">1</span>;
+    <span class="p">Vec</span>&lt;<span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt;&gt; readers = <span class="p">Vec</span>::new();
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> readers, &amp;a);
+    <span class="p">assert</span>(*readers[<span class="n">0</span>] == <span class="n">10</span>);
+
+    <span class="p">Vec</span>&lt;<span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">exclusive</span>&gt;&gt; writers = <span class="p">Vec</span>::new();
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> writers, &amp;<span class="k">mut</span> x);
+    *writers[<span class="n">0</span>] = <span class="n">7</span>;                                 <span class="c">// write through the stored reference</span>
+    <span class="p">Vec</span>::pop(&amp;<span class="k">mut</span> writers);                          <span class="c">// the Vec lets go of it</span>
+    <span class="p">assert</span>(x == <span class="n">7</span>);
+    x = <span class="n">8</span>;                                           <span class="c">// x is free again</span>
+}</code></pre></figure>
+<figure class="code"><div class="code-head"><span class="code-title">Writing past a stored borrow</span><span class="badge bad">rejected: diag.aliasing-conflict</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    <span class="t">i32</span> x = <span class="n">1</span>;
+    <span class="p">Vec</span>&lt;<span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">exclusive</span>&gt;&gt; writers = <span class="p">Vec</span>::new();
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> writers, &amp;<span class="k">mut</span> x);
+    x = <span class="n">5</span>;                            <span class="c">// <span class="bad">✗</span> <span class="dg">diag.aliasing-conflict</span>: the Vec still holds &amp;mut x</span>
+}</code></pre></figure>
+<div class="callout tip"><div class="callout-title">Tip</div><code>Vec::push</code> is written in CobaltC: a <code>resource struct</code> with a <code>rawptr&lt;T&gt;</code>, an
+<code>unsafe</code> write of the new element at <code>ptr + len</code>, and a private <code>grow</code> that calls <code>allocate</code>,
+<code>copy_raw</code> and <code>deallocate</code>. Reading it in the specification is the best way to see how the
+pieces of §07 and §20 fit together.</div>
+<h3>Random numbers</h3>
+<p><em>In <code>std::random</code>.</em></p>
 <p><code>Rng</code> is a general-purpose pseudo-random generator — for simulations, games, sampling,
 randomised tests, shuffling — whose sequence the specification fixes, so a program that seeds it
 with a constant prints the same numbers under both tools and on every machine; seed it with
 <code>Rng::from_os()</code> for a fresh sequence each run. <code>below(&amp;mut r, n)</code> is unbiased, <code>unit_f64</code> is in <code>[0, 1)</code>.
-It is **not suitable for cryptographic purposes**: its output is predictable from a few values, so
+It is <strong>not suitable for cryptographic purposes</strong>: its output is predictable from a few values, so
 never use it for keys, tokens, nonces, passwords, or anything an adversary must not guess (D-0120).</p>
+<table>
+<thead><tr><th>Function</th><th>Does</th></tr></thead>
+<tbody>
+<tr><td><code>Rng::new(s)</code>, <code>Rng::next_u64(&amp;mut r)</code>, <code>Rng::below(&amp;mut r, n)</code>, <code>Rng::unit_f64(&amp;mut r)</code></td><td>a general-purpose pseudo-random generator (xoshiro256**, fixed by the specification): the same seed gives the same numbers everywhere; <code>below</code> is unbiased in <code>0 .. n</code>. It is not suitable for cryptographic purposes — keys, tokens, nonces, anything an adversary must not predict (D-0120)</td></tr>
+<tr><td><code>Rng::shuffle(&amp;mut r, &amp;mut v[0..$])</code>, <code>uuid_v4()</code></td><td>a slice put in random order (Fisher-Yates; the same seed, the same order everywhere); a version-4 UUID as text, from the operating system's secure source (D-0181)</td></tr>
+</tbody>
+</table>
 <figure class="code"><div class="code-head"><span class="code-title">A reproducible random sequence</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> main()
@@ -5874,39 +6237,6 @@ fault <code>diag.entropy-unavailable</code>, never a quiet fall back to the cloc
     Rng shuffle = Rng::from_os();                    <span class="c">// differs each run; not for secrets</span>
     <span class="p">assert</span>(Rng::below(&amp;<span class="k">mut</span> shuffle, <span class="n">52</span>) &lt; <span class="n">52</span>);
 }</code></pre></figure>
-<p>A <code>Vec</code> can hold references. While it does, they count as live borrows: the referent
-cannot be written past them, and a stored <code>&amp;mut</code> is the only way in until the element is popped or
-the <code>Vec</code> is destroyed.</p>
-<figure class="code"><div class="code-head"><span class="code-title">A Vec of references</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
-
-<span class="k">fn</span> main()
-{
-    <span class="t">i32</span> a = <span class="n">10</span>;
-    <span class="t">i32</span> x = <span class="n">1</span>;
-    <span class="p">Vec</span>&lt;<span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt;&gt; readers = <span class="p">Vec</span>::new();
-    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> readers, &amp;a);
-    <span class="p">assert</span>(*readers[<span class="n">0</span>] == <span class="n">10</span>);
-
-    <span class="p">Vec</span>&lt;<span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">exclusive</span>&gt;&gt; writers = <span class="p">Vec</span>::new();
-    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> writers, &amp;<span class="k">mut</span> x);
-    *writers[<span class="n">0</span>] = <span class="n">7</span>;                                 <span class="c">// write through the stored reference</span>
-    <span class="p">Vec</span>::pop(&amp;<span class="k">mut</span> writers);                          <span class="c">// the Vec lets go of it</span>
-    <span class="p">assert</span>(x == <span class="n">7</span>);
-    x = <span class="n">8</span>;                                           <span class="c">// x is free again</span>
-}</code></pre></figure>
-<figure class="code"><div class="code-head"><span class="code-title">Writing past a stored borrow</span><span class="badge bad">rejected: diag.aliasing-conflict</span></div><pre><code><span class="k">import</span> std;
-
-<span class="k">fn</span> main()
-{
-    <span class="t">i32</span> x = <span class="n">1</span>;
-    <span class="p">Vec</span>&lt;<span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">exclusive</span>&gt;&gt; writers = <span class="p">Vec</span>::new();
-    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> writers, &amp;<span class="k">mut</span> x);
-    x = <span class="n">5</span>;                            <span class="c">// <span class="bad">✗</span> <span class="dg">diag.aliasing-conflict</span>: the Vec still holds &amp;mut x</span>
-}</code></pre></figure>
-<div class="callout tip"><div class="callout-title">Tip</div><code>Vec::push</code> is written in CobaltC: a <code>resource struct</code> with a <code>rawptr&lt;T&gt;</code>, an
-<code>unsafe</code> write of the new element at <code>ptr + len</code>, and a private <code>grow</code> that calls <code>allocate</code>,
-<code>copy_raw</code> and <code>deallocate</code>. Reading it in the specification is the best way to see how the
-pieces of §07 and §20 fit together.</div>
 <h3><code>String</code></h3>
 <p><em>In <code>std::text</code>.</em></p>
 <p>A <code>String</code> is a <code>Vec&lt;u8&gt;</code> that is known to be valid UTF-8: owned, heap-allocated text,
@@ -6828,6 +7158,7 @@ environment and measure time. Paths are <code>StringView</code>s, as for files, 
 <tr><td><code>env_var(name)</code></td><td><code>Ok(Some(value))</code>, or <code>Ok(None)</code> when the variable is not set</td></tr>
 <tr><td><code>current_dir()</code></td><td>the working directory, which relative paths start from</td></tr>
 <tr><td><code>monotonic_ns()</code>, <code>unix_seconds()</code></td><td>a clock for measuring time (never goes back), and the date</td></tr>
+<tr><td><code>sleep_ms(ms)</code></td><td>the calling thread does nothing for at least <code>ms</code> milliseconds; other threads run meanwhile (D-0124)</td></tr>
 <tr><td><code>make_dir_all(path)</code>, <code>remove_dir_all(path)</code></td><td>make a directory and any missing ones above it; remove a directory and everything in it</td></tr>
 <tr><td><code>copy_file(from, to)</code></td><td>copy a file, replacing one at <code>to</code>; the number of bytes copied</td></tr>
 <tr><td><code>file_info(path)</code></td><td>a <code>FileInfo</code>: <code>kind</code> (as <code>path_kind</code>'s), <code>len</code>, <code>modified_unix</code> (seconds since 1970) and <code>readonly</code></td></tr>
@@ -7145,7 +7476,7 @@ its output. <code>Child::take_input(&amp;mut ch)</code> and <code>Child::take_ou
 <code>ChildOutput::read</code> and <code>read_line</code> work as the <code>Child</code>'s own calls do; dropping an end closes it, and
 an end outlives its <code>Child</code>.</p>
 <h3>Cryptography, and bytes as text</h3>
-<p><em>In <code>std::crypto</code>, with the encodings in <code>std::text</code>.</em></p>
+<p><em>In <code>std::crypto</code>, with hexadecimal and base64 in <code>std::encoding::hex</code> and <code>std::encoding::base64</code>.</em></p>
 <p><code>sha256(data)</code> is the SHA-256 digest of some bytes, 32 of them as an <code>array&lt;u8, 32&gt;</code>;
 <code>hmac_sha256(key, data)</code> is a message authentication code under a key, the way a webhook body,
 a session cookie or a signed request is protected. Both come in a streaming form for a message that
@@ -7552,7 +7883,7 @@ name=Ada+Lovelace&amp;note=100%25
 cobalt c
 </pre></div></figure>
 <h3>JSON</h3>
-<p><em>In <code>std::json</code>.</em></p>
+<p><em>In <code>std::encoding::json</code>.</em></p>
 <p><code>Json::parse(text)</code> reads a JSON document (RFC 8259) into a tree of <code>Json</code> values — <code>JsonNull</code>,
 <code>JsonBool</code>, <code>JsonNumber</code> (an <code>f64</code>), <code>JsonText</code>, <code>JsonArray</code> and <code>JsonObject</code> (its members in order) —
 and <code>Json::text(&amp;j)</code> writes one back compact, <code>Json::pretty(&amp;j)</code> indented. Reading a tree:
@@ -7949,11 +8280,7 @@ take the key by reference, so they copy nothing.</p>
 <tr><td><code>HashMap::swap_remove(&amp;mut m, &amp;k)</code></td><td>the same, fast: the last entry moves into the removed one's place (D-0134)</td></tr>
 <tr><td><code>HashMap::key_at(&amp;m, i)</code>, <code>HashMap::value_at(&amp;m, i)</code></td><td>entry <code>i</code>, for <code>i &lt; len</code>, in insertion order</td></tr>
 <tr><td><code>HashMap::clear(&amp;mut m)</code></td><td>removes every entry, destroying keys and values; the map stays usable</td></tr>
-<tr><td><code>HashMap::clone(&amp;m)</code>, <code>HashSet::clone(&amp;s)</code>, <code>Box::clone(&amp;b)</code>, <code>clone(&amp;m)</code></td><td>a copy of a map, set or box whose contents are <code>clone</code> (§12); <code>Rc::clone</code> shares instead</td></tr>
-<tr><td><code>sleep_ms(ms)</code></td><td>the calling thread does nothing for at least <code>ms</code> milliseconds; other threads run meanwhile (D-0124)</td></tr>
-<tr><td><code>Rc::downgrade(&amp;r)</code>, <code>Weak::upgrade(&amp;w)</code>, <code>Weak::clone(&amp;w)</code></td><td>a <code>Weak&lt;T&gt;</code> keeps the box, not the value: <code>upgrade</code> is <code>Some(Rc)</code> while a strong handle exists, else <code>None</code> — for a parent pointer, a cache, an observer list, where an <code>Rc</code> would make a cycle (D-0125)</td></tr>
-<tr><td><code>Rng::new(s)</code>, <code>Rng::next_u64(&amp;mut r)</code>, <code>Rng::below(&amp;mut r, n)</code>, <code>Rng::unit_f64(&amp;mut r)</code></td><td>a general-purpose pseudo-random generator (xoshiro256**, fixed by the specification): the same seed gives the same numbers everywhere; <code>below</code> is unbiased in <code>0 .. n</code>. It is not suitable for cryptographic purposes — keys, tokens, nonces, anything an adversary must not predict (D-0120)</td></tr>
-<tr><td><code>Rng::shuffle(&amp;mut r, &amp;mut v[0..$])</code>, <code>uuid_v4()</code></td><td>a slice put in random order (Fisher-Yates; the same seed, the same order everywhere); a version-4 UUID as text, from the operating system's secure source (D-0181)</td></tr>
+<tr><td><code>HashMap::clone(&amp;m)</code>, <code>HashSet::clone(&amp;s)</code>, <code>clone(&amp;m)</code></td><td>a copy of a map or set whose contents are <code>clone</code> (§12); <code>Rc::clone</code> shares instead</td></tr>
 <tr><td><code>HashMap::get_str(&amp;m, &quot;k&quot;)</code>, <code>get_mut_str</code>, <code>contains_str</code>, <code>remove_str</code></td><td>for a map keyed by <code>String</code>: the same lookups with a <code>str</code>, so no <code>String</code> is built to ask (D-0113); <code>HashSet::contains_str</code>, <code>remove_str</code> likewise</td></tr>
 <tr><td><code>HashSet::new</code>, <code>len</code>, <code>insert</code>, <code>contains</code>, <code>remove</code>, <code>swap_remove</code>, <code>key_at</code>, <code>clear</code></td><td>the same for a set; <code>insert</code> and the removals say whether anything changed</td></tr>
 <tr><td><code>HashSet::union(&amp;a, &amp;b)</code>, <code>HashSet::intersection(&amp;a, &amp;b)</code>, <code>HashSet::difference(&amp;a, &amp;b)</code></td><td>a new set of the keys in either, in both, or in <code>a</code> but not <code>b</code>, copied with <code>clone</code>; <code>a</code> and <code>b</code> are unchanged. The result keeps <code>a</code>'s order, and <code>union</code> adds <code>b</code>'s new keys after it (D-0138)</td></tr>
@@ -8249,13 +8576,19 @@ to 4: 10 km
 <p><em>In <code>std::memory</code>.</em></p>
 <p>Shared ownership as a library: a reference-counted box. <code>Rc::clone</code> makes another handle
 to the same box; the value is destroyed when the last handle is dropped. Access is read-only (a
-shared reference); put a <code>mutex</code> inside if you need mutation. <code>Rc</code> is not thread-safe.</p>
+shared reference); put a <code>mutex</code> inside if you need mutation. <code>Rc</code> is not thread-safe.
+A <code>Weak&lt;T&gt;</code>, from <code>Rc::downgrade</code>, keeps the box but not the value: <code>Weak::upgrade</code> is
+<code>Some(Rc)</code> while a strong handle exists, else <code>None</code>. It is for a parent pointer, a cache or an
+observer list, where an <code>Rc</code> would make a cycle (D-0125).</p>
 <table>
 <thead><tr><th>Function</th><th>Signature</th></tr></thead>
 <tbody>
 <tr><td><code>Rc::new</code></td><td><code>(T) : Rc&lt;T&gt;</code></td></tr>
 <tr><td><code>Rc::clone</code></td><td><code>(ref&lt;Rc&lt;T&gt;, shared&gt;) : Rc&lt;T&gt;</code></td></tr>
 <tr><td><code>Rc::get</code></td><td><code>(ref&lt;Rc&lt;T&gt;, shared&gt;) : ref&lt;T, shared&gt;</code></td></tr>
+<tr><td><code>Rc::downgrade</code></td><td><code>(ref&lt;Rc&lt;T&gt;, shared&gt;) : Weak&lt;T&gt;</code></td></tr>
+<tr><td><code>Weak::upgrade</code></td><td><code>(ref&lt;Weak&lt;T&gt;, shared&gt;) : Option&lt;Rc&lt;T&gt;&gt;</code></td></tr>
+<tr><td><code>Weak::clone</code></td><td><code>(ref&lt;Weak&lt;T&gt;, shared&gt;) : Weak&lt;T&gt;</code></td></tr>
 </tbody>
 </table>
 <figure class="code"><div class="code-head"><span class="code-title">Reference counting</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
@@ -8274,7 +8607,7 @@ shared reference); put a <code>mutex</code> inside if you need mutation. <code>R
 <h3><code>Box&lt;T&gt;</code></h3>
 <p><em>In <code>std::memory</code>.</em></p>
 <p>A value on the heap with exactly one owner: <code>Rc</code> without the count. <code>Box::new(v)</code> moves <code>v</code>
-in; <code>Box::get(&amp;b)</code> and <code>Box::get_mut(&amp;mut b)</code> borrow it; <code>Box::into_inner(b)</code> moves it back out;
+in; <code>Box::get(&amp;b)</code> and <code>Box::get_mut(&amp;mut b)</code> borrow it; <code>Box::into_inner(b)</code> moves it back out; <code>Box::clone(&amp;b)</code> copies a box whose value is <code>clone</code>;
 destroying the <code>Box</code> destroys the value. Its main use is a type that contains itself, which needs
 something holding a pointer between it and itself: a struct that contains itself directly has no
 size, and is rejected with <code>diag.recursive-type</code>.</p>
