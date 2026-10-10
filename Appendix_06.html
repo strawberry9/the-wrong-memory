@@ -161,7 +161,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.101002</div>
+<div class="sub">Specification edition 2026.101003</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -330,7 +330,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101002</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101003</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -409,7 +409,7 @@ turn.</p>
 <tr><td>Aggregates are whole and exhaustive</td><td>Structs, fixed arrays and enums with payloads. Array indexing is bounds-checked. <code>match</code> must be exhaustive.</td><td>§16</td></tr>
 <tr><td>Names are unambiguous</td><td>Modules with <code>export</code>/<code>import</code>, private by default. Name resolution is a fixed, documented order.</td><td>§17</td></tr>
 <tr><td>Failure is never silent</td><td>Two channels only: a <em>checked fault</em> is fatal and unwinds destructors; recoverable errors are <code>Result</code> values with the <code>?</code> operator. There is no catch.</td><td>§18</td></tr>
-<tr><td>Threads do not race</td><td><code>spawn</code>/<code>join</code> with owning handles; a <code>mutex</code> whose interior is reachable only through a <code>lock</code> guard. The same aliasing rules apply across threads.</td><td>§19</td></tr>
+<tr><td>Threads do not race</td><td><code>spawn</code>/<code>join</code> with owning handles; a <code>mutex</code> whose interior is reachable only through a <code>lock</code> guard. The same aliasing rules apply across threads. A fault in a spawned thread ends that thread alone and reaches its supervisor as a value; any wait can be cancelled; deadlocks are reported.</td><td>§19</td></tr>
 <tr><td>External data is a claim, not a fact</td><td><code>unsafe</code> blocks record what you assert. <code>rawptr&lt;T&gt;</code>, <code>reclaim</code>, <code>allocate</code> and <code>unsafe extern fn</code> are the only doors to the outside, and FFI signatures are restricted to plain types.</td><td>§20</td></tr>
 <tr><td>A text literal is a value; owned text is a resource</td><td>A string literal <code>&quot;…&quot;</code> is a <code>str</code>: a copyable value like an integer, valid UTF-8 by construction, never owned or freed. <code>printf</code> writes one. Owned, growable text is <code>String</code>, a resource: moved, destroyed at scope end, built from a <code>str</code> (a literal written where a <code>String</code> is declared becomes one there) or validated from bytes.</td><td>§21</td></tr>
 <tr><td>The library proves the language is sufficient</td><td><code>Vec&lt;T&gt;</code>, <code>String</code> and <code>Rc&lt;T&gt;</code> are written in CobaltC itself, using nothing the language does not give you.</td><td>§21</td></tr>
@@ -901,7 +901,7 @@ nested, literal and text patterns, <code>if</code> and <code>while</code> (eithe
 <tr><td>Layout</td><td><code>sizeof</code>, <code>alignof</code></td></tr>
 <tr><td><code>str</code> and slices</td><td><code>str_len</code>, <code>str_byte</code>, <code>str_ptr</code>, <code>slice_len</code></td></tr>
 <tr><td>Faults and compile-time checks</td><td><code>fault</code>, <code>static_assert</code></td></tr>
-<tr><td>Threads</td><td><code>spawn</code>, <code>join</code>, <code>Mutex::new</code>, <code>lock</code></td></tr>
+<tr><td>Threads</td><td><code>spawn</code>, <code>join</code>, <code>cancel</code>, <code>join_status</code>, <code>Mutex::new</code>, <code>lock</code></td></tr>
 <tr><td>Raw memory (most need <code>unsafe</code>)</td><td><code>rawptr_of</code>, <code>reinterpret_ptr</code>, <code>dangling</code>, <code>allocate</code>, <code>deallocate</code>, <code>reclaim</code>, <code>release</code>, <code>copy_raw</code>, <code>read_volatile</code>, <code>write_volatile</code></td></tr>
 </tbody>
 </table>
@@ -922,7 +922,7 @@ one subject alone (<code>import std::text;</code>). <a href="#s21">§21</a> cove
 <thead><tr><th>Area</th><th>Items</th><th>Submodule</th></tr></thead>
 <tbody>
 <tr><td>Core types</td><td><code>Option&lt;T&gt;</code>, <code>Result&lt;T, E&gt;</code>, <code>AllocError</code>; <code>unwrap</code>, <code>unwrap_or</code>, <code>expect</code>, <code>ok_or</code>, <code>is_some</code>/<code>is_none</code>/<code>is_ok</code>/<code>is_err</code>; <code>map_err</code></td><td><code>std::core</code></td></tr>
-<tr><td>Collections</td><td><code>Vec&lt;T&gt;</code> (push, pop, index, insert, remove, swap_remove, retain, dedup, clone, from_slice, filled, from_fn, append, contains, position, reverse, truncate, swap, clear, …), <code>HashMap&lt;K, V&gt;</code>, <code>HashSet&lt;K&gt;</code>, <code>Queue&lt;T&gt;</code>, <code>PriorityQueue&lt;T&gt;</code></td><td><code>std::collections</code></td></tr>
+<tr><td>Collections</td><td><code>Vec&lt;T&gt;</code> (push, pop, index, insert, remove, swap_remove, retain, dedup, clone, from_slice, filled, from_fn, append, contains, position, reverse, truncate, swap, clear, …), <code>HashMap&lt;K, V&gt;</code>, <code>HashSet&lt;K&gt;</code>, <code>Queue&lt;T&gt;</code>, <code>PriorityQueue&lt;T&gt;</code>, <code>slice_parts</code></td><td><code>std::collections</code></td></tr>
 <tr><td>Sorting</td><td><code>Vec::sort</code>, <code>sort_by</code>, <code>binary_search</code>, <code>binary_search_by</code></td><td><code>std::collections</code></td></tr>
 <tr><td>Ownership helpers</td><td><code>Box&lt;T&gt;</code>, <code>Rc&lt;T&gt;</code>, <code>Weak&lt;T&gt;</code></td><td><code>std::memory</code></td></tr>
 <tr><td>Values behind references</td><td><code>swap</code>, <code>replace</code>, <code>overwrite</code></td><td><code>std::core</code></td></tr>
@@ -941,7 +941,7 @@ one subject alone (<code>import std::text;</code>). <a href="#s21">§21</a> cove
 <tr><td>Directories and paths</td><td><code>make_dir</code>, <code>remove_file</code>, <code>remove_dir</code>, <code>rename</code>, <code>list_dir</code>, <code>path_kind</code>, <code>make_dir_all</code>, <code>remove_dir_all</code>, <code>copy_file</code>, <code>file_info</code>, the <code>path_</code> functions (join, parent, file_name, stem, extension, is_absolute, normalize, canonical)</td><td><code>std::fs</code></td></tr>
 <tr><td>Arguments and environment</td><td><code>arg_count</code>, <code>arg</code> and the extern <code>arg_bytes</code>; <code>Args</code> (flag, option, options, finish, help); <code>env_var</code>, <code>current_dir</code>, <code>set_current_dir</code>, <code>temp_dir</code>, <code>home_dir</code>, <code>current_exe</code>, <code>hostname</code></td><td><code>std::env</code></td></tr>
 <tr><td>Clocks</td><td><code>monotonic_ns</code>, <code>unix_seconds</code>, <code>sleep_ms</code>; dates and times are <code>DateTime</code></td><td><code>std::time</code></td></tr>
-<tr><td>Concurrency</td><td><code>Channel&lt;T&gt;</code> (new, send, recv, try_recv, recv_timeout_ms, close), <code>cpu_count</code></td><td><code>std::sync</code></td></tr>
+<tr><td>Concurrency</td><td><code>Channel&lt;T&gt;</code> (new, send, recv, try_recv, recv_timeout_ms, close), <code>cpu_count</code>, <code>try_join</code>, <code>is_finished</code>, <code>ThreadFailure</code> (text, diagnostic, is_cancelled)</td><td><code>std::sync</code></td></tr>
 <tr><td>Cryptography</td><td><code>sha256</code>, <code>sha384</code>, <code>sha512</code>, <code>sha1</code> (legacy), <code>blake2b</code>, <code>hmac_sha256</code>, <code>hmac</code>, <code>digest_eq</code>, <code>hkdf_sha256</code>, <code>chacha20_poly1305_seal</code>/<code>open</code>, <code>aes_gcm_seal</code>/<code>open</code>, <code>x25519</code>, <code>ecdh</code>, <code>ed25519_sign</code>/<code>verify</code>, <code>ecdsa_sign</code>/<code>verify</code>, <code>rsa_sign_pss</code>/<code>verify_pss</code>, <code>hash_password</code>/<code>verify_password</code>; <code>to_hex</code>, <code>from_hex</code>, <code>base64_encode</code>, <code>base64_decode</code> in <code>std::text</code></td><td><code>std::crypto</code>; <code>to_hex</code>, <code>from_hex</code>, <code>base64_encode</code>, <code>base64_decode</code>: <code>std::encoding</code></td></tr>
 <tr><td>HTTP</td><td><code>http_get</code>, <code>http_post</code>, <code>HttpClient</code>, <code>Url</code>, <code>form_decode</code>/<code>form_encode</code>; <code>HttpServer</code> (<code>bind</code>, <code>bind_tls</code>), <code>HttpConnection::request</code>/<code>respond</code></td><td><code>std::http</code></td></tr>
 <tr><td>JSON</td><td><code>Json</code> (parse, text, pretty, get, at, as_*, set, push), <code>JsonMember</code></td><td><code>std::encoding::json</code></td></tr>
@@ -4614,7 +4614,9 @@ it is data, and the caller decides what to do. There are no exceptions and no ca
 <h3>Checked faults</h3>
 <p>When a run-time check fails, the current thread unwinds every open scope, running every
 destructor exactly as a normal scope exit would, and the program terminates reporting the fault by
-name. Nothing can intercept this. The point is that a fault cannot corrupt state or leak an external
+name. Nothing can intercept this within a thread. (A fault in a thread you spawned ends that thread
+alone, and its failure becomes a value at the thread's boundary: §19, <a href="#s19-supervision">When a
+thread fails</a>.) The point is that a fault cannot corrupt state or leak an external
 resource on the way out, and that a program that reaches its end has never once violated a checked
 rule.</p>
 <figure class="code"><div class="code-head"><span class="code-title">A fault unwinds, then terminates</span><span class="badge bad">rejected: diag.div-by-zero</span></div><pre><code><span class="k">import</span> std;
@@ -4864,7 +4866,7 @@ may carry would vanish. Handle it (<code>?</code>, <code>match</code>, <code>unw
 <nav class="pager"><a class="prev" href="#s17">&larr; §17 Modules and name resolution</a><a class="top" href="#top">Top</a><a class="next" href="#s19">§19 Concurrency &rarr;</a></nav></section>
 <section id="s19">
 <h2><span class="secnum">§19</span>Concurrency</h2>
-<div class="spec-ref">Governing specification file: <code>spec/19-concurrency.md</code></div><p class="blurb">Threads owned by handles, mutexes reachable only through guards, channels that move values between threads, and the same aliasing rules everywhere.</p>
+<div class="spec-ref">Governing specification file: <code>spec/19-concurrency.md</code></div><p class="blurb">Threads owned by handles, a fault contained to its thread and handed over as a value, cancellation at any wait, deadlocks reported, mutexes reachable only through guards, channels, and the same aliasing rules everywhere.</p>
 <p>CobaltC's concurrency is small: threads you start and must join, and a mutex whose
 contents can only be reached by locking it. The aliasing rules of §08 already forbid two threads
 from touching one object in conflicting ways, so most of the work is done before this section
@@ -5148,7 +5150,7 @@ section has the figures.</p>
 the thread ends, even before it has run a single step. Timing can still choose between two permitted
 outcomes: a thread that has already finished holds nothing, so an access that would have conflicted
 with it while it ran is fine afterwards. Use <code>join</code> (or a channel) to make the order part of the
-program. Deadlock is not ruled out (below).</p>
+program. Deadlock is not ruled out, but it is reported rather than left to hang (below).</p>
 <figure class="code"><div class="code-head"><span class="code-title">Caught, whatever the timing</span><span class="badge bad">rejected: diag.aliasing-conflict</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> bump(<span class="t">ref</span>&lt;<span class="t">i64</span>, <span class="t">exclusive</span>&gt; x, <span class="t">ref</span>&lt;<span class="p">Channel</span>&lt;<span class="t">u8</span>&gt;, <span class="t">shared</span>&gt; go)
@@ -5169,9 +5171,206 @@ program. Deadlock is not ruled out (below).</p>
         <span class="p">join</span>(h);
     }
 }</code></pre></figure>
+<h3 id="s19-supervision">When a thread fails</h3>
+<p>A checked fault in a thread you spawned ends <em>that thread</em>: it unwinds, its destructors
+run, the threads it started are stopped and waited for, and its result becomes the failure. The rest
+of the program goes on. This is what lets a server give each connection a thread and survive a bug
+in one of them. Nothing continues in a state the failed check protected:</p>
+<ul>
+<li><strong>A mutex the thread held is poisoned.</strong> Its interior may be half-changed, so the next <code>lock</code> of it faults with <code>diag.mutex-poisoned</code>.</li>
+<li><strong>A thread lent an exclusive reference is not contained.</strong> The data it was changing belongs to a thread still running, so its fault ends the program at once, as a fault always did.</li>
+<li><strong>The main thread's fault</strong> ends the program, as before.</li>
+</ul>
+<p>Nobody has to ask for this. <code>join(h)</code> of a failed thread raises its failure again in the joiner,
+and so does the handle's end if nobody joined it: a program that never looks at failures still fails
+as a whole, one scope at a time. To take a failure as a value, use <code>try_join(h)</code>, which returns
+<code>Result&lt;R, ThreadFailure&gt;</code>. <code>ThreadFailure::text</code> is the report the program would have printed,
+<code>diagnostic</code> its <code>diag.…</code> name. <code>is_finished(&amp;h)</code> says, without waiting, whether a thread has ended,
+so one loop can accept new work and collect the threads that are done.</p>
+<figure class="code"><div class="code-head"><span class="code-title">A supervisor takes failures as values</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> handler(<span class="t">usize</span> i) : <span class="t">u64</span>
+{
+    <span class="p">Vec</span>&lt;<span class="t">u64</span>&gt; v = <span class="p">Vec</span>::filled(<span class="n">3</span>, <span class="n">7</span>: <span class="t">u64</span>);
+    v[i]                                               <span class="c">// a bug when i &gt;= 3</span>
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="t">usize</span> served = <span class="n">0</span>;
+    <span class="t">usize</span> failed = <span class="n">0</span>;
+    <span class="k">foreach</span> (i in <span class="n">0</span>..<span class="n">5</span>)
+    {
+        <span class="k">match</span> (try_join(<span class="p">spawn</span>(handler, i)))
+        {
+            <span class="p">Ok</span>(_)  : served += <span class="n">1</span>,
+            <span class="p">Err</span>(f) :
+            {
+                <span class="p">String</span> d = ThreadFailure::diagnostic(&amp;f);
+                <span class="p">assert</span>(<span class="p">String</span>::as_view(&amp;d) == <span class="s">&quot;diag.index-out-of-bounds&quot;</span>);
+                failed += <span class="n">1</span>;
+            },
+        }
+    }
+    <span class="p">assert</span>(served == <span class="n">3</span> &amp;&amp; failed == <span class="n">2</span>);                <span class="c">// the program went on after both</span>
+}</code></pre></figure>
+<figure class="code"><div class="code-head"><span class="code-title">join raises a failure nobody took</span><span class="badge bad">rejected: diag.index-out-of-bounds</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> handler(<span class="t">usize</span> i) : <span class="t">u64</span>
+{
+    <span class="p">Vec</span>&lt;<span class="t">u64</span>&gt; v = <span class="p">Vec</span>::new();
+    v[i]
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="k">auto</span> h = <span class="p">spawn</span>(handler, <span class="n">0</span>);
+    <span class="p">join</span>(h);                          <span class="c">// <span class="bad">✗</span> <span class="dg">diag.index-out-of-bounds</span> (dynamic): raised again here</span>
+}</code></pre></figure>
+<figure class="code"><div class="code-head"><span class="code-title">A failed thread's mutex is poisoned</span><span class="badge bad">rejected: diag.mutex-poisoned</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> update(<span class="t">ref</span>&lt;<span class="t">mutex</span>&lt;<span class="t">i64</span>&gt;, <span class="t">shared</span>&gt; m, <span class="t">usize</span> i)
+{
+    <span class="k">auto</span> g = <span class="p">lock</span>(m);
+    *g += <span class="n">1</span>;
+    <span class="p">Vec</span>&lt;<span class="t">i64</span>&gt; v = <span class="p">Vec</span>::new();
+    *g += v[i];                       <span class="c">// faults while holding the lock</span>
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="t">mutex</span>&lt;<span class="t">i64</span>&gt; m = <span class="p">Mutex</span>::new(<span class="n">0</span>: <span class="t">i64</span>);
+    _ = try_join(<span class="p">spawn</span>(update, &amp;m, <span class="n">0</span>));
+    <span class="k">auto</span> g = <span class="p">lock</span>(&amp;m);                <span class="c">// <span class="bad">✗</span> <span class="dg">diag.mutex-poisoned</span> (dynamic): *g may be half-updated</span>
+}</code></pre></figure>
+<h3>Stopping a thread: <code>cancel</code></h3>
+<p><code>cancel(&amp;h)</code> asks a thread to stop. Its current wait, or its next one, ends with the fault
+<code>diag.thread-cancelled</code>, contained like any other: the thread unwinds and its result is that
+failure. The waits are <code>join</code>, <code>lock</code>, a channel's <code>send</code> and <code>recv</code>, <code>sleep_ms</code>, and every socket
+operation, so a handler blocked reading a client that never writes can be stopped. A thread that
+never waits finishes its work. <code>ThreadFailure::is_cancelled</code> tells a cancellation from a bug, and a
+handle whose thread you cancelled raises nothing when it ends. Together with a channel this is
+"first answer wins" without a <code>select</code>: start one thread per source, all sending to one channel,
+take the first value, and cancel the rest.</p>
+<figure class="code"><div class="code-head"><span class="code-title">cancel ends a wait</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> listen(<span class="t">ref</span>&lt;<span class="p">Channel</span>&lt;<span class="t">u8</span>&gt;, <span class="t">shared</span>&gt; c) : <span class="t">u8</span>
+{
+    <span class="p">Option</span>::unwrap_or(<span class="p">Channel</span>::recv(c), <span class="n">0</span>)           <span class="c">// nobody ever sends</span>
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="p">Channel</span>&lt;<span class="t">u8</span>&gt; c = <span class="p">Channel</span>::new(<span class="n">1</span>);
+    <span class="k">auto</span> h = <span class="p">spawn</span>(listen, &amp;c);
+    cancel(&amp;h);                                      <span class="c">// its wait ends at once</span>
+    <span class="k">match</span> (try_join(h))
+    {
+        <span class="p">Ok</span>(_)  : <span class="p">assert</span>(<span class="k">false</span>),
+        <span class="p">Err</span>(f) : <span class="p">assert</span>(ThreadFailure::is_cancelled(&amp;f)),
+    }
+}</code></pre></figure>
+<h3>Deadlock</h3>
+<p>A wait that can never end is <code>diag.deadlock</code>, reported where it happens. A thread whose
+<code>join</code> or <code>lock</code> would close a cycle (it waits on a thread that, through holders and joins, waits on
+it) faults at once. And when every thread is waiting on another thread, a mutex or a channel, with
+none on the clock, a socket or input, the runtime faults one thread of a cycle, or all of them if
+there is no cycle. Like any fault in a spawned thread it is contained, so two deadlocked handlers in
+a server are reported and the server goes on. (The main thread waiting alone on a channel is still
+<code>diag.channel-deadlock</code>.)</p>
+<figure class="code"><div class="code-head"><span class="code-title">Every thread waiting</span><span class="badge bad">rejected: diag.deadlock</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> waits(<span class="t">ref</span>&lt;<span class="p">Channel</span>&lt;<span class="t">u8</span>&gt;, <span class="t">shared</span>&gt; c)
+{
+    _ = <span class="p">Channel</span>::recv(c);            <span class="c">// nobody will send</span>
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="p">Channel</span>&lt;<span class="t">u8</span>&gt; c = <span class="p">Channel</span>::new(<span class="n">1</span>);
+    <span class="k">auto</span> h = <span class="p">spawn</span>(waits, &amp;c);
+    <span class="p">join</span>(h);                          <span class="c">// <span class="bad">✗</span> <span class="dg">diag.deadlock</span> (dynamic): every thread waits, none can go on</span>
+}</code></pre></figure>
+<h3>Exploring schedules: <code>coby --explore</code></h3>
+<p>A result that depends on timing is easy to miss: the timing you test is rarely the one that
+goes wrong. <code>coby --explore N prog.cb</code> runs the program N times, each under a different order of its
+threads chosen by a seed, and groups the runs by outcome (output and exit status). One outcome is
+what you want; more than one means the program's result depends on timing, and <code>coby</code> exits with 1.
+Each outcome comes with a seed, and <code>coby --schedule-seed S prog.cb</code> replays that run exactly, as
+often as you need to find out why. Under a schedule the threads take turns one at a time, so
+exploration needs no cores and finds orders a parallel run would rarely produce.</p>
+<figure class="code"><div class="code-head"><span class="code-title">counter.cb: a lost update, in some orders</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> bump(<span class="t">ref</span>&lt;<span class="t">mutex</span>&lt;<span class="t">i64</span>&gt;, <span class="t">shared</span>&gt; m)
+{
+    <span class="t">i64</span> seen = <span class="n">0</span>;
+    {
+        <span class="k">auto</span> g = <span class="p">lock</span>(m);
+        seen = *g;
+    }
+    <span class="k">auto</span> g = <span class="p">lock</span>(m);
+    *g = seen + <span class="n">1</span>;                    <span class="c">// a lost update when the other thread ran in between</span>
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="t">mutex</span>&lt;<span class="t">i64</span>&gt; m = <span class="p">Mutex</span>::new(<span class="n">0</span>: <span class="t">i64</span>);
+    {
+        <span class="k">auto</span> a = <span class="p">spawn</span>(bump, &amp;m);
+        <span class="k">auto</span> b = <span class="p">spawn</span>(bump, &amp;m);
+    }
+    <span class="k">auto</span> g = <span class="p">lock</span>(&amp;m);
+    <span class="p">printf</span>(&quot;total %v
+&quot;, *g);
+}</code></pre></figure>
+<figure class="code"><div class="code-head"><span class="code-title">Two outcomes: the result depends on timing</span></div><pre><code>$ coby --explore <span class="n">50</span> counter.cb
+explored <span class="n">50</span> schedules of counter.cb: <span class="n">2</span> distinct outcomes
+
+<span class="n">19</span> runs, <span class="p">exit</span> <span class="n">0</span> -- replay: coby --schedule-seed <span class="n">1</span> counter.cb
+  | total <span class="n">1</span>
+
+<span class="n">31</span> runs, <span class="p">exit</span> <span class="n">0</span> -- replay: coby --schedule-seed <span class="n">2</span> counter.cb
+  | total <span class="n">2</span></code></pre></figure>
+<h3>Data parallelism: <code>slice_parts</code></h3>
+<p><code>slice_parts(&amp;mut v[0..$], k)</code> splits a vector (or any exclusive slice) into <code>k</code> consecutive
+runs as nearly equal as they can be, each an exclusive slice of its own. Give each run to a thread
+and the threads write one vector at once, with no lock: the runs are disjoint, and the checker
+proves it the way it proves any two ranges apart. The vector is usable again once every thread is
+joined. A thread takes a named function here, not a closure: a closure is called through an
+exclusive borrow of itself (§15), so one closure cannot run in several threads at once.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Each thread one part of a vector</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> square_all(<span class="t">slice</span>&lt;<span class="t">u64</span>, <span class="t">exclusive</span>&gt; s)
+{
+    <span class="k">for</span> (<span class="t">usize</span> i = <span class="n">0</span>; i &lt; slice_len(s); i += <span class="n">1</span>)
+    {
+        s[i] = s[i] * s[i];
+    }
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="p">Vec</span>&lt;<span class="t">u64</span>&gt; v = <span class="p">Vec</span>::new();
+    <span class="k">foreach</span> (i in <span class="n">0</span>..<span class="n">1000</span>: <span class="t">u64</span>)
+    {
+        <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, i);
+    }
+    {
+        <span class="p">Vec</span>&lt;<span class="t">slice</span>&lt;<span class="t">u64</span>, <span class="t">exclusive</span>&gt;&gt; parts = slice_parts(&amp;<span class="k">mut</span> v[<span class="n">0</span>..$], <span class="p">cpu_count</span>());
+        <span class="p">Vec</span>&lt;<span class="t">handle</span>&lt;<span class="k">void</span>&gt;&gt; hs = <span class="p">Vec</span>::new();
+        <span class="k">while</span> (<span class="p">Vec</span>::len(&amp;parts) &gt; <span class="n">0</span>)
+        {
+            <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> hs, <span class="p">spawn</span>(square_all, <span class="p">Vec</span>::swap_remove(&amp;<span class="k">mut</span> parts, <span class="n">0</span>)));
+        }
+        <span class="k">foreach</span> (h in hs)
+        {
+            <span class="p">join</span>(h);
+        }
+    }
+    <span class="p">assert</span>(v[<span class="n">999</span>] == <span class="n">998001</span>);
+}</code></pre></figure>
 <h3>What is not provided</h3>
-<p>No atomics, no memory orderings, no condition variables, no thread-local storage, and
-deadlocks are detected only in the channel case above. Steps of different threads interleave at
+<p>No atomics, no memory orderings, no condition variables, no thread-local storage. Steps of different threads interleave at
 the granularity of single operations and every operation sees a consistent state; a <code>join</code>, a
 <code>lock</code>, a <code>send</code> or a <code>recv</code> that cannot proceed simply waits. <code>Rc&lt;T&gt;</code> is not thread-safe; to share
 across threads, share a <code>mutex</code> or pass values through a <code>Channel</code>.</p>
@@ -5182,6 +5381,8 @@ it through a reference is <code>diag.aliasing-conflict</code> if the thread is s
 finished — each is free to show either permitted outcome, and they may differ.</div>
 <div class="callout rule"><div class="callout-title">Rules of thumb</div><ul>
 <li>Every thread has an owner: the handle. Join it explicitly to get the result; let scope end join it if you do not care.</li>
+<li>Supervise threads that may fail: <code>try_join</code> takes the failure as a value; <code>cancel</code> the ones you no longer need.</li>
+<li>Lend a thread exclusive access to your data only when its failure should end the program; otherwise move the data in.</li>
 <li>Share a <code>mutex</code> by shared reference; keep each guard in the smallest block that needs it.</li>
 <li>To hand values from thread to thread, send them through a <code>Channel</code>; <code>close</code> it when the last value is sent.</li>
 <li>Move data into a thread with a <code>move</code> closure or by-value arguments; lend it with references only when the mutex rule allows.</li>
@@ -5522,7 +5723,7 @@ own too.</p>
 <tbody>
 <tr><td>Submodules</td><td><a href="#stdmod-std-core"><code>core</code></a>, <a href="#stdmod-std-collections"><code>collections</code></a>, <a href="#stdmod-std-text"><code>text</code></a>, <a href="#stdmod-std-io"><code>io</code></a>, <a href="#stdmod-std-fs"><code>fs</code></a>, <a href="#stdmod-std-env"><code>env</code></a>, <a href="#stdmod-std-memory"><code>memory</code></a>, <a href="#stdmod-std-sync"><code>sync</code></a>, <a href="#stdmod-std-random"><code>random</code></a>, <a href="#stdmod-std-math"><code>math</code></a>, <a href="#stdmod-std-time"><code>time</code></a>, <a href="#stdmod-std-process"><code>process</code></a>, <a href="#stdmod-std-net"><code>net</code></a>, <a href="#stdmod-std-crypto"><code>crypto</code></a>, <a href="#stdmod-std-x509"><code>x509</code></a>, <a href="#stdmod-std-tls"><code>tls</code></a>, <a href="#stdmod-std-http"><code>http</code></a>, <a href="#stdmod-std-database"><code>database</code></a>, <a href="#stdmod-std-encoding"><code>encoding</code></a>, <a href="#stdmod-std-compress"><code>compress</code></a>, <a href="#stdmod-std-extensions"><code class="priv">extensions</code></a></td></tr>
 <tr><td>Functions</td><td><code class="priv">byte_answer</code>, <code class="priv">byte_op</code>, <code class="priv">bytes_ptr</code>, <code class="priv">code_error</code>, <code class="priv">file_error</code>, <code class="priv">fs_answer</code>, <code class="priv">path_result</code>, <code class="priv">path_text</code>, <code class="priv">print</code><sup class="nat">n</sup></td></tr>
-<tr><td>Externs (<code>unsafe</code>)</td><td><code class="priv">clock_read</code>, <code class="priv">event_op</code>, <code class="priv">file_at</code>, <code class="priv">file_op</code>, <code class="priv">file_read</code>, <code class="priv">file_write</code>, <code class="priv">fs_op</code>, <code class="priv">fs_query</code>, <code class="priv">net_op</code>, <code class="priv">os_random</code>, <code class="priv">path_op</code>, <code class="priv">proc_op</code>, <code class="priv">sleep_ns</code>, <code class="priv">stderr_write</code>, <code class="priv">stdin_read_line</code>, <code class="priv">stdout_flush</code>, <code class="priv">tz_offset</code></td></tr>
+<tr><td>Externs (<code>unsafe</code>)</td><td><code class="priv">clock_read</code>, <code class="priv">event_op</code>, <code class="priv">file_at</code>, <code class="priv">file_op</code>, <code class="priv">file_read</code>, <code class="priv">file_write</code>, <code class="priv">fs_op</code>, <code class="priv">fs_query</code>, <code class="priv">net_op</code>, <code class="priv">os_random</code>, <code class="priv">path_op</code>, <code class="priv">proc_op</code>, <code class="priv">sleep_ns</code>, <code class="priv">stderr_write</code>, <code class="priv">stdin_read_line</code>, <code class="priv">stdout_flush</code>, <code class="priv">task_op</code>, <code class="priv">tz_offset</code></td></tr>
 </tbody>
 </table>
 <h4 id="stdmod-std-core"><code>std::core</code> <span class="std-file">impl/std/core.cb</span></h4>
@@ -5540,7 +5741,7 @@ own too.</p>
 <thead><tr><th>Kind</th><th>Items</th></tr></thead>
 <tbody>
 <tr><td>Types</td><td><code class="priv">Drain</code>, <code class="priv">HashDrain</code>, <code>HashMap</code>, <code>HashSet</code>, <code>PriorityQueue</code>, <code>Queue</code>, <code class="priv">SetDrain</code>, <code>Vec</code></td></tr>
-<tr><td>Functions</td><td><code class="priv">key_before</code>, <code>read_be</code>, <code>read_le</code>, <code>slice_swap</code></td></tr>
+<tr><td>Functions</td><td><code class="priv">key_before</code>, <code>read_be</code>, <code>read_le</code>, <code>slice_parts</code>, <code>slice_swap</code></td></tr>
 <tr><td><code>Vec::</code></td><td><code>append</code>, <code class="priv">apply_order</code>, <code>binary_search</code>, <code>binary_search_by</code>, <code>clear</code>, <code>clone</code>, <code>clone_by</code>, <code>contains</code>, <code>dedup</code>, <code class="priv">drain</code>, <code>drop</code>, <code>extend_from</code>, <code>filled</code>, <code>from_fn</code>, <code>from_slice</code>, <code class="priv">grow</code>, <code>index_exclusive</code>, <code>index_of</code>, <code>index_shared</code>, <code>insert</code>, <code>len</code>, <code>new</code>, <code>pop</code>, <code>position</code>, <code>push</code>, <code>push_be</code>, <code>push_le</code>, <code>remove</code>, <code class="priv">remove_at</code>, <code class="priv">replace</code>, <code>reserve</code>, <code>retain</code>, <code>reverse</code>, <code>sort</code>, <code>sort_by</code>, <code class="priv">sorted_order</code>, <code class="priv">sorted_order_keys</code>, <code>swap</code>, <code>swap_remove</code>, <code class="priv">take_raw</code>, <code>truncate</code></td></tr>
 <tr><td><code>Drain::</code></td><td><code class="priv">drop</code>, <code class="priv">take</code>, <code class="priv">total</code></td></tr>
 <tr><td><code>HashMap::</code></td><td><code>clear</code>, <code>clone</code>, <code>contains</code>, <code>contains_str</code>, <code class="priv">drain</code>, <code>entry</code>, <code class="priv">find</code>, <code class="priv">find_str</code>, <code>get</code>, <code>get_mut</code>, <code>get_mut_str</code>, <code>get_str</code>, <code class="priv">index_of</code>, <code>insert</code>, <code>key_at</code>, <code>len</code>, <code>new</code>, <code>remove</code>, <code class="priv">remove_slot</code>, <code>remove_str</code>, <code class="priv">reserve_one</code>, <code class="priv">reslot</code>, <code>swap_remove</code>, <code class="priv">unslot</code>, <code>value_at</code></td></tr>
@@ -5606,10 +5807,11 @@ own too.</p>
 <table class="std-inv">
 <thead><tr><th>Kind</th><th>Items</th></tr></thead>
 <tbody>
-<tr><td>Types</td><td><code>Channel</code>, <code class="priv">ChannelState</code></td></tr>
-<tr><td>Functions</td><td><code>cpu_count</code></td></tr>
+<tr><td>Types</td><td><code>Channel</code>, <code class="priv">ChannelState</code>, <code>ThreadFailure</code></td></tr>
+<tr><td>Functions</td><td><code>cpu_count</code>, <code class="priv">failure_text</code>, <code>is_finished</code>, <code>try_join</code></td></tr>
 <tr><td><code>ChannelState::</code></td><td><code class="priv">pop</code></td></tr>
 <tr><td><code>Channel::</code></td><td><code>close</code>, <code>drop</code>, <code>new</code>, <code>recv</code>, <code>recv_timeout_ms</code>, <code>send</code>, <code>try_recv</code></td></tr>
+<tr><td><code>ThreadFailure::</code></td><td><code>diagnostic</code>, <code>is_cancelled</code>, <code>text</code></td></tr>
 </tbody>
 </table>
 <h4 id="stdmod-std-random"><code>std::random</code> <span class="std-file">impl/std/random.cb</span></h4>
@@ -9320,6 +9522,7 @@ four separate programs. To keep a thread's work its own:</p>
 <li>Move what a thread works on into it (<code>spawn(count, chunk)</code> with <code>chunk</code> a <code>Vec</code> you no longer need): it then belongs to the thread. A thread that reads the spawner's data through a reference shares it, which still works but costs more on every access.</li>
 <li>Hand results back as the thread's result, through <code>join</code>, or through a <code>Channel</code>, rather than writing into a structure every thread locks.</li>
 <li>Keep a lock's block to reads and writes through its guard (<code>{ auto g = lock(&amp;m); *g += 1; }</code>): such a block is a lock and an unlock and nothing more. Four threads each taking one shared mutex 200,000 times, with a little work between, took 0.6 s; giving the guard to a function, or returning from inside the block, makes each lock cost about ten times as much.</li>
+<li>A thread per connection is a sound design for a server. Each thread is an operating-system thread with a reserved, mostly uncommitted stack, and a finished thread is reused by the next <code>spawn</code>. A test server held 10,000 connections at once, each its own supervised thread answering two queries, in 248 MB, about 25 kB per idle connection, with no failures.</li>
 </ul>
 <h3 id="perf-arith">Arithmetic and plain values</h3>
 <ul>
