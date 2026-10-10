@@ -161,7 +161,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.101005</div>
+<div class="sub">Specification edition 2026.101006</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -330,7 +330,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101005</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101006</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -4744,7 +4744,8 @@ the two: in a function returning a <code>Result</code>, <code>Option::ok_or(o, e
 <code>u8 c = Option::ok_or(peek(p), fail(p, &quot;expected a value&quot;))?;</code> reads "the byte, or return that
 error". Where a default will do, <code>Option::unwrap_or(o, d)</code> and
 <code>Result::unwrap_or(r, d)</code> give the value, or <code>d</code> when there is none; the default (and <code>ok_or</code>'s
-error) is evaluated either way, and one that goes unused is destroyed. Where there must be a value,
+error) is evaluated either way, and one that goes unused is destroyed. <code>Result::ok(r)</code> turns a
+<code>Result</code> into an <code>Option</code>, dropping the error. Where there must be a value,
 <code>Option::unwrap(o)</code> and <code>Result::unwrap(r)</code> give it or fault with <code>diag.unwrap-failed</code>, and
 <code>Option::expect(o, &quot;…&quot;)</code> and <code>Result::expect(r, &quot;…&quot;)</code> do the same with your message.</p>
 <figure class="code"><div class="code-head"><span class="code-title">unwrap, expect, replacing a String, and clone_by</span><span class="badge bad">rejected: diag.unwrap-failed</span></div><pre><code><span class="k">import</span> std;
@@ -5745,7 +5746,7 @@ own too.</p>
 <tr><td>Types</td><td><code>AllocError</code>, <code>Option</code>, <code>Result</code></td></tr>
 <tr><td>Functions</td><td><code>assert</code><sup class="nat">n</sup>, <code>overwrite</code>, <code>replace</code>, <code>swap</code></td></tr>
 <tr><td><code>Option::</code></td><td><code>expect</code>, <code>is_none</code>, <code>is_some</code>, <code>ok_or</code>, <code>unwrap</code>, <code>unwrap_or</code></td></tr>
-<tr><td><code>Result::</code></td><td><code>expect</code>, <code>is_err</code>, <code>is_ok</code>, <code>map_err</code><sup class="nat">n</sup>, <code>unwrap</code>, <code>unwrap_or</code></td></tr>
+<tr><td><code>Result::</code></td><td><code>expect</code>, <code>is_err</code>, <code>is_ok</code>, <code>map_err</code><sup class="nat">n</sup>, <code>ok</code>, <code>unwrap</code>, <code>unwrap_or</code></td></tr>
 </tbody>
 </table>
 <h4 id="stdmod-std-collections"><code>std::collections</code> <span class="std-file">impl/std/collections.cb</span></h4>
@@ -5753,7 +5754,7 @@ own too.</p>
 <thead><tr><th>Kind</th><th>Items</th></tr></thead>
 <tbody>
 <tr><td>Types</td><td><code class="priv">Drain</code>, <code class="priv">HashDrain</code>, <code>HashMap</code>, <code>HashSet</code>, <code>PriorityQueue</code>, <code>Queue</code>, <code class="priv">SetDrain</code>, <code>Vec</code></td></tr>
-<tr><td>Functions</td><td><code class="priv">key_before</code>, <code>read_be</code>, <code>read_le</code>, <code>slice_parts</code>, <code>slice_swap</code></td></tr>
+<tr><td>Functions</td><td><code class="priv">key_before</code>, <code>read_be</code>, <code>read_le</code>, <code>slice_eq</code>, <code>slice_parts</code>, <code>slice_swap</code></td></tr>
 <tr><td><code>Vec::</code></td><td><code>append</code>, <code class="priv">apply_order</code>, <code>binary_search</code>, <code>binary_search_by</code>, <code>clear</code>, <code>clone</code>, <code>clone_by</code>, <code>contains</code>, <code>dedup</code>, <code class="priv">drain</code>, <code>drop</code>, <code>extend_from</code>, <code>filled</code>, <code>from_fn</code>, <code>from_slice</code>, <code class="priv">grow</code>, <code>index_exclusive</code>, <code>index_of</code>, <code>index_shared</code>, <code>insert</code>, <code>len</code>, <code>new</code>, <code>pop</code>, <code>position</code>, <code>push</code>, <code>push_be</code>, <code>push_le</code>, <code>remove</code>, <code class="priv">remove_at</code>, <code class="priv">replace</code>, <code>reserve</code>, <code>retain</code>, <code>reverse</code>, <code>sort</code>, <code>sort_by</code>, <code class="priv">sorted_order</code>, <code class="priv">sorted_order_keys</code>, <code>swap</code>, <code>swap_remove</code>, <code class="priv">take_raw</code>, <code>truncate</code></td></tr>
 <tr><td><code>Drain::</code></td><td><code class="priv">drop</code>, <code class="priv">take</code>, <code class="priv">total</code></td></tr>
 <tr><td><code>HashMap::</code></td><td><code>clear</code>, <code>clone</code>, <code>contains</code>, <code>contains_str</code>, <code class="priv">drain</code>, <code>entry</code>, <code class="priv">find</code>, <code class="priv">find_str</code>, <code>get</code>, <code>get_mut</code>, <code>get_mut_str</code>, <code>get_str</code>, <code class="priv">index_of</code>, <code>insert</code>, <code>key_at</code>, <code>len</code>, <code>new</code>, <code>remove</code>, <code class="priv">remove_slot</code>, <code>remove_str</code>, <code class="priv">reserve_one</code>, <code class="priv">reslot</code>, <code>swap_remove</code>, <code class="priv">unslot</code>, <code>value_at</code></td></tr>
@@ -5773,7 +5774,7 @@ own too.</p>
 <tr><td><code>Utf8Error::</code></td><td><code>text</code></td></tr>
 <tr><td><code>ParseError::</code></td><td><code>text</code></td></tr>
 <tr><td><code>String::</code></td><td><code>append</code>, <code class="priv">append_str</code>, <code class="priv">append_string</code>, <code class="priv">append_text</code>, <code class="priv">append_view</code>, <code>appendf</code><sup class="nat">n</sup>, <code>as_bytes</code>, <code>as_view</code>, <code>char_count</code>, <code>chars</code>, <code>clear</code>, <code>clone</code>, <code>code_point</code>, <code>contains</code>, <code>ends_with</code>, <code>eq</code>, <code>eq_str</code>, <code>eq_view</code>, <code>find</code>, <code>from_str</code>, <code>from_utf8</code>, <code>from_view</code>, <code>into_bytes</code>, <code>join</code>, <code>len</code>, <code>less</code>, <code>lines</code>, <code>new</code>, <code>parse</code>, <code>push_ascii</code>, <code>push_code_point</code>, <code>replace</code>, <code>reserve</code>, <code>split</code>, <code>split_whitespace</code>, <code>starts_with</code>, <code>strip_prefix</code>, <code>strip_suffix</code>, <code>to_ascii_lower</code>, <code>to_ascii_upper</code>, <code>trim</code>, <code>trim_end</code>, <code>trim_start</code>, <code>truncate</code>, <code>view</code></td></tr>
-<tr><td><code>StringView::</code></td><td><code>as_bytes</code>, <code class="priv">at</code>, <code class="priv">boundary</code>, <code>char_count</code>, <code>chars</code>, <code>code_point</code>, <code>contains</code>, <code>ends_with</code>, <code>eq</code>, <code>eq_str</code>, <code>find</code>, <code>join</code>, <code>len</code>, <code>less</code>, <code>lines</code>, <code>of</code>, <code>parse</code>, <code class="priv">ptr</code>, <code>replace</code>, <code class="priv">space</code>, <code>split</code>, <code>split_whitespace</code>, <code>starts_with</code>, <code>strip_prefix</code>, <code>strip_suffix</code>, <code>sub</code>, <code>trim</code>, <code>trim_end</code>, <code>trim_start</code></td></tr>
+<tr><td><code>StringView::</code></td><td><code>as_bytes</code>, <code class="priv">at</code>, <code class="priv">boundary</code>, <code>char_count</code>, <code>chars</code>, <code>code_point</code>, <code>contains</code>, <code>ends_with</code>, <code>eq</code>, <code>eq_str</code>, <code>find</code>, <code>from_utf8</code>, <code>join</code>, <code>len</code>, <code>less</code>, <code>lines</code>, <code>of</code>, <code>parse</code>, <code class="priv">ptr</code>, <code>replace</code>, <code class="priv">space</code>, <code>split</code>, <code>split_whitespace</code>, <code>starts_with</code>, <code>strip_prefix</code>, <code>strip_suffix</code>, <code>sub</code>, <code>trim</code>, <code>trim_end</code>, <code>trim_start</code></td></tr>
 </tbody>
 </table>
 <h4 id="stdmod-std-io"><code>std::io</code> <span class="std-file">impl/std/io.cb</span></h4>
@@ -5861,7 +5862,7 @@ own too.</p>
 <tr><td>Types</td><td><code>Child</code>, <code>ChildInput</code>, <code>ChildOutput</code>, <code>Command</code>, <code>Output</code></td></tr>
 <tr><td>Functions</td><td><code>exit</code><sup class="nat">n</sup>, <code>interrupt_requested</code>, <code class="priv">pipe_op</code>, <code>process_id</code>, <code>watch_interrupts</code></td></tr>
 <tr><td><code>Command::</code></td><td><code>arg</code>, <code>clear_env</code>, <code>current_dir</code>, <code class="priv">encode</code>, <code>env</code>, <code>new</code>, <code>output</code>, <code>output_with_input</code>, <code class="priv">put</code>, <code class="priv">run</code>, <code>spawn</code>, <code>status</code></td></tr>
-<tr><td><code>Child::</code></td><td><code class="priv">cap</code>, <code>close_input</code>, <code class="priv">done</code>, <code>drop</code>, <code>id</code>, <code>kill</code>, <code class="priv">op</code>, <code>read_error</code>, <code>read_error_line</code>, <code>read_output</code>, <code>read_output_line</code>, <code class="priv">take</code>, <code>take_input</code>, <code>take_output</code>, <code>terminate</code>, <code>try_wait</code>, <code>wait</code>, <code>write_input</code></td></tr>
+<tr><td><code>Child::</code></td><td><code class="priv">cap</code>, <code>close_input</code>, <code class="priv">done</code>, <code>drop</code>, <code>id</code>, <code>kill</code>, <code>kill_tree</code>, <code class="priv">op</code>, <code>read_error</code>, <code>read_error_line</code>, <code>read_output</code>, <code>read_output_line</code>, <code class="priv">take</code>, <code>take_input</code>, <code>take_output</code>, <code>terminate</code>, <code>try_wait</code>, <code>wait</code>, <code>write_input</code></td></tr>
 <tr><td><code>ChildInput::</code></td><td><code>drop</code>, <code>write</code></td></tr>
 <tr><td><code>ChildOutput::</code></td><td><code>drop</code>, <code>read</code>, <code>read_line</code></td></tr>
 </tbody>
@@ -5877,7 +5878,7 @@ own too.</p>
 <tr><td><code>NetError::</code></td><td><code>text</code></td></tr>
 <tr><td><code>TcpListener::</code></td><td><code>accept</code>, <code>bind</code>, <code>drop</code>, <code>local_addr</code>, <code>set_accept_timeout_ms</code></td></tr>
 <tr><td><code>TcpStream::</code></td><td><code>connect</code>, <code>connect_timeout</code>, <code>drop</code>, <code>local_addr</code>, <code>peer_addr</code>, <code>printf</code><sup class="nat">n</sup>, <code>read</code>, <code>read_exact</code>, <code>read_line</code>, <code>set_keepalive</code>, <code>set_nodelay</code>, <code>set_read_timeout_ms</code>, <code>set_write_timeout_ms</code>, <code>shutdown_write</code>, <code class="priv">take</code>, <code>try_clone</code>, <code>write</code>, <code class="priv">write_formatted</code>, <code>write_text</code></td></tr>
-<tr><td><code>UdpSocket::</code></td><td><code>bind</code>, <code>connect</code>, <code>drop</code>, <code>local_addr</code>, <code>recv</code>, <code>recv_from</code>, <code>send</code>, <code>send_to</code>, <code>set_read_timeout_ms</code></td></tr>
+<tr><td><code>UdpSocket::</code></td><td><code>bind</code>, <code>connect</code>, <code>drop</code>, <code>local_addr</code>, <code>recv</code>, <code>recv_from</code>, <code>send</code>, <code>send_to</code>, <code>set_read_timeout_ms</code>, <code>try_clone</code></td></tr>
 </tbody>
 </table>
 <h4 id="stdmod-std-crypto"><code>std::crypto</code> <span class="std-file">impl/std/crypto.cb</span></h4>
@@ -6169,6 +6170,7 @@ is the rest, for finding a name quickly.</p>
 <tr><td><code>Option::unwrap(o)</code>, <code>Option::expect(o, msg)</code>, <code>Result::unwrap(r)</code>, <code>Result::expect(r, msg)</code></td><td>the value, or the fault <code>diag.unwrap-failed</code> (with <code>msg</code>) when there is none</td><td>§18</td></tr>
 <tr><td><code>Option::unwrap_or(o, d)</code>, <code>Result::unwrap_or(r, d)</code></td><td>the value, or the default <code>d</code> when there is none</td><td>§18</td></tr>
 <tr><td><code>Option::ok_or(o, e)</code></td><td>the <code>Option</code> as a <code>Result</code>, <code>Err(e)</code> for <code>None</code>, so <code>?</code> applies to it</td><td>§18</td></tr>
+<tr><td><code>Result::ok(r)</code></td><td>the <code>Result</code> as an <code>Option</code>: <code>Some</code> of the value, <code>None</code> for an error (which is destroyed)</td><td>§18</td></tr>
 <tr><td><code>Option::is_some(&amp;o)</code>, <code>is_none</code>, <code>Result::is_ok(&amp;r)</code>, <code>is_err</code></td><td>which variant, without taking the value</td><td>§18</td></tr>
 <tr><td><code>Result::map_err(r, f)</code></td><td>convert a <code>Result</code>'s error type with <code>f</code></td><td>§18</td></tr>
 <tr><td><code>FileError::text(&amp;e)</code>, <code>ParseError::text</code>, <code>Utf8Error::text</code></td><td>a <code>std</code> error as a sentence for a person, a <code>str</code></td><td>§21</td></tr>
@@ -6299,6 +6301,7 @@ destructor destroys each element and frees the buffer. A plain element is copied
 <tr><td><code>Vec::position</code></td><td><code>(ref&lt;Vec&lt;T&gt;, shared&gt;, fn(ref&lt;T, shared&gt;) : bool) : Option&lt;usize&gt;</code></td><td>the first index whose element satisfies the test, or <code>None</code>; a closure may capture the key it looks for</td></tr>
 <tr><td><code>Vec::index_of</code>, <code>Vec::contains</code></td><td><code>(ref&lt;Vec&lt;T&gt;, shared&gt;, ref&lt;T, shared&gt;) : Option&lt;usize&gt;</code> / <code>: bool</code></td><td>the first index equal to the value, or whether there is one; <code>T: eq</code> — a number, <code>bool</code>, <code>str</code> or <code>String</code> (a struct takes <code>position</code>)</td></tr>
 <tr><td><code>Vec::reverse</code></td><td><code>(ref&lt;Vec&lt;T&gt;, exclusive&gt;)</code></td><td>the order inverted in place, by swaps; nothing is destroyed</td></tr>
+<tr><td><code>slice_eq</code></td><td><code>(slice&lt;T, shared&gt;, slice&lt;T, shared&gt;) : bool</code></td><td>the same length and equal elements in order; <code>T: eq</code>. <code>==</code> does not compare vectors (they are resources): <code>slice_eq(&amp;a[0..$], &amp;b[0..$])</code></td></tr>
 <tr><td><code>Vec::push_le(&amp;mut v, x)</code>, <code>Vec::push_be</code></td><td><code>(ref&lt;Vec&lt;u8&gt;, exclusive&gt;, T: integer)</code></td><td><code>x</code>'s bytes onto a byte <code>Vec</code>, least (<code>le</code>) or most (<code>be</code>) significant first; any width, signed as two's complement (D-0119)</td></tr>
 <tr><td><code>read_le&lt;T&gt;(&amp;v[0..$], at)</code>, <code>read_be&lt;T&gt;</code></td><td><code>(slice&lt;u8, shared&gt;, usize) : T</code></td><td>the <code>T</code> whose bytes start at <code>at</code>; <code>diag.index-out-of-bounds</code> when fewer than <code>sizeof&lt;T&gt;()</code> remain</td></tr>
 <tr><td><code>crc32(&amp;v[0..$])</code></td><td><code>(slice&lt;u8, shared&gt;) : u32</code></td><td>CRC-32/IEEE, the checksum of zlib, gzip and PNG; <code>crc32</code> of <code>&quot;123456789&quot;</code>'s bytes is <code>0xCBF43926</code> (§21 of the specification writes the algorithm out)</td></tr>
@@ -6554,6 +6557,7 @@ miniature.</p>
 <tr><td><code>String::new</code></td><td><code>() : String</code> (empty)</td></tr>
 <tr><td><code>String::from_str</code></td><td><code>(str) : String</code> (copies; cannot fail); a literal where a <code>String</code> is declared is this call already (D-0149)</td></tr>
 <tr><td><code>String::from_utf8</code></td><td><code>(Vec&lt;u8&gt;) : Result&lt;String, Utf8Error&gt;</code></td></tr>
+<tr><td><code>StringView::from_utf8</code></td><td><code>(slice&lt;u8, shared&gt;) : Result&lt;StringView, Utf8Error&gt;</code> -- the same check, and a view of the bytes instead of a copy</td></tr>
 <tr><td><code>String::len</code></td><td><code>(ref&lt;String, shared&gt;) : usize</code> (bytes)</td></tr>
 <tr><td><code>String::into_bytes</code></td><td><code>(String) : Vec&lt;u8&gt;</code> (gives the bytes back, consuming the string)</td></tr>
 <tr><td><code>String::as_bytes</code></td><td><code>(ref&lt;String, shared&gt;) : ref&lt;Vec&lt;u8&gt;, shared&gt;</code> (read the bytes in place)</td></tr>
@@ -7765,7 +7769,10 @@ lock 1 released
 <p><strong>Also</strong> (D-0181): <code>Child::read_error_line(&amp;mut ch)</code> reads the child's standard error a
 line at a time, as <code>read_output_line</code> does its output; <code>Child::terminate(&amp;mut ch)</code> asks it to stop
 (SIGTERM on Unix, which a program may catch to finish cleanly) where <code>kill</code> ends it at once; and
-<code>process_id()</code> is this program's own number, for a pid file.</p>
+<code>process_id()</code> is this program's own number, for a pid file. <code>kill</code> and <code>terminate</code> signal the child
+alone: a <code>sh -c &quot;…&quot;</code> killed leaves the commands it started running. <code>Child::kill_tree(&amp;mut ch)</code> (D-0205)
+ends the child and every process it started, and theirs (on Linux, found from <code>/proc</code>; on Windows with
+<code>taskkill /T</code>).</p>
 <p><strong>Streaming between processes</strong> (D-0195). A <code>Child</code>'s pipes all belong to it, and
 every call borrows it exclusively, so one thread cannot write a child's input while another reads
 its output. <code>Child::take_input(&amp;mut ch)</code> and <code>Child::take_output(&amp;mut ch)</code> move a pipe out into a
@@ -8398,6 +8405,7 @@ protocol needs its own framing — lines, read with <code>read_line</code>, are 
 <tr><td><code>TcpStream::shutdown_write(&amp;mut s)</code></td><td>tell the peer nothing more is coming (it reads 0), and keep reading</td></tr>
 <tr><td><code>set_read_timeout_ms</code>, <code>set_write_timeout_ms</code>, <code>set_nodelay</code></td><td>per-stream timeouts (0: none); send small writes at once</td></tr>
 <tr><td><code>UdpSocket::bind(addr)</code>, <code>send_to(&amp;mut u, data, to)</code>, <code>recv_from(&amp;mut u, max)</code></td><td>datagrams: one message each, with its sender in the <code>Datagram</code></td></tr>
+<tr><td><code>UdpSocket::try_clone(&amp;u)</code></td><td>a second handle on the same socket: one thread waits in <code>recv_from</code> while another sends on the clone</td></tr>
 <tr><td><code>UdpSocket::connect(&amp;mut u, to)</code>, <code>send(&amp;mut u, data)</code>, <code>recv(&amp;mut u, max)</code></td><td>a socket talking to one peer: <code>recv</code> drops datagrams from anyone else (D-0181)</td></tr>
 <tr><td><code>TcpStream::try_clone(&amp;s)</code></td><td>a second handle on the same connection, for one thread to read while another writes; the connection closes when the last handle is dropped (D-0185)</td></tr>
 <tr><td><code>TcpStream::set_keepalive(&amp;mut s, on)</code></td><td>have the system probe an idle connection, so a vanished peer is noticed (D-0181)</td></tr>
@@ -9533,7 +9541,7 @@ doing their own work run in parallel (§19). Measured with four threads each cou
 the same text: 0.30 s, against 0.16 s for one thread doing a quarter of the work, and 0.24 s for
 four separate programs. To keep a thread's work its own:</p>
 <ul>
-<li>Move what a thread works on into it (<code>spawn(count, chunk)</code> with <code>chunk</code> a <code>Vec</code> you no longer need): it then belongs to the thread. A thread that reads the spawner's data through a reference shares it, which still works but costs more on every access.</li>
+<li>Move what a thread works on into it (<code>spawn(count, chunk)</code> with <code>chunk</code> a <code>Vec</code> you no longer need): it then belongs to the thread. A thread that reads the spawner's data through a reference shares it. Read it through a shared reference *parameter* the function never rebinds or borrows (<code>fn band(ref&lt;Vec&lt;Row&gt;, shared&gt; rows, …)</code>), and hand its fields and elements on only to functions that keep nothing of them: <code>cobc</code> then reads through it with bounds checks alone, since nothing can change what it reaches while the call runs, and several threads read one structure at once (four threads aggregating 20,000 rows: 30 ms, against 48 ms for one). A reference kept past the call, or stored in a struct, is tracked as usual, and threads that form such references into one structure take turns on its records.</li>
 <li>Hand results back as the thread's result, through <code>join</code>, or through a <code>Channel</code>, rather than writing into a structure every thread locks.</li>
 <li>Keep a lock's block to reads and writes through its guard (<code>{ auto g = lock(&amp;m); *g += 1; }</code>): such a block is a lock and an unlock and nothing more. Four threads each taking one shared mutex 200,000 times, with a little work between, took 0.6 s; giving the guard to a function, or returning from inside the block, makes each lock cost about ten times as much.</li>
 <li>A thread per connection is a sound design for a server. Each thread is an operating-system thread with a reserved, mostly uncommitted stack, and a finished thread is reused by the next <code>spawn</code>. A test server held 10,000 connections at once, each its own supervised thread answering two queries, in 250 MB, about 25 kB per idle connection, with no failures, and a round trip cost the same 0.13–0.16 ms with 1,000 connections open as with 10,000. An idle connection costs nothing while it waits: on Linux its thread sleeps in the kernel until data arrives or it is cancelled.</li>
