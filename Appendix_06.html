@@ -161,7 +161,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.100903</div>
+<div class="sub">Specification edition 2026.101001</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -330,7 +330,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.100903</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101001</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -5088,13 +5088,61 @@ from an empty channel, or sending to a full one, with no spawned thread running 
 loop that also watches a socket or <code>interrupt_requested()</code> must tell "nothing yet" from "the
 senders are done". <code>Channel::recv_timeout_ms(&amp;ch, ms)</code> waits at most <code>ms</code> milliseconds for the same
 three answers. <code>cpu_count()</code> is how many threads the machine runs at once, the size to give a pool.</p>
+<h3 id="s19-how-threads-run">How threads run</h3>
+<p>Every CobaltC thread is a thread of the operating system. In a program built by <code>cobc</code>
+they run at once, on as many cores as the machine has. The checks of §08 and §10 still run as the
+program goes, in every thread, and two threads that use the same object meet in them: that is how
+a conflict between threads is caught at the access that would have raced.</p>
+<p>To keep threads from slowing each other down, the run-time checks keep each thread's records
+apart. What a thread makes, and what is moved into it, are its own; most checks on them involve no
+other thread. Where threads do meet:</p>
+<ul>
+<li><strong>Data reached through a reference to another thread's</strong> (<code>spawn(f, &amp;v)</code>) stays the owner's, and each access through it is checked against the owner's records too. It works, and costs a little more on every access than data the thread owns.</li>
+<li><strong>Waiting</strong> — on <code>join</code>, on a <code>lock</code> someone else holds, on a full or empty <code>Channel</code> — stops only the waiting thread. Sending and receiving on a channel involve no other thread's checks; taking a mutex's lock briefly pauses them.</li>
+<li><strong>Some steps still pause the other threads' checks briefly</strong>: chiefly the end of a function or block that owns values the checks track, and destroying a value that runs code (a destructor, a <code>fn</code> value). In hot loops most locals are not tracked at all (the performance chapter says which), so this is rarely where the time goes.</li>
+</ul>
+<p>So the program that runs fastest in parallel gives each thread its work: move a chunk of the
+data into the thread (an argument it takes by value, which then belongs to it) and hand the result
+back through <code>join</code> or a <code>Channel</code>. The performance chapter's <a href="#perf-threads">Threads</a>
+section has the figures.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Each thread its own data</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> total(<span class="p">Vec</span>&lt;<span class="t">u64</span>&gt; chunk) : <span class="t">u64</span>
+{
+    <span class="t">u64</span> t = <span class="n">0</span>;
+    <span class="k">foreach</span> (x in &amp;chunk)
+    {
+        t += *x;
+    }
+    t
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="p">Vec</span>&lt;<span class="t">handle</span>&lt;<span class="t">u64</span>&gt;&gt; hs = <span class="p">Vec</span>::new();
+    <span class="k">foreach</span> (k in <span class="n">0</span>..<span class="n">4</span>: <span class="t">u64</span>)
+    {
+        <span class="p">Vec</span>&lt;<span class="t">u64</span>&gt; chunk = <span class="p">Vec</span>::new();                 <span class="c">// made here, then moved into its thread</span>
+        <span class="k">foreach</span> (i in <span class="n">0</span>..<span class="n">1000</span>: <span class="t">u64</span>)
+        {
+            <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> chunk, k * <span class="n">1000</span> + i);
+        }
+        <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> hs, <span class="p">spawn</span>(total, chunk));   <span class="c">// `chunk` now belongs to that thread</span>
+    }
+    <span class="t">u64</span> sum = <span class="n">0</span>;
+    <span class="k">while</span> (<span class="p">Vec</span>::len(&amp;hs) &gt; <span class="n">0</span>)
+    {
+        sum += <span class="p">join</span>(<span class="p">Option</span>::unwrap(<span class="p">Vec</span>::pop(&amp;<span class="k">mut</span> hs)));
+    }
+    <span class="p">assert</span>(sum == <span class="n">7998000</span>);                         <span class="c">// 0 + 1 + … + 3999</span>
+}</code></pre></figure>
 <h3>What is not provided</h3>
 <p>No atomics, no memory orderings, no condition variables, no thread-local storage, and
 deadlocks are detected only in the channel case above. Steps of different threads interleave at
 the granularity of single operations and every operation sees a consistent state; a <code>join</code>, a
 <code>lock</code>, a <code>send</code> or a <code>recv</code> that cannot proceed simply waits. <code>Rc&lt;T&gt;</code> is not thread-safe; to share
 across threads, share a <code>mutex</code> or pass values through a <code>Channel</code>.</p>
-<div class="callout note"><div class="callout-title">Parallel or interleaved</div>The compiler <code>cobc</code> runs threads in parallel on separate cores; the interpreter <code>coby</code>
+<div class="callout note"><div class="callout-title">Parallel or interleaved</div>The compiler <code>cobc</code> runs threads in parallel on separate cores (above); the interpreter <code>coby</code>
 runs them one at a time. A program that follows the rules gets the same result from both. Where the
 language leaves an outcome to timing — writing a variable while another thread may still be reading
 it through a reference is <code>diag.aliasing-conflict</code> if the thread is still running, and fine if it has
@@ -7113,9 +7161,12 @@ so it cannot be used again. Every operation returns a <code>Result</code> whose 
 <tr><td><code>read_bytes(path)</code>, <code>write_bytes(path, &amp;bytes[i..j])</code></td><td><code>read_file</code> and <code>write_file</code> for bytes: a <code>Vec&lt;u8&gt;</code></td></tr>
 </tbody>
 </table>
-<p>Reading is buffered, so <code>read_line</code> is quick, and <code>File::read</code> fills up to what was asked for; each
-write reaches the file before it returns, so gather many small pieces in a <code>String</code> or <code>Vec&lt;u8&gt;</code>
-first when speed matters.</p>
+<p>Reading is buffered, so <code>read_line</code> is quick, and <code>File::read</code> fills up to what was asked for.
+Writing is buffered too (D-0201), so writing a file line by line is fast. The program itself always
+sees what it wrote: the bytes reach the file before the same file's next operation, before any
+other file operation of the program (opening, <code>read_file</code>, <code>file_info</code>, removing, renaming), before a
+child process starts, and when the program ends, however it ends. Another program watching the file
+while yours runs sees them at those points; <code>File::flush</code> writes them out at once.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Writing a log, reading it line by line, and seeking</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> main()
@@ -9227,6 +9278,15 @@ clones the key on every call; looking the key up first,
 <code>match (HashMap::get_mut(&amp;mut counts, w)) { Some(c) : *c += 1, None : … }</code>, clones only for a new
 key. Over 1,000,000 words the second was about 8% faster, but both are a few hundred nanoseconds a
 word: write whichever reads better.</p>
+<h3 id="perf-threads">Threads</h3>
+<p>Each running thread keeps its own share of the compiled program's runtime checks, so threads
+doing their own work run in parallel (§19). Measured with four threads each counting the words of
+the same text: 0.30 s, against 0.16 s for one thread doing a quarter of the work, and 0.24 s for
+four separate programs. To keep a thread's work its own:</p>
+<ul>
+<li>Move what a thread works on into it (<code>spawn(count, chunk)</code> with <code>chunk</code> a <code>Vec</code> you no longer need): it then belongs to the thread. A thread that reads the spawner's data through a reference shares it, which still works but costs more on every access.</li>
+<li>Hand results back as the thread's result, through <code>join</code>, or through a <code>Channel</code>, rather than writing into a structure every thread locks.</li>
+</ul>
 <h3 id="perf-arith">Arithmetic and plain values</h3>
 <ul>
 <li>Every <code>+</code>, <code>-</code> and <code>*</code> on integers is checked for overflow (§06). Where wrapping around is what you mean (hashes, checksums, random number generators), say so with <code>wrapping_add</code>, <code>wrapping_mul</code> and their relatives: a tight sum took a third less time, and Clang executed 40% of the instructions. Never use them to avoid a check on arithmetic that should not overflow: the check is what turns a wrong result into a diagnostic.</li>
