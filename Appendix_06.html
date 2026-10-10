@@ -161,7 +161,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.101001</div>
+<div class="sub">Specification edition 2026.101002</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -330,7 +330,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101001</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101002</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -5098,8 +5098,9 @@ apart. What a thread makes, and what is moved into it, are its own; most checks 
 other thread. Where threads do meet:</p>
 <ul>
 <li><strong>Data reached through a reference to another thread's</strong> (<code>spawn(f, &amp;v)</code>) stays the owner's, and each access through it is checked against the owner's records too. It works, and costs a little more on every access than data the thread owns.</li>
-<li><strong>Waiting</strong> — on <code>join</code>, on a <code>lock</code> someone else holds, on a full or empty <code>Channel</code> — stops only the waiting thread. Sending and receiving on a channel involve no other thread's checks; taking a mutex's lock briefly pauses them.</li>
-<li><strong>Some steps still pause the other threads' checks briefly</strong>: chiefly the end of a function or block that owns values the checks track, and destroying a value that runs code (a destructor, a <code>fn</code> value). In hot loops most locals are not tracked at all (the performance chapter says which), so this is rarely where the time goes.</li>
+<li><strong>Waiting</strong> — on <code>join</code>, on a <code>lock</code> someone else holds, on a full or empty <code>Channel</code> — stops only the waiting thread, which spins briefly before it sleeps: most waits for a lock are short. Locking, sending and receiving involve no other thread's checks.</li>
+<li><strong>A block that only reads and writes through its guard</strong> (<code>{ auto g = lock(&amp;m); *g += 1; }</code>, plain data inside, no early <code>return</code>) costs a lock and an unlock and nothing more: <code>cobc</code> makes no guard object for it.</li>
+<li><strong>Running code of the program on a value's end</strong> — a destructor you wrote, a <code>fn</code> value, a <code>Box</code> — briefly pauses the other threads' checks. Everything else the runtime does at a block's end stays within the threads involved.</li>
 </ul>
 <p>So the program that runs fastest in parallel gives each thread its work: move a chunk of the
 data into the thread (an argument it takes by value, which then belongs to it) and hand the result
@@ -5135,6 +5136,38 @@ section has the figures.</p>
         sum += <span class="p">join</span>(<span class="p">Option</span>::unwrap(<span class="p">Vec</span>::pop(&amp;<span class="k">mut</span> hs)));
     }
     <span class="p">assert</span>(sum == <span class="n">7998000</span>);                         <span class="c">// 0 + 1 + … + 3999</span>
+}</code></pre></figure>
+<h3 id="s19-guarantee">The guarantee</h3>
+<p>What a program without <code>unsafe</code> can rely on, however its threads are timed (<code>rule.conc.guarantee</code>):</p>
+<ul>
+<li><strong>No data races.</strong> Two threads never touch the same storage at once with one of them writing. Either something orders the two accesses (a <code>join</code>, a mutex's lock, a value sent and received), or the second access is <code>diag.aliasing-conflict</code>.</li>
+<li><strong>One step at a time.</strong> Every run is some interleaving of the threads' steps, each step whole: a thread never sees half of another's write, and there is no reordering to reason about.</li>
+<li><strong>Nothing undefined.</strong> An access that is not allowed is a diagnostic, in every interleaving.</li>
+</ul>
+<p>A reference passed to <code>spawn</code> belongs to the new thread from the moment of the <code>spawn</code>, until
+the thread ends, even before it has run a single step. Timing can still choose between two permitted
+outcomes: a thread that has already finished holds nothing, so an access that would have conflicted
+with it while it ran is fine afterwards. Use <code>join</code> (or a channel) to make the order part of the
+program. Deadlock is not ruled out (below).</p>
+<figure class="code"><div class="code-head"><span class="code-title">Caught, whatever the timing</span><span class="badge bad">rejected: diag.aliasing-conflict</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> bump(<span class="t">ref</span>&lt;<span class="t">i64</span>, <span class="t">exclusive</span>&gt; x, <span class="t">ref</span>&lt;<span class="p">Channel</span>&lt;<span class="t">u8</span>&gt;, <span class="t">shared</span>&gt; go)
+{
+    _ = <span class="p">Channel</span>::recv(go);                    <span class="c">// waits, holding x</span>
+    *x += <span class="n">1</span>;
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="p">Vec</span>&lt;<span class="t">i64</span>&gt; v = <span class="p">Vec</span>::filled(<span class="n">4</span>, <span class="n">0</span>: <span class="t">i64</span>);
+    <span class="p">Channel</span>&lt;<span class="t">u8</span>&gt; go = <span class="p">Channel</span>::new(<span class="n">1</span>);
+    {
+        <span class="k">auto</span> h = <span class="p">spawn</span>(bump, &amp;<span class="k">mut</span> v[<span class="n">0</span>], &amp;go);
+        <span class="t">i64</span> other = v[<span class="n">1</span>];                      <span class="c">// fine: another element</span>
+        <span class="t">i64</span> same = v[<span class="n">0</span>];                       <span class="c">// <span class="bad">✗</span> <span class="dg">diag.aliasing-conflict</span>: the thread holds v[0]</span>
+        _ = <span class="p">Channel</span>::send(&amp;go, <span class="n">1</span>);
+        <span class="p">join</span>(h);
+    }
 }</code></pre></figure>
 <h3>What is not provided</h3>
 <p>No atomics, no memory orderings, no condition variables, no thread-local storage, and
@@ -9286,6 +9319,7 @@ four separate programs. To keep a thread's work its own:</p>
 <ul>
 <li>Move what a thread works on into it (<code>spawn(count, chunk)</code> with <code>chunk</code> a <code>Vec</code> you no longer need): it then belongs to the thread. A thread that reads the spawner's data through a reference shares it, which still works but costs more on every access.</li>
 <li>Hand results back as the thread's result, through <code>join</code>, or through a <code>Channel</code>, rather than writing into a structure every thread locks.</li>
+<li>Keep a lock's block to reads and writes through its guard (<code>{ auto g = lock(&amp;m); *g += 1; }</code>): such a block is a lock and an unlock and nothing more. Four threads each taking one shared mutex 200,000 times, with a little work between, took 0.6 s; giving the guard to a function, or returning from inside the block, makes each lock cost about ten times as much.</li>
 </ul>
 <h3 id="perf-arith">Arithmetic and plain values</h3>
 <ul>
