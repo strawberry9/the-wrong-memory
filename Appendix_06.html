@@ -161,7 +161,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.101004</div>
+<div class="sub">Specification edition 2026.101005</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -330,7 +330,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101004</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101005</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -5978,7 +5978,7 @@ own too.</p>
 <thead><tr><th>Kind</th><th>Items</th></tr></thead>
 <tbody>
 <tr><td>Types</td><td><code>HttpClient</code>, <code class="priv">IdleConn</code>, <code class="priv">StatusLine</code></td></tr>
-<tr><td>Functions</td><td><code class="priv">exchange</code>, <code class="priv">exchange_on</code>, <code>http_get</code>, <code>http_post</code>, <code class="priv">method_has_body</code>, <code class="priv">not_content_encoding</code>, <code class="priv">open_connection</code>, <code class="priv">origin_of</code>, <code class="priv">parse_status_line</code>, <code class="priv">redirect_target</code>, <code class="priv">request_bytes</code></td></tr>
+<tr><td>Functions</td><td><code class="priv">exchange</code>, <code class="priv">exchange_on</code>, <code>http_get</code>, <code>http_post</code>, <code class="priv">idempotent</code>, <code class="priv">method_has_body</code>, <code class="priv">not_content_encoding</code>, <code class="priv">open_connection</code>, <code class="priv">origin_of</code>, <code class="priv">parse_status_line</code>, <code class="priv">redirect_target</code>, <code class="priv">request_bytes</code></td></tr>
 <tr><td><code>HttpClient::</code></td><td><code>new</code>, <code>send</code></td></tr>
 </tbody>
 </table>
@@ -8072,7 +8072,9 @@ first <code>https</code> request. <code>Url::parse</code> takes a URL apart (<co
 (an error when it is not UTF-8). HTTP/1.1 only and one connection per request, unless the
 client's <code>keep_alive</code> is set (D-0195): then the connection stays open while the server allows, and
 the next request to the same host and port goes on it (a server for such a client must not count
-on one connection per request). No compression and no cookies; what a server sends compressed it sends only when asked, so plain
+on one connection per request). If that connection turns out closed before any answer, a GET, HEAD,
+PUT, DELETE, OPTIONS or TRACE is sent again on a fresh one; a POST is not -- the server may have acted
+on it -- and is <code>ConnectionClosed</code> for the program to decide. No compression and no cookies; what a server sends compressed it sends only when asked, so plain
 requests get plain bodies.</p>
 <p><strong>Serving.</strong> <code>HttpServer::bind(addr)</code> listens; <code>HttpServer::accept(&amp;mut server)</code>
 gives each client's <code>HttpConnection</code>, on which <code>HttpConnection::request(&amp;mut c)</code> parses the next
@@ -9554,6 +9556,7 @@ and its declaration is an unchecked claim. Measure first.</p>
 <li>In a function that takes references, use them only directly: loop over a slice in the function itself, and update plain state through one <code>exclusive</code> reference (or pass it by value).</li>
 <li>Make a <code>StringView</code> once, outside a hot loop; passing it on is free.</li>
 <li>Build text with <code>String::append</code>; <code>printf</code> per line is fine.</li>
+<li>Write a child process's input in large pieces (<code>ChildInput::write</code>, <code>Child::write_input</code>): each write goes straight to the pipe and wakes the child, so a write per line of 100,000 short lines cost 11 s of system time, and 64 KB at a time 0.06 s. Nothing is buffered, so a program that writes a line and then waits for the child's answer works as written.</li>
 <li>Never <code>Vec::remove(&amp;mut v, 0)</code> in a loop over a long <code>Vec</code>; for membership in a large set, sort once and <code>Vec::binary_search</code>, or use a <code>HashSet</code>.</li>
 <li>Make a <code>Vec</code> of a known size with <code>Vec::filled</code>, then write its elements.</li>
 <li>Say <code>wrapping_</code> only where wrapping is the meaning.</li>
