@@ -161,7 +161,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.101007</div>
+<div class="sub">Specification edition 2026.101008</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -330,7 +330,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101007</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101008</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -385,7 +385,7 @@ build them.</div>
 Where two objectives conflict, the earlier one wins.</p>
 <ol>
 <li><strong>Preserve semantic invariants.</strong> Arithmetic stays in range, references point at live objects, a resource has exactly one owner, an object is initialised before it is read, two threads never race on one location, and external data is treated as a claim until validated.</li>
-<li><strong>Safety of valid safe programs.</strong> A well-formed program that uses no <code>unsafe</code> block cannot violate any of those invariants on any conforming implementation. If the language cannot establish a fact, the operation is one of: statically rejected, dynamically checked, explicitly fallible (returns a <code>Result</code> or <code>Option</code>), explicitly trusted (inside <code>unsafe</code>), or simply not provided.</li>
+<li><strong>Safety of valid safe programs.</strong> A well-formed program that writes no <code>unsafe</code> block of its own cannot violate any of those invariants on any conforming implementation. The standard library's own bodies do use <code>unsafe</code> (a <code>Vec</code> writes its elements through a raw pointer); those blocks are the implementation's to keep true, each listed in the specification with the fact that justifies it, so they cost the program nothing (§20, <em>Who asserts what</em>). If the language cannot establish a fact, the operation is one of: statically rejected, dynamically checked, explicitly fallible (returns a <code>Result</code> or <code>Option</code>), explicitly trusted (inside <code>unsafe</code>), or simply not provided.</li>
 <li><strong>Consistency and composability.</strong> A handful of mechanisms that combine cleanly, instead of many overlapping features. Every value-placing construct (declarations, arguments, fields, returns) follows one rule; every access (through a name, a field, an index, a reference) follows one rule.</li>
 <li><strong>Formal precision and deterministic diagnostics.</strong> The specification is written as rules, so two implementations must reject exactly the same programs and report the same named diagnostic. Every error you see has a stable identifier such as <code>diag.aliasing-conflict</code>.</li>
 <li><strong>A small language.</strong> Every feature starts as absent and must earn its place. The result is a language you can hold in your head: no traits, no inheritance, no exceptions, no implicit conversions, no operator overloading, no macros.</li>
@@ -3107,7 +3107,10 @@ cleanup code on an early exit.</p>
 <h3>What is checked when</h3>
 <p>Many rules in this guide say a program is "rejected" in one example and "faults at run
 time" in another. The boundary is fixed by the language, not left to the compiler's cleverness, so
-that every implementation accepts and rejects the same programs. Within one function body, the
+that every implementation accepts and rejects the same programs. A compiler may prove more than this
+checker does and leave out the run-time checks it has proved unnecessary (that is what <code>cobc</code> does; see
+the performance chapter), but it may not accept a program the language rejects or reject one it accepts:
+<code>coby --check</code> is the reference, and what it accepts is the language. Within one function body, the
 checker tracks a few facts about each variable: whether it has been moved from, whether it has been
 initialised, which references were visibly borrowed from it, and whether a reference to it has been
 handed somewhere the checker cannot follow (a call, a field, a thread). At each checked operation
@@ -5427,6 +5430,14 @@ rules still apply to every ordinary access inside an <code>unsafe</code> block.<
 <tr><td>a call to an <code>unsafe extern fn</code></td><td>the foreign code honours its signature and touches only what the pointer arguments reach</td></tr>
 </tbody>
 </table>
+<h3 id="s20-who-asserts">Who asserts what</h3>
+<p>The standard library's own bodies use <code>unsafe</code>: <code>Vec::push</code> writes an element through a raw
+pointer, <code>File::write</code> calls the operating system, <code>Rc::clone</code> reclaims its box. Those blocks are not
+yours. They belong to the implementation, which must keep every one of them true to conform, and the
+specification lists each of them with the fact that makes it hold (<code>spec/21</code> §0, "What <code>std</code> asserts":
+for <code>Vec::push</code>, that <code>len &lt; cap</code> after <code>grow</code> and that no element object was ever established in the
+slot). So a program that writes no <code>unsafe</code> of its own has the language's guarantee unconditionally,
+and the guarantee is lost only by a false claim in a block the program itself wrote.</p>
 <h3>Raw pointers</h3>
 <p><code>rawptr&lt;T&gt;</code> is an address. It has no mode, no lifetime, and no checks; it is plain and
 copyable. Getting one is safe: <code>rawptr_of(&amp;x)</code> (or <code>rawptr_of(&amp;mut x)</code>) takes the address of a
