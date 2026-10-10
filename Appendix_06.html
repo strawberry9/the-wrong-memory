@@ -161,7 +161,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.101003</div>
+<div class="sub">Specification edition 2026.101004</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -330,7 +330,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101003</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101004</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -5178,7 +5178,7 @@ of the program goes on. This is what lets a server give each connection a thread
 in one of them. Nothing continues in a state the failed check protected:</p>
 <ul>
 <li><strong>A mutex the thread held is poisoned.</strong> Its interior may be half-changed, so the next <code>lock</code> of it faults with <code>diag.mutex-poisoned</code>.</li>
-<li><strong>A thread lent an exclusive reference is not contained.</strong> The data it was changing belongs to a thread still running, so its fault ends the program at once, as a fault always did.</li>
+<li><strong>A thread lent an exclusive reference is not contained.</strong> Given one at <code>spawn</code>, or by locking a mutex whose contents can hold one (receiving from a <code>Channel</code> of <code>&amp;mut</code> references, say), it may be changing data that belongs to a thread still running, so its fault ends the program at once, as a fault always did.</li>
 <li><strong>The main thread's fault</strong> ends the program, as before.</li>
 </ul>
 <p>Nobody has to ask for this. <code>join(h)</code> of a failed thread raises its failure again in the joiner,
@@ -5274,8 +5274,12 @@ take the first value, and cancel the rest.</p>
 <p>A wait that can never end is <code>diag.deadlock</code>, reported where it happens. A thread whose
 <code>join</code> or <code>lock</code> would close a cycle (it waits on a thread that, through holders and joins, waits on
 it) faults at once. And when every thread is waiting on another thread, a mutex or a channel, with
-none on the clock, a socket or input, the runtime faults one thread of a cycle, or all of them if
-there is no cycle. Like any fault in a spawned thread it is contained, so two deadlocked handlers in
+none on the clock, a socket or input, the runtime faults one thread of a cycle, or, if there is no
+cycle, the threads at the ends of the chains of waits (those waiting on a channel); the threads
+waiting on them then get the failure through <code>join</code>, or find the mutex poisoned. The result does
+not depend on timing. A channel wait while some thread is in a socket call or asleep is never
+called a deadlock: that thread may send when its call returns. Give such a wait a limit
+(<code>recv_timeout_ms</code>) or <code>cancel</code> it from a supervisor. Like any fault in a spawned thread it is contained, so two deadlocked handlers in
 a server are reported and the server goes on. (The main thread waiting alone on a channel is still
 <code>diag.channel-deadlock</code>.)</p>
 <figure class="code"><div class="code-head"><span class="code-title">Every thread waiting</span><span class="badge bad">rejected: diag.deadlock</span></div><pre><code><span class="k">import</span> std;
@@ -5291,7 +5295,7 @@ a server are reported and the server goes on. (The main thread waiting alone on 
     <span class="k">auto</span> h = <span class="p">spawn</span>(waits, &amp;c);
     <span class="p">join</span>(h);                          <span class="c">// <span class="bad">✗</span> <span class="dg">diag.deadlock</span> (dynamic): every thread waits, none can go on</span>
 }</code></pre></figure>
-<h3>Exploring schedules: <code>coby --explore</code></h3>
+<h3>Exploring schedules: <code>--explore</code></h3>
 <p>A result that depends on timing is easy to miss: the timing you test is rarely the one that
 goes wrong. <code>coby --explore N prog.cb</code> runs the program N times, each under a different order of its
 threads chosen by a seed, and groups the runs by outcome (output and exit status). One outcome is
@@ -5299,6 +5303,14 @@ what you want; more than one means the program's result depends on timing, and <
 Each outcome comes with a seed, and <code>coby --schedule-seed S prog.cb</code> replays that run exactly, as
 often as you need to find out why. Under a schedule the threads take turns one at a time, so
 exploration needs no cores and finds orders a parallel run would rarely produce.</p>
+<p><code>cobc --explore N prog.cb</code> does the same for the compiled program: it compiles once and runs the
+executable N times. There a thread keeps its turn between the points where threads interact -- a
+<code>spawn</code>, a wait, a mutex released, a call outside the program -- and now and then between two of the
+program's checks, which is where a program whose checks all pass can end differently.
+<code>cobc --schedule-seed S prog.cb</code> replays one run, and so does setting <code>COBALTC_SCHEDULE_SEED=S</code> in a
+compiled program's environment. In either tool, a thread that is asleep or in a socket or input call
+leaves the schedule until the call returns, so a program that talks to the network explores only
+the orders around those calls.</p>
 <figure class="code"><div class="code-head"><span class="code-title">counter.cb: a lost update, in some orders</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> bump(<span class="t">ref</span>&lt;<span class="t">mutex</span>&lt;<span class="t">i64</span>&gt;, <span class="t">shared</span>&gt; m)
@@ -9522,7 +9534,7 @@ four separate programs. To keep a thread's work its own:</p>
 <li>Move what a thread works on into it (<code>spawn(count, chunk)</code> with <code>chunk</code> a <code>Vec</code> you no longer need): it then belongs to the thread. A thread that reads the spawner's data through a reference shares it, which still works but costs more on every access.</li>
 <li>Hand results back as the thread's result, through <code>join</code>, or through a <code>Channel</code>, rather than writing into a structure every thread locks.</li>
 <li>Keep a lock's block to reads and writes through its guard (<code>{ auto g = lock(&amp;m); *g += 1; }</code>): such a block is a lock and an unlock and nothing more. Four threads each taking one shared mutex 200,000 times, with a little work between, took 0.6 s; giving the guard to a function, or returning from inside the block, makes each lock cost about ten times as much.</li>
-<li>A thread per connection is a sound design for a server. Each thread is an operating-system thread with a reserved, mostly uncommitted stack, and a finished thread is reused by the next <code>spawn</code>. A test server held 10,000 connections at once, each its own supervised thread answering two queries, in 248 MB, about 25 kB per idle connection, with no failures.</li>
+<li>A thread per connection is a sound design for a server. Each thread is an operating-system thread with a reserved, mostly uncommitted stack, and a finished thread is reused by the next <code>spawn</code>. A test server held 10,000 connections at once, each its own supervised thread answering two queries, in 250 MB, about 25 kB per idle connection, with no failures, and a round trip cost the same 0.13–0.16 ms with 1,000 connections open as with 10,000. An idle connection costs nothing while it waits: on Linux its thread sleeps in the kernel until data arrives or it is cancelled.</li>
 </ul>
 <h3 id="perf-arith">Arithmetic and plain values</h3>
 <ul>
