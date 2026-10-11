@@ -161,7 +161,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.101101</div>
+<div class="sub">Specification edition 2026.101102</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -330,7 +330,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101101</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101102</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -5174,6 +5174,29 @@ program. Deadlock is not ruled out, but it is reported rather than left to hang 
         _ = <span class="p">Channel</span>::send(&amp;go, <span class="n">1</span>);
         <span class="p">join</span>(h);
     }
+}</code></pre></figure>
+<p><strong>An exclusive reference belongs to one thread.</strong> Copying a <code>ref&lt;T, exclusive&gt;</code>
+copies one path, and two copies in two threads would be two writers no check could tell apart. So
+<code>spawn</code> and <code>Channel::send</code> <em>lend</em> each exclusive reference they hand over: the thread gets a path
+of its own, borrowed from yours, and your copy conflicts with it until that thread is done with it.
+Lending the same reference to two threads at once is <code>diag.aliasing-conflict</code>, and so is writing through
+your copy while it is lent. A thread may use an exclusive reference only if it was handed it this way:
+one it finds inside a struct it was lent, inside a <code>Vec</code> moved to it, or inside a mutex belongs to the
+thread that made it, and using it faults while that thread runs. To give a thread exclusive access to
+something, pass the reference to <code>spawn</code> or send it through a channel.</p>
+<figure class="code"><div class="code-head"><span class="code-title">One exclusive reference, one thread</span><span class="badge bad">rejected: diag.aliasing-conflict</span></div><pre><code><span class="k">fn</span> bump(<span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">exclusive</span>&gt; a)
+{
+    *a += <span class="n">1</span>;
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="t">i32</span> x = <span class="n">0</span>;
+    <span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">exclusive</span>&gt; r = &amp;<span class="k">mut</span> x;
+    <span class="k">auto</span> h1 = <span class="p">spawn</span>(bump, r);         <span class="c">// r is lent to this thread until join(h1)</span>
+    <span class="k">auto</span> h2 = <span class="p">spawn</span>(bump, r);         <span class="c">// <span class="bad">✗</span> <span class="dg">diag.aliasing-conflict</span>: r is lent already</span>
+    <span class="p">join</span>(h1);
+    <span class="p">join</span>(h2);
 }</code></pre></figure>
 <h3 id="s19-supervision">When a thread fails</h3>
 <p>A checked fault in a thread you spawned ends <em>that thread</em>: it unwinds, its destructors
