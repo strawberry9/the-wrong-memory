@@ -161,7 +161,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.101202</div>
+<div class="sub">Specification edition 2026.101203</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -330,7 +330,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101202</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101203</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -3351,8 +3351,9 @@ parameters, as for a function, when neither says enough: <code>[](i64 a) : i64 {
 <p>A closure that captures by reference holds those borrows for as long as the closure
 object lives, so the captured variables are subject to the usual aliasing rules until it goes out
 of scope: a closure that writes <code>total</code> blocks every other use of <code>total</code> while it exists. Put such
-closures in a block, or use <code>move</code>. Calling a closure borrows it exclusively for the call, so a
-closure cannot be called re-entrantly.</p>
+closures in a block, or use <code>move</code>. Calling a closure borrows it shared for the call: its writes go
+through the captures, which are checked as any reference is, so a closure that writes a capture
+cannot be called through a shared reference to it.</p>
 <figure class="code"><div class="code-head"><span class="code-title">An exclusive capture, bounded by a block</span></div><pre><code><span class="k">fn</span> main()
 {
     <span class="t">i32</span> total = <span class="n">0</span>;
@@ -5422,8 +5423,8 @@ explored <span class="n">50</span> schedules of counter.cb: <span class="n">2</s
 runs as nearly equal as they can be, each an exclusive slice of its own. Give each run to a thread
 and the threads write one vector at once, with no lock: the runs are disjoint, and the checker
 proves it the way it proves any two ranges apart. The vector is usable again once every thread is
-joined. A thread takes a named function here, not a closure: a closure is called through an
-exclusive borrow of itself (§15), so one closure cannot run in several threads at once.</p>
+joined. A thread takes a named function here, not a closure: a closure is passed by move (§15), so it
+goes to one thread, and one closure cannot run in several threads at once.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Each thread one part of a vector</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> square_all(<span class="t">slice</span>&lt;<span class="t">u64</span>, <span class="t">exclusive</span>&gt; s)
