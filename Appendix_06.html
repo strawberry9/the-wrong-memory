@@ -161,7 +161,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.101203</div>
+<div class="sub">Specification edition 2026.101301</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -330,7 +330,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101203</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101301</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -3866,8 +3866,8 @@ for statements. Arms are tried in order and the first that fits is taken.</p>
 <p>Inside the parentheses, a pattern can say what the payload itself must be, as deep as
 needed: <code>Ok(Some(line))</code> matches an <code>Ok</code> whose payload is a <code>Some</code>, and binds the <code>Some</code>'s
 payload. A name there is a binder, unless it is a variant's name (<code>Some(None)</code>), and <code>_</code> ignores
-that level. Since a variant has one payload, an arm binds at most one name, the innermost payload
-it reaches. Every value must reach some arm (the error names one that does not, such as
+that level. Since a variant has one payload, an arm binds one name, the innermost payload it
+reaches, unless that payload is a struct taken apart by a struct pattern (below). Every value must reach some arm (the error names one that does not, such as
 <code>Ok(None)</code>), and every arm must be reachable: an arm whose values all go to earlier arms is
 rejected, since it could never run.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Nested patterns</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
@@ -3902,6 +3902,45 @@ rejected, since it could never run.</p>
         <span class="p">Some</span>(_)       : <span class="n">2</span>,            <span class="c">// <span class="bad">✗</span> <span class="dg">diag.unreachable-arm</span>: every Some went to the arms above</span>
         <span class="p">None</span>          : <span class="n">0</span>,
     };
+}</code></pre></figure>
+<h4>Struct patterns</h4>
+<p>Where a binder could stand, a struct pattern can take the payload apart at once:
+<code>Some(Question { name, end })</code> binds <code>name</code> and <code>end</code>, as <code>Question { name, end } = q;</code> would after
+binding <code>q</code>. The rules are destructuring's (§11): every field is named once, or <code>..</code> stands for the
+rest; <code>end : e</code> binds a field to another name; and the fields are taken by value, so a <code>String</code>
+field moved out consumes the value matched, as any binder of a resource payload does. A struct
+pattern always fits, so it counts as a binder for exhaustiveness. It works in <code>match</code> arms and in
+<code>if</code> and <code>while</code> patterns. Through a reference (<code>match (&amp;o)</code>) it is rejected: bind the payload and
+read its fields through it.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Struct patterns</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">struct</span> Question
+{
+    <span class="p">String</span> name;
+    <span class="t">u32</span> end;
+}
+
+<span class="k">fn</span> ask(<span class="t">u32</span> k) : <span class="p">Option</span>&lt;Question&gt;
+{
+    <span class="k">if</span> (k == <span class="n">0</span>)
+    {
+        <span class="k">return</span> <span class="p">None</span>;
+    }
+    <span class="p">Some</span>(Question { .name = <span class="s">&quot;who&quot;</span>, .end = k })
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="k">if</span> (<span class="p">Some</span>(Question { name, end }) = ask(<span class="n">4</span>))
+    {
+        <span class="p">assert</span>(name == <span class="s">&quot;who&quot;</span> &amp;&amp; end == <span class="n">4</span>);
+    }
+    <span class="t">u32</span> n = <span class="k">match</span> (ask(<span class="n">7</span>))
+    {
+        <span class="p">Some</span>(Question { end : e, .. }) : e,       <span class="c">// renamed; `name` left and ended</span>
+        <span class="p">None</span>                           : <span class="n">0</span>,
+    };
+    <span class="p">assert</span>(n == <span class="n">7</span>);
 }</code></pre></figure>
 <h4>Literal patterns</h4>
 <p>A pattern can also be a literal: an integer (<code>3</code>, <code>-1</code>, <code>0x10</code>), a byte (<code>b&#x27;x&#x27;</code>), <code>true</code> or
@@ -6987,12 +7026,18 @@ need an owner.</p>
 <li>Bytes that are not text (a protocol header, data for <code>stdout_write</code>): use <code>b&quot;…&quot;</code>.</li>
 </ul>
 </div>
+<p><strong>Unicode.</strong> All three are UTF-8 bytes, and <code>std</code> works on them as bytes: lengths
+and indices count bytes, <code>==</code> and the orderings compare bytes, and <code>String::chars</code> hands out the code
+points when you need them. <code>std</code> has no Unicode tables (D-0226): case mapping is ASCII only
+(<code>String::to_ascii_lower</code>), there is no normalization, so <code>&quot;é&quot;</code> and <code>&quot;e\u{301}&quot;</code> are different strings, and no
+splitting into user-perceived characters. A program that needs those brings its own tables.</p>
 <p>The two text types never convert into each other silently (§12's no-implicit-conversion
 rule). Going from a <code>str</code> value to a <code>String</code> is an explicit call that makes a copy, and nothing turns
 a <code>String</code> back into a <code>str</code>: a <code>str</code> is always a literal's value, so it cannot refer to bytes that
 something else owns. A <em>literal</em> is different in kind: like the <code>5</code> in <code>u64 x = 5;</code>, it has no
 type until its position gives it one, so <code>String s = &quot;hi&quot;;</code> is the literal typed as a <code>String</code>
-(<code>String::from_str</code> of it, D-0149) and <code>StringView v = &quot;hi&quot;;</code> as a view, not a value converted. A
+(<code>String::from_str</code> of it, D-0149) and <code>StringView v = &quot;hi&quot;;</code> as a view, not a value converted; the
+same holds for a constructor's payload, so <code>Option&lt;StringView&gt; o = Some(&quot;hi&quot;);</code> is a view too (D-0225). A
 <code>str</code> variable in the same place is still a type error. A <code>String</code> compares with <code>==</code> and <code>!=</code> to a
 <code>str</code> or a <code>StringView</code>, either way round, by its bytes (<code>name == &quot;sha256&quot;</code>, D-0164); the orderings
 <code>&lt;</code> … <code>&gt;=</code> stay within one text type.</p>
@@ -7892,6 +7937,7 @@ its output. <code>Child::take_input(&amp;mut ch)</code> and <code>Child::take_ou
 an end outlives its <code>Child</code>.</p>
 <h3>Cryptography, and bytes as text</h3>
 <p><em>In <code>std::crypto</code>, with hexadecimal and base64 in <code>std::encoding::hex</code> and <code>std::encoding::base64</code>.</em></p>
+<div class="callout warn"><div class="callout-title">Assurance</div>Implemented to the standards <code>spec/21</code> §0 names, tested against their published vectors and against OpenSSL and Python's <code>cryptography</code> on loopback and in sweeps, fuzzed continuously (<code>impl/fuzz</code>); not independently audited.</div>
 <p><code>sha256(data)</code> is the SHA-256 digest of some bytes, 32 of them as an <code>array&lt;u8, 32&gt;</code>;
 <code>hmac_sha256(key, data)</code> is a message authentication code under a key, the way a webhook body,
 a session cookie or a signed request is protected. Both come in a streaming form for a message that
@@ -8090,6 +8136,7 @@ mod 1000000007 = 109361473
 </pre></div></figure>
 <h3>Certificates</h3>
 <p><em>In <code>std::x509</code>.</em></p>
+<div class="callout warn"><div class="callout-title">Assurance</div>Implemented to the standards <code>spec/21</code> §0 names, tested against certificates and keys OpenSSL made and against the system's root bundle, fuzzed continuously (<code>impl/fuzz</code>); not independently audited.</div>
 <p><code>Certificate::parse(der)</code> reads an X.509 certificate; <code>certificates_from_pem(text)</code> reads every
 certificate in PEM text. A <code>TrustStore</code> holds the roots a chain may end at: <code>TrustStore::system()</code> reads
 the operating system's bundle on Unix (on Windows, pass a bundle to <code>TrustStore::from_pem_file</code>).
@@ -8100,6 +8147,7 @@ chain ends at a root. The error says why not: <code>HostMismatch</code>, <code>E
 Revocation (CRL, OCSP) is not checked.</p>
 <h3>TLS</h3>
 <p><em>In <code>std::tls</code>.</em></p>
+<div class="callout warn"><div class="callout-title">Assurance</div>Implemented to RFC 8446, tested against its vectors and against OpenSSL's <code>s_client</code> and <code>s_server</code> on loopback, fuzzed continuously (<code>impl/fuzz</code>); not independently audited.</div>
 <p><code>TlsStream::connect(addr, server_name, &amp;roots)</code> opens a TLS 1.3 connection: it checks the
 server's certificate chain against <code>roots</code> and <code>server_name</code>, and then <code>read</code>, <code>read_exact</code>, <code>write</code>
 and <code>close</code> carry data encrypted and authenticated. <code>TlsStream::client(tcp, …)</code> does the same over a
@@ -8177,6 +8225,7 @@ subjectAltName=DNS:localhost</code> makes a self-signed pair for development).</
 }</code></pre></figure>
 <h3>HTTP</h3>
 <p><em>In <code>std::http</code>.</em></p>
+<div class="callout warn"><div class="callout-title">Assurance</div>Implemented to RFC 9110 and RFC 9112, tested against curl and Python's servers on loopback, fuzzed continuously (<code>impl/fuzz</code>); not independently audited.</div>
 <p><code>http_get(url)</code> fetches a URL and <code>http_post(url, content_type, body)</code> posts to one; each gives
 a <code>Response</code> with its <code>status</code>, <code>reason</code>, <code>headers</code> and whole <code>body</code>, or an <code>HttpError</code> saying what
 went wrong (the network, TLS, a malformed URL or message, a limit). Both follow redirects, decode
@@ -8272,7 +8321,7 @@ server thread: 0
 </pre></div></figure>
 <p><strong>https, forms and compressed bodies.</strong> <code>HttpServer::bind_tls(addr, key, chain)</code>
 makes the same server speak https (D-0186): <code>accept</code> completes each client's TLS handshake first,
-and gives <code>Err(TlsFailure(_))</code> for a client that fails it, so <code>accept</code>'s error is an <code>HttpError</code>.
+and gives <code>Err(HttpTlsFailure(_))</code> for a client that fails it, so <code>accept</code>'s error is an <code>HttpError</code>.
 A request's query string and a form body are read with <code>Url::query_pairs(&amp;url)</code> and
 <code>form_decode(text)</code>, each a <code>Vec&lt;Param&gt;</code> (<code>name</code>, <code>value</code>, compared exactly) searched with
 <code>find_param</code>; <code>form_encode</code> writes one (D-0181). The client offers <code>Accept-Encoding: gzip, deflate</code>
@@ -8381,6 +8430,7 @@ cut short: compressed data ends early
 </pre></div></figure>
 <h3>Databases</h3>
 <p><em>In <code>std::database::postgres</code>, re-exported by <code>std::database</code>.</em></p>
+<div class="callout warn"><div class="callout-title">Assurance</div>Implemented to the PostgreSQL protocol 3.0 and SCRAM-SHA-256, tested against a PostgreSQL server on loopback, fuzzed continuously (<code>impl/fuzz</code>); not independently audited.</div>
 <p>A PostgreSQL client, speaking the server's own wire protocol over <code>std::net</code> and <code>std::tls</code>, with
 SCRAM-SHA-256 from <code>std::crypto</code>; nothing is linked, so a program that talks to a database still
 needs only a C compiler. <code>PgConnection::connect(url)</code> opens a connection from a
