@@ -161,7 +161,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.101301</div>
+<div class="sub">Specification edition 2026.101401</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -330,7 +330,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101301</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101401</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -454,6 +454,56 @@ the same way and exit with status 1. <code>coby --check program.cb</code> (or <c
 the checks made before a program starts, and prints the same diagnostic for a program they
 reject; nothing runs, so a program that reads input, writes files or serves the network can be
 checked without doing so. Given a directory, it checks every <code>.cb</code> file in it.</p>
+<p>There is no project file and no build step besides these commands. A program that
+spans several files names them itself: <code>module parser &quot;./parser.cb&quot;;</code> loads a file as a module, its
+path relative to the file that says so (§17), and <code>extern &quot;./fast.c&quot;;</code> or <code>extern &quot;z&quot;;</code> links C code
+of the program's own or an installed library (§20). <code>cobc main.cb</code> then builds the whole program
+from that one file, and <code>coby main.cb</code> runs it, with nothing else to keep in step (D-0231).</p>
+<h3 id="intro-testing">Testing a program</h3>
+<p>Tests live beside the code they test, in <code>unittest</code> blocks: a block at the top level of a
+file or a module, with an optional name. A test sees the module's private items, and is checked every
+time the program is, so a test that no longer compiles stops the build at once. Nothing runs it until
+you ask for a test run.</p>
+<figure class="code"><div class="code-head"><span class="code-title">port.cb</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> parse_port(<span class="p">StringView</span> s) : <span class="p">Option</span>&lt;<span class="t">u16</span>&gt;
+{
+    <span class="k">match</span> (<span class="p">StringView</span>::<span class="p">parse</span>&lt;<span class="t">u32</span>&gt;(s))
+    {
+        <span class="p">Ok</span>(n)  : <span class="k">if</span> (n &gt; <span class="n">65535</span>) { <span class="p">None</span> } <span class="k">else</span> { <span class="p">Some</span>(<span class="p">narrow</span>&lt;<span class="t">u16</span>&gt;(n)) },
+        <span class="p">Err</span>(_) : <span class="p">None</span>,
+    }
+}
+
+unittest <span class="s">&quot;parse_port: bounds&quot;</span>
+{
+    <span class="p">assert</span>(parse_port(<span class="p">StringView</span>::of(<span class="s">&quot;0&quot;</span>)) == <span class="p">Some</span>(<span class="n">0</span>));
+    <span class="p">assert</span>(parse_port(<span class="p">StringView</span>::of(<span class="s">&quot;65535&quot;</span>)) == <span class="p">Some</span>(<span class="n">65535</span>));
+    <span class="p">assert</span>(parse_port(<span class="p">StringView</span>::of(<span class="s">&quot;65536&quot;</span>)) == <span class="p">None</span>);
+}
+
+unittest
+{
+    <span class="p">assert</span>(parse_port(<span class="p">StringView</span>::of(<span class="s">&quot;x&quot;</span>)) == <span class="p">None</span>);
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, parse_port(<span class="p">StringView</span>::of(<span class="s">&quot;8080&quot;</span>)) == <span class="p">Some</span>(<span class="n">8080</span>));
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>true
+</pre></div></figure>
+<p><code>coby port.cb</code> runs the program as always. <code>coby --unittest port.cb</code> runs its tests instead
+of <code>main</code>, each in a thread of its own: a failed <code>assert</code>, or any other fault, is reported, and the
+next test still runs. <code>cobc --unittest --run port.cb</code> does the same with the compiled program, and
+reports it identically; <code>cobc --unittest -o port_tests port.cb</code> keeps the test program.</p>
+<figure class="code"><div class="code-head"><span class="code-title">coby --unittest port.cb</span></div><pre><code>test port.cb:12 parse_port: bounds ... ok
+test port.cb:19 ... ok
+2 tests: 2 passed, 0 failed
+</code></pre></figure>
+<p>The exit status is 1 when a test failed, so a test run can gate a build.
+<code>--unittest-filter TEXT</code> runs only the tests whose name contains <code>TEXT</code>. A file that holds only
+a library and its tests needs no <code>main</code>. A <code>///</code> comment on a test right after a function makes it
+that function's example in the generated documentation (D-0230).</p>
 <p>All code in this guide uses Allman brace style (every opening brace on its own
 line) and four-space indentation. That is a documentation convention: CobaltC ignores whitespace
 between tokens, so any brace placement is equally valid.</p>
@@ -489,7 +539,8 @@ because the file carries everything it uses, in this order:</p>
 </ul>
 <p>Inside a function, the C follows your statements one by one, and every run-time
 check the specification requires is an explicit line, so you can see exactly which checks your
-code still pays for. This is <code>printf(&quot;%v\n&quot;, v[0]);</code> with <code>v</code> a <code>Vec&lt;i32&gt;</code>:</p>
+code still pays for. This is <code>printf(&quot;%v\n&quot;, v[0]);</code> with <code>v</code> a <code>Vec&lt;i32&gt;</code> (without the
+<code>#line</code> directives described below):</p>
 <figure class="code"><div class="code-head"><span class="code-title">from prog.c</span></div><pre><code>cb_at(<span class="n">0</span>u, <span class="n">7</span>u);                                   <span class="c">// now at line 7 of file 0, for diagnostics</span>
 <span class="k">struct</span> s_std__Vec_Li32_R *v9 = &amp;(l_v_1);
 <span class="k">if</span> (t8 &gt;= v9-&gt;len) cb_fault(<span class="s">&quot;diag.index-out-of-bounds&quot;</span>, CB_NOLOC, <span class="n">0</span>);
@@ -499,11 +550,16 @@ int32_t t11 = (*e10);</code></pre></figure>
 aliasing checks of §08–§09), <code>__builtin_add_overflow</code> and its relatives (checked arithmetic, §06),
 and <code>cb_frame_push</code>, <code>cb_stmt_push</code> and their <code>_pop</code> partners (the bookkeeping that runs
 destructors at scope end). A check the compiler has proved can never fail is simply absent.</p>
+<p>Each line of C made from one of your statements is preceded by a directive such as
+<code>#line 7 &quot;prog.cb&quot;</code>, which tells the C compiler which line of your file the next line of C came
+from. The C compiler's own messages, a debugger and a sanitizer then name <code>prog.cb:7</code> rather than a
+line of <code>prog.c</code>; code made for <code>std</code> keeps the C file's own numbering. <code>cobc --no-line-directives</code>
+leaves the directives out, for reading the C on its own terms.</p>
 <h4>What you can do with it</h4>
 <ul>
 <li><strong>Read it</strong> to see how a construct is compiled, which checks a loop costs, or why one way of writing it is faster than another. <a href="#perf">Performance</a> (chapter P) collects what such reading and measuring found.</li>
 <li><strong>Build it yourself, with your own flags.</strong> <code>cobc</code>'s own build of <code>prog.c</code> is the command below, and <code>cobc -v</code> prints the exact one it runs, with the real path of <code>libcbrt.a</code> (and any <code>extern</code> C file's compilation), ready to paste and change; <code>-O2</code> is the default level and <code>libcbrt.a</code> sits beside the <code>cobc</code> executable. Add <code>-g -O0</code> for a build to step through in a debugger, <code>-fsanitize=address,undefined</code> to have the sanitizers watch it, <code>-march=native</code> or <code>-flto</code>, or leave out <code>-w</code> to see the C compiler's warnings, which <code>cobc</code> silences.</li>
-<li><strong>Debug and profile it</strong> at the C level: in a <code>-g</code> build, <code>gdb</code> and <code>perf annotate</code> show these C lines, and the <code>cb_at(file, line)</code> calls lead back to the line of your <code>.cb</code> file.</li>
+<li><strong>Debug it.</strong> <code>cobc -O0 -g prog.cb</code> compiles with debug information and keeps it in the executable; <code>gdb prog</code> then stops at and steps through the lines of <code>prog.cb</code>, and a sanitizer build (<code>--cc</code> naming a wrapper that adds <code>-fsanitize=address</code>) reports a memory error in <code>unsafe</code> code at its <code>.cb</code> line. <code>perf annotate</code> shows the C beside them.</li>
 <li><strong>Report a compiler bug.</strong> If GCC or Clang rejects the generated C, that kept file and the C compiler's message are the whole report.</li>
 </ul>
 <figure class="code"><div class="code-head"><span class="code-title">building prog.c by hand (Linux; clang takes the same flags)</span></div><pre><code>gcc -std=gnu11 -O2 -ffp-contract=off -fno-optimize-sibling-calls -w prog.c \
@@ -834,6 +890,26 @@ while the program runs, and stops it at the line where it happens (§08–§10).
 {
     label(Fine);
 }</code></pre></figure>
+<h3 id="tour-diagnostic">Reading a diagnostic</h3>
+<p>Both tools report a mistake the same way, character for character. This is what either
+prints for the first example above, a reference kept across a push:</p>
+<figure class="code"><div class="code-head"><span class="code-title">coby tour.cb  (or cobc tour.cb)</span></div><pre><code>error[diag.aliasing-conflict]: `first` still borrows `entries`, so it cannot be written or borrowed `mut` here; end that borrow first
+  --&gt; tour.cb:14:15
+   |
+14 |     Vec::push(&amp;mut entries, Reading { .tenths = 215, .sensor = 1 });
+   |               ^
+   = repair: end the conflicting reference (let its holder go out of scope) before this access, or use `shared` on both sides
+</code></pre></figure>
+<ul>
+<li><strong>The first line</strong> says what went wrong. <code>error</code> means the program was rejected before it ran; a check that fails while the program runs is a <code>fault</code> instead (<code>fault[diag.index-out-of-bounds]: index out of bounds</code>), and the program stops there. In the brackets is the diagnostic's identifier: it is the same in every implementation and every version, and the specification's diagnostic registry has an entry for each.</li>
+<li><strong><code>--&gt;</code></strong> gives the file, the line and the column, in the form editors and terminals turn into a link.</li>
+<li><strong>The source line</strong>, with carets under the token the rule applies to.</li>
+<li><strong><code>= repair:</code></strong> is the registry's advice for this diagnostic.</li>
+</ul>
+<p><code>coby --explain tour.cb</code> (or <code>cobc --explain</code>) adds the registry's whole entry: the rule of
+the specification that rejected the program, the invariant it protects, what it required and what
+it observed, and the examples that show it. A compiled program shows its faults that way when it
+runs with <code>COBALTC_EXPLAIN=1</code> in its environment.</p>
 <h3>What you just saw</h3>
 <ul>
 <li><strong>Declarations are type-first</strong>, like C: <code>i32 x = 5;</code>, <code>Vec&lt;Reading&gt; entries;</code>. <code>auto</code> infers the type from the initialiser. Function return types follow a colon: <code>fn judge(…) : Verdict</code>.</li>
