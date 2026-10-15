@@ -166,7 +166,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.101501</div>
+<div class="sub">Specification edition 2026.101502</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -338,7 +338,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101501</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101502</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -3921,6 +3921,25 @@ of scope: a closure that writes <code>total</code> blocks every other use of <co
 closures in a block, or use <code>move</code>. Calling a closure borrows it shared for the call: its writes go
 through the captures, which are checked as any reference is, so a closure that writes a capture
 cannot be called through a shared reference to it.</p>
+<p>A <code>move</code> closure that changes a value it captured changes the closure itself, so a call
+borrows it exclusively. Such a counter is called from its own binding; called while a shared
+reference to it lives, the call is <code>diag.aliasing-conflict</code> (reported before the program runs
+when that reference is certainly still in use), and called through a shared reference it is
+<code>diag.borrow-exceeds-source</code>.</p>
+<figure class="code"><div class="code-head"><span class="code-title">A counter: a move closure that changes its capture</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    <span class="t">i32</span> n = <span class="n">0</span>;
+    <span class="k">auto</span> next = <span class="k">move</span> [n]() : <span class="t">i32</span>      <span class="c">// n is the closure&#x27;s own copy</span>
+    {
+        n = n + <span class="n">1</span>;
+        n
+    };
+    <span class="p">assert</span>(next() == <span class="n">1</span>);
+    <span class="p">assert</span>(next() == <span class="n">2</span>);              <span class="c">// the copy keeps its value between calls</span>
+    <span class="p">assert</span>(n == <span class="n">0</span>);                   <span class="c">// the original was copied, not borrowed</span>
+}</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">An exclusive capture, bounded by a block</span></div><pre><code><span class="k">fn</span> main()
 {
     <span class="t">i32</span> total = <span class="n">0</span>;
@@ -9739,7 +9758,9 @@ exchanged for a new value by <code>replace(&amp;mut r, v)</code>, which returns 
 same <code>Vec</code> or slice are exchanged by <code>Vec::swap(&amp;mut v, i, j)</code> or <code>slice_swap(s, i, j)</code>, which also
 handle <code>i == j</code>. Nothing is copied or destroyed: each value just changes place.
 <code>overwrite(&amp;mut r, v)</code> is <code>replace</code> for when the old value is not wanted: it stores <code>v</code> and
-destroys what was there.</p>
+destroys what was there. Each place is written as an assignment through the reference would
+write it, so a live reference that conflicts with either place, such as a shared reborrow
+<code>auto s = &amp;*r</code> still in use, makes the exchange fault with <code>diag.aliasing-conflict</code>.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Sorting Strings, and exchanging fields</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="c">// Sorts any run of Strings by length: the elements are resources, so</span>
@@ -10469,7 +10490,7 @@ tools build in, which have no CobaltC body (<code>printf</code>, <code>sqrt</cod
 <h4 id="stdref-std-core-swap" class="stdref-item"><code>swap</code> <span class="std-file">fn</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">swap</span>&lt;T&gt;(<span class="t">ref</span>&lt;T, <span class="t">exclusive</span>&gt; a, <span class="t">ref</span>&lt;T, <span class="t">exclusive</span>&gt; b)</code></pre></figure>
 <p>Exchanges the values behind <code>a</code> and <code>b</code>.</p>
-<p>A program cannot move a value out of a place it reaches through a reference, so it cannot exchange two fields of a borrowed struct itself; this does. Nothing is copied or destroyed: a resource is now owned by the place it is in. For two elements of one <code>Vec</code> or slice, use <code>Vec::swap</code> or <code>slice_swap</code>, which check the bounds and allow <code>i == j</code>.</p>
+<p>A program cannot move a value out of a place it reaches through a reference, so it cannot exchange two fields of a borrowed struct itself; this does. Nothing is copied or destroyed: a resource is now owned by the place it is in. Each place is written as <code>*a = v</code> would write it: a live reference that conflicts with either one, such as a shared reborrow of <code>*a</code>, makes the exchange fault. For two elements of one <code>Vec</code> or slice, use <code>Vec::swap</code> or <code>slice_swap</code>, which check the bounds and allow <code>i == j</code>.</p>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-core-replace" class="stdref-item"><code>replace</code> <span class="std-file">fn</span></h4>
