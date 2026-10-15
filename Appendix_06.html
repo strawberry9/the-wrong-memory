@@ -166,13 +166,14 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.101402</div>
+<div class="sub">Specification edition 2026.101501</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
 <li><a href="#intro">Introduction</a></li>
 <li><a href="#tour">A tour in one program</a></li>
 <li><a href="#parts">Core language and std</a></li>
+<li><a href="#cprog">CobaltC for C programmers</a></li>
 <li class="group">Reference, one section per specification chapter</li>
 <li><a href="#s06"><span class="n">§06</span>Arithmetic and numeric types</a></li>
 <li><a href="#s07"><span class="n">§07</span>Resources, ownership and destruction</a></li>
@@ -337,7 +338,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101402</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101501</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -382,8 +383,8 @@ executables to match <code>coby</code>'s output and diagnostics byte for byte on
 GCC and Clang — including every complete example in this guide. Use <code>coby</code> to run a program at
 once; use <code>cobc</code> to build an executable, or to see how fast the program can be.</p>
 <p>On Linux the two work side by side, and everything in this guide runs under
-either. On Windows, <code>coby</code> runs programs today, and the formatter <code>cobfmt</code> (below) runs there too;
-<code>cobc</code> does not yet follow them there.</p>
+either. On Windows, <code>coby</code> runs programs, and the formatter <code>cobfmt</code> (below) runs there too;
+<code>cobc</code> builds programs on Linux only in this edition series (D-0234).</p>
 <div class="callout note"><div class="callout-title">Toolchain</div>CobaltC's interpreter (<code>coby</code>) and compiler (<code>cobc</code>) are available
 <a href="https://github.com/strawberry9/CobaltC">here</a>; the repository's README says how to
 build them.</div>
@@ -1057,7 +1058,483 @@ one subject alone (<code>import std::text;</code>). <a href="#s21">§21</a> cove
 <li><code>sqrt</code>, <code>round</code> and the other floating-point functions are <code>std</code> (<code>std::math</code>), not core: they are ordinary library functions, so they need the import, and a function of your own named <code>round</code> is an ordinary name.</li>
 </ul>
 
-<nav class="pager"><a class="prev" href="#tour">&larr; A tour in one program</a><a class="top" href="#top">Top</a><a class="next" href="#s06">§06 Arithmetic and numeric types &rarr;</a></nav></section>
+<nav class="pager"><a class="prev" href="#tour">&larr; A tour in one program</a><a class="top" href="#top">Top</a><a class="next" href="#cprog">CobaltC for C programmers &rarr;</a></nav></section>
+<section id="cprog">
+<h2>CobaltC for C programmers</h2>
+<p class="blurb">What carries over from C, what the same words mean here, the habits the compiler stops, and how error handling works in place of return codes, errno, NULL and abort.</p>
+<p>If you write C, most of CobaltC will look familiar and a few things will look wrong. This
+section is the shortest path from one to the other: it says what you can keep doing, what the same
+spelling means here, which three habits the compiler will stop, and, at the greatest length, how a
+program reports and handles failure, because that is where C and CobaltC differ most and where the
+reference sections take the longest to connect. Everything here is said again, more fully, in the
+sections it links to; this is the map.</p>
+<h3 id="cprog-carry">What carries over</h3>
+<p>Declarations are type-first, blocks are braces, statements end in <code>;</code>, comments start with
+<code>//</code>, and <code>printf</code> is <code>printf</code>. <code>if</code>, <code>while</code>, <code>for (init; cond; step)</code>, <code>break</code>, <code>continue</code> and
+<code>return</code> are what you expect, and <code>&amp;&amp;</code>, <code>||</code>, <code>!</code>, the arithmetic, bitwise and comparison operators
+have C's spellings and precedences. A struct is a struct, written with C99's designated initialisers
+and nothing else: <code>Point { .x = 3, .y = 4 }</code>. <code>main</code> may return a <code>u8</code>, which is the process's exit
+status, and the program's arguments are <code>arg_count()</code> and <code>arg(i)</code>.</p>
+<figure class="code"><div class="code-head"><span class="code-title">A C programmer's first program</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">struct</span> Point
+{
+    <span class="t">i32</span> x;
+    <span class="t">i32</span> y;
+}
+
+<span class="k">fn</span> main() : <span class="t">u8</span>
+{
+    Point p = Point { .x = <span class="n">3</span>, .y = <span class="n">4</span> };
+    <span class="t">i32</span> sum = <span class="n">0</span>;
+    <span class="k">for</span> (<span class="t">i32</span> i = <span class="n">0</span>; i &lt; <span class="n">5</span>; i += <span class="n">1</span>)
+    {
+        sum += i;
+    }
+    <span class="k">if</span> (sum == <span class="n">10</span> &amp;&amp; p.x &lt; p.y)
+    {
+        <span class="p">printf</span>(<span class="s">&quot;sum %d, point (%d, %d)\n&quot;</span>, sum, p.x, p.y);
+    }
+    <span class="n">0</span>
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>sum 10, point (3, 4)
+</pre></div></figure>
+<p>Three small things in that program are not C. <code>fn main() : u8</code> puts the return type after a
+colon, as every function does. <code>import std;</code> brings in the standard library, which is where <code>printf</code>
+lives; without it the name is unknown (<a href="#parts">Core language and std</a>). And the last line
+of <code>main</code> is <code>0</code> with no <code>return</code> and no semicolon: a block's final expression is its value, so
+<code>if</code>, <code>match</code> and plain blocks are expressions too, which is how CobaltC does without the <code>?:</code>
+operator. <code>return 0;</code> would also have been fine.</p>
+<h3 id="cprog-words">The same words, a different meaning</h3>
+<table>
+<thead><tr><th>In C</th><th>In CobaltC</th><th>Where</th></tr></thead>
+<tbody>
+<tr><td><code>int</code>, <code>long</code>, <code>unsigned</code>, <code>size_t</code></td><td>sized types only: <code>i8</code> <code>i16</code> <code>i32</code> <code>i64</code>, <code>u8</code> <code>u16</code> <code>u32</code> <code>u64</code>, <code>usize</code> <code>isize</code>; <code>f32</code> <code>f64</code>; <code>bool</code>. Literals take a suffix or the expected type.</td><td>§06</td></tr>
+<tr><td><code>char</code>, <code>&#x27;a&#x27;</code></td><td><code>u8</code> and the byte literal <code>b&#x27;a&#x27;</code>; text is <code>str</code>, never an array of <code>char</code></td><td>§06, §21</td></tr>
+<tr><td><code>char *</code>, <code>const char *</code></td><td><code>str</code> (a literal, read-only), <code>String</code> (owned, growable), <code>StringView</code> (a borrowed view); UTF-8 bytes with a length, no terminator</td><td>§21 <em>Which text type?</em></td></tr>
+<tr><td><code>T *p</code></td><td><code>ref&lt;T, shared&gt;</code> (<code>&amp;x</code>, read-only) or <code>ref&lt;T, exclusive&gt;</code> (<code>&amp;mut x</code>, read-write); never null, never dangling; <code>rawptr&lt;T&gt;</code> only inside <code>unsafe</code></td><td>§08, §09, §20</td></tr>
+<tr><td><code>T a[N]</code></td><td><code>array&lt;T, N&gt;</code>, indexed with a bounds check; <code>Vec&lt;T&gt;</code> for a growable one; <code>slice&lt;T, m&gt;</code> for a view of part of either</td><td>§16, §21</td></tr>
+<tr><td><code>NULL</code>, <code>-1</code>, <code>EOF</code> as "no value"</td><td><code>Option&lt;T&gt;</code>: <code>Some(v)</code> or <code>None</code></td><td>below</td></tr>
+<tr><td><code>int</code> return code and <code>errno</code></td><td><code>Result&lt;T, E&gt;</code>: <code>Ok(v)</code> or <code>Err(e)</code>, <code>E</code> an enum you declare</td><td>below</td></tr>
+<tr><td><code>enum</code></td><td><code>enum</code>, whose variants may carry a payload: <code>Invalid(usize)</code></td><td>§16</td></tr>
+<tr><td><code>switch</code></td><td><code>match</code>, exhaustive, no fall-through, arms <code>pattern : expression,</code></td><td>§16</td></tr>
+<tr><td><code>?:</code></td><td><code>if (c) { a } else { b }</code> as an expression; <code>?</code> means something else (below)</td><td>§14</td></tr>
+<tr><td><code>i++</code>, <code>--i</code></td><td><code>i += 1</code>, <code>i -= 1</code>; there is no <code>++</code></td><td>§13</td></tr>
+<tr><td><code>(long) x</code>, implicit promotion</td><td><code>widen&lt;i64&gt;(x)</code>, <code>narrow&lt;u8&gt;(x)</code> (checked), <code>to_float&lt;f64&gt;(x)</code>, <code>to_int&lt;i32&gt;(f)</code>; nothing converts on its own</td><td>§06</td></tr>
+<tr><td><code>sizeof x</code>, <code>sizeof(T)</code></td><td><code>sizeof&lt;T&gt;()</code>, <code>alignof&lt;T&gt;()</code></td><td>§12</td></tr>
+<tr><td><code>#include &quot;x.h&quot;</code>, <code>static</code></td><td><code>import std;</code>, <code>module m &quot;./x.cb&quot;;</code>, <code>export</code> on what others may use; no headers, no preprocessor</td><td>§17</td></tr>
+<tr><td><code>typedef</code>, <code>#define N 10</code></td><td>no aliases; <code>const usize N = 10;</code> is a compile-time constant</td><td>§11, §17</td></tr>
+<tr><td><code>malloc</code>/<code>realloc</code>/<code>free</code></td><td><code>Vec</code>, <code>String</code>, <code>Box</code>, <code>Rc</code>; freed when their owner's scope ends</td><td>§07, §21</td></tr>
+<tr><td>a <code>struct</code> with a cleanup function you must remember to call</td><td><code>resource struct</code> with <code>fn T::drop</code>, run automatically when the value's scope ends, on every path</td><td>§07</td></tr>
+<tr><td><code>goto cleanup;</code></td><td>nothing: destructors run on early <code>return</code>, on <code>?</code>, and while a fault unwinds</td><td>§07, §18</td></tr>
+<tr><td><code>assert(c)</code>, <code>abort()</code></td><td><code>assert(c, &quot;fmt&quot;, …)</code>, never compiled out; <code>exit(status)</code></td><td>§18, below</td></tr>
+<tr><td><code>setjmp</code>/<code>longjmp</code>, signals</td><td>no equivalent: a fault cannot be caught (a thread's can be contained, §19)</td><td>§18</td></tr>
+<tr><td><code>pthread_create</code>, a shared global</td><td><code>spawn(f, args…)</code> and <code>join(h)</code>; shared data only through a <code>mutex&lt;T&gt;</code>; there are no mutable globals</td><td>§19</td></tr>
+<tr><td><code>extern int f(int);</code> and the linker</td><td><code>unsafe extern fn f(i32 x) : i32;</code> plus <code>extern &quot;./f.c&quot;;</code> or <code>extern &quot;m&quot;;</code>; <code>cobc</code> compiles and links</td><td>§20</td></tr>
+</tbody>
+</table>
+<p>Two spellings deserve a warning because they parse and mean something else. <code>?</code> after an
+expression is not the start of a conditional: it <em>propagates an error</em> and returns from the
+function (below). And <code>&amp;x</code> always makes a reference the compiler tracks, never an address you can
+add to; the address is <code>rawptr_of(&amp;x)</code>, usable only in <code>unsafe</code>.</p>
+<h3 id="cprog-habits">Three habits the compiler stops</h3>
+<p><strong>Overflow is not silent.</strong> In C, <code>unsigned</code> arithmetic wraps and signed overflow
+is undefined. Here <code>+</code>, <code>-</code> and <code>*</code> are checked: a result that leaves the type faults the program
+with <code>diag.arith-overflow</code>, division by zero with <code>diag.div-by-zero</code>. When you want wrapping, say so
+with <code>wrapping_add</code> and friends; when you want to detect it, <code>checked_add</code> returns an <code>Option</code>
+(§06).</p>
+<figure class="code"><div class="code-head"><span class="code-title">No silent wrap-around</span><span class="badge bad">rejected: diag.arith-overflow</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> bump(<span class="t">u8</span> x) : <span class="t">u8</span>
+{
+    x + <span class="n">10</span>                             <span class="c">// checked: faults when the sum leaves u8</span>
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="p">printf</span>(<span class="s">&quot;%d\n&quot;</span>, bump(<span class="n">100</span>));
+    bump(<span class="n">250</span>);                         <span class="c">// <span class="bad">✗</span> <span class="dg">diag.arith-overflow</span> (dynamic)</span>
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>110
+</pre></div></figure>
+<p><strong>Nothing converts implicitly.</strong> <code>int</code> to <code>long</code>, <code>char</code> to <code>int</code>, <code>float</code> to
+<code>double</code>, a pointer to <code>bool</code>: none of it happens. Every change of representation is a named
+intrinsic, and the ones that can lose information check the value (§06, <em>Conversions are
+explicit</em>). The error message tells you which one to write.</p>
+<figure class="code"><div class="code-head"><span class="code-title">No implicit widening</span><span class="badge bad">rejected: diag.type-mismatch</span></div><pre><code><span class="k">fn</span> main()
+{
+    <span class="t">i32</span> a = <span class="n">5</span>;
+    <span class="t">i64</span> b = a;                         <span class="c">// <span class="bad">✗</span> <span class="dg">diag.type-mismatch</span>: write widen&lt;i64&gt;(a)</span>
+}</code></pre></figure>
+<p><strong>Pointers do not escape.</strong> A reference to a local cannot be returned or stored
+anywhere that outlives the local; a reference into a <code>Vec</code> cannot be kept across a <code>push</code> that may
+move the elements; a value cannot be used after it was moved. These are rejected before the program
+runs where the compiler can see them (<code>diag.reference-escapes-scope</code>, <code>diag.stale-binding</code>) and
+stop the program at the first use otherwise (§09, §10). There is no dangling pointer to find later.</p>
+<figure class="code"><div class="code-head"><span class="code-title">A pointer to a dead local, caught</span><span class="badge bad">rejected: diag.reference-escapes-scope</span></div><pre><code><span class="k">fn</span> <span class="p">dangling</span>() : <span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt;
+{
+    <span class="t">i32</span> local = <span class="n">5</span>;
+    &amp;local                             <span class="c">// <span class="bad">✗</span> <span class="dg">diag.reference-escapes-scope</span></span>
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="p">dangling</span>();
+}</code></pre></figure>
+<h3 id="cprog-memory">Memory: no malloc, no free</h3>
+<p>Every value has one owner, and when the owner's scope ends the value is destroyed, on every
+path out of the scope: a normal end, an early <code>return</code>, a <code>?</code> that returns an error, or the unwinding
+of a fault. A <code>Vec</code> frees its buffer, a <code>String</code> its bytes, a <code>File</code> closes. Your own type joins in by
+being declared <code>resource</code> and giving <code>fn T::drop</code>, the destructor, which runs first; the fields follow.
+This replaces the <code>cleanup:</code> label, the matching <code>free</code> for each <code>malloc</code>, and the <code>fclose</code> someone
+forgot on one error path. Passing or assigning a resource <em>moves</em> it: the new name owns it, the
+old name is dead, and using the old name is an error. Plain values (numbers, <code>bool</code>, references,
+small structs of them) are copied as in C.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Destruction at scope end</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">resource</span> <span class="k">struct</span> Connection
+{
+    <span class="p">String</span> name;
+}
+
+<span class="k">fn</span> Connection::<span class="p">drop</span>(<span class="t">ref</span>&lt;Connection, <span class="t">exclusive</span>&gt; self)
+{
+    <span class="p">printf</span>(<span class="s">&quot;close %s\n&quot;</span>, &amp;self.name);
+}
+
+<span class="k">fn</span> use_it()
+{
+    Connection c = Connection { .name = <span class="p">String</span>::from_str(<span class="s">&quot;primary&quot;</span>) };
+    <span class="p">printf</span>(<span class="s">&quot;using %s\n&quot;</span>, &amp;c.name);
+}                                      <span class="c">// c ends here: drop runs, then the String is freed</span>
+
+<span class="k">fn</span> main()
+{
+    use_it();
+    <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v = <span class="p">Vec</span>::new();           <span class="c">// grows as needed; freed when v ends</span>
+    <span class="k">for</span> (<span class="t">i32</span> i = <span class="n">0</span>; i &lt; <span class="n">5</span>; i += <span class="n">1</span>)
+    {
+        <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, i * i);
+    }
+    <span class="p">printf</span>(<span class="s">&quot;%d items, last %d\n&quot;</span>, <span class="p">Vec</span>::len(&amp;v), v[<span class="n">4</span>]);
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>using primary
+close primary
+5 items, last 16
+</pre></div></figure>
+<p>Library calls name the type they belong to and write the borrow they take: <code>Vec::push(&amp;mut
+v, x)</code>, <code>Vec::len(&amp;v)</code>. There is no <code>v.push(x)</code>; the <code>.</code> is only field access. The mode of every
+access, <code>&amp;</code> or <code>&amp;mut</code>, is visible at the call (§08).</p>
+<h3 id="cprog-strings">Strings</h3>
+<p>A string is bytes with a length, in UTF-8, with no terminating zero. A literal is a <code>str</code>:
+read-only, indexed by byte with <code>str_byte(s, i)</code>, measured with <code>str_len(s)</code>. Text you build or own is
+a <code>String</code> (<code>String::from_str</code>, <code>String::append</code>, <code>sprintf</code>); text you only look at, passed to a
+function, is a <code>StringView</code> (§21, <em>Which text type?</em>). Comparison is a function
+(<code>String::eq_str</code>, <code>StringView::eq</code>), never <code>==</code> on pointers, and <code>%s</code> prints any of the three.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Bytes with a length</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    <span class="t">str</span> lit = <span class="s">&quot;héllo&quot;</span>;                 <span class="c">// UTF-8 bytes, no terminator</span>
+    <span class="p">printf</span>(<span class="s">&quot;%d bytes\n&quot;</span>, <span class="p">str_len</span>(lit));
+    <span class="p">String</span> s = <span class="p">String</span>::from_str(<span class="s">&quot;abc&quot;</span>);
+    <span class="p">String</span>::append(&amp;<span class="k">mut</span> s, <span class="s">&quot;def&quot;</span>);
+    <span class="p">printf</span>(<span class="s">&quot;%s has %d bytes; third is %d\n&quot;</span>, &amp;s, <span class="p">String</span>::len(&amp;s), <span class="p">str_byte</span>(<span class="s">&quot;abc&quot;</span>, <span class="n">2</span>));
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>6 bytes
+abcdef has 6 bytes; third is 99
+</pre></div></figure>
+<h3 id="cprog-errors">Error handling, from the beginning</h3>
+<p>C has one mechanism for everything that can go wrong, and it is a convention: a function
+returns a value that means failure (<code>-1</code>, <code>NULL</code>, <code>EOF</code>, <code>false</code>), perhaps sets <code>errno</code>, and the caller
+checks, or does not. Bugs and expected failures travel the same road, nothing forces the check, and
+cleanup on the way out is the caller's problem. CobaltC separates the two kinds of failure and gives
+each its own mechanism, and that separation is the thing to learn first; the syntax follows from
+it.</p>
+<table>
+<thead><tr><th></th><th>An <strong>error value</strong></th><th>A <strong>fault</strong></th></tr></thead>
+<tbody>
+<tr><td>What it is</td><td>An expected failure the program may recover from: bad input, a missing file, a full queue, a lookup that finds nothing</td><td>A violated rule of the language: overflow, an index out of range, a dead reference, a failed <code>assert</code>, an <code>unwrap</code> of nothing</td></tr>
+<tr><td>How it travels</td><td>As a value: <code>Result&lt;T, E&gt;</code> or <code>Option&lt;T&gt;</code>, returned like any other value</td><td>It does not: the thread unwinds every scope, running destructors, and the program ends with the fault's name and exit status 1</td></tr>
+<tr><td>Who decides</td><td>The caller, with <code>match</code>, <code>?</code>, <code>if (Some(x) = …)</code>, <code>unwrap_or</code></td><td>Nobody: there is no <code>catch</code> (a spawned thread's fault can be contained at its <code>join</code>, §19)</td></tr>
+<tr><td>In C terms</td><td>the return code, done so that it cannot be ignored</td><td><code>abort()</code>, done so that it runs your cleanup first</td></tr>
+</tbody>
+</table>
+<p>The rule of thumb: if a failure is part of normal operation, it is an error value; if it can
+only happen because the program is wrong, let the fault fire and fix the program. Do not wrap
+arithmetic in <code>Result</code>, and do not <code>assert</code> that a file exists.</p>
+<h4><code>Option</code> in place of <code>NULL</code> and sentinels</h4>
+<p><code>Option&lt;T&gt;</code> is <code>Some(v)</code> or <code>None</code>. It is a plain two-variant enum from <code>std</code>, not a pointer,
+so a function that may have nothing to return says so in its type and the caller cannot forget to
+look: there is no way to use the <code>T</code> without taking the <code>Option</code> apart. There are four ways to take it
+apart, and C programmers tend to reach for the last one first.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Option, taken apart four ways</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> find(<span class="t">ref</span>&lt;<span class="p">Vec</span>&lt;<span class="t">i32</span>&gt;, <span class="t">shared</span>&gt; v, <span class="t">i32</span> wanted) : <span class="p">Option</span>&lt;<span class="t">usize</span>&gt;
+{
+    <span class="k">foreach</span> (i in <span class="n">0</span> .. <span class="p">Vec</span>::len(v))
+    {
+        <span class="k">if</span> ((*v)[i] == wanted)
+        {
+            <span class="k">return</span> <span class="p">Some</span>(i);
+        }
+    }
+    <span class="p">None</span>
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v = <span class="p">Vec</span>::new();
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">5</span>);
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">8</span>);
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">13</span>);
+    <span class="k">match</span> (find(&amp;v, <span class="n">8</span>))                                  <span class="c">// 1. match: both cases, side by side</span>
+    {
+        <span class="p">Some</span>(i) : <span class="p">printf</span>(<span class="s">&quot;found at %d\n&quot;</span>, i),
+        <span class="p">None</span>    : <span class="p">printf</span>(<span class="s">&quot;absent\n&quot;</span>),
+    }
+    <span class="k">if</span> (<span class="p">Some</span>(i) = find(&amp;v, <span class="n">13</span>))                          <span class="c">// 2. a pattern as the condition</span>
+    {
+        <span class="p">printf</span>(<span class="s">&quot;13 at %d\n&quot;</span>, i);
+    }
+    <span class="t">usize</span> at = <span class="p">Option</span>::unwrap_or(find(&amp;v, <span class="n">99</span>), <span class="n">0</span>);       <span class="c">// 3. a default</span>
+    <span class="p">printf</span>(<span class="s">&quot;%d\n&quot;</span>, at);
+    <span class="k">while</span> (<span class="p">Some</span>(x) = <span class="p">Vec</span>::pop(&amp;<span class="k">mut</span> v))                   <span class="c">// the same, as a loop</span>
+    {
+        <span class="p">printf</span>(<span class="s">&quot;%d &quot;</span>, x);
+    }
+    <span class="p">printf</span>(<span class="s">&quot;\n&quot;</span>);
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>found at 1
+13 at 2
+0
+13 8 5 
+</pre></div></figure>
+<p>The fourth way is <code>Option::unwrap(o)</code>, or <code>Option::expect(o, &quot;why it must be there&quot;)</code>: it
+gives the value or faults with <code>diag.unwrap-failed</code>. That is the right tool exactly when <code>None</code> would
+mean the program is wrong, as <code>assert</code> is; in a library function, or anywhere the caller could
+reasonably have passed nothing, it is the wrong one, because it turns the caller's input into your
+crash. If you find yourself writing <code>if (Option::is_some(&amp;o)) { … Option::unwrap(o) … }</code>, write the
+<code>if (Some(x) = o)</code> form instead: it binds the value and checks in one step.</p>
+<h4><code>Result</code> in place of return codes and <code>errno</code></h4>
+<p><code>Result&lt;T, E&gt;</code> is <code>Ok(v)</code> or <code>Err(e)</code>. <code>E</code> is any type, and the idiom is an enum you declare
+for the module, one variant per way things fail, carrying what the caller needs to say something
+useful (<code>Invalid(usize)</code>: at which position). Compared with an <code>int</code> and <code>errno</code>: the value and the
+failure are one object, so they cannot get out of step; the error carries data, not a number to look
+up; and a <code>Result</code> that is not looked at is rejected by the compiler (<code>diag.result-discarded</code>), so the
+one failure mode C cannot prevent, the ignored return code, does not compile. If you really mean to
+drop it, say so: <code>_ = save(x);</code>.</p>
+<figure class="code"><div class="code-head"><span class="code-title">An ignored return code does not compile</span><span class="badge bad">rejected: diag.result-discarded</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> save(<span class="t">i32</span> n) : <span class="p">Result</span>&lt;<span class="k">void</span>, <span class="t">str</span>&gt;
+{
+    <span class="k">if</span> (n &lt; <span class="n">0</span>) { <span class="p">Err</span>(<span class="s">&quot;negative&quot;</span>) } <span class="k">else</span> { <span class="p">Ok</span>(()) }
+}
+
+<span class="k">fn</span> main()
+{
+    save(-<span class="n">1</span>);                          <span class="c">// <span class="bad">✗</span> <span class="dg">diag.result-discarded</span>: in C this error would vanish; here it cannot</span>
+}</code></pre></figure>
+<p><code>std</code>'s own functions follow the same shape. <code>File::open</code> is <code>Result&lt;File, FileError&gt;</code>;
+<code>String::parse&lt;u32&gt;</code> is <code>Result&lt;u32, ParseError&gt;</code>; <code>HashMap::get</code> is <code>Option&lt;ref&lt;V, shared&gt;&gt;</code>. Every
+<code>std</code> error enum has a <code>text</code> function that gives a short sentence for a message
+(<code>FileError::text(&amp;e)</code>), which is what a program prints when it gives up (§21).</p>
+<h4><code>?</code>: the early return, in one character</h4>
+<p>Most C error handling is the same four lines repeated: call, test the code, clean up, return
+the code to the caller. <code>?</code> is those four lines. Written after an expression of type <code>Result&lt;T, E&gt;</code>, in
+a function whose own return type is <code>Result&lt;_, E&gt;</code>, it yields the <code>T</code> when the value is <code>Ok</code> and
+otherwise returns the <code>Err</code> from the enclosing function at once, running the destructors of
+everything in scope on the way, as any <code>return</code> does. Inside a function returning <code>Option</code>, <code>?</code> does
+the same for <code>None</code>. Three things follow, and they are the three things that confuse newcomers:</p>
+<ul>
+<li><strong>The function must be able to return the error.</strong> <code>?</code> on a <code>Result&lt;T, E&gt;</code> needs an enclosing return type of <code>Result&lt;_, E&gt;</code>, with the <em>same</em> <code>E</code>. In a function returning <code>u8</code> or nothing, <code>?</code> is rejected: <code>diag.propagate-outside-fallible-context</code>. So <code>main</code>, which returns <code>u8</code> or nothing, cannot use <code>?</code>; the pattern below deals with that.</li>
+<li><strong>Different error types do not mix on their own.</strong> A function that calls into two libraries with two error enums must convert each to its own: <code>Result::map_err(r, f)</code> applies <code>f</code> to the <code>Err</code> and leaves an <code>Ok</code> alone, and a closure <code>[](ParseError e) : ConfigError { BadNumber(e) }</code> is the usual <code>f</code>, wrapping the inner error in a variant of the outer. The conversion is explicit at each boundary, and that is where you decide what the caller is told.</li>
+<li><strong><code>Option</code> and <code>Result</code> do not mix either.</strong> <code>Option::ok_or(o, e)</code> turns <code>None</code> into <code>Err(e)</code> so that <code>?</code> can return it: <code>u32 n = Option::ok_or(checked_add(a, b), TooLarge)?;</code> reads "the sum, or report TooLarge". <code>Result::ok(r)</code> goes the other way, dropping the error.</li>
+</ul>
+<h4>The whole shape of a program</h4>
+<p>Put together, a CobaltC program that can fail has three layers, and the layering is what to
+copy. At the bottom, functions return <code>Result</code> with the module's error enum and use <code>?</code> to pass
+failures up. In the middle, a function converts foreign errors into that enum with <code>map_err</code> and
+<code>ok_or</code>, so the layer above sees one type. At the top, <code>main</code> cannot use <code>?</code> and should not try: it
+calls one function that does the work and returns a <code>Result</code>, matches once, prints the error's text
+to standard error and returns a non-zero status. That <code>match</code> is the only place in the program that
+decides how a failure is reported, which is where a C programmer expects <code>perror</code> and <code>exit(1)</code> to
+be.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Errors travel up; main reports once</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">enum</span> ConfigError
+{
+    MissingValue,
+    BadNumber(<span class="p">ParseError</span>),
+    OutOfRange(<span class="t">u32</span>),
+}
+
+<span class="k">fn</span> ConfigError::text(<span class="t">ref</span>&lt;ConfigError, <span class="t">shared</span>&gt; e) : <span class="p">String</span>
+{
+    <span class="k">match</span> (e)
+    {
+        MissingValue  : <span class="p">String</span>::from_str(<span class="s">&quot;no value given&quot;</span>),
+        BadNumber(pe) : <span class="p">sprintf</span>(<span class="s">&quot;not a number (%s)&quot;</span>, <span class="p">ParseError</span>::text(pe)),
+        OutOfRange(n) : <span class="p">sprintf</span>(<span class="s">&quot;%d is not a port&quot;</span>, *n),
+    }
+}
+
+<span class="k">fn</span> port(<span class="t">str</span> text) : <span class="p">Result</span>&lt;<span class="t">u16</span>, ConfigError&gt;
+{
+    <span class="k">if</span> (<span class="p">str_len</span>(text) == <span class="n">0</span>)
+    {
+        <span class="k">return</span> <span class="p">Err</span>(MissingValue);
+    }
+    <span class="t">u32</span> n = <span class="p">Result</span>::<span class="p">map_err</span>(<span class="p">StringView</span>::<span class="p">parse</span>&lt;<span class="t">u32</span>&gt;(<span class="p">StringView</span>::of(text)), [](<span class="p">ParseError</span> e) : ConfigError { BadNumber(e) })?;
+    <span class="k">if</span> (n &gt; <span class="n">65535</span>)
+    {
+        <span class="k">return</span> <span class="p">Err</span>(OutOfRange(n));
+    }
+    <span class="p">Ok</span>(<span class="p">narrow</span>&lt;<span class="t">u16</span>&gt;(n))
+}
+
+<span class="k">fn</span> run() : <span class="p">Result</span>&lt;<span class="k">void</span>, ConfigError&gt;
+{
+    <span class="t">u16</span> p = port(<span class="s">&quot;8080&quot;</span>)?;             <span class="c">// Err returns from run here, if it is one</span>
+    <span class="p">printf</span>(<span class="s">&quot;port %d\n&quot;</span>, p);
+    <span class="t">u16</span> q = port(<span class="s">&quot;99999&quot;</span>)?;
+    <span class="p">printf</span>(<span class="s">&quot;port %d\n&quot;</span>, q);
+    <span class="p">Ok</span>(())
+}
+
+<span class="k">fn</span> main() : <span class="t">u8</span>
+{
+    <span class="k">match</span> (run())
+    {
+        <span class="p">Ok</span>(_)  : <span class="n">0</span>,
+        <span class="p">Err</span>(e) :
+        {
+            <span class="p">eprintf</span>(<span class="s">&quot;config: %s\n&quot;</span>, &amp;ConfigError::text(&amp;e));
+            <span class="n">1</span>
+        },
+    }
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>port 8080
+</pre></div></figure>
+<p>Read <code>port</code> against the C version you would write: the <code>if (!s[0]) return -1;</code>, the
+<code>strtoul</code> with its <code>endptr</code> and <code>errno</code> check, the range test, each returning a different negative
+number the caller has to know. Here each failure is a named variant, the parse error from <code>std</code> is
+kept inside <code>BadNumber</code> rather than flattened to a code, and <code>run</code> has no error handling at all: two
+<code>?</code> and the happy path. The exit status is 1 and the message is on standard error, so the program
+behaves as a shell expects, and the <code>output</code> above shows only what reached standard output before the
+second <code>port</code> failed.</p>
+<figure class="code"><div class="code-head"><span class="code-title">The mistake every C programmer makes once</span><span class="badge bad">rejected: diag.propagate-outside-fallible-context</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> port(<span class="t">str</span> text) : <span class="p">Result</span>&lt;<span class="t">u16</span>, <span class="p">ParseError</span>&gt;
+{
+    <span class="p">StringView</span>::<span class="p">parse</span>&lt;<span class="t">u16</span>&gt;(<span class="p">StringView</span>::of(text))
+}
+
+<span class="k">fn</span> main() : <span class="t">u8</span>
+{
+    <span class="t">u16</span> p = port(<span class="s">&quot;8080&quot;</span>)?;             <span class="c">// <span class="bad">✗</span> <span class="dg">diag.propagate-outside-fallible-context</span>: main returns u8, not a Result</span>
+    <span class="n">0</span>
+}</code></pre></figure>
+<div class="callout note"><div class="callout-title">Reading the <code>?</code> error</div><code>?</code> is not a <code>switch</code> default and not the ternary operator; it is <code>return Err(e)</code> with the
+cleanup done for you. When it is rejected, the message says the function cannot return the error:
+either give the function a <code>Result</code> return type and let the caller decide, or handle the value here
+with <code>match</code>.</div>
+<h4>Faults: what <code>abort()</code> should have been</h4>
+<p>A fault is the language refusing to continue: an overflow, an index out of range, a division by
+zero, an <code>unwrap</code> of <code>None</code>, a false <code>assert</code>, a reference used after its referent ended. Nothing in
+the program can catch it, which is the point: the code after the failed check would have run on a
+state the check protected. What a fault does do, unlike <code>abort()</code>, is unwind. The faulting thread
+leaves every open scope in order, running every destructor, so files are closed and locks released,
+and only then does the program end, printing the fault's name, its location and the source line, with
+exit status 1.</p>
+<figure class="code"><div class="code-head"><span class="code-title">A fault unwinds before it ends the program</span><span class="badge bad">rejected: diag.index-out-of-bounds</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">resource</span> <span class="k">struct</span> Connection
+{
+    <span class="t">str</span> name;
+}
+
+<span class="k">fn</span> Connection::<span class="p">drop</span>(<span class="t">ref</span>&lt;Connection, <span class="t">exclusive</span>&gt; self)
+{
+    <span class="p">printf</span>(<span class="s">&quot;closed %s\n&quot;</span>, self.name);  <span class="c">// runs while the fault unwinds</span>
+}
+
+<span class="k">fn</span> third(<span class="t">ref</span>&lt;<span class="t">array</span>&lt;<span class="t">i32</span>, <span class="n">3</span>&gt;, <span class="t">shared</span>&gt; a, <span class="t">usize</span> i) : <span class="t">i32</span>
+{
+    (*a)[i]
+}
+
+<span class="k">fn</span> main()
+{
+    Connection c = Connection { .name = <span class="s">&quot;db&quot;</span> };
+    <span class="t">array</span>&lt;<span class="t">i32</span>, <span class="n">3</span>&gt; a = [<span class="n">1</span>, <span class="n">2</span>, <span class="n">3</span>];
+    <span class="p">printf</span>(<span class="s">&quot;%d\n&quot;</span>, third(&amp;a, <span class="n">2</span>));
+    <span class="p">printf</span>(<span class="s">&quot;%d\n&quot;</span>, third(&amp;a, <span class="n">3</span>));      <span class="c">// <span class="bad">✗</span> <span class="dg">diag.index-out-of-bounds</span> (dynamic): c is closed first</span>
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>3
+closed db
+</pre></div></figure>
+<p><code>assert</code> is the one fault you raise yourself. Unlike C's, it is never compiled out, so it is
+a statement about the program that holds in every build; and its message is a <code>printf</code> format whose
+arguments are evaluated only when the condition is false, so a precise message costs nothing while
+things are right.</p>
+<figure class="code"><div class="code-head"><span class="code-title">assert with a message</span><span class="badge bad">rejected: diag.assert-failed</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> average(<span class="t">ref</span>&lt;<span class="p">Vec</span>&lt;<span class="t">i32</span>&gt;, <span class="t">shared</span>&gt; v) : <span class="t">i32</span>
+{
+    <span class="p">assert</span>(<span class="p">Vec</span>::len(v) &gt; <span class="n">0</span>, <span class="s">&quot;average of %d values&quot;</span>, <span class="p">Vec</span>::len(v));
+    <span class="t">i32</span> sum = <span class="n">0</span>;
+    <span class="k">foreach</span> (x in v)
+    {
+        sum += *x;
+    }
+    sum / <span class="p">narrow</span>&lt;<span class="t">i32</span>&gt;(<span class="p">Vec</span>::len(v))
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v = <span class="p">Vec</span>::new();
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">4</span>);
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">6</span>);
+    <span class="p">printf</span>(<span class="s">&quot;%d\n&quot;</span>, average(&amp;v));
+    <span class="p">Vec</span>::clear(&amp;<span class="k">mut</span> v);
+    average(&amp;v);                       <span class="c">// <span class="bad">✗</span> <span class="dg">diag.assert-failed</span> (dynamic): &quot;average of 0 values&quot;</span>
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>5
+</pre></div></figure>
+<p>Whether something should be an <code>assert</code> or an <code>Err</code> is the same question as before: can a
+correct program, given legitimate input, reach it? An empty <code>Vec</code> passed to <code>average</code> by a caller who
+read it from a file can, so in a real program <code>average</code> would return <code>Option&lt;i32&gt;</code>; the <code>assert</code> is
+right only if the caller has already guaranteed the length. When a fault happens in a thread you
+<code>spawn</code>ed, it ends that thread alone and becomes the thread's result, which <code>join</code> raises and
+<code>try_join</code> hands over as a value (§19, <a href="#s19-supervision">When a thread fails</a>); the main
+thread's fault always ends the program.</p>
+<h4>The idioms, side by side</h4>
+<table>
+<thead><tr><th>C</th><th>CobaltC</th></tr></thead>
+<tbody>
+<tr><td><code>if (p == NULL) return -1;</code></td><td><code>?</code> on an <code>Option</code> in a function returning <code>Option</code>; or <code>Option::ok_or(o, MyError)?</code> in one returning <code>Result</code></td></tr>
+<tr><td><code>if (rc &lt; 0) { cleanup(); return rc; }</code></td><td><code>T v = call()?;</code> with the module's error type; destructors do the cleanup</td></tr>
+<tr><td><code>if (rc &lt; 0) { cleanup(); return MY_ERR; }</code></td><td><code>Result::map_err(call(), [](TheirError e) : MyError { Wrapped(e) })?</code></td></tr>
+<tr><td><code>switch (rc) { case E_A: … case E_B: … }</code></td><td><code>match (e) { A : …, B(detail) : …, }</code>, every variant covered</td></tr>
+<tr><td><code>perror(&quot;open&quot;); exit(1);</code></td><td>in <code>main</code>: <code>Err(e) : { eprintf(&quot;open: %s\n&quot;, FileError::text(&amp;e)); 1 }</code></td></tr>
+<tr><td><code>x = f(); /* ignore */</code></td><td><code>_ = f();</code>, the only way to drop a <code>Result</code></td></tr>
+<tr><td><code>assert(n &gt; 0);</code></td><td><code>assert(n &gt; 0, &quot;n was %d&quot;, n);</code></td></tr>
+<tr><td><code>abort()</code>, <code>exit(EXIT_FAILURE)</code></td><td><code>exit(1)</code>, after unwinding; or <code>return 1</code> from <code>fn main() : u8</code></td></tr>
+<tr><td>a flag <code>ok</code> threaded through a loop</td><td><code>while (Some(item) = next(&amp;mut it)) { … }</code> or <code>foreach</code>, with <code>?</code> inside a <code>Result</code>-returning function</td></tr>
+<tr><td><code>errno</code> read after the call</td><td>the payload of the <code>Err</code> variant, or <code>E::text(&amp;e)</code> for a sentence</td></tr>
+</tbody>
+</table>
+<h3 id="cprog-build">Building and calling C</h3>
+<p>There is no header, no object file to manage and no Makefile. <code>cobc prog.cb</code> compiles the
+program and the files it names with <code>module m &quot;./m.cb&quot;;</code>, then links; <code>coby prog.cb</code> runs it directly;
+<code>cobc --check prog.cb</code> only checks. Calling C is a declaration and a file: <code>unsafe extern fn area(i32
+w, i32 h) : i32;</code> promises the signature, <code>extern &quot;./shapes.c&quot;;</code> names the source (or <code>extern &quot;m&quot;;</code> a
+library), and every call sits in an <code>unsafe</code> block, because the compiler cannot see what the C does
+(§20). The types at the boundary are the C-compatible ones: sized integers, floats, <code>bool</code>,
+<code>rawptr&lt;T&gt;</code>. Everything you have written in C stays callable; what changes is that the boundary is
+marked, and the safe side of it keeps every guarantee of this section.</p>
+<div class="callout rule"><div class="callout-title">Rules of thumb</div><ul>
+<li>Reach for <code>Option</code> where you reached for <code>NULL</code> or <code>-1</code>, for <code>Result</code> where you reached for a return code, and for a fault (<code>assert</code>) only where the program would be wrong.</li>
+<li>Give each module one error enum, convert foreign errors into it with <code>map_err</code> and <code>ok_or</code> at the boundary, and use <code>?</code> everywhere else.</li>
+<li>Let <code>main</code> match once: print <code>E::text(&amp;e)</code> to standard error and return a non-zero <code>u8</code>.</li>
+<li>Trust the destructors: there is no cleanup label to jump to, because every path out of a scope runs them.</li>
+</ul>
+</div>
+
+<nav class="pager"><a class="prev" href="#parts">&larr; Core language and std</a><a class="top" href="#top">Top</a><a class="next" href="#s06">§06 Arithmetic and numeric types &rarr;</a></nav></section>
 <section id="s06">
 <h2><span class="secnum">§06</span>Arithmetic and numeric types</h2>
 <div class="spec-ref">Governing specification file: <code>spec/06-arithmetic.md</code></div><p class="blurb">Checked integer arithmetic, explicit conversions, how literals get their types, and the sizes and limits of types.</p>
@@ -1453,7 +1930,7 @@ the program runs.</p>
 </ul>
 </div>
 
-<nav class="pager"><a class="prev" href="#parts">&larr; Core language and std</a><a class="top" href="#top">Top</a><a class="next" href="#s07">§07 Resources, ownership and destruction &rarr;</a></nav></section>
+<nav class="pager"><a class="prev" href="#cprog">&larr; CobaltC for C programmers</a><a class="top" href="#top">Top</a><a class="next" href="#s07">§07 Resources, ownership and destruction &rarr;</a></nav></section>
 <section id="s07">
 <h2><span class="secnum">§07</span>Resources, ownership and destruction</h2>
 <div class="spec-ref">Governing specification file: <code>spec/07-resource-authority.md</code></div><p class="blurb">Resource types have exactly one owner, move instead of copying, and are destroyed automatically and exactly once.</p>
@@ -5965,9 +6442,10 @@ readers and in the HTTP client's status line, both now an <code>Err</code>.</p>
 reference implementation's source. Names <code class="priv">in faint red</code> are not exported: they are the
 module's own working parts, which a program cannot name or call, listed so that nothing in the source
 is left out. Everything else is exported. An item marked <sup class="nat">n</sup> has no CobaltC body: both
-tools build it in (<code>printf</code>, <code>sqrt</code>, <code>exit</code>, …). A row headed <code>T::</code> lists <code>T</code>'s
+tools build it in (<code>printf</code>, <code>sqrt</code>, <code>exit</code>, …), and its documentation is kept by hand in
+<code>impl/std/builtins.md</code>. A row headed <code>T::</code> lists <code>T</code>'s
 associated functions. A parent module also re-exports the submodules it lists, so their items are its
-own too. Each exported name with a CobaltC body links to its entry in <a href="#stdref">the std
+own too. Each exported name links to its entry in <a href="#stdref">the std
 reference</a>, which gives its declaration, its documentation and examples.</p>
 <p class="std-nav"><a href="#stdmod-std"><code>std</code></a>, <a href="#stdmod-std-core"><code>std::core</code></a>, <a href="#stdmod-std-collections"><code>std::collections</code></a>, <a href="#stdmod-std-text"><code>std::text</code></a>, <a href="#stdmod-std-io"><code>std::io</code></a>, <a href="#stdmod-std-fs"><code>std::fs</code></a>, <a href="#stdmod-std-env"><code>std::env</code></a>, <a href="#stdmod-std-memory"><code>std::memory</code></a>, <a href="#stdmod-std-sync"><code>std::sync</code></a>, <a href="#stdmod-std-random"><code>std::random</code></a>, <a href="#stdmod-std-math"><code>std::math</code></a>, <a href="#stdmod-std-time"><code>std::time</code></a>, <a href="#stdmod-std-process"><code>std::process</code></a>, <a href="#stdmod-std-net"><code>std::net</code></a>, <a href="#stdmod-std-crypto"><code>std::crypto</code></a>, <a href="#stdmod-std-crypto-digest"><code>std::crypto::digest</code></a>, <a href="#stdmod-std-crypto-kdf"><code>std::crypto::kdf</code></a>, <a href="#stdmod-std-crypto-aead"><code>std::crypto::aead</code></a>, <a href="#stdmod-std-crypto-pk"><code>std::crypto::pk</code></a>, <a href="#stdmod-std-x509"><code>std::x509</code></a>, <a href="#stdmod-std-tls"><code>std::tls</code></a>, <a href="#stdmod-std-http"><code>std::http</code></a>, <a href="#stdmod-std-http-client"><code>std::http::client</code></a>, <a href="#stdmod-std-http-server"><code>std::http::server</code></a>, <a href="#stdmod-std-database"><code>std::database</code></a>, <a href="#stdmod-std-database-postgres"><code>std::database::postgres</code></a>, <a href="#stdmod-std-encoding"><code>std::encoding</code></a>, <a href="#stdmod-std-encoding-json"><code>std::encoding::json</code></a>, <a href="#stdmod-std-encoding-hex"><code>std::encoding::hex</code></a>, <a href="#stdmod-std-encoding-base64"><code>std::encoding::base64</code></a>, <a href="#stdmod-std-compress"><code>std::compress</code></a>, <a href="#stdmod-std-extensions"><code>std::extensions</code></a></p>
 <h4 id="stdmod-std"><code>std</code> <span class="std-file">impl/std/std.cb</span></h4>
@@ -5984,9 +6462,9 @@ reference</a>, which gives its declaration, its documentation and examples.</p>
 <thead><tr><th>Kind</th><th>Items</th></tr></thead>
 <tbody>
 <tr><td>Types</td><td><a href="#stdref-std-core-AllocError"><code>AllocError</code></a>, <a href="#stdref-std-core-Option"><code>Option</code></a>, <a href="#stdref-std-core-Result"><code>Result</code></a></td></tr>
-<tr><td>Functions</td><td><code>assert</code><sup class="nat">n</sup>, <a href="#stdref-std-core-overwrite"><code>overwrite</code></a>, <a href="#stdref-std-core-replace"><code>replace</code></a>, <a href="#stdref-std-core-swap"><code>swap</code></a></td></tr>
+<tr><td>Functions</td><td><a href="#stdref-std-core-assert"><code>assert</code><sup class="nat">n</sup></a>, <a href="#stdref-std-core-overwrite"><code>overwrite</code></a>, <a href="#stdref-std-core-replace"><code>replace</code></a>, <a href="#stdref-std-core-swap"><code>swap</code></a></td></tr>
 <tr><td><code>Option::</code></td><td><a href="#stdref-std-core-Option-expect"><code>expect</code></a>, <a href="#stdref-std-core-Option-is_none"><code>is_none</code></a>, <a href="#stdref-std-core-Option-is_some"><code>is_some</code></a>, <a href="#stdref-std-core-Option-ok_or"><code>ok_or</code></a>, <a href="#stdref-std-core-Option-unwrap"><code>unwrap</code></a>, <a href="#stdref-std-core-Option-unwrap_or"><code>unwrap_or</code></a></td></tr>
-<tr><td><code>Result::</code></td><td><a href="#stdref-std-core-Result-expect"><code>expect</code></a>, <a href="#stdref-std-core-Result-is_err"><code>is_err</code></a>, <a href="#stdref-std-core-Result-is_ok"><code>is_ok</code></a>, <code>map_err</code><sup class="nat">n</sup>, <a href="#stdref-std-core-Result-ok"><code>ok</code></a>, <a href="#stdref-std-core-Result-unwrap"><code>unwrap</code></a>, <a href="#stdref-std-core-Result-unwrap_or"><code>unwrap_or</code></a></td></tr>
+<tr><td><code>Result::</code></td><td><a href="#stdref-std-core-Result-expect"><code>expect</code></a>, <a href="#stdref-std-core-Result-is_err"><code>is_err</code></a>, <a href="#stdref-std-core-Result-is_ok"><code>is_ok</code></a>, <a href="#stdref-std-core-Result-map_err"><code>map_err</code><sup class="nat">n</sup></a>, <a href="#stdref-std-core-Result-ok"><code>ok</code></a>, <a href="#stdref-std-core-Result-unwrap"><code>unwrap</code></a>, <a href="#stdref-std-core-Result-unwrap_or"><code>unwrap_or</code></a></td></tr>
 </tbody>
 </table>
 <h4 id="stdmod-std-collections"><code>std::collections</code> <span class="std-file">impl/std/collections.cb</span></h4>
@@ -6010,10 +6488,10 @@ reference</a>, which gives its declaration, its documentation and examples.</p>
 <thead><tr><th>Kind</th><th>Items</th></tr></thead>
 <tbody>
 <tr><td>Types</td><td><a href="#stdref-std-text-ParseError"><code>ParseError</code></a>, <a href="#stdref-std-text-String"><code>String</code></a>, <a href="#stdref-std-text-StringView"><code>StringView</code></a>, <a href="#stdref-std-text-Utf8Error"><code>Utf8Error</code></a></td></tr>
-<tr><td>Functions</td><td><a href="#stdref-std-text-ascii_is_alnum"><code>ascii_is_alnum</code></a>, <a href="#stdref-std-text-ascii_is_alpha"><code>ascii_is_alpha</code></a>, <a href="#stdref-std-text-ascii_is_digit"><code>ascii_is_digit</code></a>, <a href="#stdref-std-text-ascii_is_lower"><code>ascii_is_lower</code></a>, <a href="#stdref-std-text-ascii_is_space"><code>ascii_is_space</code></a>, <a href="#stdref-std-text-ascii_is_upper"><code>ascii_is_upper</code></a>, <a href="#stdref-std-text-ascii_to_lower"><code>ascii_to_lower</code></a>, <a href="#stdref-std-text-ascii_to_upper"><code>ascii_to_upper</code></a>, <code class="priv">byte_index_from</code>, <code class="priv">parse_bytes</code>, <code class="priv">space_run_end</code>, <code>sprintf</code><sup class="nat">n</sup>, <code class="priv">utf8_error_at</code></td></tr>
+<tr><td>Functions</td><td><a href="#stdref-std-text-ascii_is_alnum"><code>ascii_is_alnum</code></a>, <a href="#stdref-std-text-ascii_is_alpha"><code>ascii_is_alpha</code></a>, <a href="#stdref-std-text-ascii_is_digit"><code>ascii_is_digit</code></a>, <a href="#stdref-std-text-ascii_is_lower"><code>ascii_is_lower</code></a>, <a href="#stdref-std-text-ascii_is_space"><code>ascii_is_space</code></a>, <a href="#stdref-std-text-ascii_is_upper"><code>ascii_is_upper</code></a>, <a href="#stdref-std-text-ascii_to_lower"><code>ascii_to_lower</code></a>, <a href="#stdref-std-text-ascii_to_upper"><code>ascii_to_upper</code></a>, <code class="priv">byte_index_from</code>, <code class="priv">parse_bytes</code>, <code class="priv">space_run_end</code>, <a href="#stdref-std-text-sprintf"><code>sprintf</code><sup class="nat">n</sup></a>, <code class="priv">utf8_error_at</code></td></tr>
 <tr><td><code>Utf8Error::</code></td><td><a href="#stdref-std-text-Utf8Error-text"><code>text</code></a></td></tr>
 <tr><td><code>ParseError::</code></td><td><a href="#stdref-std-text-ParseError-text"><code>text</code></a></td></tr>
-<tr><td><code>String::</code></td><td><a href="#stdref-std-text-String-append"><code>append</code></a>, <code class="priv">append_str</code>, <code class="priv">append_string</code>, <code class="priv">append_text</code>, <code class="priv">append_view</code>, <code>appendf</code><sup class="nat">n</sup>, <a href="#stdref-std-text-String-as_bytes"><code>as_bytes</code></a>, <a href="#stdref-std-text-String-as_view"><code>as_view</code></a>, <a href="#stdref-std-text-String-char_count"><code>char_count</code></a>, <a href="#stdref-std-text-String-chars"><code>chars</code></a>, <a href="#stdref-std-text-String-clear"><code>clear</code></a>, <a href="#stdref-std-text-String-clone"><code>clone</code></a>, <a href="#stdref-std-text-String-code_point"><code>code_point</code></a>, <a href="#stdref-std-text-String-contains"><code>contains</code></a>, <a href="#stdref-std-text-String-ends_with"><code>ends_with</code></a>, <a href="#stdref-std-text-String-eq"><code>eq</code></a>, <a href="#stdref-std-text-String-eq_str"><code>eq_str</code></a>, <a href="#stdref-std-text-String-eq_view"><code>eq_view</code></a>, <a href="#stdref-std-text-String-find"><code>find</code></a>, <a href="#stdref-std-text-String-from_str"><code>from_str</code></a>, <a href="#stdref-std-text-String-from_utf8"><code>from_utf8</code></a>, <a href="#stdref-std-text-String-from_view"><code>from_view</code></a>, <a href="#stdref-std-text-String-into_bytes"><code>into_bytes</code></a>, <a href="#stdref-std-text-String-join"><code>join</code></a>, <a href="#stdref-std-text-String-len"><code>len</code></a>, <a href="#stdref-std-text-String-less"><code>less</code></a>, <a href="#stdref-std-text-String-lines"><code>lines</code></a>, <a href="#stdref-std-text-String-new"><code>new</code></a>, <a href="#stdref-std-text-String-parse"><code>parse</code></a>, <a href="#stdref-std-text-String-push_ascii"><code>push_ascii</code></a>, <a href="#stdref-std-text-String-push_code_point"><code>push_code_point</code></a>, <a href="#stdref-std-text-String-replace"><code>replace</code></a>, <a href="#stdref-std-text-String-reserve"><code>reserve</code></a>, <a href="#stdref-std-text-String-split"><code>split</code></a>, <a href="#stdref-std-text-String-split_whitespace"><code>split_whitespace</code></a>, <a href="#stdref-std-text-String-starts_with"><code>starts_with</code></a>, <a href="#stdref-std-text-String-strip_prefix"><code>strip_prefix</code></a>, <a href="#stdref-std-text-String-strip_suffix"><code>strip_suffix</code></a>, <a href="#stdref-std-text-String-to_ascii_lower"><code>to_ascii_lower</code></a>, <a href="#stdref-std-text-String-to_ascii_upper"><code>to_ascii_upper</code></a>, <a href="#stdref-std-text-String-trim"><code>trim</code></a>, <a href="#stdref-std-text-String-trim_end"><code>trim_end</code></a>, <a href="#stdref-std-text-String-trim_start"><code>trim_start</code></a>, <a href="#stdref-std-text-String-truncate"><code>truncate</code></a>, <a href="#stdref-std-text-String-view"><code>view</code></a></td></tr>
+<tr><td><code>String::</code></td><td><a href="#stdref-std-text-String-append"><code>append</code></a>, <code class="priv">append_str</code>, <code class="priv">append_string</code>, <code class="priv">append_text</code>, <code class="priv">append_view</code>, <a href="#stdref-std-text-String-appendf"><code>appendf</code><sup class="nat">n</sup></a>, <a href="#stdref-std-text-String-as_bytes"><code>as_bytes</code></a>, <a href="#stdref-std-text-String-as_view"><code>as_view</code></a>, <a href="#stdref-std-text-String-char_count"><code>char_count</code></a>, <a href="#stdref-std-text-String-chars"><code>chars</code></a>, <a href="#stdref-std-text-String-clear"><code>clear</code></a>, <a href="#stdref-std-text-String-clone"><code>clone</code></a>, <a href="#stdref-std-text-String-code_point"><code>code_point</code></a>, <a href="#stdref-std-text-String-contains"><code>contains</code></a>, <a href="#stdref-std-text-String-ends_with"><code>ends_with</code></a>, <a href="#stdref-std-text-String-eq"><code>eq</code></a>, <a href="#stdref-std-text-String-eq_str"><code>eq_str</code></a>, <a href="#stdref-std-text-String-eq_view"><code>eq_view</code></a>, <a href="#stdref-std-text-String-find"><code>find</code></a>, <a href="#stdref-std-text-String-from_str"><code>from_str</code></a>, <a href="#stdref-std-text-String-from_utf8"><code>from_utf8</code></a>, <a href="#stdref-std-text-String-from_view"><code>from_view</code></a>, <a href="#stdref-std-text-String-into_bytes"><code>into_bytes</code></a>, <a href="#stdref-std-text-String-join"><code>join</code></a>, <a href="#stdref-std-text-String-len"><code>len</code></a>, <a href="#stdref-std-text-String-less"><code>less</code></a>, <a href="#stdref-std-text-String-lines"><code>lines</code></a>, <a href="#stdref-std-text-String-new"><code>new</code></a>, <a href="#stdref-std-text-String-parse"><code>parse</code></a>, <a href="#stdref-std-text-String-push_ascii"><code>push_ascii</code></a>, <a href="#stdref-std-text-String-push_code_point"><code>push_code_point</code></a>, <a href="#stdref-std-text-String-replace"><code>replace</code></a>, <a href="#stdref-std-text-String-reserve"><code>reserve</code></a>, <a href="#stdref-std-text-String-split"><code>split</code></a>, <a href="#stdref-std-text-String-split_whitespace"><code>split_whitespace</code></a>, <a href="#stdref-std-text-String-starts_with"><code>starts_with</code></a>, <a href="#stdref-std-text-String-strip_prefix"><code>strip_prefix</code></a>, <a href="#stdref-std-text-String-strip_suffix"><code>strip_suffix</code></a>, <a href="#stdref-std-text-String-to_ascii_lower"><code>to_ascii_lower</code></a>, <a href="#stdref-std-text-String-to_ascii_upper"><code>to_ascii_upper</code></a>, <a href="#stdref-std-text-String-trim"><code>trim</code></a>, <a href="#stdref-std-text-String-trim_end"><code>trim_end</code></a>, <a href="#stdref-std-text-String-trim_start"><code>trim_start</code></a>, <a href="#stdref-std-text-String-truncate"><code>truncate</code></a>, <a href="#stdref-std-text-String-view"><code>view</code></a></td></tr>
 <tr><td><code>StringView::</code></td><td><a href="#stdref-std-text-StringView-as_bytes"><code>as_bytes</code></a>, <code class="priv">at</code>, <code class="priv">boundary</code>, <a href="#stdref-std-text-StringView-char_count"><code>char_count</code></a>, <a href="#stdref-std-text-StringView-chars"><code>chars</code></a>, <a href="#stdref-std-text-StringView-code_point"><code>code_point</code></a>, <a href="#stdref-std-text-StringView-contains"><code>contains</code></a>, <a href="#stdref-std-text-StringView-ends_with"><code>ends_with</code></a>, <a href="#stdref-std-text-StringView-eq"><code>eq</code></a>, <a href="#stdref-std-text-StringView-eq_str"><code>eq_str</code></a>, <a href="#stdref-std-text-StringView-find"><code>find</code></a>, <a href="#stdref-std-text-StringView-from_utf8"><code>from_utf8</code></a>, <a href="#stdref-std-text-StringView-join"><code>join</code></a>, <a href="#stdref-std-text-StringView-len"><code>len</code></a>, <a href="#stdref-std-text-StringView-less"><code>less</code></a>, <a href="#stdref-std-text-StringView-lines"><code>lines</code></a>, <a href="#stdref-std-text-StringView-of"><code>of</code></a>, <a href="#stdref-std-text-StringView-parse"><code>parse</code></a>, <code class="priv">ptr</code>, <a href="#stdref-std-text-StringView-replace"><code>replace</code></a>, <code class="priv">space</code>, <a href="#stdref-std-text-StringView-split"><code>split</code></a>, <a href="#stdref-std-text-StringView-split_whitespace"><code>split_whitespace</code></a>, <a href="#stdref-std-text-StringView-starts_with"><code>starts_with</code></a>, <a href="#stdref-std-text-StringView-strip_prefix"><code>strip_prefix</code></a>, <a href="#stdref-std-text-StringView-strip_suffix"><code>strip_suffix</code></a>, <a href="#stdref-std-text-StringView-sub"><code>sub</code></a>, <a href="#stdref-std-text-StringView-trim"><code>trim</code></a>, <a href="#stdref-std-text-StringView-trim_end"><code>trim_end</code></a>, <a href="#stdref-std-text-StringView-trim_start"><code>trim_start</code></a></td></tr>
 </tbody>
 </table>
@@ -6021,8 +6499,8 @@ reference</a>, which gives its declaration, its documentation and examples.</p>
 <table class="std-inv">
 <thead><tr><th>Kind</th><th>Items</th></tr></thead>
 <tbody>
-<tr><td>Functions</td><td><code class="priv">eprint_str</code>, <code>eprintf</code><sup class="nat">n</sup>, <a href="#stdref-std-io-flush_stdout"><code>flush_stdout</code></a>, <code class="priv">print_str</code>, <code class="priv">print_string</code>, <code>printf</code><sup class="nat">n</sup>, <a href="#stdref-std-io-read_all"><code>read_all</code></a>, <a href="#stdref-std-io-read_all_bytes"><code>read_all_bytes</code></a>, <a href="#stdref-std-io-read_line"><code>read_line</code></a></td></tr>
-<tr><td><code>File::</code></td><td><code>printf</code><sup class="nat">n</sup></td></tr>
+<tr><td>Functions</td><td><code class="priv">eprint_str</code>, <a href="#stdref-std-io-eprintf"><code>eprintf</code><sup class="nat">n</sup></a>, <a href="#stdref-std-io-flush_stdout"><code>flush_stdout</code></a>, <code class="priv">print_str</code>, <code class="priv">print_string</code>, <a href="#stdref-std-io-printf"><code>printf</code><sup class="nat">n</sup></a>, <a href="#stdref-std-io-read_all"><code>read_all</code></a>, <a href="#stdref-std-io-read_all_bytes"><code>read_all_bytes</code></a>, <a href="#stdref-std-io-read_line"><code>read_line</code></a></td></tr>
+<tr><td><code>File::</code></td><td><a href="#stdref-std-io-File-printf"><code>printf</code><sup class="nat">n</sup></a></td></tr>
 <tr><td>Externs (<code>unsafe</code>)</td><td><a href="#stdref-std-io-stdin_read"><code>stdin_read</code></a>, <a href="#stdref-std-io-stdout_write"><code>stdout_write</code></a></td></tr>
 </tbody>
 </table>
@@ -6081,7 +6559,7 @@ reference</a>, which gives its declaration, its documentation and examples.</p>
 <thead><tr><th>Kind</th><th>Items</th></tr></thead>
 <tbody>
 <tr><td>Types</td><td><a href="#stdref-std-math-BigDivision"><code>BigDivision</code></a>, <a href="#stdref-std-math-BigUint"><code>BigUint</code></a></td></tr>
-<tr><td>Functions</td><td><a href="#stdref-std-math-abs"><code>abs</code></a>, <code>acos</code><sup class="nat">n</sup>, <code>asin</code><sup class="nat">n</sup>, <code>atan</code><sup class="nat">n</sup>, <code>atan2</code><sup class="nat">n</sup>, <code>ceil</code><sup class="nat">n</sup>, <a href="#stdref-std-math-clamp"><code>clamp</code></a>, <code>cos</code><sup class="nat">n</sup>, <code>exp</code><sup class="nat">n</sup>, <code>floor</code><sup class="nat">n</sup>, <a href="#stdref-std-math-gcd"><code>gcd</code></a>, <a href="#stdref-std-math-is_finite"><code>is_finite</code></a>, <a href="#stdref-std-math-is_nan"><code>is_nan</code></a>, <code>ln</code><sup class="nat">n</sup>, <code>log10</code><sup class="nat">n</sup>, <code>log2</code><sup class="nat">n</sup>, <a href="#stdref-std-math-max"><code>max</code></a>, <a href="#stdref-std-math-min"><code>min</code></a>, <a href="#stdref-std-math-pow"><code>pow</code></a>, <code>powf</code><sup class="nat">n</sup>, <code>round</code><sup class="nat">n</sup>, <code>sin</code><sup class="nat">n</sup>, <code>sqrt</code><sup class="nat">n</sup>, <code>tan</code><sup class="nat">n</sup>, <code>trunc</code><sup class="nat">n</sup></td></tr>
+<tr><td>Functions</td><td><a href="#stdref-std-math-abs"><code>abs</code></a>, <a href="#stdref-std-math-acos"><code>acos</code><sup class="nat">n</sup></a>, <a href="#stdref-std-math-asin"><code>asin</code><sup class="nat">n</sup></a>, <a href="#stdref-std-math-atan"><code>atan</code><sup class="nat">n</sup></a>, <a href="#stdref-std-math-atan2"><code>atan2</code><sup class="nat">n</sup></a>, <a href="#stdref-std-math-ceil"><code>ceil</code><sup class="nat">n</sup></a>, <a href="#stdref-std-math-clamp"><code>clamp</code></a>, <a href="#stdref-std-math-cos"><code>cos</code><sup class="nat">n</sup></a>, <a href="#stdref-std-math-exp"><code>exp</code><sup class="nat">n</sup></a>, <a href="#stdref-std-math-floor"><code>floor</code><sup class="nat">n</sup></a>, <a href="#stdref-std-math-gcd"><code>gcd</code></a>, <a href="#stdref-std-math-is_finite"><code>is_finite</code></a>, <a href="#stdref-std-math-is_nan"><code>is_nan</code></a>, <a href="#stdref-std-math-ln"><code>ln</code><sup class="nat">n</sup></a>, <a href="#stdref-std-math-log10"><code>log10</code><sup class="nat">n</sup></a>, <a href="#stdref-std-math-log2"><code>log2</code><sup class="nat">n</sup></a>, <a href="#stdref-std-math-max"><code>max</code></a>, <a href="#stdref-std-math-min"><code>min</code></a>, <a href="#stdref-std-math-pow"><code>pow</code></a>, <a href="#stdref-std-math-powf"><code>powf</code><sup class="nat">n</sup></a>, <a href="#stdref-std-math-round"><code>round</code><sup class="nat">n</sup></a>, <a href="#stdref-std-math-sin"><code>sin</code><sup class="nat">n</sup></a>, <a href="#stdref-std-math-sqrt"><code>sqrt</code><sup class="nat">n</sup></a>, <a href="#stdref-std-math-tan"><code>tan</code><sup class="nat">n</sup></a>, <a href="#stdref-std-math-trunc"><code>trunc</code><sup class="nat">n</sup></a></td></tr>
 <tr><td><code>BigUint::</code></td><td><a href="#stdref-std-math-BigUint-add"><code>add</code></a>, <a href="#stdref-std-math-BigUint-bit"><code>bit</code></a>, <a href="#stdref-std-math-BigUint-bit_len"><code>bit_len</code></a>, <a href="#stdref-std-math-BigUint-clone"><code>clone</code></a>, <code class="priv">compare</code>, <a href="#stdref-std-math-BigUint-div_rem"><code>div_rem</code></a>, <a href="#stdref-std-math-BigUint-eq"><code>eq</code></a>, <a href="#stdref-std-math-BigUint-from_bytes_be"><code>from_bytes_be</code></a>, <a href="#stdref-std-math-BigUint-from_u64"><code>from_u64</code></a>, <a href="#stdref-std-math-BigUint-is_zero"><code>is_zero</code></a>, <a href="#stdref-std-math-BigUint-less"><code>less</code></a>, <a href="#stdref-std-math-BigUint-mod_inverse"><code>mod_inverse</code></a>, <a href="#stdref-std-math-BigUint-mod_pow"><code>mod_pow</code></a>, <a href="#stdref-std-math-BigUint-mul"><code>mul</code></a>, <a href="#stdref-std-math-BigUint-parse"><code>parse</code></a>, <a href="#stdref-std-math-BigUint-rem"><code>rem</code></a>, <a href="#stdref-std-math-BigUint-shift_left"><code>shift_left</code></a>, <a href="#stdref-std-math-BigUint-shift_right"><code>shift_right</code></a>, <code class="priv">shifted_limbs</code>, <a href="#stdref-std-math-BigUint-sub"><code>sub</code></a>, <a href="#stdref-std-math-BigUint-text"><code>text</code></a>, <a href="#stdref-std-math-BigUint-to_bytes_be"><code>to_bytes_be</code></a>, <a href="#stdref-std-math-BigUint-to_bytes_be_padded"><code>to_bytes_be_padded</code></a>, <code class="priv">trim</code>, <a href="#stdref-std-math-BigUint-zero"><code>zero</code></a></td></tr>
 </tbody>
 </table>
@@ -6100,7 +6578,7 @@ reference</a>, which gives its declaration, its documentation and examples.</p>
 <thead><tr><th>Kind</th><th>Items</th></tr></thead>
 <tbody>
 <tr><td>Types</td><td><a href="#stdref-std-process-Child"><code>Child</code></a>, <a href="#stdref-std-process-ChildInput"><code>ChildInput</code></a>, <a href="#stdref-std-process-ChildOutput"><code>ChildOutput</code></a>, <a href="#stdref-std-process-Command"><code>Command</code></a>, <a href="#stdref-std-process-Output"><code>Output</code></a></td></tr>
-<tr><td>Functions</td><td><code>exit</code><sup class="nat">n</sup>, <a href="#stdref-std-process-interrupt_requested"><code>interrupt_requested</code></a>, <code class="priv">pipe_op</code>, <a href="#stdref-std-process-process_id"><code>process_id</code></a>, <a href="#stdref-std-process-watch_interrupts"><code>watch_interrupts</code></a></td></tr>
+<tr><td>Functions</td><td><a href="#stdref-std-process-exit"><code>exit</code><sup class="nat">n</sup></a>, <a href="#stdref-std-process-interrupt_requested"><code>interrupt_requested</code></a>, <code class="priv">pipe_op</code>, <a href="#stdref-std-process-process_id"><code>process_id</code></a>, <a href="#stdref-std-process-watch_interrupts"><code>watch_interrupts</code></a></td></tr>
 <tr><td><code>Command::</code></td><td><a href="#stdref-std-process-Command-arg"><code>arg</code></a>, <a href="#stdref-std-process-Command-clear_env"><code>clear_env</code></a>, <a href="#stdref-std-process-Command-current_dir"><code>current_dir</code></a>, <code class="priv">encode</code>, <a href="#stdref-std-process-Command-env"><code>env</code></a>, <a href="#stdref-std-process-Command-new"><code>new</code></a>, <a href="#stdref-std-process-Command-output"><code>output</code></a>, <a href="#stdref-std-process-Command-output_with_input"><code>output_with_input</code></a>, <code class="priv">put</code>, <code class="priv">run</code>, <a href="#stdref-std-process-Command-spawn"><code>spawn</code></a>, <a href="#stdref-std-process-Command-status"><code>status</code></a></td></tr>
 <tr><td><code>Child::</code></td><td><code class="priv">cap</code>, <a href="#stdref-std-process-Child-close_input"><code>close_input</code></a>, <code class="priv">done</code>, <a href="#stdref-std-process-Child-drop"><code>drop</code></a>, <a href="#stdref-std-process-Child-id"><code>id</code></a>, <a href="#stdref-std-process-Child-kill"><code>kill</code></a>, <a href="#stdref-std-process-Child-kill_tree"><code>kill_tree</code></a>, <code class="priv">op</code>, <a href="#stdref-std-process-Child-read_error"><code>read_error</code></a>, <a href="#stdref-std-process-Child-read_error_line"><code>read_error_line</code></a>, <a href="#stdref-std-process-Child-read_output"><code>read_output</code></a>, <a href="#stdref-std-process-Child-read_output_line"><code>read_output_line</code></a>, <code class="priv">take</code>, <a href="#stdref-std-process-Child-take_input"><code>take_input</code></a>, <a href="#stdref-std-process-Child-take_output"><code>take_output</code></a>, <a href="#stdref-std-process-Child-terminate"><code>terminate</code></a>, <a href="#stdref-std-process-Child-try_wait"><code>try_wait</code></a>, <a href="#stdref-std-process-Child-wait"><code>wait</code></a>, <a href="#stdref-std-process-Child-write_input"><code>write_input</code></a></td></tr>
 <tr><td><code>ChildInput::</code></td><td><a href="#stdref-std-process-ChildInput-drop"><code>drop</code></a>, <a href="#stdref-std-process-ChildInput-write"><code>write</code></a></td></tr>
@@ -6117,7 +6595,7 @@ reference</a>, which gives its declaration, its documentation and examples.</p>
 <tr><td><code>SocketAddr::</code></td><td><code class="priv">from_record</code>, <a href="#stdref-std-net-SocketAddr-new"><code>new</code></a>, <a href="#stdref-std-net-SocketAddr-parse"><code>parse</code></a>, <code class="priv">record</code>, <a href="#stdref-std-net-SocketAddr-text"><code>text</code></a></td></tr>
 <tr><td><code>NetError::</code></td><td><a href="#stdref-std-net-NetError-text"><code>text</code></a></td></tr>
 <tr><td><code>TcpListener::</code></td><td><a href="#stdref-std-net-TcpListener-accept"><code>accept</code></a>, <a href="#stdref-std-net-TcpListener-bind"><code>bind</code></a>, <a href="#stdref-std-net-TcpListener-drop"><code>drop</code></a>, <a href="#stdref-std-net-TcpListener-local_addr"><code>local_addr</code></a>, <a href="#stdref-std-net-TcpListener-set_accept_timeout_ms"><code>set_accept_timeout_ms</code></a></td></tr>
-<tr><td><code>TcpStream::</code></td><td><a href="#stdref-std-net-TcpStream-connect"><code>connect</code></a>, <a href="#stdref-std-net-TcpStream-connect_timeout"><code>connect_timeout</code></a>, <a href="#stdref-std-net-TcpStream-drop"><code>drop</code></a>, <a href="#stdref-std-net-TcpStream-local_addr"><code>local_addr</code></a>, <a href="#stdref-std-net-TcpStream-peer_addr"><code>peer_addr</code></a>, <code>printf</code><sup class="nat">n</sup>, <a href="#stdref-std-net-TcpStream-read"><code>read</code></a>, <a href="#stdref-std-net-TcpStream-read_exact"><code>read_exact</code></a>, <a href="#stdref-std-net-TcpStream-read_line"><code>read_line</code></a>, <a href="#stdref-std-net-TcpStream-set_keepalive"><code>set_keepalive</code></a>, <a href="#stdref-std-net-TcpStream-set_nodelay"><code>set_nodelay</code></a>, <a href="#stdref-std-net-TcpStream-set_read_timeout_ms"><code>set_read_timeout_ms</code></a>, <a href="#stdref-std-net-TcpStream-set_write_timeout_ms"><code>set_write_timeout_ms</code></a>, <a href="#stdref-std-net-TcpStream-shutdown_write"><code>shutdown_write</code></a>, <code class="priv">take</code>, <a href="#stdref-std-net-TcpStream-try_clone"><code>try_clone</code></a>, <a href="#stdref-std-net-TcpStream-write"><code>write</code></a>, <code class="priv">write_formatted</code>, <a href="#stdref-std-net-TcpStream-write_text"><code>write_text</code></a></td></tr>
+<tr><td><code>TcpStream::</code></td><td><a href="#stdref-std-net-TcpStream-connect"><code>connect</code></a>, <a href="#stdref-std-net-TcpStream-connect_timeout"><code>connect_timeout</code></a>, <a href="#stdref-std-net-TcpStream-drop"><code>drop</code></a>, <a href="#stdref-std-net-TcpStream-local_addr"><code>local_addr</code></a>, <a href="#stdref-std-net-TcpStream-peer_addr"><code>peer_addr</code></a>, <a href="#stdref-std-net-TcpStream-printf"><code>printf</code><sup class="nat">n</sup></a>, <a href="#stdref-std-net-TcpStream-read"><code>read</code></a>, <a href="#stdref-std-net-TcpStream-read_exact"><code>read_exact</code></a>, <a href="#stdref-std-net-TcpStream-read_line"><code>read_line</code></a>, <a href="#stdref-std-net-TcpStream-set_keepalive"><code>set_keepalive</code></a>, <a href="#stdref-std-net-TcpStream-set_nodelay"><code>set_nodelay</code></a>, <a href="#stdref-std-net-TcpStream-set_read_timeout_ms"><code>set_read_timeout_ms</code></a>, <a href="#stdref-std-net-TcpStream-set_write_timeout_ms"><code>set_write_timeout_ms</code></a>, <a href="#stdref-std-net-TcpStream-shutdown_write"><code>shutdown_write</code></a>, <code class="priv">take</code>, <a href="#stdref-std-net-TcpStream-try_clone"><code>try_clone</code></a>, <a href="#stdref-std-net-TcpStream-write"><code>write</code></a>, <code class="priv">write_formatted</code>, <a href="#stdref-std-net-TcpStream-write_text"><code>write_text</code></a></td></tr>
 <tr><td><code>UdpSocket::</code></td><td><a href="#stdref-std-net-UdpSocket-bind"><code>bind</code></a>, <a href="#stdref-std-net-UdpSocket-connect"><code>connect</code></a>, <a href="#stdref-std-net-UdpSocket-drop"><code>drop</code></a>, <a href="#stdref-std-net-UdpSocket-local_addr"><code>local_addr</code></a>, <a href="#stdref-std-net-UdpSocket-recv"><code>recv</code></a>, <a href="#stdref-std-net-UdpSocket-recv_from"><code>recv_from</code></a>, <a href="#stdref-std-net-UdpSocket-send"><code>send</code></a>, <a href="#stdref-std-net-UdpSocket-send_to"><code>send_to</code></a>, <a href="#stdref-std-net-UdpSocket-set_read_timeout_ms"><code>set_read_timeout_ms</code></a>, <a href="#stdref-std-net-UdpSocket-try_clone"><code>try_clone</code></a></td></tr>
 </tbody>
 </table>
@@ -8888,6 +9366,54 @@ sat  1
 cat: 1
 3 distinct, back to 1
 </pre></div></figure>
+<p><strong>An ordered map or set.</strong> <code>std</code> has no tree-ordered map or set (D-0227: a second map
+type to learn, for a need no program has shown). The idiom is the one above plus a sort: copy the keys
+into a <code>Vec</code> (<code>String::clone</code> for text keys, <code>*k</code> for plain ones), <code>Vec::sort</code> it, and look each key up
+again, or walk the sorted <code>Vec</code> beside the map. The map keeps insertion order for everything else, so
+the sort costs only when an ordered view is wanted, and <code>Vec::binary_search</code> on the sorted keys answers
+"is it there, and where" without the map.</p>
+<figure class="code"><div class="code-head"><span class="code-title">An ordered view of a map and a set</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    <span class="p">HashMap</span>&lt;<span class="p">String</span>, <span class="t">u32</span>&gt; ages = <span class="p">HashMap</span>::new();
+    <span class="p">HashMap</span>::insert(&amp;<span class="k">mut</span> ages, <span class="p">String</span>::from_str(<span class="s">&quot;mia&quot;</span>), <span class="n">31</span>);
+    <span class="p">HashMap</span>::insert(&amp;<span class="k">mut</span> ages, <span class="p">String</span>::from_str(<span class="s">&quot;ada&quot;</span>), <span class="n">36</span>);
+    <span class="p">HashMap</span>::insert(&amp;<span class="k">mut</span> ages, <span class="p">String</span>::from_str(<span class="s">&quot;zed&quot;</span>), <span class="n">28</span>);
+    <span class="p">HashMap</span>::insert(&amp;<span class="k">mut</span> ages, <span class="p">String</span>::from_str(<span class="s">&quot;bo&quot;</span>), <span class="n">44</span>);
+
+    <span class="p">Vec</span>&lt;<span class="p">String</span>&gt; names = <span class="p">Vec</span>::new();                 <span class="c">// the keys, copied out</span>
+    <span class="k">foreach</span> (name, age in &amp;ages)
+    {
+        <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> names, <span class="p">String</span>::clone(name));
+    }
+    <span class="p">Vec</span>::sort(&amp;<span class="k">mut</span> names);                           <span class="c">// text sorts by its bytes</span>
+    <span class="k">foreach</span> (name in &amp;names)
+    {
+        <span class="p">printf</span>(<span class="s">&quot;%s %d\n&quot;</span>, name, *<span class="p">Option</span>::unwrap(<span class="p">HashMap</span>::get(&amp;ages, name)));
+    }
+
+    <span class="p">HashSet</span>&lt;<span class="t">i32</span>&gt; seen = <span class="p">HashSet</span>::new();
+    <span class="p">HashSet</span>::insert(&amp;<span class="k">mut</span> seen, <span class="n">30</span>);
+    <span class="p">HashSet</span>::insert(&amp;<span class="k">mut</span> seen, -<span class="n">4</span>);
+    <span class="p">HashSet</span>::insert(&amp;<span class="k">mut</span> seen, <span class="n">12</span>);
+    <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; sorted = <span class="p">Vec</span>::new();
+    <span class="k">foreach</span> (k in &amp;seen)
+    {
+        <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> sorted, *k);
+    }
+    <span class="p">Vec</span>::sort(&amp;<span class="k">mut</span> sorted);
+    <span class="k">foreach</span> (k in &amp;sorted)
+    {
+        <span class="p">printf</span>(<span class="s">&quot;%d &quot;</span>, *k);
+    }
+    <span class="p">printf</span>(<span class="s">&quot;\n&quot;</span>);
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>ada 36
+bo 44
+mia 31
+zed 28
+-4 12 30 
+</pre></div></figure>
 <figure class="code"><div class="code-head"><span class="code-title">A struct as a key</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">struct</span> Pos
@@ -9830,9 +10356,10 @@ and its declaration is an unchecked claim. Measure first.</p>
 <p>Every item a program can use from <code>std</code>, module by module, with its declaration, what it does,
 and for some an example. The text is the <code>///</code> documentation in <code>impl/std</code> itself
 (<code>spec/22</code> §1), read by <code>impl/tools/cobdoc.py</code> when this page is built; each example is a <code>unittest</code>
-block of <code>std</code> (<code>coby --unittest-std</code>), run here as a program's <code>main</code> under both tools. §21 says
-which module to look in and lists the items both tools build in, which have no CobaltC body and so no
-entry here; <code>spec/21</code> is the normative text.</p>
+block of <code>std</code> (<code>coby --unittest-std</code>), run here as a program's <code>main</code> under both tools. The items both
+tools build in, which have no CobaltC body (<code>printf</code>, <code>sqrt</code>, <code>exit</code>, …), are documented by hand in
+<code>impl/std/builtins.md</code> and shown here as <em>built in</em>. §21 says which module to look in;
+<code>spec/21</code> is the normative text.</p>
 <p class="std-nav"><a href="#stdref-std-core"><code>std::core</code></a>, <a href="#stdref-std-collections"><code>std::collections</code></a>, <a href="#stdref-std-text"><code>std::text</code></a>, <a href="#stdref-std-io"><code>std::io</code></a>, <a href="#stdref-std-fs"><code>std::fs</code></a>, <a href="#stdref-std-env"><code>std::env</code></a>, <a href="#stdref-std-memory"><code>std::memory</code></a>, <a href="#stdref-std-sync"><code>std::sync</code></a>, <a href="#stdref-std-random"><code>std::random</code></a>, <a href="#stdref-std-math"><code>std::math</code></a>, <a href="#stdref-std-time"><code>std::time</code></a>, <a href="#stdref-std-process"><code>std::process</code></a>, <a href="#stdref-std-net"><code>std::net</code></a>, <a href="#stdref-std-crypto-digest"><code>std::crypto::digest</code></a>, <a href="#stdref-std-crypto-kdf"><code>std::crypto::kdf</code></a>, <a href="#stdref-std-crypto-aead"><code>std::crypto::aead</code></a>, <a href="#stdref-std-crypto-pk"><code>std::crypto::pk</code></a>, <a href="#stdref-std-x509"><code>std::x509</code></a>, <a href="#stdref-std-tls"><code>std::tls</code></a>, <a href="#stdref-std-http"><code>std::http</code></a>, <a href="#stdref-std-http-client"><code>std::http::client</code></a>, <a href="#stdref-std-http-server"><code>std::http::server</code></a>, <a href="#stdref-std-database"><code>std::database</code></a>, <a href="#stdref-std-database-postgres"><code>std::database::postgres</code></a>, <a href="#stdref-std-encoding-json"><code>std::encoding::json</code></a>, <a href="#stdref-std-encoding-hex"><code>std::encoding::hex</code></a>, <a href="#stdref-std-encoding-base64"><code>std::encoding::base64</code></a>, <a href="#stdref-std-compress"><code>std::compress</code></a></p>
 <h3 id="stdref-std-core"><code>std::core</code> <span class="std-file">impl/std/core.cb</span></h3>
 <div class="stdref-entry">
@@ -9929,6 +10456,11 @@ entry here; <code>spec/21</code> is the normative text.</p>
 <p>Whether <code>r</code> is <code>Err</code>, without consuming it.</p>
 </div>
 <div class="stdref-entry">
+<h4 id="stdref-std-core-Result-map_err" class="stdref-item"><code>Result::map_err</code> <span class="std-file">built in fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">fn</span> <span class="p">Result</span>::<span class="p">map_err</span>&lt;T, E1, E2&gt;(<span class="p">Result</span>&lt;T, E1&gt; r, <span class="k">fn</span>(E1) : E2 f) : <span class="p">Result</span>&lt;T, E2&gt;</code></pre></figure>
+<p>Keeps an <code>Ok</code> as it is and maps an <code>Err</code> through <code>f</code>: <code>match (r) { Ok(v) : Ok(v), Err(e) : Err(f(e)) }</code>. It is the step that turns a library&#x27;s error into a program&#x27;s own before <code>?</code> passes it on. <code>r</code> is consumed; <code>f</code> runs only for an <code>Err</code>.</p>
+</div>
+<div class="stdref-entry">
 <h4 id="stdref-std-core-AllocError" class="stdref-item"><code>AllocError</code> <span class="std-file">struct</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">struct</span> <span class="p">AllocError</span></code></pre></figure>
 <p>The error <code>allocate</code> returns when memory cannot be had; it carries nothing.</p>
@@ -9956,6 +10488,11 @@ entry here; <code>spec/21</code> is the normative text.</p>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> overwrite&lt;T&gt;(<span class="t">ref</span>&lt;T, <span class="t">exclusive</span>&gt; r, T v)</code></pre></figure>
 <p>Puts <code>v</code> in <code>*r</code> and destroys what was there, at the call.</p>
 <p>The way to assign over a place that holds a resource, which plain assignment refuses.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-core-assert" class="stdref-item"><code>assert</code> <span class="std-file">built in fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">fn</span> <span class="p">assert</span>(<span class="t">bool</span> c), <span class="k">fn</span> <span class="p">assert</span>(<span class="t">bool</span> c, <span class="t">str</span> f, a1, …, an)</code></pre></figure>
+<p>Checks <code>c</code> and, if it is false, faults with <code>diag.assert-failed</code>, reporting the formatted message if one is given (<code>spec/18</code> §1a, <code>rule.fail.assert</code>, D-0065). The message&#x27;s arguments are evaluated only when the assertion fails. An assertion is part of the program&#x27;s meaning: there is no build in which it is left out, and <code>--check</code> sees its format as it sees <code>printf</code>&#x27;s. The fault unwinds like any other, so destructors run and a supervised task reports it to its parent.</p>
 </div>
 <h3 id="stdref-std-collections"><code>std::collections</code> <span class="std-file">impl/std/collections.cb</span></h3>
 <div class="stdref-entry">
@@ -10928,6 +11465,11 @@ entry here; <code>spec/21</code> is the normative text.</p>
 <span class="p">assert</span>(<span class="p">String</span>::<span class="p">parse</span>&lt;<span class="t">i32</span>&gt;(&amp;d) == <span class="p">Ok</span>(-<span class="n">17</span>));</code></pre></figure>
 </div>
 <div class="stdref-entry">
+<h4 id="stdref-std-text-String-appendf" class="stdref-item"><code>String::appendf</code> <span class="std-file">built in fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">fn</span> <span class="p">String</span>::appendf(<span class="t">ref</span>&lt;<span class="p">String</span>, <span class="t">exclusive</span>&gt; s, <span class="t">str</span> f, a1, …, an)</code></pre></figure>
+<p>Appends to <code>*s</code> the text <code>printf</code> would write for the same arguments; <code>String::append</code> of <code>sprintf</code>&#x27;s result, without the intermediate <code>String</code>. The common way to build a line piece by piece before printing or keeping it once.</p>
+</div>
+<div class="stdref-entry">
 <h4 id="stdref-std-text-StringView" class="stdref-item"><code>StringView</code> <span class="std-file">struct</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">struct</span> <span class="p">StringView</span></code></pre></figure>
 <p>A borrowed, read-only view of part of some text, without a copy.</p>
@@ -11170,7 +11712,17 @@ entry here; <code>spec/21</code> is the normative text.</p>
 <p>The upper-case form of <code>b</code> when it is an ASCII lower-case letter, else <code>b</code> unchanged.</p>
 <p>A byte of 128 or more is returned as it is, so raising every byte of UTF-8 text keeps it UTF-8.</p>
 </div>
+<div class="stdref-entry">
+<h4 id="stdref-std-text-sprintf" class="stdref-item"><code>sprintf</code> <span class="std-file">built in fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">fn</span> <span class="p">sprintf</span>(<span class="t">str</span> f, a1, …, an) : <span class="p">String</span></code></pre></figure>
+<p>The text <code>printf</code> would write for the same arguments, as a new <code>String</code> instead of output. The format is checked when the program is compiled, as <code>printf</code>&#x27;s is.</p>
+</div>
 <h3 id="stdref-std-io"><code>std::io</code> <span class="std-file">impl/std/io.cb</span></h3>
+<div class="stdref-entry">
+<h4 id="stdref-std-io-File-printf" class="stdref-item"><code>File::printf</code> <span class="std-file">built in fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">fn</span> <span class="p">File</span>::<span class="p">printf</span>(<span class="t">ref</span>&lt;<span class="p">File</span>, <span class="t">exclusive</span>&gt; f, <span class="t">str</span> format, a1, …, an) : <span class="p">Result</span>&lt;<span class="k">void</span>, <span class="p">FileError</span>&gt;</code></pre></figure>
+<p>Writes the formatted text to the open file <code>*f</code>, as <code>printf</code> would to standard output (D-0059); the format is checked when the program is compiled. A write that fails is the <code>Err</code>, as for <code>File::write</code>. <code>File</code> itself is <code>std::fs</code>&#x27;s type; this function is registered with the <code>printf</code> family in <code>std::io</code>, and <code>import std;</code> brings in both.</p>
+</div>
 <div class="stdref-entry">
 <h4 id="stdref-std-io-flush_stdout" class="stdref-item"><code>flush_stdout</code> <span class="std-file">fn</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">flush_stdout</span>()</code></pre></figure>
@@ -11199,6 +11751,16 @@ entry here; <code>spec/21</code> is the normative text.</p>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">read_all</span>() : <span class="p">Result</span>&lt;<span class="p">String</span>, <span class="p">FileError</span>&gt;</code></pre></figure>
 <p>The rest of standard input, as text.</p>
 <p><code>Err(FileError::Utf8(e))</code> when it is not UTF-8, and <code>Err(FileError::Io)</code> when it cannot be read; <code>read_all_bytes</code> takes it as bytes.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-io-printf" class="stdref-item"><code>printf</code> <span class="std-file">built in fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">fn</span> <span class="p">printf</span>(<span class="t">str</span> f, a1, …, an)</code></pre></figure>
+<p>Writes the arguments to standard output as the format <code>f</code> says (<code>spec/21</code> §2f, <code>rule.stdlib.format</code>). <code>f</code> is a string literal, so the format and the arguments are checked when the program is compiled and nothing about it can fail at run time. The conversions are C&#x27;s: <code>%d</code> for any integer type (there is no <code>%ld</code>), <code>%u</code>, <code>%x</code>, <code>%X</code>, <code>%o</code>, <code>%b</code> (binary) for an integer&#x27;s bits in its own width, <code>%f</code>, <code>%e</code>, <code>%g</code> for <code>f32</code> and <code>f64</code>, <code>%s</code> for a <code>str</code>, a <code>ref&lt;String, shared&gt;</code> or a <code>bool</code>, and <code>%v</code> for any printable value or enum &quot;as CobaltC writes it&quot; (an enum&#x27;s variant name; a float that reads back as the same value). Width and precision may be <code>*</code>, taking the next argument (a <code>usize</code>). A reference to a number, a <code>bool</code> or a <code>str</code> prints as what it refers to, so <code>foreach (x in &amp;v) { printf(&quot;%d\n&quot;, x); }</code> prints the elements. Output is buffered (D-0178) and written out when the buffer fills, at <code>flush_stdout()</code>, and when the program ends.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-io-eprintf" class="stdref-item"><code>eprintf</code> <span class="std-file">built in fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">fn</span> <span class="p">eprintf</span>(<span class="t">str</span> f, a1, …, an)</code></pre></figure>
+<p>Writes the arguments to standard error as the format <code>f</code> says, with <code>printf</code>&#x27;s conversions. For messages that are not the program&#x27;s output: errors, warnings, progress. Standard error is written at once, with nothing held back, so its text and standard output&#x27;s interleave in the order the calls ran (after a <code>flush_stdout()</code>, exactly).</p>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-io-stdout_write" class="stdref-item"><code>stdout_write</code> <span class="std-file">extern fn</span></h4>
@@ -12152,6 +12714,91 @@ Rng::shuffle(&amp;<span class="k">mut</span> r, &amp;<span class="k">mut</span> 
 <span class="p">assert</span>(<span class="p">pow</span>(<span class="n">3</span>, <span class="n">4</span>) == <span class="n">81</span> &amp;&amp; <span class="p">pow</span>(<span class="n">7</span>, <span class="n">0</span>) == <span class="n">1</span>);
 <span class="p">assert</span>(<span class="p">abs</span>(-<span class="n">0.0</span>) == <span class="n">0.0</span> &amp;&amp; <span class="p">is_nan</span>(<span class="n">0.0</span> / <span class="n">0.0</span>) &amp;&amp; !<span class="p">is_finite</span>(<span class="n">1.0</span> / <span class="n">0.0</span>));</code></pre></figure>
 </div>
+<div class="stdref-entry">
+<h4 id="stdref-std-math-sqrt" class="stdref-item"><code>sqrt</code> <span class="std-file">built in fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">fn</span> <span class="p">sqrt</span>(T x) : T</code></pre></figure>
+<p>The square root of <code>x</code>, correctly rounded (<code>[Float-Fn]</code>, <code>spec/21</code> §3d, D-0091): every conforming implementation gives the same bits. A NaN for a negative <code>x</code>; <code>-0.0</code> for <code>-0.0</code>; a NaN in gives a NaN out.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-math-floor" class="stdref-item"><code>floor</code> <span class="std-file">built in fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">fn</span> <span class="p">floor</span>(T x) : T</code></pre></figure>
+<p><code>x</code> rounded to an integral value toward negative infinity, exactly (<code>[Float-Fn]</code>). A NaN or an infinity is returned as it is.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-math-ceil" class="stdref-item"><code>ceil</code> <span class="std-file">built in fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">fn</span> <span class="p">ceil</span>(T x) : T</code></pre></figure>
+<p><code>x</code> rounded to an integral value toward positive infinity, exactly (<code>[Float-Fn]</code>).</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-math-round" class="stdref-item"><code>round</code> <span class="std-file">built in fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">fn</span> <span class="p">round</span>(T x) : T</code></pre></figure>
+<p><code>x</code> rounded to the nearest integral value, halfway cases away from zero (<code>2.5</code> to <code>3.0</code>, <code>-2.5</code> to <code>-3.0</code>), exactly (<code>[Float-Fn]</code>). Convert the result with <code>rule.arith.convert</code> when an integer is wanted.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-math-trunc" class="stdref-item"><code>trunc</code> <span class="std-file">built in fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">fn</span> <span class="p">trunc</span>(T x) : T</code></pre></figure>
+<p><code>x</code> rounded to an integral value toward zero, exactly (<code>[Float-Fn]</code>): the fractional part dropped.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-math-ln" class="stdref-item"><code>ln</code> <span class="std-file">built in fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">fn</span> ln(T x) : T</code></pre></figure>
+<p>The natural logarithm of <code>x</code>, within one unit in the last place of the mathematical value (<code>[Float-Transcendental]</code>, D-0101): the platform&#x27;s C library computes it, so <code>coby</code> and <code>cobc</code> agree on one platform and may differ in the last bit between platforms. A NaN for a negative <code>x</code>; negative infinity for <code>±0</code>.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-math-exp" class="stdref-item"><code>exp</code> <span class="std-file">built in fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">fn</span> exp(T x) : T</code></pre></figure>
+<p><code>e</code> to the power <code>x</code>, within one unit in the last place (<code>[Float-Transcendental]</code>). Overflows to infinity as IEEE-754 says.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-math-log2" class="stdref-item"><code>log2</code> <span class="std-file">built in fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">fn</span> log2(T x) : T</code></pre></figure>
+<p>The base-2 logarithm of <code>x</code>, within one unit in the last place (<code>[Float-Transcendental]</code>); a NaN for a negative <code>x</code>, negative infinity for <code>±0</code>. For an integer&#x27;s bit length, <code>integer</code> arithmetic is exact and cheaper.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-math-log10" class="stdref-item"><code>log10</code> <span class="std-file">built in fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">fn</span> log10(T x) : T</code></pre></figure>
+<p>The base-10 logarithm of <code>x</code>, within one unit in the last place (<code>[Float-Transcendental]</code>); a NaN for a negative <code>x</code>, negative infinity for <code>±0</code>.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-math-sin" class="stdref-item"><code>sin</code> <span class="std-file">built in fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">fn</span> sin(T x) : T</code></pre></figure>
+<p>The sine of <code>x</code>, an angle in radians, within one unit in the last place (<code>[Float-Transcendental]</code>).</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-math-cos" class="stdref-item"><code>cos</code> <span class="std-file">built in fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">fn</span> cos(T x) : T</code></pre></figure>
+<p>The cosine of <code>x</code>, an angle in radians, within one unit in the last place (<code>[Float-Transcendental]</code>).</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-math-tan" class="stdref-item"><code>tan</code> <span class="std-file">built in fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">fn</span> tan(T x) : T</code></pre></figure>
+<p>The tangent of <code>x</code>, an angle in radians, within one unit in the last place (<code>[Float-Transcendental]</code>).</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-math-asin" class="stdref-item"><code>asin</code> <span class="std-file">built in fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">fn</span> <span class="p">asin</span>(T x) : T</code></pre></figure>
+<p>The arc sine of <code>x</code>, in radians in <code>[-π/2, π/2]</code>, within one unit in the last place (<code>[Float-Transcendental]</code>, D-0181); a NaN for <code>x</code> outside <code>[-1, 1]</code>.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-math-acos" class="stdref-item"><code>acos</code> <span class="std-file">built in fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">fn</span> <span class="p">acos</span>(T x) : T</code></pre></figure>
+<p>The arc cosine of <code>x</code>, in radians in <code>[0, π]</code>, within one unit in the last place (<code>[Float-Transcendental]</code>, D-0181); a NaN for <code>x</code> outside <code>[-1, 1]</code>.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-math-atan" class="stdref-item"><code>atan</code> <span class="std-file">built in fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">fn</span> <span class="p">atan</span>(T x) : T</code></pre></figure>
+<p>The arc tangent of <code>x</code>, in radians in <code>(-π/2, π/2)</code>, within one unit in the last place (<code>[Float-Transcendental]</code>, D-0181). For an angle from two coordinates use <code>atan2</code>, which knows the quadrant.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-math-atan2" class="stdref-item"><code>atan2</code> <span class="std-file">built in fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">fn</span> atan2(T y, T x) : T</code></pre></figure>
+<p>The angle of the point <code>(x, y)</code> from the positive x axis, in radians in <code>(-π, π]</code>, within one unit in the last place (<code>[Float-Transcendental-2]</code>); C&#x27;s <code>atan2</code>. Both operands have the same type.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-math-powf" class="stdref-item"><code>powf</code> <span class="std-file">built in fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">fn</span> powf(T x, T y) : T</code></pre></figure>
+<p><code>x</code> to the power <code>y</code> for floating-point operands, within one unit in the last place (<code>[Float-Transcendental-2]</code>); C&#x27;s <code>pow</code>. For an integer exponent, <code>pow</code> (an ordinary <code>std::math</code> function) is exact and checked for overflow.</p>
+</div>
 <h3 id="stdref-std-time"><code>std::time</code> <span class="std-file">impl/std/time.cb</span></h3>
 <div class="stdref-entry">
 <h4 id="stdref-std-time-DateTime" class="stdref-item"><code>DateTime</code> <span class="std-file">struct</span></h4>
@@ -12548,6 +13195,11 @@ Rng::shuffle(&amp;<span class="k">mut</span> r, &amp;<span class="k">mut</span> 
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">interrupt_requested</span>() : <span class="t">bool</span></code></pre></figure>
 <p>Whether an interrupt has arrived since <code>watch_interrupts</code> was called.</p>
 </div>
+<div class="stdref-entry">
+<h4 id="stdref-std-process-exit" class="stdref-item"><code>exit</code> <span class="std-file">built in fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">fn</span> <span class="p">exit</span>(<span class="t">u8</span> status) : never</code></pre></figure>
+<p>Ends the program with exit status <code>status</code> (<code>[Exit]</code>, <code>spec/21</code> §2k, D-0150). The calling thread unwinds first, so its destructors run and standard output is written out; other threads are not waited for. The result type is <code>never</code>, so a branch that calls <code>exit</code> needs no value of its own. <code>fn main() : u8</code>&#x27;s return value is the ordinary way to set the status; <code>exit</code> is for deep inside a program.</p>
+</div>
 <h3 id="stdref-std-net"><code>std::net</code> <span class="std-file">impl/std/net.cb</span></h3>
 <div class="stdref-entry">
 <h4 id="stdref-std-net-IpAddr" class="stdref-item"><code>IpAddr</code> <span class="std-file">enum</span></h4>
@@ -12781,6 +13433,11 @@ Rng::shuffle(&amp;<span class="k">mut</span> r, &amp;<span class="k">mut</span> 
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">TcpStream</span>::try_clone(<span class="t">ref</span>&lt;<span class="p">TcpStream</span>, <span class="t">shared</span>&gt; s) : <span class="p">Result</span>&lt;<span class="p">TcpStream</span>, <span class="p">NetError</span>&gt;</code></pre></figure>
 <p>A second <code>TcpStream</code> on the same connection, for reading in one thread while another writes.</p>
 <p>Each thread takes its own stream by <code>move</code>. Bytes read through one are not seen by the other, and each has its own timeouts; <code>shutdown_write</code> through either ends sending for both, and the connection closes when the last of them is dropped.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-net-TcpStream-printf" class="stdref-item"><code>TcpStream::printf</code> <span class="std-file">built in fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">fn</span> <span class="p">TcpStream</span>::<span class="p">printf</span>(<span class="t">ref</span>&lt;<span class="p">TcpStream</span>, <span class="t">exclusive</span>&gt; s, <span class="t">str</span> format, a1, …, an) : <span class="p">Result</span>&lt;<span class="k">void</span>, <span class="p">NetError</span>&gt;</code></pre></figure>
+<p>Writes the formatted text to the connected stream <code>*s</code>, as <code>File::printf</code> does to a file; the whole text is written or the <code>Err</code> says why (<code>[Stream-Write]</code>). A line protocol&#x27;s reply in one call: <code>TcpStream::printf(&amp;mut c, &quot;%d %s\r\n&quot;, code, text)?</code>.</p>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-net-UdpSocket" class="stdref-item"><code>UdpSocket</code> <span class="std-file">struct</span></h4>
