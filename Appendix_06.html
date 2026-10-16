@@ -166,7 +166,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.101502</div>
+<div class="sub">Specification edition 2026.101601</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -338,7 +338,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101502</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101601</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -383,8 +383,9 @@ executables to match <code>coby</code>'s output and diagnostics byte for byte on
 GCC and Clang — including every complete example in this guide. Use <code>coby</code> to run a program at
 once; use <code>cobc</code> to build an executable, or to see how fast the program can be.</p>
 <p>On Linux the two work side by side, and everything in this guide runs under
-either. On Windows, <code>coby</code> runs programs, and the formatter <code>cobfmt</code> (below) runs there too;
-<code>cobc</code> builds programs on Linux only in this edition series (D-0234).</p>
+either. On Windows, <code>coby</code> runs programs, the formatter <code>cobfmt</code> (below) runs there too, and
+<code>cobc</code> builds Windows programs with a MinGW-w64 GCC, there or from Linux with
+<code>--target x86_64-pc-windows-gnu</code> (D-0255; the repository's README says how).</p>
 <div class="callout note"><div class="callout-title">Toolchain</div>CobaltC's interpreter (<code>coby</code>) and compiler (<code>cobc</code>) are available
 <a href="https://github.com/strawberry9/CobaltC">here</a>; the repository's README says how to
 build them.</div>
@@ -433,7 +434,7 @@ mechanism or would have hidden a semantic fact the language wants to keep visibl
 <li><strong>Garbage collection.</strong> Ownership and scope-end destruction are deterministic; <code>Rc&lt;T&gt;</code> is a library type.</li>
 <li><strong>Character literals, and indexing or slicing a <code>str</code>.</strong> A <code>str</code> is a whole value; its bytes are reached with <code>str_byte</code>, and a single byte is written <code>b&#x27;a&#x27;</code>: a <code>u8</code>, or the wider unsigned type its context asks for (§06). A <code>String</code> is sliced into views, <code>&amp;s[i..j]</code>, and taken apart by <code>String::split</code>, <code>find</code> and <code>chars</code> (§21). Text that arrives from outside is still bytes until <code>String::from_utf8</code> validates it.</li>
 <li><strong>Method-call syntax.</strong> A call names the function's owner and writes the borrow it takes: <code>Vec::push(&amp;mut v, x)</code>, never <code>v.push(x)</code>. The mode of every access path is visible where the path is formed, and <code>.</code> means one thing, field access. This is final (<code>CHG-0132</code>): no receiver sugar, no uniform call syntax, no auto-borrowing dot, no chaining.</li>
-<li><strong>A <code>mut</code> qualifier on bindings, <code>switch</code> and <code>goto</code>, <code>import … as</code> renaming, partial initialisation, lifetime annotations, atomics.</strong></li>
+<li><strong>A <code>mut</code> qualifier on bindings, <code>switch</code> and <code>goto</code>, <code>import … as</code> renaming, partial initialisation, lifetime annotations, memory orders weaker than sequential consistency.</strong> <code>std::sync</code>'s <code>Atomic</code> (§19) is sequentially consistent.</li>
 </ul>
 <h3>How to read this guide</h3>
 <p>The next section is a complete program you can read top to bottom to absorb the
@@ -999,7 +1000,8 @@ nested, literal and text patterns, <code>if</code> and <code>while</code> (eithe
 <tr><td><code>str</code> and slices</td><td><code>str_len</code>, <code>str_byte</code>, <code>str_ptr</code>, <code>slice_len</code></td></tr>
 <tr><td>Faults and compile-time checks</td><td><code>fault</code>, <code>static_assert</code></td></tr>
 <tr><td>Threads</td><td><code>spawn</code>, <code>join</code>, <code>cancel</code>, <code>join_status</code>, <code>Mutex::new</code>, <code>lock</code></td></tr>
-<tr><td>Raw memory (most need <code>unsafe</code>)</td><td><code>rawptr_of</code>, <code>reinterpret_ptr</code>, <code>dangling</code>, <code>allocate</code>, <code>deallocate</code>, <code>reclaim</code>, <code>release</code>, <code>copy_raw</code>, <code>read_volatile</code>, <code>write_volatile</code></td></tr>
+<tr><td>Vectors (<code>simd&lt;τ, N&gt;</code>)</td><td><code>simd_load</code>, <code>simd_store</code>, <code>simd_eq</code>, <code>simd_ne</code>, <code>simd_lt</code>, <code>simd_le</code>, <code>simd_gt</code>, <code>simd_ge</code>, <code>simd_select</code>, <code>simd_any</code>, <code>simd_all</code>, <code>simd_min</code>, <code>simd_max</code>, <code>simd_sum</code>, <code>simd_reduce_min</code>, <code>simd_reduce_max</code></td></tr>
+<tr><td>Raw memory (most need <code>unsafe</code>)</td><td><code>rawptr_of</code>, <code>reinterpret_ptr</code>, <code>dangling</code>, <code>null_rawptr</code>, <code>allocate</code>, <code>deallocate</code>, <code>reclaim</code>, <code>release</code>, <code>copy_raw</code>, <code>read_volatile</code>, <code>write_volatile</code></td></tr>
 </tbody>
 </table>
 <p><code>allocate</code> returns a <code>Result</code>, which a program can use without the import even though it
@@ -1128,8 +1130,13 @@ operator. <code>return 0;</code> would also have been fine.</p>
 <tr><td><code>goto cleanup;</code></td><td>nothing: destructors run on early <code>return</code>, on <code>?</code>, and while a fault unwinds</td><td>§07, §18</td></tr>
 <tr><td><code>assert(c)</code>, <code>abort()</code></td><td><code>assert(c, &quot;fmt&quot;, …)</code>, never compiled out; <code>exit(status)</code></td><td>§18, below</td></tr>
 <tr><td><code>setjmp</code>/<code>longjmp</code>, signals</td><td>no equivalent: a fault cannot be caught (a thread's can be contained, §19)</td><td>§18</td></tr>
-<tr><td><code>pthread_create</code>, a shared global</td><td><code>spawn(f, args…)</code> and <code>join(h)</code>; shared data only through a <code>mutex&lt;T&gt;</code>; there are no mutable globals</td><td>§19</td></tr>
+<tr><td><code>pthread_create</code>, a shared global</td><td><code>spawn(f, args…)</code> and <code>join(h)</code>; shared data only through a <code>mutex&lt;T&gt;</code> or an <code>Atomic&lt;T&gt;</code>; there are no mutable globals</td><td>§19</td></tr>
+<tr><td><code>_Atomic</code>, <code>atomic_fetch_add</code></td><td><code>Atomic&lt;T&gt;</code> (an integer of up to 64 bits), <code>Atomic::fetch_add(&amp;a, n)</code>; always sequentially consistent, and overflow faults unless you call the <code>_wrapping</code> form</td><td>§19</td></tr>
+<tr><td><code>atomic_bool</code>, <code>_Atomic(T *)</code>, <code>atomic_thread_fence</code>, C++20 <code>atomic::wait</code>/<code>notify_one</code></td><td><code>AtomicBool</code>, <code>AtomicPtr&lt;T&gt;</code>, <code>atomic_fence()</code>, <code>Atomic::wait(&amp;a, v)</code>/<code>Atomic::notify_one(&amp;a)</code>; no <code>memory_order</code> argument anywhere</td><td>§19</td></tr>
+<tr><td>GCC/Clang <code>__attribute__((vector_size(16)))</code>, <code>&lt;immintrin.h&gt;</code> intrinsics</td><td><code>simd&lt;f32, 4&gt;</code> and kin: the same vector types, with <code>+ - *</code> lane by lane and <code>simd_</code> intrinsics; portable, no per-processor names</td><td>§16</td></tr>
+<tr><td><code>struct</code> layout, <code>alignas(64)</code></td><td>the same layout as C for the same members; <code>struct S align(64) { … }</code> on the type</td><td>§16</td></tr>
 <tr><td><code>extern int f(int);</code> and the linker</td><td><code>unsafe extern fn f(i32 x) : i32;</code> plus <code>extern &quot;./f.c&quot;;</code> or <code>extern &quot;m&quot;;</code>; <code>cobc</code> compiles and links</td><td>§20</td></tr>
+<tr><td>passing a <code>struct</code> or a <code>const char *</code> to C, reading a returned <code>char *</code></td><td>a plain struct crosses by value as it is; text goes as <code>CString::new(s)</code> and <code>CString::ptr(&amp;c)</code>, comes back with <code>unsafe { String::from_c(p) }</code>; <code>is_null(p)</code> tests for <code>NULL</code></td><td>§20</td></tr>
 </tbody>
 </table>
 <p>Two spellings deserve a warning because they parse and mean something else. <code>?</code> after an
@@ -4318,6 +4325,81 @@ of it.</p>
     }
     <span class="p">assert</span>(v[<span class="n">49</span>] == <span class="n">49</span> &amp;&amp; v[<span class="n">50</span>] == <span class="n">1000</span>);
 }</code></pre></figure>
+<h3>Vectors: <code>simd&lt;τ, N&gt;</code></h3>
+<p>A <code>simd&lt;τ, N&gt;</code> is <code>N</code> numbers that one processor instruction works on together: four <code>f32</code>s in
+a 16-byte register, thirty-two <code>u8</code>s in a 32-byte one. Arithmetic on two vectors applies to every
+lane at once, so a loop that steps eight elements at a time does eight elements' work per step. The
+type is portable: <code>cobc</code> compiles it to the target's vector instructions (SSE, AVX or NEON, chosen by
+<code>-march</code>), or to pairs of narrower ones where the target has no register that wide, and <code>coby</code> runs it
+lane by lane with the same results.</p>
+<table>
+<thead><tr><th></th><th>Allowed</th></tr></thead>
+<tbody>
+<tr><td>Lanes</td><td>an integer type (not <code>i128</code>/<code>u128</code>), <code>f32</code> or <code>f64</code></td></tr>
+<tr><td>Shapes</td><td><code>N</code> a power of two from 2, and <code>N × size</code> 8, 16, 32 or 64 bytes: <code>simd&lt;f32, 4&gt;</code>, <code>simd&lt;f32, 8&gt;</code>, <code>simd&lt;u8, 16&gt;</code>, <code>simd&lt;i64, 2&gt;</code>, <code>simd&lt;f64, 8&gt;</code> …</td></tr>
+<tr><td>Making one</td><td>an array literal or <code>[x; N]</code> where a <code>simd</code> is expected; <code>simd_load&lt;V&gt;(s, i)</code> from a slice</td></tr>
+<tr><td>Lanes</td><td><code>v[i]</code> read and assigned (checked); never borrowed</td></tr>
+<tr><td>Operators</td><td><code>+ - *</code> (and <code>/</code> for floats), <code>&amp; | ^ ~</code> and shifts for integers, <code>==</code> <code>!=</code> on the whole; both operands one <code>simd</code> type</td></tr>
+<tr><td>Lane-wise</td><td><code>simd_lt</code> and kin give masks; <code>simd_select</code>, <code>simd_any</code>, <code>simd_all</code>; <code>simd_min</code>, <code>simd_max</code></td></tr>
+<tr><td>Reductions</td><td><code>simd_sum</code>, <code>simd_reduce_min</code>, <code>simd_reduce_max</code>, from lane 0 to the last</td></tr>
+</tbody>
+</table>
+<p>Integer lanes are checked as integers are everywhere: if any lane of <code>a + b</code> overflows, the
+program faults. Where wrapping is the intent, as in hashing or a sum that cannot overflow,
+<code>wrapping_add</code>, <code>wrapping_mul</code> and <code>saturating_add</code> take vectors too, and they are the fast path. Float
+lanes follow IEEE 754 with no fused multiply-add, and <code>simd_sum</code> adds left to right, so a result is the
+same bit for bit under both tools; it can differ from a scalar loop's, which adds in another order.</p>
+<figure class="code"><div class="code-head"><span class="code-title">A dot product</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// Eight lanes at a time, then the few left over one at a time.</span>
+<span class="k">fn</span> dot(<span class="t">slice</span>&lt;<span class="t">f32</span>, <span class="t">shared</span>&gt; a, <span class="t">slice</span>&lt;<span class="t">f32</span>, <span class="t">shared</span>&gt; b) : <span class="t">f32</span>
+{
+    simd&lt;<span class="t">f32</span>, <span class="n">8</span>&gt; acc = [<span class="n">0.0</span>; <span class="n">8</span>];
+    <span class="t">usize</span> i = <span class="n">0</span>;
+    <span class="k">while</span> (i + <span class="n">8</span> &lt;= slice_len(a))
+    {
+        acc = acc + simd_load&lt;simd&lt;<span class="t">f32</span>, <span class="n">8</span>&gt;&gt;(a, i) * simd_load&lt;simd&lt;<span class="t">f32</span>, <span class="n">8</span>&gt;&gt;(b, i);
+        i += <span class="n">8</span>;
+    }
+    <span class="t">f32</span> s = simd_sum(acc);
+    <span class="k">while</span> (i &lt; slice_len(a))
+    {
+        s += a[i] * b[i];
+        i += <span class="n">1</span>;
+    }
+    s
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="p">Vec</span>&lt;<span class="t">f32</span>&gt; a = <span class="p">Vec</span>::filled(<span class="n">19</span>, <span class="n">0.5</span>: <span class="t">f32</span>);
+    <span class="p">Vec</span>&lt;<span class="t">f32</span>&gt; b = <span class="p">Vec</span>::filled(<span class="n">19</span>, <span class="n">2.0</span>: <span class="t">f32</span>);
+    <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, dot(&amp;a[<span class="n">0</span> .. $], &amp;b[<span class="n">0</span> .. $]));
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>19.0
+</pre></div></figure>
+<p>A comparison of two vectors is a <em>mask</em>: lanes of the same width holding -1 where the
+comparison holds and 0 where it does not. <code>simd_select(m, a, b)</code> takes each lane from <code>a</code> or <code>b</code> by the
+mask, which replaces a branch inside the loop.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Masks, selection and wrapping lanes</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    simd&lt;<span class="t">i32</span>, <span class="n">8</span>&gt; v = [<span class="n">3</span>, -<span class="n">1</span>, <span class="n">4</span>, -<span class="n">1</span>, -<span class="n">5</span>, <span class="n">9</span>, -<span class="n">2</span>, <span class="n">6</span>];
+    simd&lt;<span class="t">i32</span>, <span class="n">8</span>&gt; m = simd_lt(v, [<span class="n">0</span>; <span class="n">8</span>]);          <span class="c">// -1 where v[i] &lt; 0</span>
+    simd&lt;<span class="t">i32</span>, <span class="n">8</span>&gt; <span class="p">abs</span> = simd_select(m, -v, v);
+    <span class="p">printf</span>(<span class="s">&quot;%v %v\n&quot;</span>, simd_sum(<span class="p">abs</span>), simd_any(simd_gt(v, [<span class="n">8</span>; <span class="n">8</span>])));
+    simd&lt;<span class="t">u8</span>, <span class="n">16</span>&gt; bytes = [<span class="n">250</span>; <span class="n">16</span>];
+    simd&lt;<span class="t">u8</span>, <span class="n">16</span>&gt; w = <span class="p">wrapping_add</span>(bytes, [<span class="n">10</span>; <span class="n">16</span>]);    <span class="c">// 4 in every lane</span>
+    simd&lt;<span class="t">u8</span>, <span class="n">16</span>&gt; s = <span class="p">saturating_add</span>(bytes, [<span class="n">10</span>; <span class="n">16</span>]);  <span class="c">// 255 in every lane</span>
+    <span class="p">printf</span>(<span class="s">&quot;%v %v\n&quot;</span>, w[<span class="n">0</span>], s[<span class="n">15</span>]);
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>31 true
+4 255
+</pre></div></figure>
+<p>How much a vector gains depends on the machine and the C compiler. On a processor with only
+128-bit SSE registers, an 8-lane <code>f32</code> dot product ran about twice as fast as the scalar loop with GCC
+and over three times as fast with Clang; with AVX2 (<code>cobc -march=native</code> on such a machine) the 8
+lanes fit one register. Data far larger than the cache is limited by memory bandwidth whichever form
+you write.</p>
 <h3>Types declared inside a function</h3>
 <p>A <code>struct</code>, <code>enum</code> or <code>bitstruct</code> used by one function can be declared inside it, as a
 statement, and so can its functions, <code>fn T::name(…)</code> (a destructor too). It is an ordinary type whose <em>name</em> is
@@ -4877,11 +4959,40 @@ types. <code>std</code>'s <code>Option&lt;T&gt;</code> and <code>Result&lt;T, E&
 Type arguments may be left off a literal when the declared type of the variable, parameter or field
 fixes them (§12).</p>
 <h3>Layout</h3>
-<p>Struct fields are laid out in declaration order with implementation-documented padding;
-arrays are contiguous with no padding; an enum is a discriminant of documented width followed by
-the largest payload, aligned. <code>sizeof&lt;T&gt;()</code> and <code>alignof&lt;T&gt;()</code> report the result (examples in §06,
-"Sizes and limits of types"). You need this mostly when talking to foreign code or managing raw
-memory (§20).</p>
+<p>A struct is laid out as C lays out the same members in the same order (D-0250): each
+field at the first offset its alignment allows after the previous one, and the end padded to the
+largest alignment. So C code given a <code>rawptr&lt;S&gt;</code> finds every field where its own <code>offsetof</code> says
+(§20). Arrays are contiguous with no padding; an enum is a discriminant of documented width followed
+by the largest payload, aligned. <code>sizeof&lt;T&gt;()</code> and <code>alignof&lt;T&gt;()</code> report the result (examples in §06,
+"Sizes and limits of types").</p>
+<p><code>align(N)</code> after a struct's name raises its alignment to <code>N</code>, a power of two up to 4096
+(D-0251), and pads its size to a multiple of it, so every element of an array or <code>Vec</code> of it starts
+on an <code>N</code> boundary. It is C's <code>alignas</code> on a type. The usual reason is to give data that threads
+change a cache line of its own: two counters on one 64-byte line make the cores take the line from
+each other on every write, though they never touch the same counter. <code>align</code> raises and never
+lowers; a field gets an alignment by being of an aligned struct type.</p>
+<figure class="code"><div class="code-head"><span class="code-title">C's layout, and a struct on its own cache line</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">struct</span> Rec
+{
+    <span class="t">u8</span> a;                           <span class="c">// offset 0</span>
+    <span class="t">u64</span> b;                          <span class="c">// offset 8: the first multiple of 8 after 1</span>
+    <span class="t">u16</span> c;                          <span class="c">// offset 16; the size rounds 18 up to 24</span>
+}
+
+<span class="k">struct</span> Slot align(<span class="n">64</span>)               <span class="c">// one cache line each</span>
+{
+    Atomic&lt;<span class="t">u64</span>&gt; count;
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="p">static_assert</span>(<span class="p">sizeof</span>&lt;Rec&gt;() == <span class="n">24</span> &amp;&amp; <span class="p">alignof</span>&lt;Rec&gt;() == <span class="n">8</span>);
+    <span class="p">static_assert</span>(<span class="p">sizeof</span>&lt;Slot&gt;() == <span class="n">64</span> &amp;&amp; <span class="p">sizeof</span>&lt;<span class="t">array</span>&lt;Slot, <span class="n">4</span>&gt;&gt;() == <span class="n">256</span>);
+    <span class="t">array</span>&lt;Slot, <span class="n">2</span>&gt; per_thread = [Slot { .count = Atomic::new(<span class="n">0</span>: <span class="t">u64</span>) }, Slot { .count = Atomic::new(<span class="n">0</span>: <span class="t">u64</span>) }];
+    _ = Atomic::fetch_add(&amp;per_thread[<span class="n">1</span>].count, <span class="n">1</span>);
+    <span class="p">assert</span>(Atomic::load(&amp;per_thread[<span class="n">1</span>].count) == <span class="n">1</span>);
+}</code></pre></figure>
 <div class="callout rule"><div class="callout-title">Rules of thumb</div><ul>
 <li>Reach for an enum whenever a value is one of several cases; <code>match</code> forces you to handle each one.</li>
 <li>Use <code>_</code> sparingly: a wildcard arm silently absorbs variants you add later.</li>
@@ -5685,6 +5796,132 @@ mutex field is its own lock.</p>
     <span class="k">auto</span> g = <span class="p">lock</span>(&amp;b.stats);
     <span class="p">assert</span>(g.hits == <span class="n">2</span> &amp;&amp; <span class="p">Vec</span>::len(&amp;g.seen) == <span class="n">2</span> &amp;&amp; *<span class="p">lock</span>(&amp;b.rounds) == <span class="n">2</span>);
 }</code></pre></figure>
+<h3>One integer between threads: <code>Atomic</code></h3>
+<p>When all the threads share is one integer (a counter, a stop flag, a sequence number, a
+running maximum) a mutex is more than it needs. <code>Atomic&lt;T&gt;</code> from <code>std</code> (<code>std::sync</code>, D-0249) holds an
+integer of up to 64 bits that threads change with no lock: <code>Atomic::new(v)</code>, then <code>Atomic::load(&amp;a)</code>,
+<code>Atomic::store(&amp;a, v)</code>, <code>Atomic::swap</code>, <code>Atomic::fetch_add</code> and <code>fetch_sub</code> (with <code>_wrapping</code> forms),
+<code>fetch_and</code>, <code>fetch_or</code>, <code>fetch_xor</code>, <code>fetch_max</code>, <code>fetch_min</code>, <code>fetch_update</code>, and
+<code>Atomic::compare_exchange(&amp;a, expected, new)</code>. <code>AtomicBool</code> is the same for a flag. Every one
+takes a shared reference, like <code>lock</code>, and each is indivisible: no increment is lost, and every
+thread sees all the operations in one order (sequential consistency). The <code>fetch_</code> functions give the
+value they found.</p>
+<p>The integer itself is private to <code>std</code>, so it is never read or written any other way, and an
+<code>Atomic</code> is a resource, so it is never copied. <code>fetch_add</code> faults on overflow as <code>+</code> does, and
+leaves the value unchanged. State of more than one integer still belongs in a mutex: two atomics
+updated one after the other can be seen half done.</p>
+<figure class="code"><div class="code-head"><span class="code-title">A counter and a stop flag without a lock</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> worker(<span class="t">ref</span>&lt;Atomic&lt;<span class="t">u64</span>&gt;, <span class="t">shared</span>&gt; hits, <span class="t">ref</span>&lt;AtomicBool, <span class="t">shared</span>&gt; stop) : <span class="t">u64</span>
+{
+    <span class="t">u64</span> mine = <span class="n">0</span>;
+    <span class="k">while</span> (!AtomicBool::load(stop) &amp;&amp; mine &lt; <span class="n">1000</span>)
+    {
+        _ = Atomic::fetch_add(hits, <span class="n">1</span>);       <span class="c">// no lock, no lost increment</span>
+        mine += <span class="n">1</span>;
+    }
+    mine
+}
+
+<span class="k">fn</span> main()
+{
+    Atomic&lt;<span class="t">u64</span>&gt; hits = Atomic::new(<span class="n">0</span>: <span class="t">u64</span>);
+    AtomicBool stop = AtomicBool::new(<span class="k">false</span>);
+    <span class="t">u64</span> done = <span class="n">0</span>;
+    {
+        <span class="k">auto</span> a = <span class="p">spawn</span>(worker, &amp;hits, &amp;stop);
+        <span class="k">auto</span> b = <span class="p">spawn</span>(worker, &amp;hits, &amp;stop);
+        done = <span class="p">join</span>(a) + <span class="p">join</span>(b);
+    }
+    AtomicBool::store(&amp;stop, <span class="k">true</span>);
+    <span class="p">assert</span>(Atomic::load(&amp;hits) == done);
+}</code></pre></figure>
+<p><code>compare_exchange</code> replaces the value only if it is still the one you read, and otherwise
+tells you what it found. That is the step under every lock-free update: read, compute, try, and
+start again from what the other thread left.</p>
+<figure class="code"><div class="code-head"><span class="code-title">A maximum kept by several threads</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> note_max(<span class="t">ref</span>&lt;Atomic&lt;<span class="t">u64</span>&gt;, <span class="t">shared</span>&gt; best, <span class="t">u64</span> x)
+{
+    <span class="t">u64</span> seen = Atomic::load(best);
+    <span class="k">while</span> (x &gt; seen)
+    {
+        <span class="k">match</span> (Atomic::compare_exchange(best, seen, x))
+        {
+            <span class="p">Ok</span>(_)    : seen = x,              <span class="c">// ours went in</span>
+            <span class="p">Err</span>(now) : seen = now,            <span class="c">// another thread got there first: compare again</span>
+        }
+    }
+}
+
+<span class="k">fn</span> main()
+{
+    Atomic&lt;<span class="t">u64</span>&gt; best = Atomic::new(<span class="n">0</span>: <span class="t">u64</span>);
+    {
+        <span class="k">auto</span> a = <span class="p">spawn</span>(note_max, &amp;best, <span class="n">17</span>);
+        <span class="k">auto</span> b = <span class="p">spawn</span>(note_max, &amp;best, <span class="n">42</span>);
+        <span class="p">join</span>(a);
+        <span class="p">join</span>(b);
+    }
+    <span class="p">assert</span>(Atomic::load(&amp;best) == <span class="n">42</span>);
+}</code></pre></figure>
+<p>That loop is common enough that <code>std</code> has it: <code>Atomic::fetch_max(&amp;best, x)</code> (and <code>fetch_min</code>).
+<code>Atomic::fetch_update(&amp;a, f)</code> is the general form: it calls <code>f</code> with the value it found, stores what
+<code>f</code> gives (<code>Some(new)</code>) or leaves it (<code>None</code>), and starts again if another thread changed the value
+in between, so <code>f</code> should compute only from its argument.</p>
+<h3>Waiting for an atomic to change</h3>
+<p>A loop that reads an atomic until it changes keeps a core busy. <code>Atomic::wait(&amp;a, v)</code> sleeps
+while <code>a</code> holds <code>v</code> instead, and returns once it holds something else; the thread that changes it
+calls <code>Atomic::notify_one(&amp;a)</code> (wake one waiter) or <code>Atomic::notify_all(&amp;a)</code> after the change. A
+notification can never be lost between the waiter's check and its sleep, and a waiter woken while the
+value is still <code>v</code> simply waits again. With these an atomic is a latch, a semaphore or a one-shot
+event. A wait that nothing can end is reported, as a deadlock is (<code>diag.deadlock</code>).</p>
+<figure class="code"><div class="code-head"><span class="code-title">Sleeping until the others are done</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="c">// A countdown latch: the main thread sleeps until every worker has finished.</span>
+<span class="k">fn</span> work(<span class="t">ref</span>&lt;Atomic&lt;<span class="t">u32</span>&gt;, <span class="t">shared</span>&gt; left, <span class="t">ref</span>&lt;Atomic&lt;<span class="t">usize</span>&gt;, <span class="t">shared</span>&gt; total, <span class="t">usize</span> n)
+{
+    _ = Atomic::fetch_add(total, n * n);
+    <span class="k">if</span> (Atomic::fetch_sub(left, <span class="n">1</span>) == <span class="n">1</span>)       <span class="c">// the last one out</span>
+    {
+        Atomic::notify_all(left);
+    }
+}
+
+<span class="k">fn</span> main()
+{
+    Atomic&lt;<span class="t">u32</span>&gt; left = Atomic::new(<span class="n">4</span>: <span class="t">u32</span>);
+    Atomic&lt;<span class="t">usize</span>&gt; total = Atomic::new(<span class="n">0</span>: <span class="t">usize</span>);
+    <span class="p">Vec</span>&lt;<span class="t">handle</span>&lt;<span class="k">void</span>&gt;&gt; hs = <span class="p">Vec</span>::new();
+    <span class="k">foreach</span> (k in <span class="n">1</span>..<span class="n">5</span>)
+    {
+        <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> hs, <span class="p">spawn</span>(work, &amp;left, &amp;total, k));
+    }
+    <span class="k">while</span> (<span class="k">true</span>)
+    {
+        <span class="t">u32</span> n = Atomic::load(&amp;left);
+        <span class="k">if</span> (n == <span class="n">0</span>)
+        {
+            <span class="k">break</span>;
+        }
+        Atomic::wait(&amp;left, n);               <span class="c">// sleeps until the count moves</span>
+    }
+    <span class="p">assert</span>(Atomic::load(&amp;total) == <span class="n">1</span> + <span class="n">4</span> + <span class="n">9</span> + <span class="n">16</span>);
+    <span class="k">while</span> (<span class="p">Vec</span>::len(&amp;hs) &gt; <span class="n">0</span>)
+    {
+        <span class="p">join</span>(<span class="p">Option</span>::unwrap(<span class="p">Vec</span>::pop(&amp;<span class="k">mut</span> hs)));
+    }
+}</code></pre></figure>
+<p>Three smaller tools complete the set. <code>AtomicPtr&lt;T&gt;</code> holds a <code>rawptr&lt;T&gt;</code> (<code>load</code>, <code>store</code>,
+<code>swap</code>, <code>compare_exchange</code>) for lock-free structures over memory from <code>allocate</code>; storing and loading
+addresses is safe, reading through them is <code>unsafe</code> as always. <code>spin_hint()</code> tells the processor a
+loop is spinning (its pause instruction); call it in the body of a short polling loop. <code>atomic_fence()</code>
+is a full fence, for raw, volatile and C memory only: CobaltC's own operations are already sequentially
+consistent, so a program without <code>unsafe</code> never needs it.</p>
+<div class="callout note"><div class="callout-title">One memory order</div>Every atomic operation is sequentially consistent, and there are no relaxed, acquire or
+release orders. On x86-64 a read-modify-write such as <code>fetch_add</code> costs the same in every order; only
+plain stores are dearer. Keeping one order is what lets <code>--explore</code> and the language's own rules
+describe every thread's behaviour as an interleaving of steps.</div>
 <h3>Passing values: <code>Channel</code></h3>
 <p>A <code>Channel&lt;T&gt;</code> from <code>std</code> (<code>std::sync</code>) is a queue between threads, shared by reference as a mutex is.
 <code>Channel::new(cap)</code> holds at most <code>cap</code> values (at least 1). <code>Channel::send(&amp;ch, v)</code> moves <code>v</code> in,
@@ -6082,7 +6319,8 @@ goes to one thread, and one closure cannot run in several threads at once.</p>
     <span class="p">assert</span>(v[<span class="n">999</span>] == <span class="n">998001</span>);
 }</code></pre></figure>
 <h3>What is not provided</h3>
-<p>No atomics, no memory orderings, no condition variables, no thread-local storage. Steps of different threads interleave at
+<p>No memory orderings weaker than sequential consistency (an <code>Atomic</code> is the one lock-free
+tool, above), no condition variables, no thread-local storage. Steps of different threads interleave at
 the granularity of single operations and every operation sees a consistent state; a <code>join</code>, a
 <code>lock</code>, a <code>send</code> or a <code>recv</code> that cannot proceed simply waits. <code>Rc&lt;T&gt;</code> is not thread-safe; to share
 across threads, share a <code>mutex</code> or pass values through a <code>Channel</code>.</p>
@@ -6227,24 +6465,27 @@ crash does not; but that is a courtesy, not a rule. Keep <code>unsafe</code> blo
 promises can be read and checked by eye.</p>
 <h3>Foreign functions</h3>
 <p><code>unsafe extern fn name(params) : ret;</code> declares a function provided from outside. Parameters and
-result may only be integers, floats, <code>bool</code>, <code>void</code> and <code>rawptr&lt;T&gt;</code>; anything else, including a
-<code>ref</code> or a struct, is rejected (<code>diag.extern-non-ffi-type</code>). The declaration itself says <code>unsafe</code>:
+result may only be integers, floats, <code>bool</code>, <code>void</code>, <code>rawptr&lt;T&gt;</code> and plain structs of those (below);
+anything else, such as a <code>ref</code>, a <code>String</code> or an enum, is rejected (<code>diag.extern-non-ffi-type</code>), and the
+message names the field that is the problem. The declaration itself says <code>unsafe</code>:
 no tool can check that the C function really has that name and exactly those
 types, and if it does not, every call is wrong, so the promise is marked where it is made, where a
 search for <code>unsafe</code> finds it. Without <code>unsafe</code> the declaration is a syntax error. Calling it needs
 <code>unsafe</code> too, for what the function does. Its result
 is a <em>claim</em>: a genuine value of its declared type, but one whose relationship to anything
 else (that a returned length is right, that a pointer is valid) is not established until your code
-checks it.</p>
+checks it. An <code>extern fn</code> is only ever called, never passed as a function value: calling a value
+needs no <code>unsafe</code>, so the promise would have nowhere to be written.</p>
 <p><code>std</code> declares two externs: <code>stdout_write(rawptr&lt;u8&gt; buf, usize len) : isize</code>, which
 <code>printf</code> (§21) writes through, with the <code>unsafe</code> block inside <code>std</code>, and its counterpart
 <code>stdin_read</code>, which <code>read_line</code> reads through. Calling conventions and how code is linked are outside the language
 and documented by each implementation; a program names the C code it needs with <code>extern &quot;…&quot;;</code>
 (below).</p>
-<p>Both implementations call real C functions on x86-64 Linux: an <code>unsafe extern fn</code> names a
-function in the C library or the maths library by its declared name. The compiler passes any
-FfiType, pointers included. The interpreter's memory is simulated, so it can pass only integers,
-<code>bool</code> and floats, and reports a call that needs a pointer as unsupported rather than guessing.</p>
+<p>Both implementations call real C functions on x86-64 Linux, and <code>cobc</code> on Windows too: an
+<code>unsafe extern fn</code> names a function in the C library or the maths library by its declared name. The compiler passes any
+FfiType, pointers and structs included. The interpreter's memory is simulated, so it can pass only
+integers, <code>bool</code> and floats, and reports a call that needs a pointer or a struct as unsupported rather
+than guessing.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Calling C functions</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">unsafe</span> <span class="k">extern</span> <span class="k">fn</span> <span class="p">sqrt</span>(<span class="t">f64</span> x) : <span class="t">f64</span>;          <span class="c">// from the maths library</span>
@@ -6386,6 +6627,86 @@ int64_t squares(int64_t *out, int64_t n)
     }
     <span class="k">return</span> n;
 }</code></pre></figure>
+<h3>Structs and text across the boundary</h3>
+<p>A struct crosses by value when it is plain: not a resource, at least one field, and every
+field an integer, a float, <code>bool</code>, a <code>rawptr</code>, another such struct, or an array of those. Every
+struct is laid out as C lays out the same members in the same order (§16), so the C side declares the
+same fields in the same order and the C compiler passes it by the platform's rules. Enums do not
+cross (a C enum is an integer on this side), nor <code>bitstruct</code>s (pass <code>B::bits(b)</code>), nor arrays on
+their own (C passes an array as a pointer), though an array field is fine.</p>
+<figure class="code"><div class="code-head"><span class="code-title">A struct returned by value</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">struct</span> DivT                                  <span class="c">// C&#x27;s div_t: { int quot; int rem; }</span>
+{
+    <span class="t">i32</span> quot;
+    <span class="t">i32</span> rem;
+}
+
+<span class="k">unsafe</span> <span class="k">extern</span> <span class="k">fn</span> div(<span class="t">i32</span> n, <span class="t">i32</span> d) : DivT;   <span class="c">// a struct result, by value</span>
+
+<span class="k">fn</span> main()
+{
+    DivT r = <span class="k">unsafe</span>
+    {
+        div(<span class="n">17</span>, <span class="n">5</span>)
+    };
+    <span class="p">printf</span>(<span class="s">&quot;%d remainder %d\n&quot;</span>, r.quot, r.rem);
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>3 remainder 2
+</pre></div></figure>
+<p>Text is the other everyday crossing. C wants <code>const char *</code>, bytes that end at a NUL; it hands
+back <code>char *</code> the same way, or <code>NULL</code> for "none". <code>std::ffi</code> covers both directions:</p>
+<table>
+<thead><tr><th>Direction</th><th>Write</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td>to C</td><td><code>CString::new(&quot;text&quot;)?</code> then <code>CString::ptr(&amp;c)</code></td><td><code>Err(NulError)</code> if the text already holds a NUL; the address is valid until the <code>CString</code> is dropped, even if it is moved</td></tr>
+<tr><td>from C</td><td><code>unsafe { String::from_c(p) }</code></td><td>copies up to the NUL; <code>Err(Utf8Error)</code> if not UTF-8; <code>Vec::from_c_bytes</code> for bytes that need not be</td></tr>
+<tr><td><code>NULL</code></td><td><code>is_null(p)</code>, <code>null_rawptr&lt;T&gt;()</code></td><td>test before reading; <code>String::from_c</code> of <code>NULL</code> faults (<code>diag.null-pointer</code>)</td></tr>
+</tbody>
+</table>
+<p>Taking a <code>CString</code>'s address is safe; handing it to C is the <code>unsafe</code> call. <code>String::from_c</code>
+itself must sit inside <code>unsafe</code>, as a dereference does, because it reads wherever the pointer points;
+for the same reason it can never be passed around as a function value.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Text to C and back</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">unsafe</span> <span class="k">extern</span> <span class="k">fn</span> getenv(<span class="t">rawptr</span>&lt;<span class="t">u8</span>&gt; name) : <span class="t">rawptr</span>&lt;<span class="t">u8</span>&gt;;
+<span class="k">unsafe</span> <span class="k">extern</span> <span class="k">fn</span> strchr(<span class="t">rawptr</span>&lt;<span class="t">u8</span>&gt; s, <span class="t">i32</span> c) : <span class="t">rawptr</span>&lt;<span class="t">u8</span>&gt;;
+
+<span class="c">// A safe wrapper: the only `unsafe` is here, and NULL becomes `None`.</span>
+<span class="k">fn</span> env(<span class="p">StringView</span> name) : <span class="p">Option</span>&lt;<span class="p">String</span>&gt;
+{
+    CString c = <span class="p">Result</span>::expect(CString::new(name), <span class="s">&quot;a name has no NUL&quot;</span>);
+    <span class="t">rawptr</span>&lt;<span class="t">u8</span>&gt; p = <span class="k">unsafe</span>
+    {
+        getenv(CString::ptr(&amp;c))
+    };
+    <span class="k">if</span> (is_null(p))
+    {
+        <span class="k">return</span> <span class="p">None</span>;
+    }
+    <span class="k">match</span> (<span class="k">unsafe</span> { <span class="p">String</span>::from_c(p) })
+    {
+        <span class="p">Ok</span>(s)  : <span class="p">Some</span>(s),
+        <span class="p">Err</span>(_) : <span class="p">None</span>,                       <span class="c">// set, but not UTF-8</span>
+    }
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="k">match</span> (env(<span class="s">&quot;COBALTC_GUIDE_SURELY_UNSET&quot;</span>))
+    {
+        <span class="p">Some</span>(v) : <span class="p">printf</span>(<span class="s">&quot;set to %s\n&quot;</span>, &amp;v),
+        <span class="p">None</span>    : <span class="p">printf</span>(<span class="s">&quot;not set\n&quot;</span>),
+    }
+    CString path = <span class="p">Result</span>::expect(CString::new(<span class="s">&quot;docs/guide.html&quot;</span>), <span class="s">&quot;no NUL&quot;</span>);
+    <span class="t">rawptr</span>&lt;<span class="t">u8</span>&gt; slash = <span class="k">unsafe</span>
+    {
+        strchr(CString::ptr(&amp;path), <span class="n">47</span>)      <span class="c">// &#x27;/&#x27;</span>
+    };
+    <span class="p">String</span> rest = <span class="p">Result</span>::expect(<span class="k">unsafe</span> { <span class="p">String</span>::from_c(slash) }, <span class="s">&quot;UTF-8&quot;</span>);
+    <span class="p">printf</span>(<span class="s">&quot;%s\n&quot;</span>, &amp;rest);
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>not set
+/guide.html
+</pre></div></figure>
 <h3>From claim to fact</h3>
 <p>Data from outside (bytes read by an extern, a pointer handed back by a library, a length
 in a header) starts as a claim. The pattern for turning it into a fact is a validator that returns
@@ -6466,12 +6787,12 @@ tools build it in (<code>printf</code>, <code>sqrt</code>, <code>exit</code>, �
 associated functions. A parent module also re-exports the submodules it lists, so their items are its
 own too. Each exported name links to its entry in <a href="#stdref">the std
 reference</a>, which gives its declaration, its documentation and examples.</p>
-<p class="std-nav"><a href="#stdmod-std"><code>std</code></a>, <a href="#stdmod-std-core"><code>std::core</code></a>, <a href="#stdmod-std-collections"><code>std::collections</code></a>, <a href="#stdmod-std-text"><code>std::text</code></a>, <a href="#stdmod-std-io"><code>std::io</code></a>, <a href="#stdmod-std-fs"><code>std::fs</code></a>, <a href="#stdmod-std-env"><code>std::env</code></a>, <a href="#stdmod-std-memory"><code>std::memory</code></a>, <a href="#stdmod-std-sync"><code>std::sync</code></a>, <a href="#stdmod-std-random"><code>std::random</code></a>, <a href="#stdmod-std-math"><code>std::math</code></a>, <a href="#stdmod-std-time"><code>std::time</code></a>, <a href="#stdmod-std-process"><code>std::process</code></a>, <a href="#stdmod-std-net"><code>std::net</code></a>, <a href="#stdmod-std-crypto"><code>std::crypto</code></a>, <a href="#stdmod-std-crypto-digest"><code>std::crypto::digest</code></a>, <a href="#stdmod-std-crypto-kdf"><code>std::crypto::kdf</code></a>, <a href="#stdmod-std-crypto-aead"><code>std::crypto::aead</code></a>, <a href="#stdmod-std-crypto-pk"><code>std::crypto::pk</code></a>, <a href="#stdmod-std-x509"><code>std::x509</code></a>, <a href="#stdmod-std-tls"><code>std::tls</code></a>, <a href="#stdmod-std-http"><code>std::http</code></a>, <a href="#stdmod-std-http-client"><code>std::http::client</code></a>, <a href="#stdmod-std-http-server"><code>std::http::server</code></a>, <a href="#stdmod-std-database"><code>std::database</code></a>, <a href="#stdmod-std-database-postgres"><code>std::database::postgres</code></a>, <a href="#stdmod-std-encoding"><code>std::encoding</code></a>, <a href="#stdmod-std-encoding-json"><code>std::encoding::json</code></a>, <a href="#stdmod-std-encoding-hex"><code>std::encoding::hex</code></a>, <a href="#stdmod-std-encoding-base64"><code>std::encoding::base64</code></a>, <a href="#stdmod-std-compress"><code>std::compress</code></a>, <a href="#stdmod-std-extensions"><code>std::extensions</code></a></p>
+<p class="std-nav"><a href="#stdmod-std"><code>std</code></a>, <a href="#stdmod-std-core"><code>std::core</code></a>, <a href="#stdmod-std-collections"><code>std::collections</code></a>, <a href="#stdmod-std-text"><code>std::text</code></a>, <a href="#stdmod-std-io"><code>std::io</code></a>, <a href="#stdmod-std-fs"><code>std::fs</code></a>, <a href="#stdmod-std-env"><code>std::env</code></a>, <a href="#stdmod-std-memory"><code>std::memory</code></a>, <a href="#stdmod-std-sync"><code>std::sync</code></a>, <a href="#stdmod-std-random"><code>std::random</code></a>, <a href="#stdmod-std-math"><code>std::math</code></a>, <a href="#stdmod-std-time"><code>std::time</code></a>, <a href="#stdmod-std-process"><code>std::process</code></a>, <a href="#stdmod-std-net"><code>std::net</code></a>, <a href="#stdmod-std-crypto"><code>std::crypto</code></a>, <a href="#stdmod-std-crypto-digest"><code>std::crypto::digest</code></a>, <a href="#stdmod-std-crypto-kdf"><code>std::crypto::kdf</code></a>, <a href="#stdmod-std-crypto-aead"><code>std::crypto::aead</code></a>, <a href="#stdmod-std-crypto-pk"><code>std::crypto::pk</code></a>, <a href="#stdmod-std-x509"><code>std::x509</code></a>, <a href="#stdmod-std-tls"><code>std::tls</code></a>, <a href="#stdmod-std-http"><code>std::http</code></a>, <a href="#stdmod-std-http-client"><code>std::http::client</code></a>, <a href="#stdmod-std-http-server"><code>std::http::server</code></a>, <a href="#stdmod-std-database"><code>std::database</code></a>, <a href="#stdmod-std-database-postgres"><code>std::database::postgres</code></a>, <a href="#stdmod-std-encoding"><code>std::encoding</code></a>, <a href="#stdmod-std-encoding-json"><code>std::encoding::json</code></a>, <a href="#stdmod-std-encoding-hex"><code>std::encoding::hex</code></a>, <a href="#stdmod-std-encoding-base64"><code>std::encoding::base64</code></a>, <a href="#stdmod-std-compress"><code>std::compress</code></a>, <a href="#stdmod-std-ffi"><code>std::ffi</code></a>, <a href="#stdmod-std-extensions"><code>std::extensions</code></a></p>
 <h4 id="stdmod-std"><code>std</code> <span class="std-file">impl/std/std.cb</span></h4>
 <table class="std-inv">
 <thead><tr><th>Kind</th><th>Items</th></tr></thead>
 <tbody>
-<tr><td>Submodules</td><td><a href="#stdmod-std-core"><code>core</code></a>, <a href="#stdmod-std-collections"><code>collections</code></a>, <a href="#stdmod-std-text"><code>text</code></a>, <a href="#stdmod-std-io"><code>io</code></a>, <a href="#stdmod-std-fs"><code>fs</code></a>, <a href="#stdmod-std-env"><code>env</code></a>, <a href="#stdmod-std-memory"><code>memory</code></a>, <a href="#stdmod-std-sync"><code>sync</code></a>, <a href="#stdmod-std-random"><code>random</code></a>, <a href="#stdmod-std-math"><code>math</code></a>, <a href="#stdmod-std-time"><code>time</code></a>, <a href="#stdmod-std-process"><code>process</code></a>, <a href="#stdmod-std-net"><code>net</code></a>, <a href="#stdmod-std-crypto"><code>crypto</code></a>, <a href="#stdmod-std-x509"><code>x509</code></a>, <a href="#stdmod-std-tls"><code>tls</code></a>, <a href="#stdmod-std-http"><code>http</code></a>, <a href="#stdmod-std-database"><code>database</code></a>, <a href="#stdmod-std-encoding"><code>encoding</code></a>, <a href="#stdmod-std-compress"><code>compress</code></a>, <a href="#stdmod-std-extensions"><code class="priv">extensions</code></a></td></tr>
+<tr><td>Submodules</td><td><a href="#stdmod-std-core"><code>core</code></a>, <a href="#stdmod-std-collections"><code>collections</code></a>, <a href="#stdmod-std-text"><code>text</code></a>, <a href="#stdmod-std-io"><code>io</code></a>, <a href="#stdmod-std-fs"><code>fs</code></a>, <a href="#stdmod-std-env"><code>env</code></a>, <a href="#stdmod-std-memory"><code>memory</code></a>, <a href="#stdmod-std-sync"><code>sync</code></a>, <a href="#stdmod-std-random"><code>random</code></a>, <a href="#stdmod-std-math"><code>math</code></a>, <a href="#stdmod-std-time"><code>time</code></a>, <a href="#stdmod-std-process"><code>process</code></a>, <a href="#stdmod-std-net"><code>net</code></a>, <a href="#stdmod-std-crypto"><code>crypto</code></a>, <a href="#stdmod-std-x509"><code>x509</code></a>, <a href="#stdmod-std-tls"><code>tls</code></a>, <a href="#stdmod-std-http"><code>http</code></a>, <a href="#stdmod-std-database"><code>database</code></a>, <a href="#stdmod-std-encoding"><code>encoding</code></a>, <a href="#stdmod-std-compress"><code>compress</code></a>, <a href="#stdmod-std-ffi"><code>ffi</code></a>, <a href="#stdmod-std-extensions"><code class="priv">extensions</code></a></td></tr>
 <tr><td>Functions</td><td><code class="priv">byte_answer</code>, <code class="priv">byte_op</code>, <code class="priv">bytes_ptr</code>, <code class="priv">code_error</code>, <code class="priv">file_error</code>, <code class="priv">fs_answer</code>, <code class="priv">path_result</code>, <code class="priv">path_text</code>, <code class="priv">print</code><sup class="nat">n</sup></td></tr>
 <tr><td>Externs (<code>unsafe</code>)</td><td><code class="priv">clock_read</code>, <code class="priv">event_op</code>, <code class="priv">file_at</code>, <code class="priv">file_op</code>, <code class="priv">file_read</code>, <code class="priv">file_write</code>, <code class="priv">fs_op</code>, <code class="priv">fs_query</code>, <code class="priv">net_op</code>, <code class="priv">os_random</code>, <code class="priv">path_op</code>, <code class="priv">proc_op</code>, <code class="priv">sleep_ns</code>, <code class="priv">stderr_write</code>, <code class="priv">stdin_read_line</code>, <code class="priv">stdout_flush</code>, <code class="priv">task_op</code>, <code class="priv">tz_offset</code></td></tr>
 </tbody>
@@ -6492,7 +6813,7 @@ reference</a>, which gives its declaration, its documentation and examples.</p>
 <tbody>
 <tr><td>Types</td><td><code class="priv">Drain</code>, <code class="priv">HashDrain</code>, <a href="#stdref-std-collections-HashMap"><code>HashMap</code></a>, <a href="#stdref-std-collections-HashSet"><code>HashSet</code></a>, <a href="#stdref-std-collections-PriorityQueue"><code>PriorityQueue</code></a>, <a href="#stdref-std-collections-Queue"><code>Queue</code></a>, <code class="priv">SetDrain</code>, <a href="#stdref-std-collections-Vec"><code>Vec</code></a></td></tr>
 <tr><td>Functions</td><td><code class="priv">key_before</code>, <a href="#stdref-std-collections-read_be"><code>read_be</code></a>, <a href="#stdref-std-collections-read_le"><code>read_le</code></a>, <a href="#stdref-std-collections-slice_eq"><code>slice_eq</code></a>, <a href="#stdref-std-collections-slice_parts"><code>slice_parts</code></a>, <a href="#stdref-std-collections-slice_swap"><code>slice_swap</code></a></td></tr>
-<tr><td><code>Vec::</code></td><td><a href="#stdref-std-collections-Vec-append"><code>append</code></a>, <code class="priv">apply_order</code>, <a href="#stdref-std-collections-Vec-binary_search"><code>binary_search</code></a>, <a href="#stdref-std-collections-Vec-binary_search_by"><code>binary_search_by</code></a>, <a href="#stdref-std-collections-Vec-clear"><code>clear</code></a>, <a href="#stdref-std-collections-Vec-clone"><code>clone</code></a>, <a href="#stdref-std-collections-Vec-clone_by"><code>clone_by</code></a>, <a href="#stdref-std-collections-Vec-contains"><code>contains</code></a>, <a href="#stdref-std-collections-Vec-dedup"><code>dedup</code></a>, <code class="priv">drain</code>, <a href="#stdref-std-collections-Vec-drop"><code>drop</code></a>, <a href="#stdref-std-collections-Vec-extend_from"><code>extend_from</code></a>, <a href="#stdref-std-collections-Vec-filled"><code>filled</code></a>, <a href="#stdref-std-collections-Vec-from_fn"><code>from_fn</code></a>, <a href="#stdref-std-collections-Vec-from_slice"><code>from_slice</code></a>, <code class="priv">grow</code>, <a href="#stdref-std-collections-Vec-index_exclusive"><code>index_exclusive</code></a>, <a href="#stdref-std-collections-Vec-index_of"><code>index_of</code></a>, <a href="#stdref-std-collections-Vec-index_shared"><code>index_shared</code></a>, <a href="#stdref-std-collections-Vec-insert"><code>insert</code></a>, <a href="#stdref-std-collections-Vec-len"><code>len</code></a>, <a href="#stdref-std-collections-Vec-new"><code>new</code></a>, <a href="#stdref-std-collections-Vec-pop"><code>pop</code></a>, <a href="#stdref-std-collections-Vec-position"><code>position</code></a>, <a href="#stdref-std-collections-Vec-push"><code>push</code></a>, <a href="#stdref-std-collections-Vec-push_be"><code>push_be</code></a>, <a href="#stdref-std-collections-Vec-push_le"><code>push_le</code></a>, <a href="#stdref-std-collections-Vec-remove"><code>remove</code></a>, <code class="priv">remove_at</code>, <code class="priv">replace</code>, <a href="#stdref-std-collections-Vec-reserve"><code>reserve</code></a>, <a href="#stdref-std-collections-Vec-retain"><code>retain</code></a>, <a href="#stdref-std-collections-Vec-reverse"><code>reverse</code></a>, <a href="#stdref-std-collections-Vec-sort"><code>sort</code></a>, <a href="#stdref-std-collections-Vec-sort_by"><code>sort_by</code></a>, <code class="priv">sorted_order</code>, <code class="priv">sorted_order_keys</code>, <a href="#stdref-std-collections-Vec-swap"><code>swap</code></a>, <a href="#stdref-std-collections-Vec-swap_remove"><code>swap_remove</code></a>, <code class="priv">take_raw</code>, <a href="#stdref-std-collections-Vec-truncate"><code>truncate</code></a></td></tr>
+<tr><td><code>Vec::</code></td><td><a href="#stdref-std-collections-Vec-append"><code>append</code></a>, <code class="priv">apply_order</code>, <a href="#stdref-std-collections-Vec-binary_search"><code>binary_search</code></a>, <a href="#stdref-std-collections-Vec-binary_search_by"><code>binary_search_by</code></a>, <a href="#stdref-std-collections-Vec-clear"><code>clear</code></a>, <a href="#stdref-std-collections-Vec-clone"><code>clone</code></a>, <a href="#stdref-std-collections-Vec-clone_by"><code>clone_by</code></a>, <a href="#stdref-std-collections-Vec-contains"><code>contains</code></a>, <a href="#stdref-std-collections-Vec-dedup"><code>dedup</code></a>, <code class="priv">drain</code>, <a href="#stdref-std-collections-Vec-drop"><code>drop</code></a>, <a href="#stdref-std-collections-Vec-extend_from"><code>extend_from</code></a>, <a href="#stdref-std-collections-Vec-filled"><code>filled</code></a>, <a href="#stdref-std-collections-Vec-from_c_bytes"><code>from_c_bytes</code></a>, <a href="#stdref-std-collections-Vec-from_fn"><code>from_fn</code></a>, <a href="#stdref-std-collections-Vec-from_slice"><code>from_slice</code></a>, <code class="priv">grow</code>, <a href="#stdref-std-collections-Vec-index_exclusive"><code>index_exclusive</code></a>, <a href="#stdref-std-collections-Vec-index_of"><code>index_of</code></a>, <a href="#stdref-std-collections-Vec-index_shared"><code>index_shared</code></a>, <a href="#stdref-std-collections-Vec-insert"><code>insert</code></a>, <a href="#stdref-std-collections-Vec-len"><code>len</code></a>, <a href="#stdref-std-collections-Vec-new"><code>new</code></a>, <a href="#stdref-std-collections-Vec-pop"><code>pop</code></a>, <a href="#stdref-std-collections-Vec-position"><code>position</code></a>, <a href="#stdref-std-collections-Vec-push"><code>push</code></a>, <a href="#stdref-std-collections-Vec-push_be"><code>push_be</code></a>, <a href="#stdref-std-collections-Vec-push_le"><code>push_le</code></a>, <a href="#stdref-std-collections-Vec-remove"><code>remove</code></a>, <code class="priv">remove_at</code>, <code class="priv">replace</code>, <a href="#stdref-std-collections-Vec-reserve"><code>reserve</code></a>, <a href="#stdref-std-collections-Vec-retain"><code>retain</code></a>, <a href="#stdref-std-collections-Vec-reverse"><code>reverse</code></a>, <a href="#stdref-std-collections-Vec-sort"><code>sort</code></a>, <a href="#stdref-std-collections-Vec-sort_by"><code>sort_by</code></a>, <code class="priv">sorted_order</code>, <code class="priv">sorted_order_keys</code>, <a href="#stdref-std-collections-Vec-swap"><code>swap</code></a>, <a href="#stdref-std-collections-Vec-swap_remove"><code>swap_remove</code></a>, <code class="priv">take_raw</code>, <a href="#stdref-std-collections-Vec-truncate"><code>truncate</code></a></td></tr>
 <tr><td><code>Drain::</code></td><td><code class="priv">drop</code>, <code class="priv">take</code>, <code class="priv">total</code></td></tr>
 <tr><td><code>HashMap::</code></td><td><a href="#stdref-std-collections-HashMap-clear"><code>clear</code></a>, <a href="#stdref-std-collections-HashMap-clone"><code>clone</code></a>, <a href="#stdref-std-collections-HashMap-contains"><code>contains</code></a>, <a href="#stdref-std-collections-HashMap-contains_str"><code>contains_str</code></a>, <code class="priv">drain</code>, <a href="#stdref-std-collections-HashMap-entry"><code>entry</code></a>, <code class="priv">find</code>, <code class="priv">find_str</code>, <a href="#stdref-std-collections-HashMap-get"><code>get</code></a>, <a href="#stdref-std-collections-HashMap-get_mut"><code>get_mut</code></a>, <a href="#stdref-std-collections-HashMap-get_mut_str"><code>get_mut_str</code></a>, <a href="#stdref-std-collections-HashMap-get_str"><code>get_str</code></a>, <code class="priv">index_of</code>, <a href="#stdref-std-collections-HashMap-insert"><code>insert</code></a>, <a href="#stdref-std-collections-HashMap-key_at"><code>key_at</code></a>, <a href="#stdref-std-collections-HashMap-len"><code>len</code></a>, <a href="#stdref-std-collections-HashMap-new"><code>new</code></a>, <a href="#stdref-std-collections-HashMap-remove"><code>remove</code></a>, <code class="priv">remove_slot</code>, <a href="#stdref-std-collections-HashMap-remove_str"><code>remove_str</code></a>, <code class="priv">reserve_one</code>, <code class="priv">reslot</code>, <a href="#stdref-std-collections-HashMap-swap_remove"><code>swap_remove</code></a>, <code class="priv">unslot</code>, <a href="#stdref-std-collections-HashMap-value_at"><code>value_at</code></a></td></tr>
 <tr><td><code>HashDrain::</code></td><td><code class="priv">drop</code>, <code class="priv">take_key</code>, <code class="priv">take_value</code>, <code class="priv">total</code></td></tr>
@@ -6510,7 +6831,7 @@ reference</a>, which gives its declaration, its documentation and examples.</p>
 <tr><td>Functions</td><td><a href="#stdref-std-text-ascii_is_alnum"><code>ascii_is_alnum</code></a>, <a href="#stdref-std-text-ascii_is_alpha"><code>ascii_is_alpha</code></a>, <a href="#stdref-std-text-ascii_is_digit"><code>ascii_is_digit</code></a>, <a href="#stdref-std-text-ascii_is_lower"><code>ascii_is_lower</code></a>, <a href="#stdref-std-text-ascii_is_space"><code>ascii_is_space</code></a>, <a href="#stdref-std-text-ascii_is_upper"><code>ascii_is_upper</code></a>, <a href="#stdref-std-text-ascii_to_lower"><code>ascii_to_lower</code></a>, <a href="#stdref-std-text-ascii_to_upper"><code>ascii_to_upper</code></a>, <code class="priv">byte_index_from</code>, <code class="priv">parse_bytes</code>, <code class="priv">space_run_end</code>, <a href="#stdref-std-text-sprintf"><code>sprintf</code><sup class="nat">n</sup></a>, <code class="priv">utf8_error_at</code></td></tr>
 <tr><td><code>Utf8Error::</code></td><td><a href="#stdref-std-text-Utf8Error-text"><code>text</code></a></td></tr>
 <tr><td><code>ParseError::</code></td><td><a href="#stdref-std-text-ParseError-text"><code>text</code></a></td></tr>
-<tr><td><code>String::</code></td><td><a href="#stdref-std-text-String-append"><code>append</code></a>, <code class="priv">append_str</code>, <code class="priv">append_string</code>, <code class="priv">append_text</code>, <code class="priv">append_view</code>, <a href="#stdref-std-text-String-appendf"><code>appendf</code><sup class="nat">n</sup></a>, <a href="#stdref-std-text-String-as_bytes"><code>as_bytes</code></a>, <a href="#stdref-std-text-String-as_view"><code>as_view</code></a>, <a href="#stdref-std-text-String-char_count"><code>char_count</code></a>, <a href="#stdref-std-text-String-chars"><code>chars</code></a>, <a href="#stdref-std-text-String-clear"><code>clear</code></a>, <a href="#stdref-std-text-String-clone"><code>clone</code></a>, <a href="#stdref-std-text-String-code_point"><code>code_point</code></a>, <a href="#stdref-std-text-String-contains"><code>contains</code></a>, <a href="#stdref-std-text-String-ends_with"><code>ends_with</code></a>, <a href="#stdref-std-text-String-eq"><code>eq</code></a>, <a href="#stdref-std-text-String-eq_str"><code>eq_str</code></a>, <a href="#stdref-std-text-String-eq_view"><code>eq_view</code></a>, <a href="#stdref-std-text-String-find"><code>find</code></a>, <a href="#stdref-std-text-String-from_str"><code>from_str</code></a>, <a href="#stdref-std-text-String-from_utf8"><code>from_utf8</code></a>, <a href="#stdref-std-text-String-from_view"><code>from_view</code></a>, <a href="#stdref-std-text-String-into_bytes"><code>into_bytes</code></a>, <a href="#stdref-std-text-String-join"><code>join</code></a>, <a href="#stdref-std-text-String-len"><code>len</code></a>, <a href="#stdref-std-text-String-less"><code>less</code></a>, <a href="#stdref-std-text-String-lines"><code>lines</code></a>, <a href="#stdref-std-text-String-new"><code>new</code></a>, <a href="#stdref-std-text-String-parse"><code>parse</code></a>, <a href="#stdref-std-text-String-push_ascii"><code>push_ascii</code></a>, <a href="#stdref-std-text-String-push_code_point"><code>push_code_point</code></a>, <a href="#stdref-std-text-String-replace"><code>replace</code></a>, <a href="#stdref-std-text-String-reserve"><code>reserve</code></a>, <a href="#stdref-std-text-String-split"><code>split</code></a>, <a href="#stdref-std-text-String-split_whitespace"><code>split_whitespace</code></a>, <a href="#stdref-std-text-String-starts_with"><code>starts_with</code></a>, <a href="#stdref-std-text-String-strip_prefix"><code>strip_prefix</code></a>, <a href="#stdref-std-text-String-strip_suffix"><code>strip_suffix</code></a>, <a href="#stdref-std-text-String-to_ascii_lower"><code>to_ascii_lower</code></a>, <a href="#stdref-std-text-String-to_ascii_upper"><code>to_ascii_upper</code></a>, <a href="#stdref-std-text-String-trim"><code>trim</code></a>, <a href="#stdref-std-text-String-trim_end"><code>trim_end</code></a>, <a href="#stdref-std-text-String-trim_start"><code>trim_start</code></a>, <a href="#stdref-std-text-String-truncate"><code>truncate</code></a>, <a href="#stdref-std-text-String-view"><code>view</code></a></td></tr>
+<tr><td><code>String::</code></td><td><a href="#stdref-std-text-String-append"><code>append</code></a>, <code class="priv">append_str</code>, <code class="priv">append_string</code>, <code class="priv">append_text</code>, <code class="priv">append_view</code>, <a href="#stdref-std-text-String-appendf"><code>appendf</code><sup class="nat">n</sup></a>, <a href="#stdref-std-text-String-as_bytes"><code>as_bytes</code></a>, <a href="#stdref-std-text-String-as_view"><code>as_view</code></a>, <a href="#stdref-std-text-String-char_count"><code>char_count</code></a>, <a href="#stdref-std-text-String-chars"><code>chars</code></a>, <a href="#stdref-std-text-String-clear"><code>clear</code></a>, <a href="#stdref-std-text-String-clone"><code>clone</code></a>, <a href="#stdref-std-text-String-code_point"><code>code_point</code></a>, <a href="#stdref-std-text-String-contains"><code>contains</code></a>, <a href="#stdref-std-text-String-ends_with"><code>ends_with</code></a>, <a href="#stdref-std-text-String-eq"><code>eq</code></a>, <a href="#stdref-std-text-String-eq_str"><code>eq_str</code></a>, <a href="#stdref-std-text-String-eq_view"><code>eq_view</code></a>, <a href="#stdref-std-text-String-find"><code>find</code></a>, <a href="#stdref-std-text-String-from_c"><code>from_c</code></a>, <a href="#stdref-std-text-String-from_str"><code>from_str</code></a>, <a href="#stdref-std-text-String-from_utf8"><code>from_utf8</code></a>, <a href="#stdref-std-text-String-from_view"><code>from_view</code></a>, <a href="#stdref-std-text-String-into_bytes"><code>into_bytes</code></a>, <a href="#stdref-std-text-String-join"><code>join</code></a>, <a href="#stdref-std-text-String-len"><code>len</code></a>, <a href="#stdref-std-text-String-less"><code>less</code></a>, <a href="#stdref-std-text-String-lines"><code>lines</code></a>, <a href="#stdref-std-text-String-new"><code>new</code></a>, <a href="#stdref-std-text-String-parse"><code>parse</code></a>, <a href="#stdref-std-text-String-push_ascii"><code>push_ascii</code></a>, <a href="#stdref-std-text-String-push_code_point"><code>push_code_point</code></a>, <a href="#stdref-std-text-String-replace"><code>replace</code></a>, <a href="#stdref-std-text-String-reserve"><code>reserve</code></a>, <a href="#stdref-std-text-String-split"><code>split</code></a>, <a href="#stdref-std-text-String-split_whitespace"><code>split_whitespace</code></a>, <a href="#stdref-std-text-String-starts_with"><code>starts_with</code></a>, <a href="#stdref-std-text-String-strip_prefix"><code>strip_prefix</code></a>, <a href="#stdref-std-text-String-strip_suffix"><code>strip_suffix</code></a>, <a href="#stdref-std-text-String-to_ascii_lower"><code>to_ascii_lower</code></a>, <a href="#stdref-std-text-String-to_ascii_upper"><code>to_ascii_upper</code></a>, <a href="#stdref-std-text-String-trim"><code>trim</code></a>, <a href="#stdref-std-text-String-trim_end"><code>trim_end</code></a>, <a href="#stdref-std-text-String-trim_start"><code>trim_start</code></a>, <a href="#stdref-std-text-String-truncate"><code>truncate</code></a>, <a href="#stdref-std-text-String-view"><code>view</code></a></td></tr>
 <tr><td><code>StringView::</code></td><td><a href="#stdref-std-text-StringView-as_bytes"><code>as_bytes</code></a>, <code class="priv">at</code>, <code class="priv">boundary</code>, <a href="#stdref-std-text-StringView-char_count"><code>char_count</code></a>, <a href="#stdref-std-text-StringView-chars"><code>chars</code></a>, <a href="#stdref-std-text-StringView-code_point"><code>code_point</code></a>, <a href="#stdref-std-text-StringView-contains"><code>contains</code></a>, <a href="#stdref-std-text-StringView-ends_with"><code>ends_with</code></a>, <a href="#stdref-std-text-StringView-eq"><code>eq</code></a>, <a href="#stdref-std-text-StringView-eq_str"><code>eq_str</code></a>, <a href="#stdref-std-text-StringView-find"><code>find</code></a>, <a href="#stdref-std-text-StringView-from_utf8"><code>from_utf8</code></a>, <a href="#stdref-std-text-StringView-join"><code>join</code></a>, <a href="#stdref-std-text-StringView-len"><code>len</code></a>, <a href="#stdref-std-text-StringView-less"><code>less</code></a>, <a href="#stdref-std-text-StringView-lines"><code>lines</code></a>, <a href="#stdref-std-text-StringView-of"><code>of</code></a>, <a href="#stdref-std-text-StringView-parse"><code>parse</code></a>, <code class="priv">ptr</code>, <a href="#stdref-std-text-StringView-replace"><code>replace</code></a>, <code class="priv">space</code>, <a href="#stdref-std-text-StringView-split"><code>split</code></a>, <a href="#stdref-std-text-StringView-split_whitespace"><code>split_whitespace</code></a>, <a href="#stdref-std-text-StringView-starts_with"><code>starts_with</code></a>, <a href="#stdref-std-text-StringView-strip_prefix"><code>strip_prefix</code></a>, <a href="#stdref-std-text-StringView-strip_suffix"><code>strip_suffix</code></a>, <a href="#stdref-std-text-StringView-sub"><code>sub</code></a>, <a href="#stdref-std-text-StringView-trim"><code>trim</code></a>, <a href="#stdref-std-text-StringView-trim_end"><code>trim_end</code></a>, <a href="#stdref-std-text-StringView-trim_start"><code>trim_start</code></a></td></tr>
 </tbody>
 </table>
@@ -6557,11 +6878,14 @@ reference</a>, which gives its declaration, its documentation and examples.</p>
 <table class="std-inv">
 <thead><tr><th>Kind</th><th>Items</th></tr></thead>
 <tbody>
-<tr><td>Types</td><td><a href="#stdref-std-sync-Channel"><code>Channel</code></a>, <code class="priv">ChannelState</code>, <a href="#stdref-std-sync-ThreadFailure"><code>ThreadFailure</code></a></td></tr>
-<tr><td>Functions</td><td><a href="#stdref-std-sync-cpu_count"><code>cpu_count</code></a>, <code class="priv">failure_text</code>, <a href="#stdref-std-sync-is_finished"><code>is_finished</code></a>, <a href="#stdref-std-sync-try_join"><code>try_join</code></a></td></tr>
+<tr><td>Types</td><td><a href="#stdref-std-sync-Atomic"><code>Atomic</code></a>, <a href="#stdref-std-sync-AtomicBool"><code>AtomicBool</code></a>, <a href="#stdref-std-sync-AtomicPtr"><code>AtomicPtr</code></a>, <a href="#stdref-std-sync-Channel"><code>Channel</code></a>, <code class="priv">ChannelState</code>, <a href="#stdref-std-sync-ThreadFailure"><code>ThreadFailure</code></a></td></tr>
+<tr><td>Functions</td><td><a href="#stdref-std-sync-atomic_fence"><code>atomic_fence</code></a>, <code class="priv">bool_byte</code>, <a href="#stdref-std-sync-cpu_count"><code>cpu_count</code></a>, <code class="priv">failure_text</code>, <a href="#stdref-std-sync-is_finished"><code>is_finished</code></a>, <a href="#stdref-std-sync-spin_hint"><code>spin_hint</code></a>, <a href="#stdref-std-sync-try_join"><code>try_join</code></a></td></tr>
 <tr><td><code>ChannelState::</code></td><td><code class="priv">pop</code></td></tr>
 <tr><td><code>Channel::</code></td><td><a href="#stdref-std-sync-Channel-close"><code>close</code></a>, <a href="#stdref-std-sync-Channel-drop"><code>drop</code></a>, <a href="#stdref-std-sync-Channel-new"><code>new</code></a>, <a href="#stdref-std-sync-Channel-recv"><code>recv</code></a>, <a href="#stdref-std-sync-Channel-recv_timeout_ms"><code>recv_timeout_ms</code></a>, <a href="#stdref-std-sync-Channel-send"><code>send</code></a>, <a href="#stdref-std-sync-Channel-try_recv"><code>try_recv</code></a></td></tr>
 <tr><td><code>ThreadFailure::</code></td><td><a href="#stdref-std-sync-ThreadFailure-diagnostic"><code>diagnostic</code></a>, <a href="#stdref-std-sync-ThreadFailure-is_cancelled"><code>is_cancelled</code></a>, <a href="#stdref-std-sync-ThreadFailure-text"><code>text</code></a></td></tr>
+<tr><td><code>Atomic::</code></td><td><a href="#stdref-std-sync-Atomic-compare_exchange"><code>compare_exchange</code></a>, <a href="#stdref-std-sync-Atomic-fetch_add"><code>fetch_add</code></a>, <a href="#stdref-std-sync-Atomic-fetch_add_wrapping"><code>fetch_add_wrapping</code></a>, <a href="#stdref-std-sync-Atomic-fetch_and"><code>fetch_and</code></a>, <a href="#stdref-std-sync-Atomic-fetch_max"><code>fetch_max</code></a>, <a href="#stdref-std-sync-Atomic-fetch_min"><code>fetch_min</code></a>, <a href="#stdref-std-sync-Atomic-fetch_or"><code>fetch_or</code></a>, <a href="#stdref-std-sync-Atomic-fetch_sub"><code>fetch_sub</code></a>, <a href="#stdref-std-sync-Atomic-fetch_sub_wrapping"><code>fetch_sub_wrapping</code></a>, <a href="#stdref-std-sync-Atomic-fetch_update"><code>fetch_update</code></a>, <a href="#stdref-std-sync-Atomic-fetch_xor"><code>fetch_xor</code></a>, <a href="#stdref-std-sync-Atomic-load"><code>load</code></a>, <a href="#stdref-std-sync-Atomic-new"><code>new</code></a>, <a href="#stdref-std-sync-Atomic-notify_all"><code>notify_all</code></a>, <a href="#stdref-std-sync-Atomic-notify_one"><code>notify_one</code></a>, <a href="#stdref-std-sync-Atomic-store"><code>store</code></a>, <a href="#stdref-std-sync-Atomic-swap"><code>swap</code></a>, <a href="#stdref-std-sync-Atomic-wait"><code>wait</code></a></td></tr>
+<tr><td><code>AtomicBool::</code></td><td><a href="#stdref-std-sync-AtomicBool-compare_exchange"><code>compare_exchange</code></a>, <a href="#stdref-std-sync-AtomicBool-fetch_and"><code>fetch_and</code></a>, <a href="#stdref-std-sync-AtomicBool-fetch_or"><code>fetch_or</code></a>, <a href="#stdref-std-sync-AtomicBool-fetch_xor"><code>fetch_xor</code></a>, <a href="#stdref-std-sync-AtomicBool-load"><code>load</code></a>, <a href="#stdref-std-sync-AtomicBool-new"><code>new</code></a>, <a href="#stdref-std-sync-AtomicBool-notify_all"><code>notify_all</code></a>, <a href="#stdref-std-sync-AtomicBool-notify_one"><code>notify_one</code></a>, <a href="#stdref-std-sync-AtomicBool-store"><code>store</code></a>, <a href="#stdref-std-sync-AtomicBool-swap"><code>swap</code></a>, <a href="#stdref-std-sync-AtomicBool-wait"><code>wait</code></a></td></tr>
+<tr><td><code>AtomicPtr::</code></td><td><a href="#stdref-std-sync-AtomicPtr-compare_exchange"><code>compare_exchange</code></a>, <a href="#stdref-std-sync-AtomicPtr-load"><code>load</code></a>, <a href="#stdref-std-sync-AtomicPtr-new"><code>new</code></a>, <a href="#stdref-std-sync-AtomicPtr-store"><code>store</code></a>, <a href="#stdref-std-sync-AtomicPtr-swap"><code>swap</code></a></td></tr>
 </tbody>
 </table>
 <h4 id="stdmod-std-random"><code>std::random</code> <span class="std-file">impl/std/random.cb</span></h4>
@@ -6799,6 +7123,16 @@ reference</a>, which gives its declaration, its documentation and examples.</p>
 <tr><td>Constants</td><td><code class="priv">CHAIN_LIMIT</code>, <code class="priv">CLEN_ORDER</code>, <code class="priv">DIST_BASE</code>, <code class="priv">DIST_EXTRA</code>, <code class="priv">HASH_SIZE</code>, <code class="priv">LENGTH_BASE</code>, <code class="priv">LENGTH_EXTRA</code>, <code class="priv">MAX_TOKENS</code>, <code class="priv">WINDOW</code></td></tr>
 </tbody>
 </table>
+<h4 id="stdmod-std-ffi"><code>std::ffi</code> <span class="std-file">impl/std/ffi.cb</span></h4>
+<table class="std-inv">
+<thead><tr><th>Kind</th><th>Items</th></tr></thead>
+<tbody>
+<tr><td>Types</td><td><a href="#stdref-std-ffi-CString"><code>CString</code></a>, <a href="#stdref-std-ffi-NulError"><code>NulError</code></a></td></tr>
+<tr><td>Functions</td><td><a href="#stdref-std-ffi-is_null"><code>is_null</code></a></td></tr>
+<tr><td><code>NulError::</code></td><td><a href="#stdref-std-ffi-NulError-text"><code>text</code></a></td></tr>
+<tr><td><code>CString::</code></td><td><a href="#stdref-std-ffi-CString-as_bytes"><code>as_bytes</code></a>, <a href="#stdref-std-ffi-CString-from_bytes"><code>from_bytes</code></a>, <a href="#stdref-std-ffi-CString-len"><code>len</code></a>, <a href="#stdref-std-ffi-CString-new"><code>new</code></a>, <a href="#stdref-std-ffi-CString-ptr"><code>ptr</code></a></td></tr>
+</tbody>
+</table>
 <h4 id="stdmod-std-extensions"><code>std::extensions</code> <span class="std-file">impl/std/extensions.cb</span></h4>
 <p>No items: the reference implementation declares nothing here.</p>
 <figure class="code"><div class="code-head"><span class="code-title">One subject at a time</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std::text;
@@ -6883,11 +7217,13 @@ name means, and the intrinsic is used only where there is none.</p>
 <thead><tr><th>Intrinsic</th><th>Purpose</th><th>See</th></tr></thead>
 <tbody>
 <tr><td><code>dangling&lt;T&gt;()</code></td><td>a well-aligned non-null address that must never be dereferenced; used for empty containers</td><td>§21</td></tr>
+<tr><td><code>null_rawptr&lt;T&gt;()</code></td><td>address 0, C's <code>NULL</code>, to pass to C or compare with; <code>is_null(p)</code> tests for it</td><td>§20</td></tr>
 <tr><td><code>rawptr_of(&amp;x)</code>, <code>reinterpret_ptr&lt;U&gt;(p)</code></td><td>obtain and retype raw pointers (safe)</td><td>§20</td></tr>
 <tr><td><code>reclaim&lt;T&gt;(p)</code>, <code>release(p, n)</code>, <code>copy_raw(dst, src, n)</code></td><td>raw memory as objects (unsafe)</td><td>§20</td></tr>
 <tr><td><code>allocate(n, align)</code>, <code>deallocate(p, n, align)</code></td><td>raw allocation (<code>deallocate</code> is unsafe)</td><td>§20</td></tr>
 <tr><td><code>read_volatile(p)</code>, <code>write_volatile(p, v)</code></td><td>raw accesses performed exactly as written (unsafe; below)</td><td>§20</td></tr>
 <tr><td><code>Mutex::new(v)</code>, <code>lock(&amp;m)</code></td><td>mutual exclusion</td><td>§19</td></tr>
+<tr><td><code>Atomic::new(v)</code>, <code>Atomic::fetch_add(&amp;a, n)</code></td><td>an integer threads change without a lock</td><td>§19</td></tr>
 <tr><td><code>spawn(f, args…)</code>, <code>join(h)</code></td><td>threads</td><td>§19</td></tr>
 </tbody>
 </table>
@@ -10016,6 +10352,7 @@ of a declaration or the right side of an assignment, the enclosing statement sti
 <li><strong>A pattern as a condition.</strong> <code>if (Some(x) = e)</code> and <code>while (Some(x) = e)</code> are read as a pattern followed by one <code>=</code> when the condition begins <code>Name(</code>, <code>m::Name</code> or a literal; <code>Some(x) == e</code> is a comparison, and <code>x = e</code> (a bare name) the assignment it is everywhere, which is not a <code>bool</code>.</li>
 <li><strong><code>Name { f1, f2 } = e;</code></strong> (bare identifiers in braces) is destructuring; <code>Name { .f = e }</code> is a literal.</li>
 <li><strong><code>bitstruct Name : u32 { f : 6; … }</code></strong> declares a struct of bit fields (§16): the widths fill the backing type exactly, low bit first.</li>
+<li><strong><code>struct Name align(64) { … }</code></strong> raises a struct's alignment to a power of two up to 4096 (§16); <code>align</code> is not reserved.</li>
 <li><strong><code>&amp;mut</code></strong> is two tokens, one operator. <code>x = y = z</code> assigns right to left.</li>
 </ul>
 <h3>Restrictions and deliberate absences</h3>
@@ -10381,7 +10718,7 @@ block of <code>std</code> (<code>coby --unittest-std</code>), run here as a prog
 tools build in, which have no CobaltC body (<code>printf</code>, <code>sqrt</code>, <code>exit</code>, …), are documented by hand in
 <code>impl/std/builtins.md</code> and shown here as <em>built in</em>. §21 says which module to look in;
 <code>spec/21</code> is the normative text.</p>
-<p class="std-nav"><a href="#stdref-std-core"><code>std::core</code></a>, <a href="#stdref-std-collections"><code>std::collections</code></a>, <a href="#stdref-std-text"><code>std::text</code></a>, <a href="#stdref-std-io"><code>std::io</code></a>, <a href="#stdref-std-fs"><code>std::fs</code></a>, <a href="#stdref-std-env"><code>std::env</code></a>, <a href="#stdref-std-memory"><code>std::memory</code></a>, <a href="#stdref-std-sync"><code>std::sync</code></a>, <a href="#stdref-std-random"><code>std::random</code></a>, <a href="#stdref-std-math"><code>std::math</code></a>, <a href="#stdref-std-time"><code>std::time</code></a>, <a href="#stdref-std-process"><code>std::process</code></a>, <a href="#stdref-std-net"><code>std::net</code></a>, <a href="#stdref-std-crypto-digest"><code>std::crypto::digest</code></a>, <a href="#stdref-std-crypto-kdf"><code>std::crypto::kdf</code></a>, <a href="#stdref-std-crypto-aead"><code>std::crypto::aead</code></a>, <a href="#stdref-std-crypto-pk"><code>std::crypto::pk</code></a>, <a href="#stdref-std-x509"><code>std::x509</code></a>, <a href="#stdref-std-tls"><code>std::tls</code></a>, <a href="#stdref-std-http"><code>std::http</code></a>, <a href="#stdref-std-http-client"><code>std::http::client</code></a>, <a href="#stdref-std-http-server"><code>std::http::server</code></a>, <a href="#stdref-std-database"><code>std::database</code></a>, <a href="#stdref-std-database-postgres"><code>std::database::postgres</code></a>, <a href="#stdref-std-encoding-json"><code>std::encoding::json</code></a>, <a href="#stdref-std-encoding-hex"><code>std::encoding::hex</code></a>, <a href="#stdref-std-encoding-base64"><code>std::encoding::base64</code></a>, <a href="#stdref-std-compress"><code>std::compress</code></a></p>
+<p class="std-nav"><a href="#stdref-std-core"><code>std::core</code></a>, <a href="#stdref-std-collections"><code>std::collections</code></a>, <a href="#stdref-std-text"><code>std::text</code></a>, <a href="#stdref-std-io"><code>std::io</code></a>, <a href="#stdref-std-fs"><code>std::fs</code></a>, <a href="#stdref-std-env"><code>std::env</code></a>, <a href="#stdref-std-memory"><code>std::memory</code></a>, <a href="#stdref-std-sync"><code>std::sync</code></a>, <a href="#stdref-std-random"><code>std::random</code></a>, <a href="#stdref-std-math"><code>std::math</code></a>, <a href="#stdref-std-time"><code>std::time</code></a>, <a href="#stdref-std-process"><code>std::process</code></a>, <a href="#stdref-std-net"><code>std::net</code></a>, <a href="#stdref-std-crypto-digest"><code>std::crypto::digest</code></a>, <a href="#stdref-std-crypto-kdf"><code>std::crypto::kdf</code></a>, <a href="#stdref-std-crypto-aead"><code>std::crypto::aead</code></a>, <a href="#stdref-std-crypto-pk"><code>std::crypto::pk</code></a>, <a href="#stdref-std-x509"><code>std::x509</code></a>, <a href="#stdref-std-tls"><code>std::tls</code></a>, <a href="#stdref-std-http"><code>std::http</code></a>, <a href="#stdref-std-http-client"><code>std::http::client</code></a>, <a href="#stdref-std-http-server"><code>std::http::server</code></a>, <a href="#stdref-std-database"><code>std::database</code></a>, <a href="#stdref-std-database-postgres"><code>std::database::postgres</code></a>, <a href="#stdref-std-encoding-json"><code>std::encoding::json</code></a>, <a href="#stdref-std-encoding-hex"><code>std::encoding::hex</code></a>, <a href="#stdref-std-encoding-base64"><code>std::encoding::base64</code></a>, <a href="#stdref-std-compress"><code>std::compress</code></a>, <a href="#stdref-std-ffi"><code>std::ffi</code></a></p>
 <h3 id="stdref-std-core"><code>std::core</code> <span class="std-file">impl/std/core.cb</span></h3>
 <div class="stdref-entry">
 <h4 id="stdref-std-core-Option" class="stdref-item"><code>Option</code> <span class="std-file">enum</span></h4>
@@ -10684,6 +11021,12 @@ tools build in, which have no CobaltC body (<code>printf</code>, <code>sqrt</cod
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">Vec</span>::filled&lt;T: clone&gt;(<span class="t">usize</span> n, T x) : <span class="p">Vec</span>&lt;T&gt;</code></pre></figure>
 <p>A new <code>Vec</code> of <code>n</code> copies of <code>x</code>.</p>
 <p><code>T</code> must be <code>clone</code>; <code>Vec::from_fn</code> builds elements that are not.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-collections-Vec-from_c_bytes" class="stdref-item"><code>Vec::from_c_bytes</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">Vec</span>::from_c_bytes(<span class="t">rawptr</span>&lt;<span class="t">u8</span>&gt; p) : <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt;</code></pre></figure>
+<p>A copy of the bytes C&#x27;s text at <code>p</code> holds, up to and without its NUL.</p>
+<p>Called only inside <code>unsafe</code>: <code>p</code> must point at readable bytes ending in a NUL, as a C function&#x27;s <code>char *</code> result does. A null <code>p</code> faults (<code>null_pointer</code>); test with <code>is_null</code> first when C may return <code>NULL</code>. <code>String::from_c</code> also checks that the bytes are UTF-8.</p>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-collections-Vec-from_fn" class="stdref-item"><code>Vec::from_fn</code> <span class="std-file">fn</span></h4>
@@ -11224,6 +11567,12 @@ tools build in, which have no CobaltC body (<code>printf</code>, <code>sqrt</cod
     <span class="p">Ok</span>(_)  : <span class="p">assert</span>(<span class="k">false</span>),
     <span class="p">Err</span>(e) : <span class="p">assert</span>(e.offset == <span class="n">2</span>),
 }</code></pre></figure>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-text-String-from_c" class="stdref-item"><code>String::from_c</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">String</span>::from_c(<span class="t">rawptr</span>&lt;<span class="t">u8</span>&gt; p) : <span class="p">Result</span>&lt;<span class="p">String</span>, <span class="p">Utf8Error</span>&gt;</code></pre></figure>
+<p>A copy of C&#x27;s text at <code>p</code>, up to and without its NUL, when it is UTF-8.</p>
+<p>Called only inside <code>unsafe</code>: <code>p</code> must point at readable bytes ending in a NUL, as a C function&#x27;s <code>char *</code> result does. A null <code>p</code> faults (<code>null_pointer</code>); test with <code>is_null</code> first when C may return <code>NULL</code>. <code>Err(e)</code> when the bytes are not UTF-8; <code>Vec::from_c_bytes</code> takes them as they are.</p>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-text-String-len" class="stdref-item"><code>String::len</code> <span class="std-file">fn</span></h4>
@@ -12411,6 +12760,233 @@ _ = <span class="p">Channel</span>::send(&amp;ch, <span class="n">5</span>);
 <p>Whether the thread ended because it was cancelled, rather than by a fault of its own.</p>
 </div>
 <div class="stdref-entry">
+<h4 id="stdref-std-sync-Atomic" class="stdref-item"><code>Atomic</code> <span class="std-file">struct</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">resource</span> <span class="k">struct</span> Atomic&lt;T&gt;</code></pre></figure>
+<p>An integer that threads share and change without a lock.</p>
+<p>Shared by reference, as a <code>mutex</code> is: every operation takes <code>ref&lt;Atomic&lt;T&gt;, shared&gt;</code>, and each one is indivisible and sequentially consistent, so all threads see all operations on all atomics in one order. <code>T</code> is an integer type of at most 64 bits. For a counter, a flag (an <code>Atomic&lt;u8&gt;</code>), a sequence number or a maximum kept by several threads; state of more than one integer belongs in a <code>mutex</code>.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-Atomic-new" class="stdref-item"><code>Atomic::new</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Atomic::new&lt;T: integer&gt;(T v) : Atomic&lt;T&gt;</code></pre></figure>
+<p>A new atomic holding <code>v</code>.</p>
+<p><code>T</code> is an integer type of at most 64 bits: <code>Atomic&lt;u128&gt;</code> is rejected when the program is checked.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-Atomic-load" class="stdref-item"><code>Atomic::load</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Atomic::load&lt;T: integer&gt;(<span class="t">ref</span>&lt;Atomic&lt;T&gt;, <span class="t">shared</span>&gt; a) : T</code></pre></figure>
+<p>The value <code>a</code> holds.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-Atomic-store" class="stdref-item"><code>Atomic::store</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Atomic::store&lt;T: integer&gt;(<span class="t">ref</span>&lt;Atomic&lt;T&gt;, <span class="t">shared</span>&gt; a, T v)</code></pre></figure>
+<p>Replaces the value <code>a</code> holds with <code>v</code>.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-Atomic-swap" class="stdref-item"><code>Atomic::swap</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Atomic::<span class="p">swap</span>&lt;T: integer&gt;(<span class="t">ref</span>&lt;Atomic&lt;T&gt;, <span class="t">shared</span>&gt; a, T v) : T</code></pre></figure>
+<p>Replaces the value <code>a</code> holds with <code>v</code>, giving the value it held.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-Atomic-compare_exchange" class="stdref-item"><code>Atomic::compare_exchange</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Atomic::compare_exchange&lt;T: integer&gt;(<span class="t">ref</span>&lt;Atomic&lt;T&gt;, <span class="t">shared</span>&gt; a, T expected, T new) : <span class="p">Result</span>&lt;T, T&gt;</code></pre></figure>
+<p>Replaces the value with <code>new</code> if it is <code>expected</code>, as one step.</p>
+<p><code>Ok(expected)</code> when it was replaced; <code>Err(current)</code> with the value found when it was not, and then nothing changed. The step under a lock-free update: read, compute, and try again from <code>current</code> when another thread got there first.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-Atomic-fetch_add" class="stdref-item"><code>Atomic::fetch_add</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Atomic::fetch_add&lt;T: integer&gt;(<span class="t">ref</span>&lt;Atomic&lt;T&gt;, <span class="t">shared</span>&gt; a, T n) : T</code></pre></figure>
+<p>Adds <code>n</code> to the value <code>a</code> holds, giving the value it held.</p>
+<p>Faults (<code>arith_overflow</code>) when the sum does not fit <code>T</code>, as <code>+</code> does, and then the value is unchanged. <code>fetch_add_wrapping</code> wraps instead.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-Atomic-fetch_sub" class="stdref-item"><code>Atomic::fetch_sub</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Atomic::fetch_sub&lt;T: integer&gt;(<span class="t">ref</span>&lt;Atomic&lt;T&gt;, <span class="t">shared</span>&gt; a, T n) : T</code></pre></figure>
+<p>Subtracts <code>n</code> from the value <code>a</code> holds, giving the value it held.</p>
+<p>Faults (<code>arith_overflow</code>) when the difference does not fit <code>T</code>, as <code>-</code> does, and then the value is unchanged. <code>fetch_sub_wrapping</code> wraps instead.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-Atomic-fetch_add_wrapping" class="stdref-item"><code>Atomic::fetch_add_wrapping</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Atomic::fetch_add_wrapping&lt;T: integer&gt;(<span class="t">ref</span>&lt;Atomic&lt;T&gt;, <span class="t">shared</span>&gt; a, T n) : T</code></pre></figure>
+<p>Adds <code>n</code> to the value <code>a</code> holds modulo 2 to the width of <code>T</code>, giving the value it held.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-Atomic-fetch_sub_wrapping" class="stdref-item"><code>Atomic::fetch_sub_wrapping</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Atomic::fetch_sub_wrapping&lt;T: integer&gt;(<span class="t">ref</span>&lt;Atomic&lt;T&gt;, <span class="t">shared</span>&gt; a, T n) : T</code></pre></figure>
+<p>Subtracts <code>n</code> from the value <code>a</code> holds modulo 2 to the width of <code>T</code>, giving the value it held.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-Atomic-fetch_and" class="stdref-item"><code>Atomic::fetch_and</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Atomic::fetch_and&lt;T: integer&gt;(<span class="t">ref</span>&lt;Atomic&lt;T&gt;, <span class="t">shared</span>&gt; a, T n) : T</code></pre></figure>
+<p>Replaces the value <code>a</code> holds with its bitwise and with <code>n</code>, giving the value it held.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-Atomic-fetch_or" class="stdref-item"><code>Atomic::fetch_or</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Atomic::fetch_or&lt;T: integer&gt;(<span class="t">ref</span>&lt;Atomic&lt;T&gt;, <span class="t">shared</span>&gt; a, T n) : T</code></pre></figure>
+<p>Replaces the value <code>a</code> holds with its bitwise or with <code>n</code>, giving the value it held.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-Atomic-fetch_xor" class="stdref-item"><code>Atomic::fetch_xor</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Atomic::fetch_xor&lt;T: integer&gt;(<span class="t">ref</span>&lt;Atomic&lt;T&gt;, <span class="t">shared</span>&gt; a, T n) : T</code></pre></figure>
+<p>Replaces the value <code>a</code> holds with its bitwise exclusive or with <code>n</code>, giving the value it held.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Example: Eight threads add to one atomic at once; no addition is lost</span><span class="badge ok">runs</span></div><pre><code>Atomic&lt;<span class="t">u64</span>&gt; hits = Atomic::new(<span class="n">0</span>: <span class="t">u64</span>);
+{
+    <span class="p">Vec</span>&lt;<span class="t">handle</span>&lt;<span class="t">u64</span>&gt;&gt; hs = <span class="p">Vec</span>::new();
+    <span class="k">foreach</span> (k in <span class="n">0</span>..<span class="n">8</span>)
+    {
+        <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> hs, <span class="p">spawn</span>(Atomic::fetch_add&lt;<span class="t">u64</span>&gt;, &amp;hits, <span class="n">5</span>: <span class="t">u64</span>));
+    }
+    <span class="k">while</span> (<span class="p">Vec</span>::len(&amp;hs) &gt; <span class="n">0</span>)
+    {
+        _ = <span class="p">join</span>(<span class="p">Option</span>::unwrap(<span class="p">Vec</span>::pop(&amp;<span class="k">mut</span> hs)));
+    }
+}
+<span class="p">assert</span>(Atomic::load(&amp;hits) == <span class="n">40</span>);</code></pre></figure>
+<figure class="code"><div class="code-head"><span class="code-title">Example: <code>compare_exchange</code> replaces only the value it expects, and reports the one it found otherwise</span><span class="badge ok">runs</span></div><pre><code>Atomic&lt;<span class="t">i32</span>&gt; a = Atomic::new(<span class="n">5</span>: <span class="t">i32</span>);
+<span class="p">assert</span>(<span class="p">Result</span>::unwrap(Atomic::compare_exchange(&amp;a, <span class="n">5</span>, <span class="n">9</span>)) == <span class="n">5</span>);
+<span class="k">match</span> (Atomic::compare_exchange(&amp;a, <span class="n">5</span>, <span class="n">1</span>))
+{
+    <span class="p">Ok</span>(_)    : <span class="p">assert</span>(<span class="k">false</span>),
+    <span class="p">Err</span>(now) : <span class="p">assert</span>(now == <span class="n">9</span>),
+}
+<span class="p">assert</span>(Atomic::<span class="p">swap</span>(&amp;a, <span class="n">2</span>) == <span class="n">9</span>);
+Atomic::store(&amp;a, <span class="n">7</span>);
+<span class="p">assert</span>(Atomic::load(&amp;a) == <span class="n">7</span>);</code></pre></figure>
+<figure class="code"><div class="code-head"><span class="code-title">Example: The bitwise operations, and wrapping arithmetic at the width of <code>T</code></span><span class="badge ok">runs</span></div><pre><code>Atomic&lt;<span class="t">u8</span>&gt; f = Atomic::new(<span class="n">0</span>: <span class="t">u8</span>);
+_ = Atomic::fetch_or(&amp;f, <span class="n">0</span>x05);
+_ = Atomic::fetch_and(&amp;f, <span class="n">0</span>x0c);
+_ = Atomic::fetch_xor(&amp;f, <span class="n">0</span>x0f);
+<span class="p">assert</span>(Atomic::load(&amp;f) == <span class="n">0</span>x0b);
+<span class="p">assert</span>(Atomic::fetch_add_wrapping(&amp;f, <span class="n">250</span>) == <span class="n">0</span>x0b);
+<span class="p">assert</span>(Atomic::load(&amp;f) == <span class="n">5</span>);
+<span class="p">assert</span>(Atomic::fetch_sub_wrapping(&amp;f, <span class="n">6</span>) == <span class="n">5</span>);
+<span class="p">assert</span>(Atomic::load(&amp;f) == <span class="n">255</span>);</code></pre></figure>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-Atomic-fetch_max" class="stdref-item"><code>Atomic::fetch_max</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Atomic::fetch_max&lt;T: integer&gt;(<span class="t">ref</span>&lt;Atomic&lt;T&gt;, <span class="t">shared</span>&gt; a, T v) : T</code></pre></figure>
+<p>Replaces the value <code>a</code> holds with the larger of it and <code>v</code>, giving the value it held.</p>
+<p>A maximum kept by several threads: a high-water mark, the latest timestamp seen.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-Atomic-fetch_min" class="stdref-item"><code>Atomic::fetch_min</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Atomic::fetch_min&lt;T: integer&gt;(<span class="t">ref</span>&lt;Atomic&lt;T&gt;, <span class="t">shared</span>&gt; a, T v) : T</code></pre></figure>
+<p>Replaces the value <code>a</code> holds with the smaller of it and <code>v</code>, giving the value it held.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-Atomic-fetch_update" class="stdref-item"><code>Atomic::fetch_update</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Atomic::fetch_update&lt;T: integer&gt;(<span class="t">ref</span>&lt;Atomic&lt;T&gt;, <span class="t">shared</span>&gt; a, <span class="k">fn</span>(T) : <span class="p">Option</span>&lt;T&gt; f) : <span class="p">Result</span>&lt;T, T&gt;</code></pre></figure>
+<p>Replaces the value <code>a</code> holds with <code>f</code> of it, retrying when another thread changed it meanwhile.</p>
+<p><code>f</code> is called with the value found and gives <code>Some(new)</code> to store or <code>None</code> to leave it. <code>Ok(previous)</code> when <code>new</code> was stored, <code>Err(previous)</code> when <code>f</code> gave <code>None</code>. <code>f</code> may be called more than once, so it should compute only from its argument.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-Atomic-wait" class="stdref-item"><code>Atomic::wait</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Atomic::wait&lt;T: integer&gt;(<span class="t">ref</span>&lt;Atomic&lt;T&gt;, <span class="t">shared</span>&gt; a, T expected)</code></pre></figure>
+<p>Blocks while <code>a</code> holds <code>expected</code>, until another thread changes it and calls <code>notify_one</code> or <code>notify_all</code>.</p>
+<p>Returns at once if <code>a</code> does not hold <code>expected</code>, and otherwise only after it has seen another value, so a wake-up with the value unchanged waits again. The thread that changes the value calls <code>notify_one</code> or <code>notify_all</code> after the change. A wait no thread can end faults (<code>deadlock</code>).</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-Atomic-notify_one" class="stdref-item"><code>Atomic::notify_one</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Atomic::notify_one&lt;T: integer&gt;(<span class="t">ref</span>&lt;Atomic&lt;T&gt;, <span class="t">shared</span>&gt; a)</code></pre></figure>
+<p>Wakes at least one thread waiting in <code>Atomic::wait</code> on <code>a</code>, if any waits.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-Atomic-notify_all" class="stdref-item"><code>Atomic::notify_all</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Atomic::notify_all&lt;T: integer&gt;(<span class="t">ref</span>&lt;Atomic&lt;T&gt;, <span class="t">shared</span>&gt; a)</code></pre></figure>
+<p>Wakes every thread waiting in <code>Atomic::wait</code> on <code>a</code>.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-AtomicBool" class="stdref-item"><code>AtomicBool</code> <span class="std-file">struct</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">struct</span> AtomicBool</code></pre></figure>
+<p>A <code>bool</code> that threads share and change without a lock.</p>
+<p>As <code>Atomic</code>, over a byte that holds 0 or 1: every operation takes <code>ref&lt;AtomicBool, shared&gt;</code> and is indivisible and sequentially consistent. For a stop flag, a &quot;ready&quot; flag, or a once-only claim (<code>swap(&amp;f, true)</code> gives <code>false</code> to exactly one thread).</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-AtomicBool-new" class="stdref-item"><code>AtomicBool::new</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> AtomicBool::new(<span class="t">bool</span> v) : AtomicBool</code></pre></figure>
+<p>A new atomic <code>bool</code> holding <code>v</code>.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-AtomicBool-load" class="stdref-item"><code>AtomicBool::load</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> AtomicBool::load(<span class="t">ref</span>&lt;AtomicBool, <span class="t">shared</span>&gt; f) : <span class="t">bool</span></code></pre></figure>
+<p>The value <code>f</code> holds.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-AtomicBool-store" class="stdref-item"><code>AtomicBool::store</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> AtomicBool::store(<span class="t">ref</span>&lt;AtomicBool, <span class="t">shared</span>&gt; f, <span class="t">bool</span> v)</code></pre></figure>
+<p>Replaces the value <code>f</code> holds with <code>v</code>.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-AtomicBool-swap" class="stdref-item"><code>AtomicBool::swap</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> AtomicBool::<span class="p">swap</span>(<span class="t">ref</span>&lt;AtomicBool, <span class="t">shared</span>&gt; f, <span class="t">bool</span> v) : <span class="t">bool</span></code></pre></figure>
+<p>Replaces the value <code>f</code> holds with <code>v</code>, giving the value it held.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-AtomicBool-compare_exchange" class="stdref-item"><code>AtomicBool::compare_exchange</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> AtomicBool::compare_exchange(<span class="t">ref</span>&lt;AtomicBool, <span class="t">shared</span>&gt; f, <span class="t">bool</span> expected, <span class="t">bool</span> new) : <span class="p">Result</span>&lt;<span class="t">bool</span>, <span class="t">bool</span>&gt;</code></pre></figure>
+<p>Replaces the value with <code>new</code> if it is <code>expected</code>, as one step: <code>Ok(expected)</code>, or <code>Err(current)</code>.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-AtomicBool-fetch_and" class="stdref-item"><code>AtomicBool::fetch_and</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> AtomicBool::fetch_and(<span class="t">ref</span>&lt;AtomicBool, <span class="t">shared</span>&gt; f, <span class="t">bool</span> v) : <span class="t">bool</span></code></pre></figure>
+<p>Replaces the value <code>f</code> holds with its and with <code>v</code>, giving the value it held.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-AtomicBool-fetch_or" class="stdref-item"><code>AtomicBool::fetch_or</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> AtomicBool::fetch_or(<span class="t">ref</span>&lt;AtomicBool, <span class="t">shared</span>&gt; f, <span class="t">bool</span> v) : <span class="t">bool</span></code></pre></figure>
+<p>Replaces the value <code>f</code> holds with its or with <code>v</code>, giving the value it held.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-AtomicBool-fetch_xor" class="stdref-item"><code>AtomicBool::fetch_xor</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> AtomicBool::fetch_xor(<span class="t">ref</span>&lt;AtomicBool, <span class="t">shared</span>&gt; f, <span class="t">bool</span> v) : <span class="t">bool</span></code></pre></figure>
+<p>Replaces the value <code>f</code> holds with its exclusive or with <code>v</code>, giving the value it held.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-AtomicBool-wait" class="stdref-item"><code>AtomicBool::wait</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> AtomicBool::wait(<span class="t">ref</span>&lt;AtomicBool, <span class="t">shared</span>&gt; f, <span class="t">bool</span> expected)</code></pre></figure>
+<p>Blocks while <code>f</code> holds <code>expected</code>, as <code>Atomic::wait</code>.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-AtomicBool-notify_one" class="stdref-item"><code>AtomicBool::notify_one</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> AtomicBool::notify_one(<span class="t">ref</span>&lt;AtomicBool, <span class="t">shared</span>&gt; f)</code></pre></figure>
+<p>Wakes at least one thread waiting in <code>AtomicBool::wait</code> on <code>f</code>, if any waits.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-AtomicBool-notify_all" class="stdref-item"><code>AtomicBool::notify_all</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> AtomicBool::notify_all(<span class="t">ref</span>&lt;AtomicBool, <span class="t">shared</span>&gt; f)</code></pre></figure>
+<p>Wakes every thread waiting in <code>AtomicBool::wait</code> on <code>f</code>.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-AtomicPtr" class="stdref-item"><code>AtomicPtr</code> <span class="std-file">struct</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">resource</span> <span class="k">struct</span> AtomicPtr&lt;T&gt;</code></pre></figure>
+<p>A raw pointer that threads share and change without a lock.</p>
+<p>As <code>Atomic</code>: shared by reference, every operation indivisible and sequentially consistent. Taking and storing addresses is safe; reading or writing through one is <code>unsafe</code>, as for any <code>rawptr</code>. For lock-free lists and stacks whose nodes come from <code>allocate</code>.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-AtomicPtr-new" class="stdref-item"><code>AtomicPtr::new</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> AtomicPtr::new&lt;T&gt;(<span class="t">rawptr</span>&lt;T&gt; p) : AtomicPtr&lt;T&gt;</code></pre></figure>
+<p>A new atomic pointer holding <code>p</code>; <code>null_rawptr&lt;T&gt;()</code> for none.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-AtomicPtr-load" class="stdref-item"><code>AtomicPtr::load</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> AtomicPtr::load&lt;T&gt;(<span class="t">ref</span>&lt;AtomicPtr&lt;T&gt;, <span class="t">shared</span>&gt; a) : <span class="t">rawptr</span>&lt;T&gt;</code></pre></figure>
+<p>The address <code>a</code> holds.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-AtomicPtr-store" class="stdref-item"><code>AtomicPtr::store</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> AtomicPtr::store&lt;T&gt;(<span class="t">ref</span>&lt;AtomicPtr&lt;T&gt;, <span class="t">shared</span>&gt; a, <span class="t">rawptr</span>&lt;T&gt; p)</code></pre></figure>
+<p>Replaces the address <code>a</code> holds with <code>p</code>.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-AtomicPtr-swap" class="stdref-item"><code>AtomicPtr::swap</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> AtomicPtr::<span class="p">swap</span>&lt;T&gt;(<span class="t">ref</span>&lt;AtomicPtr&lt;T&gt;, <span class="t">shared</span>&gt; a, <span class="t">rawptr</span>&lt;T&gt; p) : <span class="t">rawptr</span>&lt;T&gt;</code></pre></figure>
+<p>Replaces the address <code>a</code> holds with <code>p</code>, giving the address it held.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-AtomicPtr-compare_exchange" class="stdref-item"><code>AtomicPtr::compare_exchange</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> AtomicPtr::compare_exchange&lt;T&gt;(<span class="t">ref</span>&lt;AtomicPtr&lt;T&gt;, <span class="t">shared</span>&gt; a, <span class="t">rawptr</span>&lt;T&gt; expected, <span class="t">rawptr</span>&lt;T&gt; new) : <span class="p">Result</span>&lt;<span class="t">rawptr</span>&lt;T&gt;, <span class="t">rawptr</span>&lt;T&gt;&gt;</code></pre></figure>
+<p>Replaces the address with <code>new</code> if it is <code>expected</code>, as one step: <code>Ok(expected)</code>, or <code>Err(current)</code>.</p>
+</div>
+<div class="stdref-entry">
 <h4 id="stdref-std-sync-cpu_count" class="stdref-item"><code>cpu_count</code> <span class="std-file">fn</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">cpu_count</span>() : <span class="t">usize</span></code></pre></figure>
 <p>How many threads the machine runs at once, at least 1: the size of a worker pool.</p>
@@ -12439,6 +13015,42 @@ _ = <span class="p">Channel</span>::send(&amp;ch, <span class="n">5</span>);
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> is_finished&lt;R&gt;(<span class="t">ref</span>&lt;<span class="t">handle</span>&lt;R&gt;, <span class="t">shared</span>&gt; h) : <span class="t">bool</span></code></pre></figure>
 <p>Whether the thread <code>h</code> has ended, its result or failure waiting for <code>join</code> or <code>try_join</code>.</p>
 <p>Never waits and takes nothing: how a supervisor finds which of its threads to take.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-atomic_fence" class="stdref-item"><code>atomic_fence</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> atomic_fence()</code></pre></figure>
+<p>A full memory fence: every memory access before it, in this thread, is ordered before every one after it, as seen by any other thread or device.</p>
+<p>CobaltC&#x27;s own operations are already sequentially consistent, so a program that stays within them never needs this. It is for raw and volatile accesses and C code, which are outside that guarantee: the equivalent of C&#x27;s <code>atomic_thread_fence(memory_order_seq_cst)</code>.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-spin_hint" class="stdref-item"><code>spin_hint</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> spin_hint()</code></pre></figure>
+<p>Tells the processor that this thread is spinning, waiting for another thread to change something.</p>
+<p>The CPU&#x27;s pause instruction: it saves power and lets the other hardware thread of the core run. Call it in the body of a loop that polls an atomic; <code>Atomic::wait</code> blocks instead, for waits that may be long.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Example: <code>fetch_max</code> and <code>fetch_min</code> keep the extremes; <code>fetch_update</code> stores what its function gives</span><span class="badge ok">runs</span></div><pre><code>Atomic&lt;<span class="t">i32</span>&gt; a = Atomic::new(<span class="n">10</span>: <span class="t">i32</span>);
+<span class="p">assert</span>(Atomic::fetch_max(&amp;a, <span class="n">4</span>) == <span class="n">10</span>);
+<span class="p">assert</span>(Atomic::fetch_max(&amp;a, <span class="n">25</span>) == <span class="n">10</span>);
+<span class="p">assert</span>(Atomic::fetch_min(&amp;a, <span class="n">30</span>) == <span class="n">25</span>);
+<span class="p">assert</span>(Atomic::fetch_min(&amp;a, -<span class="n">3</span>) == <span class="n">25</span>);
+<span class="p">assert</span>(Atomic::load(&amp;a) == -<span class="n">3</span>);
+<span class="p">assert</span>(<span class="p">Result</span>::unwrap(Atomic::fetch_update(&amp;a, [](<span class="t">i32</span> x) : <span class="p">Option</span>&lt;<span class="t">i32</span>&gt; { <span class="p">Some</span>(x * <span class="n">2</span>) })) == -<span class="n">3</span>);
+<span class="k">match</span> (Atomic::fetch_update(&amp;a, [](<span class="t">i32</span> x) : <span class="p">Option</span>&lt;<span class="t">i32</span>&gt; { <span class="p">None</span> }))
+{
+    <span class="p">Ok</span>(_)  : <span class="p">assert</span>(<span class="k">false</span>),
+    <span class="p">Err</span>(v) : <span class="p">assert</span>(v == -<span class="n">6</span>),
+}</code></pre></figure>
+<figure class="code"><div class="code-head"><span class="code-title">Example: A thread sleeps in <code>wait</code> until another stores a new value and notifies</span><span class="badge ok">runs</span></div><pre><code>AtomicBool done = AtomicBool::new(<span class="k">false</span>);
+{
+    <span class="t">handle</span>&lt;<span class="k">void</span>&gt; h = <span class="p">spawn</span>(<span class="k">move</span> [](<span class="t">ref</span>&lt;AtomicBool, <span class="t">shared</span>&gt; d)
+    {
+        AtomicBool::store(d, <span class="k">true</span>);
+        AtomicBool::notify_all(d);
+    }, &amp;done);
+    AtomicBool::wait(&amp;done, <span class="k">false</span>);
+    <span class="p">join</span>(h);
+}
+<span class="p">assert</span>(AtomicBool::load(&amp;done));
+<span class="p">assert</span>(AtomicBool::<span class="p">swap</span>(&amp;done, <span class="k">false</span>));</code></pre></figure>
 </div>
 <h3 id="stdref-std-random"><code>std::random</code> <span class="std-file">impl/std/random.cb</span></h3>
 <div class="stdref-entry">
@@ -15315,6 +15927,58 @@ z[last] = z[last] ^ <span class="n">1</span>;
     <span class="p">Err</span>(Oversize) : {},
     _             : <span class="p">assert</span>(<span class="k">false</span>),
 }</code></pre></figure>
+</div>
+<h3 id="stdref-std-ffi"><code>std::ffi</code> <span class="std-file">impl/std/ffi.cb</span></h3>
+<div class="stdref-entry">
+<h4 id="stdref-std-ffi-NulError" class="stdref-item"><code>NulError</code> <span class="std-file">struct</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">struct</span> NulError</code></pre></figure>
+<p>The error of text that holds a NUL byte, which C would take as its end.</p>
+<p><code>offset</code> is the position of the first NUL.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-ffi-NulError-text" class="stdref-item"><code>NulError::text</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> NulError::text(<span class="t">ref</span>&lt;NulError, <span class="t">shared</span>&gt; e) : <span class="t">str</span></code></pre></figure>
+<p>A short description of the error for messages: <code>&quot;holds a NUL byte&quot;</code>.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-ffi-CString" class="stdref-item"><code>CString</code> <span class="std-file">struct</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">struct</span> CString</code></pre></figure>
+<p>Text followed by one NUL byte, for a C function that takes <code>const char *</code>.</p>
+<p>Made by <code>CString::new</code> or <code>CString::from_bytes</code>, which refuse text that already holds a NUL. <code>CString::ptr</code> is the address to pass; it stays valid while the <code>CString</code> lives, even if the <code>CString</code> itself is moved, and dropping the <code>CString</code> frees the bytes. The C function must not write through the address or keep it.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-ffi-CString-from_bytes" class="stdref-item"><code>CString::from_bytes</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> CString::from_bytes(<span class="t">slice</span>&lt;<span class="t">u8</span>, <span class="t">shared</span>&gt; b) : <span class="p">Result</span>&lt;CString, NulError&gt;</code></pre></figure>
+<p><code>b</code> with a NUL byte after it, or <code>Err</code> with the position of the first NUL already in <code>b</code>.</p>
+<p>The bytes need not be UTF-8: a path or a name from another system is often not.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-ffi-CString-new" class="stdref-item"><code>CString::new</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> CString::new(<span class="p">StringView</span> s) : <span class="p">Result</span>&lt;CString, NulError&gt;</code></pre></figure>
+<p><code>s</code> with a NUL byte after it, or <code>Err</code> with the position of the first NUL already in <code>s</code>.</p>
+<p>A literal where a <code>StringView</code> is expected is made into one: <code>CString::new(&quot;HOME&quot;)</code>.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-ffi-CString-ptr" class="stdref-item"><code>CString::ptr</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> CString::ptr(<span class="t">ref</span>&lt;CString, <span class="t">shared</span>&gt; c) : <span class="t">rawptr</span>&lt;<span class="t">u8</span>&gt;</code></pre></figure>
+<p>The address of the first byte, to pass to C as a <code>const char *</code>.</p>
+<p>Taking the address is safe; the call that uses it is inside <code>unsafe</code>. The address is valid until the <code>CString</code> is dropped.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-ffi-CString-len" class="stdref-item"><code>CString::len</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> CString::len(<span class="t">ref</span>&lt;CString, <span class="t">shared</span>&gt; c) : <span class="t">usize</span></code></pre></figure>
+<p>The length of the text, without the NUL.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-ffi-CString-as_bytes" class="stdref-item"><code>CString::as_bytes</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> CString::as_bytes(<span class="t">ref</span>&lt;CString, <span class="t">shared</span>&gt; c) : <span class="t">slice</span>&lt;<span class="t">u8</span>, <span class="t">shared</span>&gt;</code></pre></figure>
+<p>The text without the NUL, as bytes.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-ffi-is_null" class="stdref-item"><code>is_null</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> is_null&lt;T&gt;(<span class="t">rawptr</span>&lt;T&gt; p) : <span class="t">bool</span></code></pre></figure>
+<p>Whether <code>p</code> is C&#x27;s <code>NULL</code>, the address <code>null_rawptr&lt;T&gt;()</code>.</p>
+<p>C functions return <code>NULL</code> for &quot;none&quot;: <code>getenv</code> of a name that is not set, <code>fopen</code> of a file that cannot be opened. Testing for it is safe; reading through <code>p</code> is not.</p>
 </div>
 
 <nav class="pager"><a class="prev" href="#perf">&larr; P Performance</a><a class="top" href="#top">Top</a><a class="next" href="#appx">A Appendix: diagnostics &rarr;</a></nav></section>
