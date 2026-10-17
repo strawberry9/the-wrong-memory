@@ -166,7 +166,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.101604</div>
+<div class="sub">Specification edition 2026.101605</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -338,7 +338,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101604</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101605</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -5926,6 +5926,62 @@ consistent, so a program without <code>unsafe</code> never needs it.</p>
 release orders. On x86-64 a read-modify-write such as <code>fetch_add</code> costs the same in every order; only
 plain stores are dearer. Keeping one order is what lets <code>--explore</code> and the language's own rules
 describe every thread's behaviour as an interleaving of steps.</div>
+<h3>Meeting, counting, doing once: <code>Barrier</code>, <code>Semaphore</code>, <code>Once</code></h3>
+<p>Three waiting patterns come ready-made in <code>std::sync</code> (D-0260), each an atomic or two and a wait
+loop, shared by reference as a <code>mutex</code> is. A <code>Barrier::new(n)</code> is a meeting point: <code>Barrier::wait(&amp;b)</code>
+blocks until <code>n</code> threads have called it, then releases them together and is ready for the next round;
+it answers <code>true</code> to the last thread to arrive, so one thread of each round can report. A
+<code>Semaphore::new(k)</code> is <code>k</code> permits: <code>acquire</code> takes one, waiting while there is none, <code>release</code> gives one
+back, so at most <code>k</code> threads are inside at once; made with 0 permits it hands events from one thread to
+another, one <code>release</code> per <code>acquire</code>; <code>try_acquire</code> takes a permit only if one is free. A <code>Once</code> does
+something exactly once, by whichever thread gets there first: <code>Once::call(&amp;o, f)</code> runs <code>f</code> on the first
+caller's thread, and every other call waits for that run to finish and then returns without running <code>f</code>.
+Should <code>f</code> fault, the <code>Once</code> is as it was and the next caller runs <code>f</code> again.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Rounds, a bound and a one-time setup</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> phase(<span class="t">ref</span>&lt;Barrier, <span class="t">shared</span>&gt; b, <span class="t">ref</span>&lt;Semaphore, <span class="t">shared</span>&gt; slots, <span class="t">ref</span>&lt;Once, <span class="t">shared</span>&gt; setup, <span class="t">ref</span>&lt;Atomic&lt;<span class="t">u32</span>&gt;, <span class="t">shared</span>&gt; inside, <span class="t">u32</span> id) : <span class="t">u32</span>
+{
+    Once::call(setup, [inside]() { Atomic::store(inside, <span class="n">0</span>); });   <span class="c">// one thread sets up; the rest wait for it</span>
+    <span class="t">u32</span> peak = <span class="n">0</span>;
+    <span class="k">for</span> (<span class="t">u32</span> <span class="p">round</span> = <span class="n">0</span>; <span class="p">round</span> &lt; <span class="n">3</span>; <span class="p">round</span> += <span class="n">1</span>)
+    {
+        Semaphore::acquire(slots);                     <span class="c">// at most two threads in here at once</span>
+        peak = <span class="p">max</span>(peak, Atomic::fetch_add(inside, <span class="n">1</span>) + <span class="n">1</span>);
+        _ = Atomic::fetch_sub(inside, <span class="n">1</span>);
+        Semaphore::<span class="p">release</span>(slots);
+        <span class="k">if</span> (Barrier::wait(b))                          <span class="c">// everyone finishes the round before anyone starts the next</span>
+        {
+            <span class="p">printf</span>(<span class="s">&quot;round %v done\n&quot;</span>, <span class="p">round</span>);        <span class="c">// the last to arrive says so</span>
+        }
+    }
+    peak
+}
+
+<span class="k">fn</span> main()
+{
+    Barrier b = Barrier::new(<span class="n">4</span>);
+    Semaphore slots = Semaphore::new(<span class="n">2</span>);
+    Once setup = Once::new();
+    Atomic&lt;<span class="t">u32</span>&gt; inside = Atomic::new(<span class="n">99</span>: <span class="t">u32</span>);
+    <span class="p">Vec</span>&lt;<span class="t">handle</span>&lt;<span class="t">u32</span>&gt;&gt; hs = <span class="p">Vec</span>::new();
+    <span class="k">for</span> (<span class="t">u32</span> i = <span class="n">0</span>; i &lt; <span class="n">4</span>; i += <span class="n">1</span>)
+    {
+        <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> hs, <span class="p">spawn</span>(phase, &amp;b, &amp;slots, &amp;setup, &amp;inside, i));
+    }
+    <span class="t">u32</span> peak = <span class="n">0</span>;
+    <span class="k">foreach</span> (h in hs)
+    {
+        peak = <span class="p">max</span>(peak, <span class="p">join</span>(h));
+    }
+    <span class="p">printf</span>(<span class="s">&quot;never more than two inside: %v\n&quot;</span>, peak &lt;= <span class="n">2</span>);
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>round 0 done
+round 1 done
+round 2 done
+never more than two inside: true
+</pre></div></figure>
+<p>A barrier for more threads than will ever arrive, or an <code>acquire</code> no thread can <code>release</code>, is a
+wait that cannot end, and the program reports <code>diag.deadlock</code> instead of hanging, as for any
+<code>Atomic::wait</code>.</p>
 <h3>Passing values: <code>Channel</code></h3>
 <p>A <code>Channel&lt;T&gt;</code> from <code>std</code> (<code>std::sync</code>) is a queue between threads, shared by reference as a mutex is.
 <code>Channel::new(cap)</code> holds at most <code>cap</code> values (at least 1). <code>Channel::send(&amp;ch, v)</code> moves <code>v</code> in,
@@ -5999,6 +6055,55 @@ from an empty channel, or sending to a full one, with no spawned thread running 
 loop that also watches a socket or <code>interrupt_requested()</code> must tell "nothing yet" from "the
 senders are done". <code>Channel::recv_timeout_ms(&amp;ch, ms)</code> waits at most <code>ms</code> milliseconds for the same
 three answers. <code>cpu_count()</code> is how many threads the machine runs at once, the size to give a pool.</p>
+<h3>Owning a share: <code>Arc</code></h3>
+<p>Everything above shares by reference, and a reference does not outlive its frame: a function that
+spawns a worker over a local counter and returns the handle faults when the frame ends with the thread
+still holding the reference. When a thread must outlive the frame that made what it shares — a pool of
+workers, a server that hands its handle back — each thread owns a share instead: <code>Arc&lt;T&gt;</code> from
+<code>std::memory</code> (D-0259) is <code>Rc</code> with atomic counts. <code>Arc::clone(&amp;a)</code> (or <code>clone(&amp;a)</code>) makes another handle
+to the same value; handles move into threads and are dropped there, and the value is destroyed once, by
+whichever handle ends last. <code>Arc::get(&amp;a)</code> is a shared reference, so the value changes only through a
+<code>mutex</code> or an <code>Atomic</code> inside it. <code>Arc::downgrade</code> gives an <code>ArcWeak</code>, which keeps the memory but not the
+value, as <code>Weak</code> does for <code>Rc</code>.</p>
+<figure class="code"><div class="code-head"><span class="code-title">A worker that outlives the function that started it</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">struct</span> Started
+{
+    <span class="t">handle</span>&lt;<span class="t">u64</span>&gt; worker;
+    Arc&lt;<span class="t">mutex</span>&lt;<span class="p">Vec</span>&lt;<span class="t">u64</span>&gt;&gt;&gt; log;
+}
+
+<span class="k">fn</span> work(Arc&lt;<span class="t">mutex</span>&lt;<span class="p">Vec</span>&lt;<span class="t">u64</span>&gt;&gt;&gt; log, <span class="t">u64</span> n) : <span class="t">u64</span>
+{
+    <span class="t">u64</span> sum = <span class="n">0</span>;
+    <span class="k">for</span> (<span class="t">u64</span> i = <span class="n">1</span>; i &lt;= n; i += <span class="n">1</span>)
+    {
+        sum += i;
+        <span class="k">auto</span> g = <span class="p">lock</span>(Arc::get(&amp;log));
+        <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> *g, i);
+    }
+    sum
+}
+
+<span class="c">// Spawns a worker that shares the log, and returns both: the worker outlives this frame.</span>
+<span class="k">fn</span> start(<span class="t">u64</span> n) : Started
+{
+    Arc&lt;<span class="t">mutex</span>&lt;<span class="p">Vec</span>&lt;<span class="t">u64</span>&gt;&gt;&gt; log = Arc::new(<span class="p">Mutex</span>::new(<span class="p">Vec</span>::new()));
+    <span class="t">handle</span>&lt;<span class="t">u64</span>&gt; h = <span class="p">spawn</span>(work, clone(&amp;log), n);
+    Started { .worker = h, .log = log }
+}
+
+<span class="k">fn</span> main()
+{
+    Started { worker, log } = start(<span class="n">10</span>);
+    <span class="t">u64</span> sum = <span class="p">join</span>(worker);
+    <span class="p">printf</span>(<span class="s">&quot;sum %v, logged %v entries\n&quot;</span>, sum, <span class="p">Vec</span>::len(&amp;*<span class="p">lock</span>(Arc::get(&amp;log))));
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>sum 55, logged 10 entries
+</pre></div></figure>
+<div class="callout note"><div class="callout-title">Nothing special inside</div><code>Arc</code> carries no special bound on its value: whatever is inside is subject to the same
+checks as anything reached through a shared reference. Two threads that clone an <code>Rc</code> they reach
+through one <code>Arc</code> meet in <code>Rc::clone</code>'s exclusive borrow of its count, <code>diag.aliasing-conflict</code>, exactly
+as they would through <code>&amp;rc</code>.</div>
 <h3 id="s19-how-threads-run">How threads run</h3>
 <p>Every CobaltC thread is a thread of the operating system. In a program built by <code>cobc</code>
 they run at once, on as many cores as the machine has. The checks of §08 and §10 still run as the
@@ -6326,8 +6431,9 @@ goes to one thread, and one closure cannot run in several threads at once.</p>
 <p>No memory orderings weaker than sequential consistency (an <code>Atomic</code> is the one lock-free
 tool, above), no condition variables, no thread-local storage. Steps of different threads interleave at
 the granularity of single operations and every operation sees a consistent state; a <code>join</code>, a
-<code>lock</code>, a <code>send</code> or a <code>recv</code> that cannot proceed simply waits. <code>Rc&lt;T&gt;</code> is not thread-safe; to share
-across threads, share a <code>mutex</code> or pass values through a <code>Channel</code>.</p>
+<code>lock</code>, a <code>send</code> or a <code>recv</code> that cannot proceed simply waits. <code>Rc&lt;T&gt;</code> is not thread-safe: across
+threads, share a <code>mutex</code> by reference, pass values through a <code>Channel</code>, or own a share with an <code>Arc</code>.
+There is no read-write lock and no condition variable.</p>
 <div class="callout note"><div class="callout-title">Parallel or interleaved</div>The compiler <code>cobc</code> runs threads in parallel on separate cores (above); the interpreter <code>coby</code>
 runs them one at a time. A program that follows the rules gets the same result from both. Where the
 language leaves an outcome to timing — writing a variable while another thread may still be reading
@@ -6696,11 +6802,11 @@ _Static_assert(<span class="p">sizeof</span>(<span class="k">struct</span> Point
 int cobalt_last_fault(char *buf, size_t n);  /* the last <span class="p">fault</span> a _try call contained */
 
 <span class="k">struct</span> Point midpoint(<span class="k">struct</span> Point a, <span class="k">struct</span> Point b);
-int midpoint_try(<span class="k">struct</span> Point a, <span class="k">struct</span> Point b, <span class="k">struct</span> Point *out);
+int midpoint_try(<span class="k">struct</span> Point a, <span class="k">struct</span> Point b, <span class="k">struct</span> Point *result);
 uint32_t checksum(uint8_t *data, uint64_t len);
-int checksum_try(uint8_t *data, uint64_t len, uint32_t *out);
+int checksum_try(uint8_t *data, uint64_t len, uint32_t *result);
 int64_t divide(int64_t a, int64_t b);
-int divide_try(int64_t a, int64_t b, int64_t *out);</code></pre></figure>
+int divide_try(int64_t a, int64_t b, int64_t *result);</code></pre></figure>
 <p>A C program includes the header and links <code>-lgeo -lcbrt</code> (the header's first line gives the whole
 link line for the target). Every check stays on inside the library: a C buffer is taken as a value with
 <code>Vec::from_raw</code> (or given back with <code>copy_to_raw</code>), a C string with <code>String::from_c</code>, and from there on
@@ -6953,9 +7059,12 @@ reference</a>, which gives its declaration, its documentation and examples.</p>
 <table class="std-inv">
 <thead><tr><th>Kind</th><th>Items</th></tr></thead>
 <tbody>
-<tr><td>Types</td><td><a href="#stdref-std-memory-Box"><code>Box</code></a>, <a href="#stdref-std-memory-Rc"><code>Rc</code></a>, <code class="priv">RcBox</code>, <a href="#stdref-std-memory-Weak"><code>Weak</code></a></td></tr>
+<tr><td>Types</td><td><a href="#stdref-std-memory-Arc"><code>Arc</code></a>, <code class="priv">ArcBox</code>, <a href="#stdref-std-memory-ArcWeak"><code>ArcWeak</code></a>, <a href="#stdref-std-memory-Box"><code>Box</code></a>, <a href="#stdref-std-memory-Rc"><code>Rc</code></a>, <code class="priv">RcBox</code>, <a href="#stdref-std-memory-Weak"><code>Weak</code></a></td></tr>
 <tr><td><code>Rc::</code></td><td><a href="#stdref-std-memory-Rc-clone"><code>clone</code></a>, <a href="#stdref-std-memory-Rc-downgrade"><code>downgrade</code></a>, <a href="#stdref-std-memory-Rc-drop"><code>drop</code></a>, <a href="#stdref-std-memory-Rc-get"><code>get</code></a>, <a href="#stdref-std-memory-Rc-new"><code>new</code></a></td></tr>
 <tr><td><code>Weak::</code></td><td><a href="#stdref-std-memory-Weak-clone"><code>clone</code></a>, <a href="#stdref-std-memory-Weak-drop"><code>drop</code></a>, <a href="#stdref-std-memory-Weak-upgrade"><code>upgrade</code></a></td></tr>
+<tr><td><code>ArcBox::</code></td><td><code class="priv">release_weak</code></td></tr>
+<tr><td><code>Arc::</code></td><td><a href="#stdref-std-memory-Arc-clone"><code>clone</code></a>, <a href="#stdref-std-memory-Arc-downgrade"><code>downgrade</code></a>, <a href="#stdref-std-memory-Arc-drop"><code>drop</code></a>, <a href="#stdref-std-memory-Arc-get"><code>get</code></a>, <a href="#stdref-std-memory-Arc-new"><code>new</code></a></td></tr>
+<tr><td><code>ArcWeak::</code></td><td><a href="#stdref-std-memory-ArcWeak-clone"><code>clone</code></a>, <a href="#stdref-std-memory-ArcWeak-drop"><code>drop</code></a>, <a href="#stdref-std-memory-ArcWeak-upgrade"><code>upgrade</code></a></td></tr>
 <tr><td><code>Box::</code></td><td><code class="priv">cells</code>, <a href="#stdref-std-memory-Box-clone"><code>clone</code></a>, <a href="#stdref-std-memory-Box-drop"><code>drop</code></a>, <a href="#stdref-std-memory-Box-get"><code>get</code></a>, <a href="#stdref-std-memory-Box-get_mut"><code>get_mut</code></a>, <a href="#stdref-std-memory-Box-into_inner"><code>into_inner</code></a>, <a href="#stdref-std-memory-Box-new"><code>new</code></a></td></tr>
 </tbody>
 </table>
@@ -6963,7 +7072,7 @@ reference</a>, which gives its declaration, its documentation and examples.</p>
 <table class="std-inv">
 <thead><tr><th>Kind</th><th>Items</th></tr></thead>
 <tbody>
-<tr><td>Types</td><td><a href="#stdref-std-sync-Atomic"><code>Atomic</code></a>, <a href="#stdref-std-sync-AtomicBool"><code>AtomicBool</code></a>, <a href="#stdref-std-sync-AtomicPtr"><code>AtomicPtr</code></a>, <a href="#stdref-std-sync-Channel"><code>Channel</code></a>, <code class="priv">ChannelState</code>, <a href="#stdref-std-sync-ThreadFailure"><code>ThreadFailure</code></a></td></tr>
+<tr><td>Types</td><td><a href="#stdref-std-sync-Atomic"><code>Atomic</code></a>, <a href="#stdref-std-sync-AtomicBool"><code>AtomicBool</code></a>, <a href="#stdref-std-sync-AtomicPtr"><code>AtomicPtr</code></a>, <a href="#stdref-std-sync-Barrier"><code>Barrier</code></a>, <a href="#stdref-std-sync-Channel"><code>Channel</code></a>, <code class="priv">ChannelState</code>, <a href="#stdref-std-sync-Once"><code>Once</code></a>, <code class="priv">OnceRun</code>, <a href="#stdref-std-sync-Semaphore"><code>Semaphore</code></a>, <a href="#stdref-std-sync-ThreadFailure"><code>ThreadFailure</code></a></td></tr>
 <tr><td>Functions</td><td><a href="#stdref-std-sync-atomic_fence"><code>atomic_fence</code></a>, <code class="priv">bool_byte</code>, <a href="#stdref-std-sync-cpu_count"><code>cpu_count</code></a>, <code class="priv">failure_text</code>, <a href="#stdref-std-sync-is_finished"><code>is_finished</code></a>, <a href="#stdref-std-sync-spin_hint"><code>spin_hint</code></a>, <a href="#stdref-std-sync-try_join"><code>try_join</code></a></td></tr>
 <tr><td><code>ChannelState::</code></td><td><code class="priv">pop</code></td></tr>
 <tr><td><code>Channel::</code></td><td><a href="#stdref-std-sync-Channel-close"><code>close</code></a>, <a href="#stdref-std-sync-Channel-drop"><code>drop</code></a>, <a href="#stdref-std-sync-Channel-new"><code>new</code></a>, <a href="#stdref-std-sync-Channel-recv"><code>recv</code></a>, <a href="#stdref-std-sync-Channel-recv_timeout_ms"><code>recv_timeout_ms</code></a>, <a href="#stdref-std-sync-Channel-send"><code>send</code></a>, <a href="#stdref-std-sync-Channel-try_recv"><code>try_recv</code></a></td></tr>
@@ -6971,6 +7080,10 @@ reference</a>, which gives its declaration, its documentation and examples.</p>
 <tr><td><code>Atomic::</code></td><td><a href="#stdref-std-sync-Atomic-compare_exchange"><code>compare_exchange</code></a>, <a href="#stdref-std-sync-Atomic-fetch_add"><code>fetch_add</code></a>, <a href="#stdref-std-sync-Atomic-fetch_add_wrapping"><code>fetch_add_wrapping</code></a>, <a href="#stdref-std-sync-Atomic-fetch_and"><code>fetch_and</code></a>, <a href="#stdref-std-sync-Atomic-fetch_max"><code>fetch_max</code></a>, <a href="#stdref-std-sync-Atomic-fetch_min"><code>fetch_min</code></a>, <a href="#stdref-std-sync-Atomic-fetch_or"><code>fetch_or</code></a>, <a href="#stdref-std-sync-Atomic-fetch_sub"><code>fetch_sub</code></a>, <a href="#stdref-std-sync-Atomic-fetch_sub_wrapping"><code>fetch_sub_wrapping</code></a>, <a href="#stdref-std-sync-Atomic-fetch_update"><code>fetch_update</code></a>, <a href="#stdref-std-sync-Atomic-fetch_xor"><code>fetch_xor</code></a>, <a href="#stdref-std-sync-Atomic-load"><code>load</code></a>, <a href="#stdref-std-sync-Atomic-new"><code>new</code></a>, <a href="#stdref-std-sync-Atomic-notify_all"><code>notify_all</code></a>, <a href="#stdref-std-sync-Atomic-notify_one"><code>notify_one</code></a>, <a href="#stdref-std-sync-Atomic-store"><code>store</code></a>, <a href="#stdref-std-sync-Atomic-swap"><code>swap</code></a>, <a href="#stdref-std-sync-Atomic-wait"><code>wait</code></a></td></tr>
 <tr><td><code>AtomicBool::</code></td><td><a href="#stdref-std-sync-AtomicBool-compare_exchange"><code>compare_exchange</code></a>, <a href="#stdref-std-sync-AtomicBool-fetch_and"><code>fetch_and</code></a>, <a href="#stdref-std-sync-AtomicBool-fetch_or"><code>fetch_or</code></a>, <a href="#stdref-std-sync-AtomicBool-fetch_xor"><code>fetch_xor</code></a>, <a href="#stdref-std-sync-AtomicBool-load"><code>load</code></a>, <a href="#stdref-std-sync-AtomicBool-new"><code>new</code></a>, <a href="#stdref-std-sync-AtomicBool-notify_all"><code>notify_all</code></a>, <a href="#stdref-std-sync-AtomicBool-notify_one"><code>notify_one</code></a>, <a href="#stdref-std-sync-AtomicBool-store"><code>store</code></a>, <a href="#stdref-std-sync-AtomicBool-swap"><code>swap</code></a>, <a href="#stdref-std-sync-AtomicBool-wait"><code>wait</code></a></td></tr>
 <tr><td><code>AtomicPtr::</code></td><td><a href="#stdref-std-sync-AtomicPtr-compare_exchange"><code>compare_exchange</code></a>, <a href="#stdref-std-sync-AtomicPtr-load"><code>load</code></a>, <a href="#stdref-std-sync-AtomicPtr-new"><code>new</code></a>, <a href="#stdref-std-sync-AtomicPtr-store"><code>store</code></a>, <a href="#stdref-std-sync-AtomicPtr-swap"><code>swap</code></a></td></tr>
+<tr><td><code>Barrier::</code></td><td><a href="#stdref-std-sync-Barrier-new"><code>new</code></a>, <a href="#stdref-std-sync-Barrier-wait"><code>wait</code></a></td></tr>
+<tr><td><code>Semaphore::</code></td><td><a href="#stdref-std-sync-Semaphore-acquire"><code>acquire</code></a>, <a href="#stdref-std-sync-Semaphore-available"><code>available</code></a>, <a href="#stdref-std-sync-Semaphore-new"><code>new</code></a>, <a href="#stdref-std-sync-Semaphore-release"><code>release</code></a>, <a href="#stdref-std-sync-Semaphore-try_acquire"><code>try_acquire</code></a></td></tr>
+<tr><td><code>Once::</code></td><td><a href="#stdref-std-sync-Once-call"><code>call</code></a>, <a href="#stdref-std-sync-Once-is_done"><code>is_done</code></a>, <a href="#stdref-std-sync-Once-new"><code>new</code></a></td></tr>
+<tr><td><code>OnceRun::</code></td><td><code class="priv">drop</code></td></tr>
 </tbody>
 </table>
 <h4 id="stdmod-std-random"><code>std::random</code> <span class="std-file">impl/std/random.cb</span></h4>
@@ -10105,7 +10218,8 @@ to the same box; the value is destroyed when the last handle is dropped. Access 
 shared reference); put a <code>mutex</code> inside if you need mutation. <code>Rc</code> is not thread-safe.
 A <code>Weak&lt;T&gt;</code>, from <code>Rc::downgrade</code>, keeps the box but not the value: <code>Weak::upgrade</code> is
 <code>Some(Rc)</code> while a strong handle exists, else <code>None</code>. It is for a parent pointer, a cache or an
-observer list, where an <code>Rc</code> would make a cycle (D-0125).</p>
+observer list, where an <code>Rc</code> would make a cycle (D-0125). <code>Arc&lt;T&gt;</code> and <code>ArcWeak&lt;T&gt;</code> are the same
+with atomic counts, for handles that cross threads (D-0259, §19).</p>
 <table>
 <thead><tr><th>Function</th><th>Signature</th></tr></thead>
 <tbody>
@@ -10115,6 +10229,8 @@ observer list, where an <code>Rc</code> would make a cycle (D-0125).</p>
 <tr><td><code>Rc::downgrade</code></td><td><code>(ref&lt;Rc&lt;T&gt;, shared&gt;) : Weak&lt;T&gt;</code></td></tr>
 <tr><td><code>Weak::upgrade</code></td><td><code>(ref&lt;Weak&lt;T&gt;, shared&gt;) : Option&lt;Rc&lt;T&gt;&gt;</code></td></tr>
 <tr><td><code>Weak::clone</code></td><td><code>(ref&lt;Weak&lt;T&gt;, shared&gt;) : Weak&lt;T&gt;</code></td></tr>
+<tr><td><code>Arc::new</code>, <code>Arc::clone</code>, <code>Arc::get</code>, <code>Arc::downgrade</code></td><td>as <code>Rc</code>'s, with <code>Arc&lt;T&gt;</code> and <code>ArcWeak&lt;T&gt;</code></td></tr>
+<tr><td><code>ArcWeak::upgrade</code>, <code>ArcWeak::clone</code></td><td>as <code>Weak</code>'s</td></tr>
 </tbody>
 </table>
 <figure class="code"><div class="code-head"><span class="code-title">Reference counting</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
@@ -12723,6 +12839,90 @@ Weak&lt;<span class="p">String</span>&gt; w = <span class="p">Rc</span>::downgra
 <p>When no strong or weak handle remains, the memory is freed.</p>
 </div>
 <div class="stdref-entry">
+<h4 id="stdref-std-memory-Arc" class="stdref-item"><code>Arc</code> <span class="std-file">struct</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">resource</span> <span class="k">struct</span> Arc&lt;T&gt;</code></pre></figure>
+<p>A reference-counted handle to a value that several threads share.</p>
+<p><code>Rc</code> for threads: each <code>Arc</code> is one strong handle, and handles may be cloned into other threads, moved and dropped there, so a thread owns its share of the value and may outlive the frame that made it, which a reference to the value does not allow. The counts are atomic, so clones and drops from several threads at once lose nothing; the value is destroyed, once, by whichever handle ends last. It is reached only as a shared reference (<code>Arc::get</code>), so changing it needs a <code>mutex</code> or an <code>Atomic</code> inside. An <code>ArcWeak</code> (<code>Arc::downgrade</code>) keeps the box but not the value, for a parent pointer or a cache.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-memory-Arc-new" class="stdref-item"><code>Arc::new</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Arc::new&lt;T&gt;(T v) : Arc&lt;T&gt;</code></pre></figure>
+<p>A new <code>Arc</code> holding <code>v</code>, the only strong handle to it.</p>
+<p>Allocates; faults (<code>alloc_failure</code>) when memory cannot be had.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-memory-Arc-clone" class="stdref-item"><code>Arc::clone</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Arc::clone&lt;T&gt;(<span class="t">ref</span>&lt;Arc&lt;T&gt;, <span class="t">shared</span>&gt; a) : Arc&lt;T&gt;</code></pre></figure>
+<p>A second strong handle to the value <code>a</code> holds; nothing is copied.</p>
+<p>What <code>clone(&amp;a)</code> calls for an <code>Arc</code>. The new handle may go to another thread.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-memory-Arc-get" class="stdref-item"><code>Arc::get</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Arc::get&lt;T&gt;(<span class="t">ref</span>&lt;Arc&lt;T&gt;, <span class="t">shared</span>&gt; a) : <span class="t">ref</span>&lt;T, <span class="t">shared</span>&gt;</code></pre></figure>
+<p>The value <code>a</code> holds, as a shared reference.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-memory-Arc-drop" class="stdref-item"><code>Arc::drop</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Arc::<span class="p">drop</span>&lt;T&gt;(<span class="t">ref</span>&lt;Arc&lt;T&gt;, <span class="t">exclusive</span>&gt; self)</code></pre></figure>
+<p>Ends one strong handle; run when an <code>Arc</code> is destroyed, so programs write <code>drop(a)</code> or let it go.</p>
+<p>When this was the last strong handle, on whichever thread, the value is destroyed now, and with no <code>ArcWeak</code> handle left the memory is freed too.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Example: Handles cloned into four threads, each changing the value through the <code>mutex</code> inside; the last handle to
+end destroys the value, once, on whichever thread holds it</span><span class="badge ok">runs</span></div><pre><code>Arc&lt;<span class="t">mutex</span>&lt;<span class="t">u32</span>&gt;&gt; a = Arc::new(<span class="p">Mutex</span>::new(<span class="n">0</span>: <span class="t">u32</span>));
+<span class="p">Vec</span>&lt;<span class="t">handle</span>&lt;<span class="k">void</span>&gt;&gt; hs = <span class="p">Vec</span>::new();
+<span class="k">for</span> (<span class="t">u32</span> i = <span class="n">0</span>; i &lt; <span class="n">4</span>; i += <span class="n">1</span>)
+{
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> hs, <span class="p">spawn</span>(<span class="k">move</span> [](Arc&lt;<span class="t">mutex</span>&lt;<span class="t">u32</span>&gt;&gt; h)
+    {
+        <span class="k">auto</span> g = <span class="p">lock</span>(Arc::get(&amp;h));
+        *g += <span class="n">1</span>;
+    }, Arc::clone(&amp;a)));
+}
+ArcWeak&lt;<span class="t">mutex</span>&lt;<span class="t">u32</span>&gt;&gt; w = Arc::downgrade(&amp;a);
+<span class="p">drop</span>(a);                                  <span class="c">// the workers&#x27; handles keep the value</span>
+<span class="k">foreach</span> (h in hs)
+{
+    <span class="p">join</span>(h);
+}
+<span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;ArcWeak::upgrade(&amp;w)));   <span class="c">// the last worker&#x27;s drop ended it</span></code></pre></figure>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-memory-Arc-downgrade" class="stdref-item"><code>Arc::downgrade</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Arc::downgrade&lt;T&gt;(<span class="t">ref</span>&lt;Arc&lt;T&gt;, <span class="t">shared</span>&gt; a) : ArcWeak&lt;T&gt;</code></pre></figure>
+<p>An <code>ArcWeak</code> handle to the value <code>a</code> holds.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-memory-ArcWeak" class="stdref-item"><code>ArcWeak</code> <span class="std-file">struct</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">resource</span> <span class="k">struct</span> ArcWeak&lt;T&gt;</code></pre></figure>
+<p>A handle that does not keep the value alive.</p>
+<p>As <code>Weak</code> is to <code>Rc</code>: it keeps only the memory. Once the last <code>Arc</code> ends, the value is gone and <code>ArcWeak::upgrade</code> gives <code>None</code>. Dropping the last handle of either kind frees the memory.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-memory-ArcWeak-upgrade" class="stdref-item"><code>ArcWeak::upgrade</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> ArcWeak::upgrade&lt;T&gt;(<span class="t">ref</span>&lt;ArcWeak&lt;T&gt;, <span class="t">shared</span>&gt; w) : <span class="p">Option</span>&lt;Arc&lt;T&gt;&gt;</code></pre></figure>
+<p>A new strong handle to the value, or <code>None</code> when the value has ended.</p>
+<p>The value never comes back once ended: after the last <code>Arc</code> is destroyed every upgrade gives <code>None</code>.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-memory-ArcWeak-clone" class="stdref-item"><code>ArcWeak::clone</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> ArcWeak::clone&lt;T&gt;(<span class="t">ref</span>&lt;ArcWeak&lt;T&gt;, <span class="t">shared</span>&gt; w) : ArcWeak&lt;T&gt;</code></pre></figure>
+<p>A second <code>ArcWeak</code> handle to the same value; what <code>clone(&amp;w)</code> calls for an <code>ArcWeak</code>.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-memory-ArcWeak-drop" class="stdref-item"><code>ArcWeak::drop</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> ArcWeak::<span class="p">drop</span>&lt;T&gt;(<span class="t">ref</span>&lt;ArcWeak&lt;T&gt;, <span class="t">exclusive</span>&gt; self)</code></pre></figure>
+<p>Ends one weak handle; run when an <code>ArcWeak</code> is destroyed.</p>
+<p>When no strong or weak handle remains, the memory is freed.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Example: An <code>ArcWeak</code> upgrades while any <code>Arc</code> remains and gives <code>None</code> after the last one ends</span><span class="badge ok">runs</span></div><pre><code>Arc&lt;<span class="p">String</span>&gt; a = Arc::new(<span class="p">String</span>::from_str(<span class="s">&quot;shared&quot;</span>));
+Arc&lt;<span class="p">String</span>&gt; b = clone(&amp;a);
+<span class="p">assert</span>(<span class="p">String</span>::len(Arc::get(&amp;b)) == <span class="n">6</span>);
+ArcWeak&lt;<span class="p">String</span>&gt; w = Arc::downgrade(&amp;a);
+ArcWeak&lt;<span class="p">String</span>&gt; w2 = clone(&amp;w);
+<span class="p">drop</span>(a);
+<span class="p">assert</span>(<span class="p">Option</span>::is_some(&amp;ArcWeak::upgrade(&amp;w)));
+<span class="p">drop</span>(b);
+<span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;ArcWeak::upgrade(&amp;w)) &amp;&amp; <span class="p">Option</span>::is_none(&amp;ArcWeak::upgrade(&amp;w2)));</code></pre></figure>
+</div>
+<div class="stdref-entry">
 <h4 id="stdref-std-memory-Box" class="stdref-item"><code>Box</code> <span class="std-file">struct</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">resource</span> <span class="k">struct</span> <span class="p">Box</span>&lt;T&gt;</code></pre></figure>
 <p>A value on the heap with one owner.</p>
@@ -13076,6 +13276,163 @@ _ = Atomic::fetch_xor(&amp;f, <span class="n">0</span>x0f);
 <h4 id="stdref-std-sync-AtomicPtr-compare_exchange" class="stdref-item"><code>AtomicPtr::compare_exchange</code> <span class="std-file">fn</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> AtomicPtr::compare_exchange&lt;T&gt;(<span class="t">ref</span>&lt;AtomicPtr&lt;T&gt;, <span class="t">shared</span>&gt; a, <span class="t">rawptr</span>&lt;T&gt; expected, <span class="t">rawptr</span>&lt;T&gt; new) : <span class="p">Result</span>&lt;<span class="t">rawptr</span>&lt;T&gt;, <span class="t">rawptr</span>&lt;T&gt;&gt;</code></pre></figure>
 <p>Replaces the address with <code>new</code> if it is <code>expected</code>, as one step: <code>Ok(expected)</code>, or <code>Err(current)</code>.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-Barrier" class="stdref-item"><code>Barrier</code> <span class="std-file">struct</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">struct</span> Barrier</code></pre></figure>
+<p>A meeting point for a fixed number of threads.</p>
+<p>Shared by reference, as a <code>mutex</code> is. <code>Barrier::wait</code> blocks until <code>parties</code> threads have called it, then releases them all together and is ready for the next round: the phases of a parallel algorithm, where every thread must finish one before any starts the next.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-Barrier-new" class="stdref-item"><code>Barrier::new</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Barrier::new(<span class="t">usize</span> parties) : Barrier</code></pre></figure>
+<p>A barrier for <code>parties</code> threads.</p>
+<p>Faults (<code>barrier_zero_parties</code>) when <code>parties</code> is 0.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-Barrier-wait" class="stdref-item"><code>Barrier::wait</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Barrier::wait(<span class="t">ref</span>&lt;Barrier, <span class="t">shared</span>&gt; b) : <span class="t">bool</span></code></pre></figure>
+<p>Waits until <code>parties</code> threads have called it, then lets them all go on.</p>
+<p><code>true</code> for the last thread to arrive, the one that released the others, and <code>false</code> for the rest, so one thread of each round can do something once. A wait that fewer threads than <code>parties</code> can ever reach faults (<code>deadlock</code>).</p>
+<figure class="code"><div class="code-head"><span class="code-title">Example: Four threads, three rounds: in each, every thread writes its slot, then, after the barrier, reads all
+four; exactly one thread per round is told it was last</span><span class="badge ok">runs</span></div><pre><code>Barrier b = Barrier::new(<span class="n">4</span>);
+Atomic&lt;<span class="t">u32</span>&gt; leaders = Atomic::new(<span class="n">0</span>: <span class="t">u32</span>);
+Atomic&lt;<span class="t">u32</span>&gt; seen = Atomic::new(<span class="n">0</span>: <span class="t">u32</span>);
+<span class="p">Vec</span>&lt;<span class="t">handle</span>&lt;<span class="k">void</span>&gt;&gt; hs = <span class="p">Vec</span>::new();
+<span class="k">for</span> (<span class="t">u32</span> i = <span class="n">0</span>; i &lt; <span class="n">4</span>; i += <span class="n">1</span>)
+{
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> hs, <span class="p">spawn</span>(<span class="k">move</span> [](
+        <span class="t">ref</span>&lt;Barrier, <span class="t">shared</span>&gt; b,
+        <span class="t">ref</span>&lt;Atomic&lt;<span class="t">u32</span>&gt;, <span class="t">shared</span>&gt; leaders,
+        <span class="t">ref</span>&lt;Atomic&lt;<span class="t">u32</span>&gt;, <span class="t">shared</span>&gt; seen,
+        <span class="t">u32</span> id,
+    )
+    {
+        <span class="k">for</span> (<span class="t">u32</span> <span class="p">round</span> = <span class="n">0</span>; <span class="p">round</span> &lt; <span class="n">3</span>; <span class="p">round</span> += <span class="n">1</span>)
+        {
+            _ = Atomic::fetch_add(seen, <span class="n">1</span>);
+            <span class="k">if</span> (Barrier::wait(b))
+            {
+                _ = Atomic::fetch_add(leaders, <span class="n">1</span>);
+                <span class="p">assert</span>(Atomic::load(seen) == <span class="n">4</span> * (<span class="p">round</span> + <span class="n">1</span>));   <span class="c">// everyone wrote before anyone read</span>
+            }
+            _ = Barrier::wait(b);                                 <span class="c">// the read phase ends together too</span>
+        }
+    }, &amp;b, &amp;leaders, &amp;seen, i));
+}
+<span class="k">foreach</span> (h in hs)
+{
+    <span class="p">join</span>(h);
+}
+<span class="p">assert</span>(Atomic::load(&amp;leaders) == <span class="n">3</span> &amp;&amp; Atomic::load(&amp;seen) == <span class="n">12</span>);</code></pre></figure>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-Semaphore" class="stdref-item"><code>Semaphore</code> <span class="std-file">struct</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">struct</span> Semaphore</code></pre></figure>
+<p>A count of permits that threads take and give back.</p>
+<p>Shared by reference, as a <code>mutex</code> is. <code>acquire</code> takes one permit, waiting while there is none; <code>release</code> gives one back, or adds one. It bounds how many threads do something at once (connections open, workers busy); made with 0 permits, it hands events from one thread to another, each <code>release</code> letting one <code>acquire</code> through.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-Semaphore-new" class="stdref-item"><code>Semaphore::new</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Semaphore::new(<span class="t">usize</span> permits) : Semaphore</code></pre></figure>
+<p>A semaphore with <code>permits</code> permits; 0 is allowed.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-Semaphore-acquire" class="stdref-item"><code>Semaphore::acquire</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Semaphore::acquire(<span class="t">ref</span>&lt;Semaphore, <span class="t">shared</span>&gt; s)</code></pre></figure>
+<p>Takes one permit, waiting while there is none.</p>
+<p>Permits are not handed out in arrival order. A wait no thread can end faults (<code>deadlock</code>).</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-Semaphore-try_acquire" class="stdref-item"><code>Semaphore::try_acquire</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Semaphore::try_acquire(<span class="t">ref</span>&lt;Semaphore, <span class="t">shared</span>&gt; s) : <span class="t">bool</span></code></pre></figure>
+<p>Takes one permit if one is free, without waiting: <code>true</code> when it did.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-Semaphore-release" class="stdref-item"><code>Semaphore::release</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Semaphore::<span class="p">release</span>(<span class="t">ref</span>&lt;Semaphore, <span class="t">shared</span>&gt; s)</code></pre></figure>
+<p>Gives one permit back, or adds one; a thread waiting in <code>acquire</code> wakes.</p>
+<p>Faults (<code>arith_overflow</code>) when the permits would exceed what <code>usize</code> counts.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-Semaphore-available" class="stdref-item"><code>Semaphore::available</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Semaphore::available(<span class="t">ref</span>&lt;Semaphore, <span class="t">shared</span>&gt; s) : <span class="t">usize</span></code></pre></figure>
+<p>How many permits are free now: a snapshot another thread may change at once.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Example: Two permits among six threads bound how many work at once; a semaphore of none hands events over</span><span class="badge ok">runs</span></div><pre><code>Semaphore limit = Semaphore::new(<span class="n">2</span>);
+Atomic&lt;<span class="t">u32</span>&gt; active = Atomic::new(<span class="n">0</span>: <span class="t">u32</span>);
+Atomic&lt;<span class="t">u32</span>&gt; peak = Atomic::new(<span class="n">0</span>: <span class="t">u32</span>);
+<span class="p">Vec</span>&lt;<span class="t">handle</span>&lt;<span class="k">void</span>&gt;&gt; hs = <span class="p">Vec</span>::new();
+<span class="k">for</span> (<span class="t">u32</span> i = <span class="n">0</span>; i &lt; <span class="n">6</span>; i += <span class="n">1</span>)
+{
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> hs, <span class="p">spawn</span>(<span class="k">move</span> [](
+        <span class="t">ref</span>&lt;Semaphore, <span class="t">shared</span>&gt; limit,
+        <span class="t">ref</span>&lt;Atomic&lt;<span class="t">u32</span>&gt;, <span class="t">shared</span>&gt; active,
+        <span class="t">ref</span>&lt;Atomic&lt;<span class="t">u32</span>&gt;, <span class="t">shared</span>&gt; peak,
+    )
+    {
+        Semaphore::acquire(limit);
+        _ = Atomic::fetch_max(peak, Atomic::fetch_add(active, <span class="n">1</span>) + <span class="n">1</span>);
+        _ = Atomic::fetch_sub(active, <span class="n">1</span>);
+        Semaphore::<span class="p">release</span>(limit);
+    }, &amp;limit, &amp;active, &amp;peak));
+}
+<span class="k">foreach</span> (h in hs)
+{
+    <span class="p">join</span>(h);
+}
+<span class="p">assert</span>(Atomic::load(&amp;peak) &lt;= <span class="n">2</span> &amp;&amp; Semaphore::available(&amp;limit) == <span class="n">2</span>);
+<span class="p">assert</span>(Semaphore::try_acquire(&amp;limit) &amp;&amp; Semaphore::try_acquire(&amp;limit) &amp;&amp; !Semaphore::try_acquire(&amp;limit));
+
+Semaphore events = Semaphore::new(<span class="n">0</span>);
+<span class="t">handle</span>&lt;<span class="t">u32</span>&gt; h = <span class="p">spawn</span>(<span class="k">move</span> [](<span class="t">ref</span>&lt;Semaphore, <span class="t">shared</span>&gt; e) : <span class="t">u32</span>
+{
+    Semaphore::acquire(e);
+    Semaphore::acquire(e);
+    Semaphore::acquire(e);
+    <span class="n">3</span>
+}, &amp;events);
+Semaphore::<span class="p">release</span>(&amp;events);
+Semaphore::<span class="p">release</span>(&amp;events);
+Semaphore::<span class="p">release</span>(&amp;events);
+<span class="p">assert</span>(<span class="p">join</span>(h) == <span class="n">3</span> &amp;&amp; Semaphore::available(&amp;events) == <span class="n">0</span>);</code></pre></figure>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-Once" class="stdref-item"><code>Once</code> <span class="std-file">struct</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">struct</span> Once</code></pre></figure>
+<p>Something done once, by whichever thread gets there first.</p>
+<p>Shared by reference, as a <code>mutex</code> is. <code>Once::call(&amp;o, f)</code> runs <code>f</code> the first time any thread calls it; every other call, on any thread, returns once that run has finished, without running <code>f</code>: initialising what several threads share, lazily and exactly once. Should <code>f</code> fault, the <code>Once</code> is as before, and the next caller runs <code>f</code> afresh.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-Once-new" class="stdref-item"><code>Once::new</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Once::new() : Once</code></pre></figure>
+<p>A <code>Once</code> whose <code>f</code> has not run.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-Once-call" class="stdref-item"><code>Once::call</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Once::call(<span class="t">ref</span>&lt;Once, <span class="t">shared</span>&gt; o, <span class="k">fn</span>() f)</code></pre></figure>
+<p>Runs <code>f</code> if no call has run it yet; otherwise waits until the call that is running it has finished.</p>
+<p><code>f</code> runs on the calling thread. After <code>call</code> returns, on any thread, <code>f</code> has run to its end exactly once (unless it faulted, and then the next caller runs it again).</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-sync-Once-is_done" class="stdref-item"><code>Once::is_done</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Once::is_done(<span class="t">ref</span>&lt;Once, <span class="t">shared</span>&gt; o) : <span class="t">bool</span></code></pre></figure>
+<p>Whether <code>f</code> has run to its end.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Example: Four threads call; the initialiser runs once, and every thread sees it done</span><span class="badge ok">runs</span></div><pre><code>Once o = Once::new();
+Atomic&lt;<span class="t">u32</span>&gt; runs = Atomic::new(<span class="n">0</span>: <span class="t">u32</span>);
+<span class="p">Vec</span>&lt;<span class="t">handle</span>&lt;<span class="t">bool</span>&gt;&gt; hs = <span class="p">Vec</span>::new();
+<span class="k">for</span> (<span class="t">u32</span> i = <span class="n">0</span>; i &lt; <span class="n">4</span>; i += <span class="n">1</span>)
+{
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> hs, <span class="p">spawn</span>(<span class="k">move</span> [](<span class="t">ref</span>&lt;Once, <span class="t">shared</span>&gt; o, <span class="t">ref</span>&lt;Atomic&lt;<span class="t">u32</span>&gt;, <span class="t">shared</span>&gt; runs) : <span class="t">bool</span>
+    {
+        Once::call(o, [runs]() { _ = Atomic::fetch_add(runs, <span class="n">1</span>); });
+        Once::is_done(o)
+    }, &amp;o, &amp;runs));
+}
+<span class="k">foreach</span> (h in hs)
+{
+    <span class="p">assert</span>(<span class="p">join</span>(h));
+}
+<span class="p">assert</span>(Atomic::load(&amp;runs) == <span class="n">1</span> &amp;&amp; Once::is_done(&amp;o));</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-sync-cpu_count" class="stdref-item"><code>cpu_count</code> <span class="std-file">fn</span></h4>
