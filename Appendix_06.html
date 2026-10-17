@@ -166,7 +166,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.101603</div>
+<div class="sub">Specification edition 2026.101604</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -338,7 +338,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101603</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101604</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -429,7 +429,7 @@ turn.</p>
 mechanism or would have hidden a semantic fact the language wants to keep visible.</p>
 <ul>
 <li><strong>Implicit conversions and subtyping.</strong> <code>i32</code> and <code>i64</code> never mix silently.</li>
-<li><strong>User-defined traits or bounds.</strong> A type parameter's operations come from five built-in bounds — <code>eq</code>, <code>ordered</code>, <code>number</code>, <code>integer</code>, <code>clone</code> (§12) — and nothing else: there is no way to declare a new bound. Your own struct or enum satisfies <code>clone</code> alone, by its fields or its own <code>T::clone</code>; to compare or combine values of your own types in generic code, pass the operation in as a function value.</li>
+<li><strong>User-defined traits or bounds.</strong> A type parameter's operations come from six built-in bounds — <code>eq</code>, <code>ordered</code>, <code>number</code>, <code>integer</code>, <code>clone</code>, <code>plain</code> (§12) — and nothing else: there is no way to declare a new bound. Your own struct or enum satisfies <code>clone</code> alone, by its fields or its own <code>T::clone</code>; to compare or combine values of your own types in generic code, pass the operation in as a function value.</li>
 <li><strong>Exceptions.</strong> A fault terminates the program after running destructors; expected failure is a <code>Result</code>.</li>
 <li><strong>Garbage collection.</strong> Ownership and scope-end destruction are deterministic; <code>Rc&lt;T&gt;</code> is a library type.</li>
 <li><strong>Character literals, and indexing or slicing a <code>str</code>.</strong> A <code>str</code> is a whole value; its bytes are reached with <code>str_byte</code>, and a single byte is written <code>b&#x27;a&#x27;</code>: a <code>u8</code>, or the wider unsigned type its context asks for (§06). A <code>String</code> is sliced into views, <code>&amp;s[i..j]</code>, and taken apart by <code>String::split</code>, <code>find</code> and <code>chars</code> (§21). Text that arrives from outside is still bytes until <code>String::from_utf8</code> validates it.</li>
@@ -3085,6 +3085,7 @@ a value of <code>T</code> can be copied (below):</p>
 <tr><td><code>number</code></td><td>integers, floats</td><td>also <code>+ - * / %</code>, unary <code>-</code>, <code>+=</code> and the like; integer literals</td></tr>
 <tr><td><code>integer</code></td><td>integers</td><td>also <code>&amp; | ^ ~</code>, <code>&lt;&lt;</code> <code>&gt;&gt;</code></td></tr>
 <tr><td><code>clone</code></td><td>everything above; <code>String</code>, <code>Rc&lt;T&gt;</code>, <code>Box&lt;T: clone&gt;</code>, <code>Vec&lt;T: clone&gt;</code>, the hash tables; a type with its own <code>T::clone</code>; a struct or enum whose fields are all <code>clone</code> (D-0116)</td><td><code>clone(&amp;x)</code>: an independent copy</td></tr>
+<tr><td><code>plain</code></td><td>numbers, <code>bool</code>, raw pointers, <code>simd</code>, and arrays, structs or enums of those: bytes that mean the same anywhere (no resource, reference, handle, mutex, guard, function value or <code>str</code>)</td><td>none of its own; what <code>Vec::from_raw</code> and <code>copy_to_raw</code> move across raw memory (§20)</td></tr>
 </tbody>
 </table>
 <div class="callout note"><div class="callout-title">Note</div>Built-in bounds describe compiler-defined capabilities. They are not user-extensible
@@ -5869,6 +5870,9 @@ start again from what the other thread left.</p>
 <code>Atomic::fetch_update(&amp;a, f)</code> is the general form: it calls <code>f</code> with the value it found, stores what
 <code>f</code> gives (<code>Some(new)</code>) or leaves it (<code>None</code>), and starts again if another thread changed the value
 in between, so <code>f</code> should compute only from its argument.</p>
+<p>An atomic that the whole program shares need not be passed around at all: declared <code>static</code>
+at the top level (see the statics section of the modules chapter), it is reached by name from any
+function and any thread.</p>
 <h3>Waiting for an atomic to change</h3>
 <p>A loop that reads an atomic until it changes keeps a core busy. <code>Atomic::wait(&amp;a, v)</code> sleeps
 while <code>a</code> holds <code>v</code> instead, and returns once it holds something else; the thread that changes it
@@ -6408,6 +6412,25 @@ to reach memory is trusted.</p>
     <span class="t">i32</span> x = <span class="n">1</span>;
     bad(<span class="p">rawptr_of</span>(&amp;x));
 }</code></pre></figure>
+<p>An address can also be an integer, and an integer an address: <code>rawptr_address(p)</code> gives a
+<code>usize</code>, to print, align or keep, and <code>rawptr_from_address&lt;T&gt;(a)</code> makes a pointer from one. The second is
+how a program names a device register or memory it mapped itself; nothing checks what lives at <code>a</code>, so
+both are written inside <code>unsafe</code>. With the volatile accesses below, that is memory-mapped I/O. The
+interpreter's memory is simulated: it makes a pointer only from an address it gave out, and refuses any
+other as <code>unsupported</code>.</p>
+<figure class="code"><div class="code-head"><span class="code-title">A register at an address (not run: there is no device here)</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    <span class="k">unsafe</span>
+    {
+        <span class="c">// A device&#x27;s registers at a fixed address: a status word four bytes past the base.</span>
+        <span class="t">rawptr</span>&lt;<span class="t">u32</span>&gt; uart = rawptr_from_address&lt;<span class="t">u32</span>&gt;(<span class="n">0</span>x1000_0000);
+        write_volatile(uart + <span class="n">1</span>, <span class="n">0</span>x80);
+        <span class="t">u32</span> status = read_volatile(uart + <span class="n">1</span>);
+        <span class="p">printf</span>(<span class="s">&quot;%v %v\n&quot;</span>, status, rawptr_address(uart + <span class="n">1</span>));
+    }
+}</code></pre></figure>
 <h3>From raw bytes back to objects: <code>reclaim</code></h3>
 <p>Raw memory is not an object until you say it is. <code>reclaim&lt;T&gt;(p)</code> is a <em>place</em>
 expression: it establishes (or re-attaches to) an object of type <code>T</code> over the bytes at <code>p</code>, and
@@ -6526,7 +6549,7 @@ than guessing.</p>
 {
 }</code></pre></figure>
 <h3>Your own C code</h3>
-<p><code>extern &quot;…&quot;;</code> names C code for the compiler to link, so that the program's <code>unsafe extern fn</code>
+<p><code>extern &quot;…&quot;;</code> names C or assembly code for the compiler to link, so that the program's <code>unsafe extern fn</code>
 declarations can be found in it. It can go anywhere an item can, declares no name, and can be
 repeated; each piece of code is linked once. The program still builds with nothing but
 <code>cobc main.cb</code>.</p>
@@ -6534,6 +6557,7 @@ repeated; each piece of code is linked once. The program still builds with nothi
 <thead><tr><th>Written</th><th>Links</th><th>Notes</th></tr></thead>
 <tbody>
 <tr><td><code>extern &quot;./shapes.c&quot;;</code></td><td>a C source file</td><td>compiled on its own, with the C compiler's warnings shown</td></tr>
+<tr><td><code>extern &quot;./cpu.S&quot;;</code>, <code>extern &quot;./cpu.s&quot;;</code></td><td>an assembly file</td><td>assembled by the C compiler; <code>.S</code> is preprocessed first, so <code>#ifdef _WIN32</code> can pick the calling convention</td></tr>
 <tr><td><code>extern &quot;./lib/fast.o&quot;;</code>, <code>extern &quot;./lib/libfast.a&quot;;</code></td><td>an object file or static library</td><td>linked as it is</td></tr>
 <tr><td><code>extern &quot;./lib/libplugin.so&quot;;</code></td><td>a shared library</td><td>found wherever the program is run from</td></tr>
 <tr><td><code>extern &quot;z&quot;;</code></td><td>an installed library</td><td>as <code>cc -lz</code></td></tr>
@@ -6543,7 +6567,7 @@ repeated; each piece of code is linked once. The program still builds with nothi
 file it is written in, exactly as in <code>module m &quot;./m.cb&quot;;</code>. So a module that wraps some C code can
 name it next to itself, and every program that uses the module gets it linked. Anything else is a
 library name. A missing file or library is reported at the line that names it.</p>
-<div class="callout warn"><div class="callout-title">Watch out</div>Only the compiler links C code. The interpreter accepts <code>extern &quot;…&quot;;</code> and ignores it;
+<div class="callout warn"><div class="callout-title">Watch out</div>Only the compiler links C or assembly code. The interpreter accepts <code>extern &quot;…&quot;;</code> and ignores it;
 the first call into that code stops with <code>unsupported: no C function … which only cobc links</code>
 (exit status 3), and everything before it runs as usual.</div>
 <p>The usual shape is a module that keeps the <code>unsafe</code> calls to itself and exports safe
@@ -6627,6 +6651,67 @@ int64_t squares(int64_t *out, int64_t n)
     }
     <span class="k">return</span> n;
 }</code></pre></figure>
+<h3 id="s20-library">A library C calls</h3>
+<p>The boundary runs the other way too. An <code>extern fn</code> **with a body** is a function C calls by that
+name, with C's calling convention; inside the program it is an ordinary function. Its parameters and
+result are the types that cross to C (integers, floats, <code>bool</code>, raw pointers, plain structs of those),
+it is not generic, and its name is its C symbol, so two such functions cannot share one and <code>cb_…</code> and
+<code>cobalt_…</code> are the runtime's. A file of such functions with no <code>main</code> is a library.</p>
+<figure class="code"><div class="code-head"><span class="code-title">geo.cb: a library (not run: it has no main)</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">struct</span> Point
+{
+    <span class="t">f64</span> x;
+    <span class="t">f64</span> y;
+}
+
+<span class="k">extern</span> <span class="k">fn</span> midpoint(Point a, Point b) : Point
+{
+    Point { .x = (a.x + b.x) / <span class="n">2.0</span>, .y = (a.y + b.y) / <span class="n">2.0</span> }
+}
+
+<span class="k">extern</span> <span class="k">fn</span> checksum(<span class="t">rawptr</span>&lt;<span class="t">u8</span>&gt; data, <span class="t">usize</span> len) : <span class="t">u32</span>
+{
+    <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; bytes = <span class="k">unsafe</span> { <span class="p">Vec</span>::from_raw(data, len) };   <span class="c">// a copy; the checks cover it from here</span>
+    <span class="t">u32</span> sum = <span class="n">0</span>;
+    <span class="k">foreach</span> (b in &amp;bytes)
+    {
+        sum = <span class="p">wrapping_add</span>(sum, <span class="p">widen</span>&lt;<span class="t">u32</span>&gt;(*b));
+    }
+    sum
+}
+
+<span class="k">extern</span> <span class="k">fn</span> divide(<span class="t">i64</span> a, <span class="t">i64</span> b) : <span class="t">i64</span>
+{
+    a / b                                                  <span class="c">// faults on 0, as anywhere</span>
+}</code></pre></figure>
+<p><code>cobc --lib geo.cb</code> writes <code>libgeo.a</code>, copies the runtime <code>libcbrt.a</code> beside it, and writes <code>geo.h</code>:
+each struct that crosses as C declares it (its layout asserted), the library's own three calls, and every
+entry point twice.</p>
+<figure class="code"><div class="code-head"><span class="code-title">geo.h, as cobc writes it (abridged)</span></div><pre><code><span class="k">struct</span> Point { double x; double y; };
+_Static_assert(<span class="p">sizeof</span>(<span class="k">struct</span> Point) == <span class="n">16</span> &amp;&amp; _Alignof(<span class="k">struct</span> Point) == <span class="n">8</span>, <span class="s">&quot;layout of Point&quot;</span>);
+
+<span class="k">void</span> cobalt_init(<span class="k">void</span>);                      /* optional: the first call starts the runtime anyway */
+<span class="k">void</span> cobalt_shutdown(<span class="k">void</span>);                  /* writes out what the library has printed */
+int cobalt_last_fault(char *buf, size_t n);  /* the last <span class="p">fault</span> a _try call contained */
+
+<span class="k">struct</span> Point midpoint(<span class="k">struct</span> Point a, <span class="k">struct</span> Point b);
+int midpoint_try(<span class="k">struct</span> Point a, <span class="k">struct</span> Point b, <span class="k">struct</span> Point *out);
+uint32_t checksum(uint8_t *data, uint64_t len);
+int checksum_try(uint8_t *data, uint64_t len, uint32_t *out);
+int64_t divide(int64_t a, int64_t b);
+int divide_try(int64_t a, int64_t b, int64_t *out);</code></pre></figure>
+<p>A C program includes the header and links <code>-lgeo -lcbrt</code> (the header's first line gives the whole
+link line for the target). Every check stays on inside the library: a C buffer is taken as a value with
+<code>Vec::from_raw</code> (or given back with <code>copy_to_raw</code>), a C string with <code>String::from_c</code>, and from there on
+the code is checked CobaltC. A fault inside <code>divide(1, 0)</code> reports and ends the process, as it would in a
+program; a fault inside <code>divide_try(1, 0, &amp;q)</code> is contained: the call's frames unwind, <code>divide_try</code> returns
+1 with <code>q</code> untouched, and <code>cobalt_last_fault</code> gives the report. The library may be called from any C
+thread, several at once. What it prints is written out as each call returns; a C program that buffers its
+own <code>stdout</code> flushes it before calling in (or switches buffering off) to keep the two in order.</p>
+<div class="callout note"><div class="callout-title">Note</div>The interpreter checks a library and runs its <code>unittest</code> blocks (<code>coby --unittest geo.cb</code>), but has
+nothing to run: <code>coby geo.cb</code> stops with <code>unsupported: this is a library</code>. Only <code>cobc --lib</code> builds it,
+for Linux or, with <code>--target x86_64-pc-windows-gnu</code>, for Windows.</div>
 <h3>Structs and text across the boundary</h3>
 <p>A struct crosses by value when it is plain: not a resource, at least one field, and every
 field an integer, a float, <code>bool</code>, a <code>rawptr</code>, another such struct, or an array of those. Every
@@ -6813,7 +6898,7 @@ reference</a>, which gives its declaration, its documentation and examples.</p>
 <tbody>
 <tr><td>Types</td><td><code class="priv">Drain</code>, <code class="priv">HashDrain</code>, <a href="#stdref-std-collections-HashMap"><code>HashMap</code></a>, <a href="#stdref-std-collections-HashSet"><code>HashSet</code></a>, <a href="#stdref-std-collections-PriorityQueue"><code>PriorityQueue</code></a>, <a href="#stdref-std-collections-Queue"><code>Queue</code></a>, <code class="priv">SetDrain</code>, <a href="#stdref-std-collections-Vec"><code>Vec</code></a></td></tr>
 <tr><td>Functions</td><td><code class="priv">key_before</code>, <a href="#stdref-std-collections-read_be"><code>read_be</code></a>, <a href="#stdref-std-collections-read_le"><code>read_le</code></a>, <a href="#stdref-std-collections-slice_eq"><code>slice_eq</code></a>, <a href="#stdref-std-collections-slice_parts"><code>slice_parts</code></a>, <a href="#stdref-std-collections-slice_swap"><code>slice_swap</code></a></td></tr>
-<tr><td><code>Vec::</code></td><td><a href="#stdref-std-collections-Vec-append"><code>append</code></a>, <code class="priv">apply_order</code>, <a href="#stdref-std-collections-Vec-binary_search"><code>binary_search</code></a>, <a href="#stdref-std-collections-Vec-binary_search_by"><code>binary_search_by</code></a>, <a href="#stdref-std-collections-Vec-clear"><code>clear</code></a>, <a href="#stdref-std-collections-Vec-clone"><code>clone</code></a>, <a href="#stdref-std-collections-Vec-clone_by"><code>clone_by</code></a>, <a href="#stdref-std-collections-Vec-contains"><code>contains</code></a>, <a href="#stdref-std-collections-Vec-dedup"><code>dedup</code></a>, <code class="priv">drain</code>, <a href="#stdref-std-collections-Vec-drop"><code>drop</code></a>, <a href="#stdref-std-collections-Vec-extend_from"><code>extend_from</code></a>, <a href="#stdref-std-collections-Vec-filled"><code>filled</code></a>, <a href="#stdref-std-collections-Vec-from_c_bytes"><code>from_c_bytes</code></a>, <a href="#stdref-std-collections-Vec-from_fn"><code>from_fn</code></a>, <a href="#stdref-std-collections-Vec-from_slice"><code>from_slice</code></a>, <code class="priv">grow</code>, <a href="#stdref-std-collections-Vec-index_exclusive"><code>index_exclusive</code></a>, <a href="#stdref-std-collections-Vec-index_of"><code>index_of</code></a>, <a href="#stdref-std-collections-Vec-index_shared"><code>index_shared</code></a>, <a href="#stdref-std-collections-Vec-insert"><code>insert</code></a>, <a href="#stdref-std-collections-Vec-len"><code>len</code></a>, <a href="#stdref-std-collections-Vec-new"><code>new</code></a>, <a href="#stdref-std-collections-Vec-pop"><code>pop</code></a>, <a href="#stdref-std-collections-Vec-position"><code>position</code></a>, <a href="#stdref-std-collections-Vec-push"><code>push</code></a>, <a href="#stdref-std-collections-Vec-push_be"><code>push_be</code></a>, <a href="#stdref-std-collections-Vec-push_le"><code>push_le</code></a>, <a href="#stdref-std-collections-Vec-remove"><code>remove</code></a>, <code class="priv">remove_at</code>, <code class="priv">replace</code>, <a href="#stdref-std-collections-Vec-reserve"><code>reserve</code></a>, <a href="#stdref-std-collections-Vec-retain"><code>retain</code></a>, <a href="#stdref-std-collections-Vec-reverse"><code>reverse</code></a>, <a href="#stdref-std-collections-Vec-sort"><code>sort</code></a>, <a href="#stdref-std-collections-Vec-sort_by"><code>sort_by</code></a>, <code class="priv">sorted_order</code>, <code class="priv">sorted_order_keys</code>, <a href="#stdref-std-collections-Vec-swap"><code>swap</code></a>, <a href="#stdref-std-collections-Vec-swap_remove"><code>swap_remove</code></a>, <code class="priv">take_raw</code>, <a href="#stdref-std-collections-Vec-truncate"><code>truncate</code></a></td></tr>
+<tr><td><code>Vec::</code></td><td><a href="#stdref-std-collections-Vec-append"><code>append</code></a>, <code class="priv">apply_order</code>, <a href="#stdref-std-collections-Vec-binary_search"><code>binary_search</code></a>, <a href="#stdref-std-collections-Vec-binary_search_by"><code>binary_search_by</code></a>, <a href="#stdref-std-collections-Vec-clear"><code>clear</code></a>, <a href="#stdref-std-collections-Vec-clone"><code>clone</code></a>, <a href="#stdref-std-collections-Vec-clone_by"><code>clone_by</code></a>, <a href="#stdref-std-collections-Vec-contains"><code>contains</code></a>, <a href="#stdref-std-collections-Vec-dedup"><code>dedup</code></a>, <code class="priv">drain</code>, <a href="#stdref-std-collections-Vec-drop"><code>drop</code></a>, <a href="#stdref-std-collections-Vec-extend_from"><code>extend_from</code></a>, <a href="#stdref-std-collections-Vec-filled"><code>filled</code></a>, <a href="#stdref-std-collections-Vec-from_c_bytes"><code>from_c_bytes</code></a>, <a href="#stdref-std-collections-Vec-from_fn"><code>from_fn</code></a>, <a href="#stdref-std-collections-Vec-from_raw"><code>from_raw</code></a>, <a href="#stdref-std-collections-Vec-from_slice"><code>from_slice</code></a>, <code class="priv">grow</code>, <a href="#stdref-std-collections-Vec-index_exclusive"><code>index_exclusive</code></a>, <a href="#stdref-std-collections-Vec-index_of"><code>index_of</code></a>, <a href="#stdref-std-collections-Vec-index_shared"><code>index_shared</code></a>, <a href="#stdref-std-collections-Vec-insert"><code>insert</code></a>, <a href="#stdref-std-collections-Vec-len"><code>len</code></a>, <a href="#stdref-std-collections-Vec-new"><code>new</code></a>, <a href="#stdref-std-collections-Vec-pop"><code>pop</code></a>, <a href="#stdref-std-collections-Vec-position"><code>position</code></a>, <a href="#stdref-std-collections-Vec-push"><code>push</code></a>, <a href="#stdref-std-collections-Vec-push_be"><code>push_be</code></a>, <a href="#stdref-std-collections-Vec-push_le"><code>push_le</code></a>, <a href="#stdref-std-collections-Vec-remove"><code>remove</code></a>, <code class="priv">remove_at</code>, <code class="priv">replace</code>, <a href="#stdref-std-collections-Vec-reserve"><code>reserve</code></a>, <a href="#stdref-std-collections-Vec-retain"><code>retain</code></a>, <a href="#stdref-std-collections-Vec-reverse"><code>reverse</code></a>, <a href="#stdref-std-collections-Vec-sort"><code>sort</code></a>, <a href="#stdref-std-collections-Vec-sort_by"><code>sort_by</code></a>, <code class="priv">sorted_order</code>, <code class="priv">sorted_order_keys</code>, <a href="#stdref-std-collections-Vec-swap"><code>swap</code></a>, <a href="#stdref-std-collections-Vec-swap_remove"><code>swap_remove</code></a>, <code class="priv">take_raw</code>, <a href="#stdref-std-collections-Vec-truncate"><code>truncate</code></a></td></tr>
 <tr><td><code>Drain::</code></td><td><code class="priv">drop</code>, <code class="priv">take</code>, <code class="priv">total</code></td></tr>
 <tr><td><code>HashMap::</code></td><td><a href="#stdref-std-collections-HashMap-clear"><code>clear</code></a>, <a href="#stdref-std-collections-HashMap-clone"><code>clone</code></a>, <a href="#stdref-std-collections-HashMap-contains"><code>contains</code></a>, <a href="#stdref-std-collections-HashMap-contains_str"><code>contains_str</code></a>, <code class="priv">drain</code>, <a href="#stdref-std-collections-HashMap-entry"><code>entry</code></a>, <code class="priv">find</code>, <code class="priv">find_str</code>, <a href="#stdref-std-collections-HashMap-get"><code>get</code></a>, <a href="#stdref-std-collections-HashMap-get_mut"><code>get_mut</code></a>, <a href="#stdref-std-collections-HashMap-get_mut_str"><code>get_mut_str</code></a>, <a href="#stdref-std-collections-HashMap-get_str"><code>get_str</code></a>, <code class="priv">index_of</code>, <a href="#stdref-std-collections-HashMap-insert"><code>insert</code></a>, <a href="#stdref-std-collections-HashMap-key_at"><code>key_at</code></a>, <a href="#stdref-std-collections-HashMap-len"><code>len</code></a>, <a href="#stdref-std-collections-HashMap-new"><code>new</code></a>, <a href="#stdref-std-collections-HashMap-remove"><code>remove</code></a>, <code class="priv">remove_slot</code>, <a href="#stdref-std-collections-HashMap-remove_str"><code>remove_str</code></a>, <code class="priv">reserve_one</code>, <code class="priv">reslot</code>, <a href="#stdref-std-collections-HashMap-swap_remove"><code>swap_remove</code></a>, <code class="priv">unslot</code>, <a href="#stdref-std-collections-HashMap-value_at"><code>value_at</code></a></td></tr>
 <tr><td><code>HashDrain::</code></td><td><code class="priv">drop</code>, <code class="priv">take_key</code>, <code class="priv">take_value</code>, <code class="priv">total</code></td></tr>
@@ -7128,7 +7213,7 @@ reference</a>, which gives its declaration, its documentation and examples.</p>
 <thead><tr><th>Kind</th><th>Items</th></tr></thead>
 <tbody>
 <tr><td>Types</td><td><a href="#stdref-std-ffi-CString"><code>CString</code></a>, <a href="#stdref-std-ffi-NulError"><code>NulError</code></a></td></tr>
-<tr><td>Functions</td><td><a href="#stdref-std-ffi-is_null"><code>is_null</code></a></td></tr>
+<tr><td>Functions</td><td><a href="#stdref-std-ffi-copy_to_raw"><code>copy_to_raw</code></a>, <a href="#stdref-std-ffi-is_null"><code>is_null</code></a></td></tr>
 <tr><td><code>NulError::</code></td><td><a href="#stdref-std-ffi-NulError-text"><code>text</code></a></td></tr>
 <tr><td><code>CString::</code></td><td><a href="#stdref-std-ffi-CString-as_bytes"><code>as_bytes</code></a>, <a href="#stdref-std-ffi-CString-from_bytes"><code>from_bytes</code></a>, <a href="#stdref-std-ffi-CString-len"><code>len</code></a>, <a href="#stdref-std-ffi-CString-new"><code>new</code></a>, <a href="#stdref-std-ffi-CString-ptr"><code>ptr</code></a></td></tr>
 </tbody>
@@ -7219,6 +7304,7 @@ name means, and the intrinsic is used only where there is none.</p>
 <tr><td><code>dangling&lt;T&gt;()</code></td><td>a well-aligned non-null address that must never be dereferenced; used for empty containers</td><td>§21</td></tr>
 <tr><td><code>null_rawptr&lt;T&gt;()</code></td><td>address 0, C's <code>NULL</code>, to pass to C or compare with; <code>is_null(p)</code> tests for it</td><td>§20</td></tr>
 <tr><td><code>rawptr_of(&amp;x)</code>, <code>reinterpret_ptr&lt;U&gt;(p)</code></td><td>obtain and retype raw pointers (safe)</td><td>§20</td></tr>
+<tr><td><code>rawptr_from_address&lt;T&gt;(a)</code>, <code>rawptr_address(p)</code></td><td>an address as a pointer, and back (unsafe)</td><td>§20</td></tr>
 <tr><td><code>reclaim&lt;T&gt;(p)</code>, <code>release(p, n)</code>, <code>copy_raw(dst, src, n)</code></td><td>raw memory as objects (unsafe)</td><td>§20</td></tr>
 <tr><td><code>allocate(n, align)</code>, <code>deallocate(p, n, align)</code></td><td>raw allocation (<code>deallocate</code> is unsafe)</td><td>§20</td></tr>
 <tr><td><code>read_volatile(p)</code>, <code>write_volatile(p, v)</code></td><td>raw accesses performed exactly as written (unsafe; below)</td><td>§20</td></tr>
@@ -10364,7 +10450,7 @@ specification:</p>
 <li>patterns in <code>match</code> are <code>_</code>, a name (a binder or a constant), a literal, a variant, and a variant with a pattern for its payload, nothing else (no ranges, alternatives, struct patterns or guards); destructuring takes a struct apart whole: every field named, or <code>..</code> for the rest (destroyed as usual), and <code>field : name</code> renames one</li>
 <li>no partial initialisation of aggregates</li>
 <li>no lifetime annotations: a function returning a reference must have exactly one reference parameter</li>
-<li>no user-declared bounds on generic type parameters: only the five built-in ones (<code>eq</code>, <code>ordered</code>, <code>number</code>, <code>integer</code>, <code>clone</code>), on a function's parameters; a struct or enum satisfies <code>clone</code> alone</li>
+<li>no user-declared bounds on generic type parameters: only the six built-in ones (<code>eq</code>, <code>ordered</code>, <code>number</code>, <code>integer</code>, <code>clone</code>, <code>plain</code>), on a function's parameters; a struct or enum satisfies <code>clone</code> alone</li>
 <li>no <code>mut</code> qualifier on bindings (the keyword is reserved for <code>&amp;mut</code>)</li>
 <li>no moving a resource out of a field of a live struct; move the whole struct, or take it apart (a field of a temporary may be moved out; the rest ends with the statement)</li>
 <li>no spawning a closure that borrows; use <code>move</code></li>
@@ -11021,6 +11107,11 @@ tools build in, which have no CobaltC body (<code>printf</code>, <code>sqrt</cod
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">Vec</span>::filled&lt;T: clone&gt;(<span class="t">usize</span> n, T x) : <span class="p">Vec</span>&lt;T&gt;</code></pre></figure>
 <p>A new <code>Vec</code> of <code>n</code> copies of <code>x</code>.</p>
 <p><code>T</code> must be <code>clone</code>; <code>Vec::from_fn</code> builds elements that are not.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-collections-Vec-from_raw" class="stdref-item"><code>Vec::from_raw</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">Vec</span>::from_raw&lt;T: plain&gt;(<span class="t">rawptr</span>&lt;T&gt; p, <span class="t">usize</span> n) : <span class="p">Vec</span>&lt;T&gt;</code></pre></figure>
+<p><code>n</code> elements of plain data copied from C memory into a <code>Vec</code>: a buffer a C caller owns, taken as a value the checks then cover (D-0257). Called inside <code>unsafe { }</code> (<code>[Trusted-Call]</code>): the caller vouches that the <code>n</code> elements at <code>p</code> are readable and stay put for the call.</p>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-collections-Vec-from_c_bytes" class="stdref-item"><code>Vec::from_c_bytes</code> <span class="std-file">fn</span></h4>
@@ -15973,6 +16064,11 @@ z[last] = z[last] ^ <span class="n">1</span>;
 <h4 id="stdref-std-ffi-CString-as_bytes" class="stdref-item"><code>CString::as_bytes</code> <span class="std-file">fn</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> CString::as_bytes(<span class="t">ref</span>&lt;CString, <span class="t">shared</span>&gt; c) : <span class="t">slice</span>&lt;<span class="t">u8</span>, <span class="t">shared</span>&gt;</code></pre></figure>
 <p>The text without the NUL, as bytes.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-ffi-copy_to_raw" class="stdref-item"><code>copy_to_raw</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> copy_to_raw&lt;T: plain&gt;(<span class="t">slice</span>&lt;T, <span class="t">shared</span>&gt; s, <span class="t">rawptr</span>&lt;T&gt; p)</code></pre></figure>
+<p>The elements of <code>s</code>, plain data, copied to C memory at <code>p</code>: an output buffer a C caller owns (D-0257). Called inside <code>unsafe { }</code> (<code>[Trusted-Call]</code>): the caller vouches that <code>p</code> has room for them and that nothing else uses that memory for the call.</p>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-ffi-is_null" class="stdref-item"><code>is_null</code> <span class="std-file">fn</span></h4>
