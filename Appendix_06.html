@@ -166,7 +166,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.101605</div>
+<div class="sub">Specification edition 2026.101606</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -174,6 +174,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <li><a href="#tour">A tour in one program</a></li>
 <li><a href="#parts">Core language and std</a></li>
 <li><a href="#cprog">CobaltC for C programmers</a></li>
+<li><a href="#rust">CobaltC and Rust</a></li>
 <li class="group">Reference, one section per specification chapter</li>
 <li><a href="#s06"><span class="n">§06</span>Arithmetic and numeric types</a></li>
 <li><a href="#s07"><span class="n">§07</span>Resources, ownership and destruction</a></li>
@@ -338,7 +339,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101605</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101606</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -1541,7 +1542,278 @@ marked, and the safe side of it keeps every guarantee of this section.</p>
 </ul>
 </div>
 
-<nav class="pager"><a class="prev" href="#parts">&larr; Core language and std</a><a class="top" href="#top">Top</a><a class="next" href="#s06">§06 Arithmetic and numeric types &rarr;</a></nav></section>
+<nav class="pager"><a class="prev" href="#parts">&larr; Core language and std</a><a class="top" href="#top">Top</a><a class="next" href="#rust">CobaltC and Rust &rarr;</a></nav></section>
+<section id="rust">
+<h2>CobaltC and Rust</h2>
+<p class="blurb">What the two languages share, where they part company, and the price and payoff of each choice: when a check happens, what a type says, generics, threads, failure, unsafe and the surface.</p>
+<p>Rust and CobaltC want the same things: no null, no dangling reference, no data race, no
+use after free, one owner per resource, every failure a value or a named stop, and all of it
+without a garbage collector or a hidden runtime. A Rust programmer will recognise most of CobaltC
+on sight, which makes the places where the two part company the interesting ones. This section
+goes through them: when a check happens, what a type says, how generic code is written, how
+threads share, how failure is reported, what <code>unsafe</code> means, and what the surface looks like. It
+takes no side. Each choice has a price and a payoff, and the point is to say what they are. Rust is
+a mature language with a large ecosystem; CobaltC is a small one with a complete written semantics
+and two implementations that share it. Which matters more depends on what you are doing.</p>
+<h3 id="rust-shared">What the two share</h3>
+<ul>
+<li><strong>Ownership and moves.</strong> A resource has one owner; assigning or passing it moves it, and the old name is unusable afterwards. In Rust every non-<code>Copy</code> type moves; in CobaltC a type is either plain (copied) or a resource (moved), decided by its declaration: <code>struct</code> or <code>resource struct</code>, and anything that holds a resource.</li>
+<li><strong>Shared or exclusive access, never both.</strong> Rust's <code>&amp;T</code> and <code>&amp;mut T</code> are CobaltC's <code>ref&lt;T, shared&gt;</code> and <code>ref&lt;T, exclusive&gt;</code>, written <code>&amp;x</code> and <code>&amp;mut x</code> in both. Any number of readers, or one writer, to one object at a time.</li>
+<li><strong>Destruction at scope end.</strong> Rust's <code>Drop</code> is CobaltC's <code>Type::drop</code>; both run in reverse order of declaration, on every path out, including a panic or a fault.</li>
+<li><strong><code>Option</code>, <code>Result</code> and <code>?</code>.</strong> The same two types, the same operator, the same habit of making absence and failure part of a function's type. Neither has exceptions.</li>
+<li><strong>Enums with payloads and exhaustive <code>match</code>.</strong> A closed set of alternatives, each carrying data, taken apart by patterns the compiler checks for completeness.</li>
+<li><strong>Generics compiled per use.</strong> Both monomorphise: a generic function becomes one copy per set of concrete types, with no run-time type information.</li>
+<li><strong>Explicit conversions.</strong> Neither converts numeric types silently. Rust writes <code>as</code> and <code>From</code>; CobaltC writes <code>widen</code>, <code>narrow</code> and <code>reinterpret</code>.</li>
+<li><strong>A marked boundary.</strong> Raw pointers and foreign functions live inside <code>unsafe</code> in both, and both say that safe code cannot break the language's guarantees.</li>
+</ul>
+<h3 id="rust-when">When a check happens</h3>
+<p>This is the difference everything else follows from. Whether a reference is used after its
+object has gone, or while another part of the program writes through a second reference, depends
+on what the program does when it runs; no checker can decide it exactly for every program. Each
+language turns that into a question it can answer, and they turn it in opposite directions.</p>
+<p><strong>Rust decides at compile time, by over-approximating.</strong> Every reference type
+carries a lifetime, an upper bound on how long the reference may be used, written as <code>&#x27;a</code> or filled
+in by three elision rules. Every function signature states how its result's lifetime relates to its
+parameters'. The borrow checker then checks each function body against its own signature, one
+function at a time, following the flow of the code to see which borrows are live where. Nothing is
+checked at run time, and nothing is paid at run time. The price is that the checker must be
+conservative: when it cannot prove a program safe, it rejects it, correct or not, and the programmer
+restructures, adds annotations, or steps into <code>unsafe</code>. Two exclusive references into one vector at
+indices known only at run time, a struct that refers into itself, a reference kept across a call
+that might reallocate: all rejected, because the proof is not in the text.</p>
+<p><strong>CobaltC decides at run time, against the actual state.</strong> A reference carries no
+lifetime; its validity is a fact about the running program: which object it reaches, whether that
+object still exists, which other references to it are live and in what mode. The language's rules
+are written over that state, and the interpreter and the compiled program check them at each
+access. The price is a run-time cost and a fault instead of a compile error: a mistake becomes a
+named diagnostic at the step that commits it, in the run that reaches it, and a path no test runs
+is a path no check has run. The payoff is that no annotation is needed and no correct program is
+refused for lack of a proof. Both languages are in fact hybrids. Rust keeps run-time checks for
+the cases its static rule cannot express (<code>RefCell</code>, <code>Mutex</code>, <code>Rc</code>, bounds, and overflow in debug
+builds); CobaltC rejects at compile time what its checker can see without running the program
+(<a href="#s10">§10</a>, <a href="#s14">§14</a>). The difference is the default, and what each asks
+of the programmer where the default fails.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Accepted here, refused by Rust: disjointness decided at run time</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    <span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v = <span class="p">Vec</span>::filled(<span class="n">4</span>, <span class="n">0</span>);
+    <span class="t">usize</span> i = <span class="n">1</span>;
+    <span class="t">usize</span> j = <span class="n">3</span>;
+    <span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">exclusive</span>&gt; a = &amp;<span class="k">mut</span> v[i];   <span class="c">// two exclusive references into one vector,</span>
+    <span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">exclusive</span>&gt; b = &amp;<span class="k">mut</span> v[j];   <span class="c">// at indices known only now</span>
+    *a = <span class="n">10</span>;
+    *b = <span class="n">20</span>;
+    <span class="p">printf</span>(<span class="s">&quot;%v %v\n&quot;</span>, v[<span class="n">1</span>], v[<span class="n">3</span>]);
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>10 20
+</pre></div></figure>
+<p>Rust refuses that program: with <code>i</code> and <code>j</code> unknown, it cannot prove the two borrows
+disjoint, so the programmer writes <code>split_at_mut</code> or indexes twice. CobaltC accepts it and checks
+the indices as the borrows are made. Run it with <code>j = 1</code> and the second borrow is the fault
+<code>diag.aliasing-conflict</code>, at that line, in that run. Rust's answer is the same in both cases and
+arrives before the program exists; CobaltC's is different in the two cases and arrives when it
+runs.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Caught at run time here, at compile time in Rust</span><span class="badge bad">rejected: diag.stale-binding</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">struct</span> Holder
+{
+    <span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt; r;
+}
+
+<span class="k">fn</span> keep(<span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt; r) : Holder
+{
+    Holder { .r = r }
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="t">i32</span> outer = <span class="n">1</span>;
+    Holder h = keep(&amp;outer);
+    {
+        <span class="t">i32</span> inner = <span class="n">2</span>;
+        h = keep(&amp;inner);          <span class="c">// a reference to inner, stored by a function</span>
+        <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, *h.r);      <span class="c">// fine: inner is alive</span>
+    }
+    <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, *h.r);          <span class="c">// <span class="bad">✗</span> <span class="dg">diag.stale-binding</span>: inner ended with its block</span>
+}</code></pre></figure>
+<p>In Rust, <code>Holder</code> would be <code>Holder&lt;&#x27;a&gt;</code>, <code>keep</code> would carry the same <code>&#x27;a</code>, and the second
+assignment would not compile, because <code>h</code> outlives <code>inner</code>. CobaltC has no <code>&#x27;a</code> to carry, so the
+escape through <code>keep</code> is invisible to the checker and the program runs until the read, which faults.
+The same escape written in one function, with no call between, is caught before the program runs,
+because there the checker can see it:</p>
+<figure class="code"><div class="code-head"><span class="code-title">The same escape, visible to the checker</span><span class="badge bad">rejected: diag.reference-escapes-scope</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">struct</span> Holder
+{
+    <span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt; r;
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="t">i32</span> outer = <span class="n">1</span>;
+    Holder h = Holder { .r = &amp;outer };
+    {
+        <span class="t">i32</span> inner = <span class="n">2</span>;
+        h = Holder { .r = &amp;inner };     <span class="c">// <span class="bad">✗</span> <span class="dg">diag.reference-escapes-scope</span>, before the program runs</span>
+    }
+    <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, *h.r);
+}</code></pre></figure>
+<p>Moving or destroying a value while a reference to it is live, and writing to a vector while
+a reference into it is live, are likewise compile-time errors in both languages when the two uses
+are in one function (<a href="#s08">§08</a>, <a href="#s10">§10</a>); Rust also catches them across
+functions, through signatures; CobaltC catches those at run time.</p>
+<figure class="code"><div class="code-head"><span class="code-title">A move under a live borrow: rejected before running, as in Rust</span><span class="badge bad">rejected: diag.move-while-aliased</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    <span class="p">String</span> s = <span class="p">String</span>::from_str(<span class="s">&quot;text&quot;</span>);
+    <span class="t">ref</span>&lt;<span class="p">String</span>, <span class="t">shared</span>&gt; r = &amp;s;
+    <span class="p">String</span> t = s;                  <span class="c">// <span class="bad">✗</span> <span class="dg">diag.move-while-aliased</span>: r still borrows s</span>
+    <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, <span class="p">String</span>::len(r));
+}</code></pre></figure>
+<h3 id="rust-types">What a type says</h3>
+<p>Because Rust's checks are static, its types must carry what the checker needs; because
+CobaltC's are dynamic, its types carry less and its run-time state carries the rest. That shows up
+in four places.</p>
+<table>
+<thead><tr><th></th><th>Rust</th><th>CobaltC</th></tr></thead>
+<tbody>
+<tr><td>A reference</td><td><code>&amp;&#x27;a T</code>, <code>&amp;&#x27;a mut T</code>: a lifetime (usually elided) bounds every use</td><td><code>ref&lt;T, shared&gt;</code>, <code>ref&lt;T, exclusive&gt;</code>: no lifetime; validity is checked at each use (<a href="#s09">§09</a>)</td></tr>
+<tr><td>A struct holding a reference</td><td><code>struct Holder&lt;&#x27;a&gt; { r: &amp;&#x27;a i32 }</code>: the lifetime is a parameter of the type</td><td><code>struct Holder { ref&lt;i32, shared&gt; r; }</code>: the reference is tied to the storage holding it and the object it reaches, at run time (<a href="#s10">§10</a>)</td></tr>
+<tr><td>A function returning a reference</td><td>the result's lifetime is related to a parameter's by elision or by writing <code>&#x27;a</code>; any relation can be stated</td><td>elided when exactly one parameter is a reference; with two or more, returning a reference is refused outright (<code>diag.lifetime-elision-ambiguous</code>): return a copy, an index or an owned value instead</td></tr>
+<tr><td>What may cross to another thread</td><td><code>Send</code> and <code>Sync</code> marker traits, checked at compile time; <code>spawn</code> wants <code>&#x27;static</code> data, scoped threads borrow</td><td>any value moves; a reference may be lent for the thread's life and is checked at run time (<a href="#s19">§19</a>)</td></tr>
+</tbody>
+</table>
+<figure class="code"><div class="code-head"><span class="code-title">Rust: a lifetime relates two parameters to the result</span></div><pre><code><span class="k">fn</span> longest&lt;&#x27;a&gt;(a: &amp;&#x27;a <span class="t">str</span>, b: &amp;&#x27;a <span class="t">str</span>) -&gt; &amp;&#x27;a <span class="t">str</span> {
+    <span class="k">if</span> a.len() &gt;= b.len() { a } <span class="k">else</span> { b }
+}</code></pre></figure>
+<figure class="code"><div class="code-head"><span class="code-title">CobaltC: with two reference parameters, a returned reference is refused</span><span class="badge bad">rejected: diag.lifetime-elision-ambiguous</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> longer(<span class="t">ref</span>&lt;<span class="p">String</span>, <span class="t">shared</span>&gt; a, <span class="t">ref</span>&lt;<span class="p">String</span>, <span class="t">shared</span>&gt; b) : <span class="t">ref</span>&lt;<span class="p">String</span>, <span class="t">shared</span>&gt;
+{
+    <span class="k">if</span> (<span class="p">String</span>::len(a) &gt;= <span class="p">String</span>::len(b)) { a } <span class="k">else</span> { b }    <span class="c">// <span class="bad">✗</span> which one does the result borrow from?</span>
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="p">String</span> x = <span class="p">String</span>::from_str(<span class="s">&quot;abc&quot;</span>);
+    <span class="p">String</span> y = <span class="p">String</span>::from_str(<span class="s">&quot;de&quot;</span>);
+    <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, <span class="p">String</span>::len(longer(&amp;x, &amp;y)));
+}</code></pre></figure>
+<p>Rust lets <code>longest</code> be written by naming the relation; CobaltC, having no names for
+lifetimes (that choice is final, D-0011 and CHG-0022), refuses the shape and asks for a function
+that returns which one, or a copy. In exchange, a CobaltC signature never needs a lifetime, and a
+reference stored in a <code>Vec</code>, a <code>HashMap</code> or a closure needs no type parameter to say how long it
+lives.</p>
+<h3 id="rust-generics">Generics: traits against bounds</h3>
+<p>Rust's generics are organised by traits: a type implements a trait, a generic function
+requires one (<code>T: Ord</code>), and traits also serve as interfaces, as operator overloading, as the
+mechanism for iteration, formatting, conversion, and, through <code>dyn Trait</code>, as run-time
+polymorphism. Most of Rust's expressiveness and most of its learning curve are there. CobaltC has
+no traits. A generic parameter takes one of five built-in bounds, <code>ordered</code>, <code>number</code>, <code>integer</code>,
+<code>clone</code> or <code>plain</code>, which name what the language itself knows about a type
+(<a href="#s12">§12</a>); a type joins <code>clone</code> by defining <code>T::clone</code>, and nothing else is
+user-extensible. There is no operator overloading, no interface a user type can implement, and no
+run-time dispatch except through function values and closures. Where a Rust program would define a
+trait and implement it for several types, a CobaltC program writes an enum of those types and a
+<code>match</code>, or passes the behaviour as a function value. That is a real limit on what can be
+abstracted over, chosen so that a call always names the function it calls
+(<a href="#s15">§15</a>).</p>
+<p>Neither language has inheritance. Both monomorphise, so generic code costs nothing at run
+time in either. Rust infers types across a whole function, forwards and backwards; CobaltC's
+inference flows downward only, from a declaration or an expected type into an expression, which is
+why its variables are usually declared with a type and <code>auto</code> is the exception.</p>
+<h3 id="rust-mut">Mutability</h3>
+<p>Rust marks the binding: <code>let x</code> is immutable, <code>let mut x</code> may be assigned and borrowed
+exclusively, and a <code>&amp;mut</code> can only be taken from a <code>mut</code> binding. CobaltC marks nothing on a
+variable: any variable may be assigned, and the question is only ever about references, which are
+shared or exclusive (<a href="#s08">§08</a>). What Rust's <code>mut</code> buys is documentation and a
+compile-time refusal to change what was declared unchanging; what CobaltC's absence of it buys is
+one fewer word on every declaration and no second meaning for <code>mut</code>. Both make a <code>const</code> a
+compile-time constant only.</p>
+<h3 id="rust-ints">Integers</h3>
+<p>Both have the same sized integer types and the same <code>wrapping_</code>, <code>saturating_</code> and
+<code>checked_</code> operations. They differ on what plain <code>+</code> does when it overflows. In Rust it panics in
+a debug build and wraps in a release build unless overflow checks are turned on; a shipped program
+usually wraps. In CobaltC it is a fault, always, in both the interpreter and the compiled program
+(<a href="#s06">§06</a>): there is no build in which an overflow is silent. The compiled cost of that
+choice is measurable and modest (<a href="#perf">P</a>): on the repository's benchmarks a CobaltC
+program compiled through C runs between about the same time as the Rust program and about twice
+it, and much of the gap is the arithmetic checks that a Rust release build leaves out.</p>
+<h3 id="rust-threads">Threads</h3>
+<p>Rust makes a data race a type error: a value crosses to another thread only if it is
+<code>Send</code>, is shared only if it is <code>Sync</code>, and <code>spawn</code> requires what it captures to live for the whole
+program, so sharing goes through <code>Arc&lt;Mutex&lt;T&gt;&gt;</code> or a scoped thread whose borrows the checker can
+see end. CobaltC's <code>spawn</code> moves its arguments or lends a reference for the thread's life, and the
+check that two threads never touch one object incompatibly is the same run-time alias check as
+within one thread; a <code>mutex</code> guard, an <code>Atomic</code>, a <code>Channel</code> or an <code>Arc</code> are the ways to share on
+purpose (<a href="#s19">§19</a>). What that gives CobaltC, and Rust does not set out to give, is an
+account of every schedule: a program's threads interleave at the granularity of single operations
+under rules the specification states, so <code>--explore</code> can run a program under many schedules and
+report every distinct outcome, and a wait that no thread can end is a diagnostic, <code>diag.deadlock</code>,
+rather than a hang. Rust has no equivalent in the language; it has tools outside it. Both unwind a
+failed thread and hand the failure to whoever joins it; both poison a mutex the failed thread held.
+CobaltC has no condition variables and no memory orderings weaker than sequential consistency; Rust
+has both.</p>
+<h3 id="rust-failure">Failure</h3>
+<p>Both languages separate expected failure, a <code>Result</code> or an <code>Option</code> the caller handles, from
+a bug, which stops the program. Rust's stop is a panic: it unwinds the thread, running destructors,
+can be caught with <code>catch_unwind</code>, and in a release build an overflow or an out-of-bounds index may
+be a panic or, for overflow, nothing at all. CobaltC's stop is a fault: every fault has a name in a
+registry (<a href="#appx">the appendix</a>) and a location, it unwinds running destructors, it is
+the same in the interpreter and the compiled program, and it is contained only at the two
+boundaries the language names, a supervised thread and a C-callable library entry
+(<a href="#s18">§18</a>). Rust's error enums are usually hand-written or generated by a library;
+CobaltC's are hand-written, with <code>map_err</code> and <code>ok_or</code> at the edges. <code>?</code> means the same thing.</p>
+<h3 id="rust-unsafe">Unsafe</h3>
+<p>In both, <code>unsafe</code> marks where the programmer, not the language, vouches for a claim. In Rust
+the claims are about the absence of undefined behaviour: a raw pointer is valid, aliasing rules are
+respected, a foreign function's contract holds; a wrong claim is undefined behaviour, and the rules
+for what unsafe code may assume are still being settled (Stacked Borrows, Tree Borrows). In CobaltC
+the claims are stated as side-conditions of named trusted rules (<a href="#s20">§20</a>): a raw
+read or write, a reclaim of raw memory, a call across the boundary, each with what it asserts. The
+standard library's own <code>unsafe</code> blocks are listed with their claims. The interpreter simulates raw
+memory and checks even trusted operations against it, so a wrong claim is a fault there; the
+compiled program trusts the claim, as Rust does. Both languages hold that safe code cannot break
+the invariants; neither can promise anything once a trusted claim is false.</p>
+<h3 id="rust-surface">The surface</h3>
+<table>
+<thead><tr><th></th><th>Rust</th><th>CobaltC</th></tr></thead>
+<tbody>
+<tr><td>Declarations</td><td><code>let x: T = …;</code>, <code>let mut</code></td><td><code>T x = …;</code>, <code>auto x = …;</code>; no <code>mut</code></td></tr>
+<tr><td>Functions</td><td><code>fn f(x: T) -&gt; U { … }</code></td><td><code>fn f(T x) : U { … }</code></td></tr>
+<tr><td>Methods</td><td><code>impl T { fn m(&amp;self) }</code>, called <code>x.m()</code></td><td><code>fn T::m(ref&lt;T, shared&gt; x)</code>, called <code>T::m(&amp;x)</code>; there is no method-call syntax, by decision (<a href="#s22">§22</a>)</td></tr>
+<tr><td>Patterns</td><td><code>match v { Some(x) =&gt; …, None =&gt; … }</code></td><td><code>match (v) { Some(x) : …, None : …, }</code></td></tr>
+<tr><td>Closures</td><td><code>|x| x + k</code>, captures inferred</td><td><code>[k](i32 x) : i32 { x + k }</code>, captures listed (<a href="#s15">§15</a>)</td></tr>
+<tr><td>Loops</td><td><code>loop</code>, <code>while</code>, <code>for x in iter</code></td><td><code>while</code>, <code>for (init; cond; step)</code>, <code>foreach (x in &amp;v)</code></td></tr>
+<tr><td>Text</td><td><code>&amp;str</code>, <code>String</code></td><td><code>str</code>, <code>String</code>, <code>StringView</code> (<a href="#s21">§21</a>)</td></tr>
+<tr><td>Conversions</td><td><code>x as T</code>, <code>T::from(x)</code>, <code>x.into()</code></td><td><code>widen&lt;T&gt;(x)</code>, <code>narrow&lt;T&gt;(x)</code>, <code>reinterpret&lt;T&gt;(x)</code>; <code>as</code> is reserved</td></tr>
+<tr><td>Formatting</td><td><code>println!(&quot;{x} {y:?}&quot;)</code>, a macro</td><td><code>printf(&quot;%v %v\\n&quot;, x, y)</code>, a built-in whose format is checked</td></tr>
+<tr><td>Modules</td><td><code>mod</code>, <code>use</code>, crates, <code>pub</code></td><td><code>module</code>, <code>import</code>, <code>export</code>; one standard library, no package manager (<a href="#s17">§17</a>)</td></tr>
+<tr><td>Macros</td><td>declarative and procedural</td><td>none</td></tr>
+<tr><td>Traits</td><td><code>trait</code>, <code>impl … for</code>, <code>dyn</code></td><td>five built-in bounds; <code>T::clone</code> and <code>T::drop</code> by name</td></tr>
+</tbody>
+</table>
+<h3 id="rust-tooling">Semantics and tooling</h3>
+<p>Rust's meaning is given by its reference, its compiler and its test suite, with a formal
+specification (Ferrocene) written after the fact and a model of unsafe code still in research. It
+has one compiler, <code>cargo</code>, <code>crates.io</code>, <code>rustdoc</code>, <code>rust-analyzer</code>, <code>clippy</code> and <code>Miri</code>, a stable
+release since 2015, and targets from microcontrollers to every major operating system. CobaltC's
+meaning is its specification, written as rules before either implementation; the interpreter runs
+those rules and the compiler must match it byte for byte on every conformance case, every showcase
+and every example in this guide; a model checker enumerates the small programs' outcomes. It has an
+interpreter, a compiler through C, a formatter, a standard library with no third-party code, and two
+targets, x86-64 Linux and Windows. One is a production language with an ecosystem; the other is a
+language whose whole behaviour can be read, run and argued about.</p>
+<div class="callout note"><div class="callout-title">The trade, in one place</div>Neither approach is free. A static guarantee is paid for in annotations and in programs
+refused for want of a proof; a dynamic one is paid for at run time and in bugs found by running
+rather than by compiling. Rust puts the proof in the types and makes the exceptions dynamic;
+CobaltC puts the check in the run and makes the obvious cases static. Which is right depends on
+whether the cost of a check at run time or the cost of a proof at compile time is the one you can
+afford, and on whether you need a language's behaviour to be fully stated or its ecosystem to be
+fully grown.</div>
+
+<nav class="pager"><a class="prev" href="#cprog">&larr; CobaltC for C programmers</a><a class="top" href="#top">Top</a><a class="next" href="#s06">§06 Arithmetic and numeric types &rarr;</a></nav></section>
 <section id="s06">
 <h2><span class="secnum">§06</span>Arithmetic and numeric types</h2>
 <div class="spec-ref">Governing specification file: <code>spec/06-arithmetic.md</code></div><p class="blurb">Checked integer arithmetic, explicit conversions, how literals get their types, and the sizes and limits of types.</p>
@@ -1937,7 +2209,7 @@ the program runs.</p>
 </ul>
 </div>
 
-<nav class="pager"><a class="prev" href="#cprog">&larr; CobaltC for C programmers</a><a class="top" href="#top">Top</a><a class="next" href="#s07">§07 Resources, ownership and destruction &rarr;</a></nav></section>
+<nav class="pager"><a class="prev" href="#rust">&larr; CobaltC and Rust</a><a class="top" href="#top">Top</a><a class="next" href="#s07">§07 Resources, ownership and destruction &rarr;</a></nav></section>
 <section id="s07">
 <h2><span class="secnum">§07</span>Resources, ownership and destruction</h2>
 <div class="spec-ref">Governing specification file: <code>spec/07-resource-authority.md</code></div><p class="blurb">Resource types have exactly one owner, move instead of copying, and are destroyed automatically and exactly once.</p>
