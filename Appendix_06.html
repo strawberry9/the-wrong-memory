@@ -166,7 +166,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.101806</div>
+<div class="sub">Specification edition 2026.101807</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -339,7 +339,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101806</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101807</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -5373,7 +5373,7 @@ a module in a file of its own, writes its own <code>import std;</code>.</p>
         Dot,
     }
 
-    <span class="k">export</span> <span class="k">fn</span> describe(Shape s)
+    <span class="k">export</span> <span class="k">fn</span> show(Shape s)           <span class="c">// not `describe`: `std` exports one, and two imports of a name must be qualified</span>
     {
         <span class="k">match</span> (s)
         {
@@ -5393,7 +5393,7 @@ a module in a file of its own, writes its own <code>import std;</code>.</p>
 
 <span class="k">fn</span> main()
 {
-    describe(Square(<span class="n">2</span>));              <span class="c">// shapes::describe and shapes::Shape::Square, unqualified</span>
+    show(Square(<span class="n">2</span>));                  <span class="c">// shapes::show and shapes::Shape::Square, unqualified</span>
     <span class="p">printf</span>(<span class="s">&quot;done\n&quot;</span>);
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>square
 &gt; done
@@ -7256,12 +7256,12 @@ tools build it in (<code>printf</code>, <code>sqrt</code>, <code>exit</code>, �
 associated functions. A parent module also re-exports the submodules it lists, so their items are its
 own too. Each exported name links to its entry in <a href="#stdref">the std
 reference</a>, which gives its declaration, its documentation and examples.</p>
-<p class="std-nav"><a href="#stdmod-std"><code>std</code></a>, <a href="#stdmod-std-core"><code>std::core</code></a>, <a href="#stdmod-std-collections"><code>std::collections</code></a>, <a href="#stdmod-std-text"><code>std::text</code></a>, <a href="#stdmod-std-io"><code>std::io</code></a>, <a href="#stdmod-std-fs"><code>std::fs</code></a>, <a href="#stdmod-std-env"><code>std::env</code></a>, <a href="#stdmod-std-memory"><code>std::memory</code></a>, <a href="#stdmod-std-sync"><code>std::sync</code></a>, <a href="#stdmod-std-random"><code>std::random</code></a>, <a href="#stdmod-std-math"><code>std::math</code></a>, <a href="#stdmod-std-time"><code>std::time</code></a>, <a href="#stdmod-std-process"><code>std::process</code></a>, <a href="#stdmod-std-net"><code>std::net</code></a>, <a href="#stdmod-std-crypto"><code>std::crypto</code></a>, <a href="#stdmod-std-crypto-digest"><code>std::crypto::digest</code></a>, <a href="#stdmod-std-crypto-kdf"><code>std::crypto::kdf</code></a>, <a href="#stdmod-std-crypto-aead"><code>std::crypto::aead</code></a>, <a href="#stdmod-std-crypto-pk"><code>std::crypto::pk</code></a>, <a href="#stdmod-std-x509"><code>std::x509</code></a>, <a href="#stdmod-std-tls"><code>std::tls</code></a>, <a href="#stdmod-std-http"><code>std::http</code></a>, <a href="#stdmod-std-http-client"><code>std::http::client</code></a>, <a href="#stdmod-std-http-server"><code>std::http::server</code></a>, <a href="#stdmod-std-database"><code>std::database</code></a>, <a href="#stdmod-std-database-postgres"><code>std::database::postgres</code></a>, <a href="#stdmod-std-encoding"><code>std::encoding</code></a>, <a href="#stdmod-std-encoding-json"><code>std::encoding::json</code></a>, <a href="#stdmod-std-encoding-hex"><code>std::encoding::hex</code></a>, <a href="#stdmod-std-encoding-base64"><code>std::encoding::base64</code></a>, <a href="#stdmod-std-compress"><code>std::compress</code></a>, <a href="#stdmod-std-ffi"><code>std::ffi</code></a>, <a href="#stdmod-std-extensions"><code>std::extensions</code></a></p>
+<p class="std-nav"><a href="#stdmod-std"><code>std</code></a>, <a href="#stdmod-std-core"><code>std::core</code></a>, <a href="#stdmod-std-collections"><code>std::collections</code></a>, <a href="#stdmod-std-text"><code>std::text</code></a>, <a href="#stdmod-std-io"><code>std::io</code></a>, <a href="#stdmod-std-fs"><code>std::fs</code></a>, <a href="#stdmod-std-env"><code>std::env</code></a>, <a href="#stdmod-std-memory"><code>std::memory</code></a>, <a href="#stdmod-std-sync"><code>std::sync</code></a>, <a href="#stdmod-std-random"><code>std::random</code></a>, <a href="#stdmod-std-math"><code>std::math</code></a>, <a href="#stdmod-std-stats"><code>std::stats</code></a>, <a href="#stdmod-std-time"><code>std::time</code></a>, <a href="#stdmod-std-process"><code>std::process</code></a>, <a href="#stdmod-std-net"><code>std::net</code></a>, <a href="#stdmod-std-crypto"><code>std::crypto</code></a>, <a href="#stdmod-std-crypto-digest"><code>std::crypto::digest</code></a>, <a href="#stdmod-std-crypto-kdf"><code>std::crypto::kdf</code></a>, <a href="#stdmod-std-crypto-aead"><code>std::crypto::aead</code></a>, <a href="#stdmod-std-crypto-pk"><code>std::crypto::pk</code></a>, <a href="#stdmod-std-x509"><code>std::x509</code></a>, <a href="#stdmod-std-tls"><code>std::tls</code></a>, <a href="#stdmod-std-http"><code>std::http</code></a>, <a href="#stdmod-std-http-client"><code>std::http::client</code></a>, <a href="#stdmod-std-http-server"><code>std::http::server</code></a>, <a href="#stdmod-std-database"><code>std::database</code></a>, <a href="#stdmod-std-database-postgres"><code>std::database::postgres</code></a>, <a href="#stdmod-std-encoding"><code>std::encoding</code></a>, <a href="#stdmod-std-encoding-json"><code>std::encoding::json</code></a>, <a href="#stdmod-std-encoding-hex"><code>std::encoding::hex</code></a>, <a href="#stdmod-std-encoding-base64"><code>std::encoding::base64</code></a>, <a href="#stdmod-std-encoding-toml"><code>std::encoding::toml</code></a>, <a href="#stdmod-std-compress"><code>std::compress</code></a>, <a href="#stdmod-std-ffi"><code>std::ffi</code></a>, <a href="#stdmod-std-extensions"><code>std::extensions</code></a></p>
 <h4 id="stdmod-std"><code>std</code> <span class="std-file">impl/std/std.cb</span></h4>
 <table class="std-inv">
 <thead><tr><th>Kind</th><th>Items</th></tr></thead>
 <tbody>
-<tr><td>Submodules</td><td><a href="#stdmod-std-core"><code>core</code></a>, <a href="#stdmod-std-collections"><code>collections</code></a>, <a href="#stdmod-std-text"><code>text</code></a>, <a href="#stdmod-std-io"><code>io</code></a>, <a href="#stdmod-std-fs"><code>fs</code></a>, <a href="#stdmod-std-env"><code>env</code></a>, <a href="#stdmod-std-memory"><code>memory</code></a>, <a href="#stdmod-std-sync"><code>sync</code></a>, <a href="#stdmod-std-random"><code>random</code></a>, <a href="#stdmod-std-math"><code>math</code></a>, <a href="#stdmod-std-time"><code>time</code></a>, <a href="#stdmod-std-process"><code>process</code></a>, <a href="#stdmod-std-net"><code>net</code></a>, <a href="#stdmod-std-crypto"><code>crypto</code></a>, <a href="#stdmod-std-x509"><code>x509</code></a>, <a href="#stdmod-std-tls"><code>tls</code></a>, <a href="#stdmod-std-http"><code>http</code></a>, <a href="#stdmod-std-database"><code>database</code></a>, <a href="#stdmod-std-encoding"><code>encoding</code></a>, <a href="#stdmod-std-compress"><code>compress</code></a>, <a href="#stdmod-std-ffi"><code>ffi</code></a>, <a href="#stdmod-std-extensions"><code class="priv">extensions</code></a></td></tr>
+<tr><td>Submodules</td><td><a href="#stdmod-std-core"><code>core</code></a>, <a href="#stdmod-std-collections"><code>collections</code></a>, <a href="#stdmod-std-text"><code>text</code></a>, <a href="#stdmod-std-io"><code>io</code></a>, <a href="#stdmod-std-fs"><code>fs</code></a>, <a href="#stdmod-std-env"><code>env</code></a>, <a href="#stdmod-std-memory"><code>memory</code></a>, <a href="#stdmod-std-sync"><code>sync</code></a>, <a href="#stdmod-std-random"><code>random</code></a>, <a href="#stdmod-std-math"><code>math</code></a>, <a href="#stdmod-std-stats"><code>stats</code></a>, <a href="#stdmod-std-time"><code>time</code></a>, <a href="#stdmod-std-process"><code>process</code></a>, <a href="#stdmod-std-net"><code>net</code></a>, <a href="#stdmod-std-crypto"><code>crypto</code></a>, <a href="#stdmod-std-x509"><code>x509</code></a>, <a href="#stdmod-std-tls"><code>tls</code></a>, <a href="#stdmod-std-http"><code>http</code></a>, <a href="#stdmod-std-database"><code>database</code></a>, <a href="#stdmod-std-encoding"><code>encoding</code></a>, <a href="#stdmod-std-compress"><code>compress</code></a>, <a href="#stdmod-std-ffi"><code>ffi</code></a>, <a href="#stdmod-std-extensions"><code class="priv">extensions</code></a></td></tr>
 <tr><td>Functions</td><td><code class="priv">byte_answer</code>, <code class="priv">byte_op</code>, <code class="priv">bytes_ptr</code>, <code class="priv">code_error</code>, <code class="priv">file_error</code>, <code class="priv">fs_answer</code>, <code class="priv">path_result</code>, <code class="priv">path_text</code>, <code class="priv">print</code><sup class="nat">n</sup></td></tr>
 <tr><td>Externs (<code>unsafe</code>)</td><td><code class="priv">clock_read</code>, <code class="priv">event_op</code>, <code class="priv">file_at</code>, <code class="priv">file_op</code>, <code class="priv">file_read</code>, <code class="priv">file_write</code>, <code class="priv">fs_op</code>, <code class="priv">fs_query</code>, <code class="priv">net_op</code>, <code class="priv">os_random</code>, <code class="priv">path_op</code>, <code class="priv">proc_op</code>, <code class="priv">sleep_ns</code>, <code class="priv">stderr_write</code>, <code class="priv">stdin_read_line</code>, <code class="priv">stdout_flush</code>, <code class="priv">task_op</code>, <code class="priv">tz_offset</code></td></tr>
 </tbody>
@@ -7380,6 +7380,14 @@ reference</a>, which gives its declaration, its documentation and examples.</p>
 <tr><td>Types</td><td><a href="#stdref-std-math-BigDivision"><code>BigDivision</code></a>, <a href="#stdref-std-math-BigUint"><code>BigUint</code></a></td></tr>
 <tr><td>Functions</td><td><a href="#stdref-std-math-abs"><code>abs</code></a>, <a href="#stdref-std-math-acos"><code>acos</code><sup class="nat">n</sup></a>, <a href="#stdref-std-math-asin"><code>asin</code><sup class="nat">n</sup></a>, <a href="#stdref-std-math-atan"><code>atan</code><sup class="nat">n</sup></a>, <a href="#stdref-std-math-atan2"><code>atan2</code><sup class="nat">n</sup></a>, <a href="#stdref-std-math-ceil"><code>ceil</code><sup class="nat">n</sup></a>, <a href="#stdref-std-math-clamp"><code>clamp</code></a>, <a href="#stdref-std-math-cos"><code>cos</code><sup class="nat">n</sup></a>, <a href="#stdref-std-math-exp"><code>exp</code><sup class="nat">n</sup></a>, <a href="#stdref-std-math-floor"><code>floor</code><sup class="nat">n</sup></a>, <a href="#stdref-std-math-gcd"><code>gcd</code></a>, <a href="#stdref-std-math-is_finite"><code>is_finite</code></a>, <a href="#stdref-std-math-is_nan"><code>is_nan</code></a>, <a href="#stdref-std-math-ln"><code>ln</code><sup class="nat">n</sup></a>, <a href="#stdref-std-math-log10"><code>log10</code><sup class="nat">n</sup></a>, <a href="#stdref-std-math-log2"><code>log2</code><sup class="nat">n</sup></a>, <a href="#stdref-std-math-max"><code>max</code></a>, <a href="#stdref-std-math-min"><code>min</code></a>, <a href="#stdref-std-math-pow"><code>pow</code></a>, <a href="#stdref-std-math-powf"><code>powf</code><sup class="nat">n</sup></a>, <a href="#stdref-std-math-round"><code>round</code><sup class="nat">n</sup></a>, <a href="#stdref-std-math-sin"><code>sin</code><sup class="nat">n</sup></a>, <a href="#stdref-std-math-sqrt"><code>sqrt</code><sup class="nat">n</sup></a>, <a href="#stdref-std-math-tan"><code>tan</code><sup class="nat">n</sup></a>, <a href="#stdref-std-math-trunc"><code>trunc</code><sup class="nat">n</sup></a></td></tr>
 <tr><td><code>BigUint::</code></td><td><a href="#stdref-std-math-BigUint-add"><code>add</code></a>, <a href="#stdref-std-math-BigUint-bit"><code>bit</code></a>, <a href="#stdref-std-math-BigUint-bit_len"><code>bit_len</code></a>, <a href="#stdref-std-math-BigUint-clone"><code>clone</code></a>, <code class="priv">compare</code>, <a href="#stdref-std-math-BigUint-div_rem"><code>div_rem</code></a>, <a href="#stdref-std-math-BigUint-eq"><code>eq</code></a>, <a href="#stdref-std-math-BigUint-from_bytes_be"><code>from_bytes_be</code></a>, <a href="#stdref-std-math-BigUint-from_u64"><code>from_u64</code></a>, <a href="#stdref-std-math-BigUint-is_zero"><code>is_zero</code></a>, <a href="#stdref-std-math-BigUint-less"><code>less</code></a>, <a href="#stdref-std-math-BigUint-mod_inverse"><code>mod_inverse</code></a>, <a href="#stdref-std-math-BigUint-mod_pow"><code>mod_pow</code></a>, <a href="#stdref-std-math-BigUint-mul"><code>mul</code></a>, <a href="#stdref-std-math-BigUint-parse"><code>parse</code></a>, <a href="#stdref-std-math-BigUint-rem"><code>rem</code></a>, <a href="#stdref-std-math-BigUint-shift_left"><code>shift_left</code></a>, <a href="#stdref-std-math-BigUint-shift_right"><code>shift_right</code></a>, <code class="priv">shifted_limbs</code>, <a href="#stdref-std-math-BigUint-sub"><code>sub</code></a>, <a href="#stdref-std-math-BigUint-text"><code>text</code></a>, <a href="#stdref-std-math-BigUint-to_bytes_be"><code>to_bytes_be</code></a>, <a href="#stdref-std-math-BigUint-to_bytes_be_padded"><code>to_bytes_be_padded</code></a>, <code class="priv">trim</code>, <a href="#stdref-std-math-BigUint-zero"><code>zero</code></a></td></tr>
+</tbody>
+</table>
+<h4 id="stdmod-std-stats"><code>std::stats</code> <span class="std-file">impl/std/stats.cb</span></h4>
+<table class="std-inv">
+<thead><tr><th>Kind</th><th>Items</th></tr></thead>
+<tbody>
+<tr><td>Types</td><td><a href="#stdref-std-stats-Summary"><code>Summary</code></a></td></tr>
+<tr><td>Functions</td><td><code class="priv">as_floats</code>, <a href="#stdref-std-stats-describe"><code>describe</code></a>, <code class="priv">float_sum</code>, <code class="priv">interpolated</code>, <a href="#stdref-std-stats-maximum"><code>maximum</code></a>, <a href="#stdref-std-stats-mean"><code>mean</code></a>, <a href="#stdref-std-stats-median"><code>median</code></a>, <a href="#stdref-std-stats-minimum"><code>minimum</code></a>, <a href="#stdref-std-stats-percentile"><code>percentile</code></a>, <a href="#stdref-std-stats-sample_stddev"><code>sample_stddev</code></a>, <a href="#stdref-std-stats-sample_variance"><code>sample_variance</code></a>, <code class="priv">squared_deviations</code>, <a href="#stdref-std-stats-stddev"><code>stddev</code></a>, <a href="#stdref-std-stats-sum"><code>sum</code></a>, <a href="#stdref-std-stats-variance"><code>variance</code></a></td></tr>
 </tbody>
 </table>
 <h4 id="stdmod-std-time"><code>std::time</code> <span class="std-file">impl/std/time.cb</span></h4>
@@ -7558,7 +7566,7 @@ reference</a>, which gives its declaration, its documentation and examples.</p>
 <table class="std-inv">
 <thead><tr><th>Kind</th><th>Items</th></tr></thead>
 <tbody>
-<tr><td>Submodules</td><td><a href="#stdmod-std-encoding-json"><code>json</code></a>, <a href="#stdmod-std-encoding-hex"><code>hex</code></a>, <a href="#stdmod-std-encoding-base64"><code>base64</code></a></td></tr>
+<tr><td>Submodules</td><td><a href="#stdmod-std-encoding-json"><code>json</code></a>, <a href="#stdmod-std-encoding-hex"><code>hex</code></a>, <a href="#stdmod-std-encoding-base64"><code>base64</code></a>, <a href="#stdmod-std-encoding-toml"><code>toml</code></a></td></tr>
 </tbody>
 </table>
 <h4 id="stdmod-std-encoding-json"><code>std::encoding::json</code> <span class="std-file">impl/std/encoding/json.cb</span></h4>
@@ -7567,7 +7575,7 @@ reference</a>, which gives its declaration, its documentation and examples.</p>
 <tbody>
 <tr><td>Types</td><td><a href="#stdref-std-encoding-json-Json"><code>Json</code></a>, <a href="#stdref-std-encoding-json-JsonMember"><code>JsonMember</code></a>, <code class="priv">JsonReader</code>, <code class="priv">JsonStr</code></td></tr>
 <tr><td>Functions</td><td><code class="priv">json_digits_end</code>, <code class="priv">json_hex4</code>, <code class="priv">json_indent</code>, <code class="priv">json_number</code>, <code class="priv">json_quote</code>, <code class="priv">json_quote_bytes</code>, <code class="priv">json_space_end</code>, <code class="priv">json_string</code>, <code class="priv">json_write</code></td></tr>
-<tr><td><code>Json::</code></td><td><a href="#stdref-std-encoding-json-Json-as_array"><code>as_array</code></a>, <a href="#stdref-std-encoding-json-Json-as_bool"><code>as_bool</code></a>, <a href="#stdref-std-encoding-json-Json-as_f64"><code>as_f64</code></a>, <a href="#stdref-std-encoding-json-Json-as_i64"><code>as_i64</code></a>, <a href="#stdref-std-encoding-json-Json-as_object"><code>as_object</code></a>, <a href="#stdref-std-encoding-json-Json-as_text"><code>as_text</code></a>, <a href="#stdref-std-encoding-json-Json-at"><code>at</code></a>, <a href="#stdref-std-encoding-json-Json-get"><code>get</code></a>, <a href="#stdref-std-encoding-json-Json-is_null"><code>is_null</code></a>, <a href="#stdref-std-encoding-json-Json-parse"><code>parse</code></a>, <a href="#stdref-std-encoding-json-Json-pretty"><code>pretty</code></a>, <a href="#stdref-std-encoding-json-Json-push"><code>push</code></a>, <a href="#stdref-std-encoding-json-Json-set"><code>set</code></a>, <a href="#stdref-std-encoding-json-Json-text"><code>text</code></a></td></tr>
+<tr><td><code>Json::</code></td><td><a href="#stdref-std-encoding-json-Json-as_array"><code>as_array</code></a>, <a href="#stdref-std-encoding-json-Json-as_bool"><code>as_bool</code></a>, <a href="#stdref-std-encoding-json-Json-as_f64"><code>as_f64</code></a>, <a href="#stdref-std-encoding-json-Json-as_i64"><code>as_i64</code></a>, <a href="#stdref-std-encoding-json-Json-as_object"><code>as_object</code></a>, <a href="#stdref-std-encoding-json-Json-as_text"><code>as_text</code></a>, <a href="#stdref-std-encoding-json-Json-at"><code>at</code></a>, <a href="#stdref-std-encoding-json-Json-get"><code>get</code></a>, <a href="#stdref-std-encoding-json-Json-is_null"><code>is_null</code></a>, <a href="#stdref-std-encoding-json-Json-lookup"><code>lookup</code></a>, <a href="#stdref-std-encoding-json-Json-parse"><code>parse</code></a>, <a href="#stdref-std-encoding-json-Json-pretty"><code>pretty</code></a>, <a href="#stdref-std-encoding-json-Json-push"><code>push</code></a>, <a href="#stdref-std-encoding-json-Json-set"><code>set</code></a>, <a href="#stdref-std-encoding-json-Json-text"><code>text</code></a></td></tr>
 <tr><td><code>JsonReader::</code></td><td><code class="priv">digits</code>, <code class="priv">number</code>, <code class="priv">peek</code>, <code class="priv">skip_space</code>, <code class="priv">text</code>, <code class="priv">value</code>, <code class="priv">word</code></td></tr>
 <tr><td>Constants</td><td><code class="priv">MAX_DEPTH</code></td></tr>
 </tbody>
@@ -7584,6 +7592,18 @@ reference</a>, which gives its declaration, its documentation and examples.</p>
 <thead><tr><th>Kind</th><th>Items</th></tr></thead>
 <tbody>
 <tr><td>Functions</td><td><a href="#stdref-std-encoding-base64-base64_decode"><code>base64_decode</code></a>, <code class="priv">base64_decode_bytes</code>, <a href="#stdref-std-encoding-base64-base64_encode"><code>base64_encode</code></a>, <code class="priv">base64_value</code></td></tr>
+</tbody>
+</table>
+<h4 id="stdmod-std-encoding-toml"><code>std::encoding::toml</code> <span class="std-file">impl/std/encoding/toml.cb</span></h4>
+<table class="std-inv">
+<thead><tr><th>Kind</th><th>Items</th></tr></thead>
+<tbody>
+<tr><td>Types</td><td><code class="priv">TNode</code>, <a href="#stdref-std-encoding-toml-Toml"><code>Toml</code></a>, <a href="#stdref-std-encoding-toml-TomlDateKind"><code>TomlDateKind</code></a>, <a href="#stdref-std-encoding-toml-TomlDateTime"><code>TomlDateTime</code></a>, <a href="#stdref-std-encoding-toml-TomlMember"><code>TomlMember</code></a>, <code class="priv">TomlReader</code></td></tr>
+<tr><td>Functions</td><td><code class="priv">tnode_define</code>, <code class="priv">tnode_find</code>, <code class="priv">tnode_insert</code>, <code class="priv">tnode_new</code>, <code class="priv">tnode_to_toml</code>, <code class="priv">toml_days_in_month</code>, <code class="priv">toml_float</code>, <code class="priv">toml_hex_digit</code>, <code class="priv">toml_inline</code>, <code class="priv">toml_is_bare</code>, <code class="priv">toml_is_table</code>, <code class="priv">toml_is_table_array</code>, <code class="priv">toml_key</code>, <code class="priv">toml_quote</code>, <code class="priv">toml_two_digits</code>, <code class="priv">toml_write_table</code></td></tr>
+<tr><td><code>Toml::</code></td><td><a href="#stdref-std-encoding-toml-Toml-as_array"><code>as_array</code></a>, <a href="#stdref-std-encoding-toml-Toml-as_bool"><code>as_bool</code></a>, <a href="#stdref-std-encoding-toml-Toml-as_datetime"><code>as_datetime</code></a>, <a href="#stdref-std-encoding-toml-Toml-as_f64"><code>as_f64</code></a>, <a href="#stdref-std-encoding-toml-Toml-as_i64"><code>as_i64</code></a>, <a href="#stdref-std-encoding-toml-Toml-as_table"><code>as_table</code></a>, <a href="#stdref-std-encoding-toml-Toml-as_text"><code>as_text</code></a>, <a href="#stdref-std-encoding-toml-Toml-at"><code>at</code></a>, <a href="#stdref-std-encoding-toml-Toml-get"><code>get</code></a>, <a href="#stdref-std-encoding-toml-Toml-lookup"><code>lookup</code></a>, <a href="#stdref-std-encoding-toml-Toml-parse"><code>parse</code></a>, <a href="#stdref-std-encoding-toml-Toml-push"><code>push</code></a>, <a href="#stdref-std-encoding-toml-Toml-set"><code>set</code></a>, <a href="#stdref-std-encoding-toml-Toml-text"><code>text</code></a></td></tr>
+<tr><td><code>TomlDateTime::</code></td><td><a href="#stdref-std-encoding-toml-TomlDateTime-text"><code>text</code></a></td></tr>
+<tr><td><code>TomlReader::</code></td><td><code class="priv">array_value</code>, <code class="priv">at_end</code>, <code class="priv">basic</code>, <code class="priv">comment</code>, <code class="priv">date_ahead</code>, <code class="priv">datetime</code>, <code class="priv">digits</code>, <code class="priv">fixed</code>, <code class="priv">inline_table</code>, <code class="priv">key</code>, <code class="priv">key_part</code>, <code class="priv">line_end</code>, <code class="priv">literal</code>, <code class="priv">newline</code>, <code class="priv">number</code>, <code class="priv">peek</code>, <code class="priv">peek_at</code>, <code class="priv">prefixed</code>, <code class="priv">skip_space_lines</code>, <code class="priv">skip_ws</code>, <code class="priv">time_ahead</code>, <code class="priv">time_part</code>, <code class="priv">unicode_escape</code>, <code class="priv">value</code>, <code class="priv">word</code></td></tr>
+<tr><td>Constants</td><td><code class="priv">K_ARRAY</code>, <code class="priv">K_DOTTED</code>, <code class="priv">K_HEADER</code>, <code class="priv">K_IMPLICIT</code>, <code class="priv">K_VALUE</code>, <code class="priv">TOML_MAX_DEPTH</code></td></tr>
 </tbody>
 </table>
 <h4 id="stdmod-std-compress"><code>std::compress</code> <span class="std-file">impl/std/compress.cb</span></h4>
@@ -9535,6 +9555,49 @@ numbers, so it is for public values, never for a secret key.</p>
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>30! = 265252859812191058636308480000000
 mod 1000000007 = 109361473
 </pre></div></figure>
+<h3>Statistics</h3>
+<p><em>In <code>std::stats</code>.</em></p>
+<p>Descriptive statistics over a slice of numbers of any numeric type (D-0267). <code>sum(&amp;v[0..$])</code> adds
+in the slice's own type, checked, so an integer sum that does not fit faults as <code>+</code> does. <code>mean</code>,
+<code>variance</code> and <code>stddev</code> (of the population: divided by the count), <code>sample_variance</code> and
+<code>sample_stddev</code> (divided by one less, for a sample of a larger population), <code>median</code>,
+<code>percentile(data, p)</code> (<code>p</code> from 0 to 100, interpolated between the two sorted values it falls between,
+as spreadsheets do), <code>minimum</code> and <code>maximum</code> each convert the values to <code>f64</code> and give an
+<code>Option&lt;f64&gt;</code>: <code>None</code> for an empty slice, and for a sample statistic of fewer than two values, because
+no data is ordinary input rather than a bug. <code>describe(data)</code> gives the count, minimum, maximum, mean,
+standard deviation and median as one <code>Summary</code>. Sums go left to right and the variance takes two
+passes, so both tools give the same result for the same data. A NaN among the values makes a mean a
+NaN, sorts last for the median, and is passed over by <code>minimum</code> and <code>maximum</code>.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Scores and sizes</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    <span class="t">array</span>&lt;<span class="t">f64</span>, <span class="n">7</span>&gt; scores = [<span class="n">71.5</span>, <span class="n">88.0</span>, <span class="n">64.0</span>, <span class="n">92.5</span>, <span class="n">79.0</span>, <span class="n">88.0</span>, <span class="n">55.5</span>];
+    <span class="p">printf</span>(<span class="s">&quot;mean %.2f, stddev %.2f (sample %.2f)\n&quot;</span>,
+           <span class="p">Option</span>::unwrap(mean(&amp;scores[<span class="n">0</span>..$])),
+           <span class="p">Option</span>::unwrap(stddev(&amp;scores[<span class="n">0</span>..$])),
+           <span class="p">Option</span>::unwrap(sample_stddev(&amp;scores[<span class="n">0</span>..$])));
+    <span class="p">printf</span>(<span class="s">&quot;median %v, quartiles %v and %v\n&quot;</span>,
+           <span class="p">Option</span>::unwrap(median(&amp;scores[<span class="n">0</span>..$])),
+           <span class="p">Option</span>::unwrap(percentile(&amp;scores[<span class="n">0</span>..$], <span class="n">25.0</span>)),
+           <span class="p">Option</span>::unwrap(percentile(&amp;scores[<span class="n">0</span>..$], <span class="n">75.0</span>)));
+    <span class="p">Vec</span>&lt;<span class="t">i64</span>&gt; sizes = <span class="p">Vec</span>::new();
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> sizes, <span class="n">4096</span>);
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> sizes, <span class="n">512</span>);
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> sizes, <span class="n">1</span>_048_576);
+    <span class="p">printf</span>(
+        <span class="s">&quot;%v bytes in %v files, the largest %v\n&quot;</span>,
+        sum(&amp;sizes[<span class="n">0</span>..$]),
+        <span class="p">Vec</span>::len(&amp;sizes),
+        <span class="p">Option</span>::unwrap(maximum(&amp;sizes[<span class="n">0</span>..$])),
+    );
+    <span class="p">Vec</span>::clear(&amp;<span class="k">mut</span> sizes);
+    <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, <span class="p">Option</span>::is_none(&amp;describe(&amp;sizes[<span class="n">0</span>..$])));
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>mean 76.93, stddev 12.80 (sample 13.83)
+median 79.0, quartiles 67.75 and 88.0
+1053184 bytes in 3 files, the largest 1048576.0
+true
+</pre></div></figure>
 <h3>Certificates</h3>
 <p><em>In <code>std::x509</code>.</em></p>
 <div class="callout warn"><div class="callout-title">Assurance</div>Implemented to the standards <code>spec/21</code> §0 names, tested against certificates and keys OpenSSL made and against the system's root bundle, fuzzed continuously (<code>impl/fuzz</code>); not independently audited.</div>
@@ -9796,6 +9859,67 @@ written without a fraction; a NaN or an infinity, which JSON cannot carry, is wr
   &quot;ok&quot;: true
 }
 not JSON at byte 12
+</pre></div></figure>
+<h3>TOML</h3>
+<p><em>In <code>std::encoding::toml</code>.</em></p>
+<p><code>Toml::parse(text)</code> reads a TOML 1.0 document (the format of <code>Cargo.toml</code> and most configuration
+files) into a tree of <code>Toml</code> values — <code>TomlString</code>, <code>TomlInteger</code> (an <code>i64</code>, exact), <code>TomlFloat</code>,
+<code>TomlBool</code>, <code>TomlDateTime</code>, <code>TomlArray</code> and <code>TomlTable</code> (its members in order) — and <code>Toml::text(&amp;t)</code>
+writes one back: a table's plain members first, then its sub-tables under <code>[headers]</code> and arrays of
+tables under <code>[[headers]]</code>; comments are not kept. The whole language is read: tables and arrays of
+tables, dotted keys, inline tables, the four string forms, integers in four bases with underscores,
+<code>inf</code> and <code>nan</code>, and the four date-time forms, which a <code>TomlDateTime</code> carries with its <code>kind</code>
+(<code>TomlOffsetDateTime</code>, <code>TomlLocalDateTime</code>, <code>TomlLocalDate</code>, <code>TomlLocalTime</code>) and
+<code>TomlDateTime::text</code> writes back. Reading a tree is as for JSON — <code>Toml::get(&amp;t, &quot;key&quot;)</code>,
+<code>Toml::at(&amp;t, i)</code>, the <code>as_</code> functions — with <code>Toml::lookup(&amp;t, &quot;server.ports.1&quot;)</code> for a dotted path
+(an index where the value is an array; <code>Json::lookup</code> does the same, D-0268). Building one:
+<code>Toml::set</code> and <code>Toml::push</code>. A document the format refuses — a key or table defined twice, a value
+added to a table a header or an inline table has closed, a bad escape — is <code>Err(Invalid(byte))</code>, with
+the byte of the offending key; an integer beyond <code>i64</code> is <code>Err(OutOfRange)</code>. The reader passes the
+public toml-test suite for TOML 1.0 under both tools.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Reading a configuration file</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    <span class="p">String</span> source = <span class="s">&quot;title = \&quot;Service\&quot;\n\n[server]\nhost = \&quot;example.org\&quot;\nports = [80, 443]\nstarted = 2026-10-18T09:30:00Z\n\n[[routes]]\npath = \&quot;/\&quot;\n[[routes]]\npath = \&quot;/api\&quot;\nlimit = 1_000\n&quot;</span>;
+    Toml cfg = <span class="p">Result</span>::unwrap(Toml::<span class="p">parse</span>(<span class="p">String</span>::as_view(&amp;source)));
+    <span class="p">StringView</span> host = <span class="p">Option</span>::unwrap_or(Toml::as_text(<span class="p">Option</span>::unwrap(Toml::lookup(&amp;cfg, <span class="s">&quot;server.host&quot;</span>))), <span class="p">StringView</span>::of(<span class="s">&quot;localhost&quot;</span>));
+    <span class="t">i64</span> port = <span class="p">Option</span>::unwrap_or(Toml::as_i64(<span class="p">Option</span>::unwrap(Toml::lookup(&amp;cfg, <span class="s">&quot;server.ports.1&quot;</span>))), <span class="n">8080</span>);
+    TomlDateTime started = <span class="p">Option</span>::unwrap(Toml::as_datetime(<span class="p">Option</span>::unwrap(Toml::lookup(&amp;cfg, <span class="s">&quot;server.started&quot;</span>))));
+    <span class="p">printf</span>(<span class="s">&quot;%v:%v, started %v\n&quot;</span>, host, port, &amp;TomlDateTime::text(&amp;started));
+    <span class="k">foreach</span> (r in <span class="p">Option</span>::unwrap(Toml::as_array(<span class="p">Option</span>::unwrap(Toml::get(&amp;cfg, <span class="s">&quot;routes&quot;</span>)))))
+    {
+        <span class="t">i64</span> limit = <span class="k">match</span> (Toml::get(r, <span class="s">&quot;limit&quot;</span>))
+        {
+            <span class="p">Some</span>(v) : <span class="p">Option</span>::unwrap_or(Toml::as_i64(v), <span class="n">100</span>),
+            <span class="p">None</span>    : <span class="n">100</span>,
+        };
+        <span class="p">printf</span>(<span class="s">&quot;route %v limit %v\n&quot;</span>, <span class="p">Option</span>::unwrap(Toml::as_text(<span class="p">Option</span>::unwrap(Toml::get(r, <span class="s">&quot;path&quot;</span>)))), limit);
+    }
+    Toml::set(&amp;<span class="k">mut</span> cfg, <span class="s">&quot;title&quot;</span>, TomlString(<span class="p">String</span>::from_str(<span class="s">&quot;Service 2&quot;</span>)));
+    <span class="p">printf</span>(<span class="s">&quot;%v&quot;</span>, &amp;Toml::text(&amp;cfg));
+    <span class="k">match</span> (Toml::<span class="p">parse</span>(<span class="s">&quot;a = 1\na = 2&quot;</span>))
+    {
+        <span class="p">Err</span>(Invalid(at)) : <span class="p">printf</span>(<span class="s">&quot;not TOML at byte %v\n&quot;</span>, at),
+        _                : {},
+    }
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>example.org:443, started 2026-10-18T09:30:00Z
+route / limit 100
+route /api limit 1000
+title = &quot;Service 2&quot;
+
+[server]
+host = &quot;example.org&quot;
+ports = [80, 443]
+started = 2026-10-18T09:30:00Z
+
+[[routes]]
+path = &quot;/&quot;
+
+[[routes]]
+path = &quot;/api&quot;
+limit = 1000
+not TOML at byte 6
 </pre></div></figure>
 <h3>Compression</h3>
 <p><em>In <code>std::compress</code>.</em></p>
@@ -11198,7 +11322,7 @@ block of <code>std</code> (<code>coby --unittest-std</code>), run here as a prog
 tools build in, which have no CobaltC body (<code>printf</code>, <code>sqrt</code>, <code>exit</code>, …), are documented by hand in
 <code>impl/std/builtins.md</code> and shown here as <em>built in</em>. §21 says which module to look in;
 <code>spec/21</code> is the normative text.</p>
-<p class="std-nav"><a href="#stdref-std-core"><code>std::core</code></a>, <a href="#stdref-std-collections"><code>std::collections</code></a>, <a href="#stdref-std-text"><code>std::text</code></a>, <a href="#stdref-std-io"><code>std::io</code></a>, <a href="#stdref-std-fs"><code>std::fs</code></a>, <a href="#stdref-std-env"><code>std::env</code></a>, <a href="#stdref-std-memory"><code>std::memory</code></a>, <a href="#stdref-std-sync"><code>std::sync</code></a>, <a href="#stdref-std-random"><code>std::random</code></a>, <a href="#stdref-std-math"><code>std::math</code></a>, <a href="#stdref-std-time"><code>std::time</code></a>, <a href="#stdref-std-process"><code>std::process</code></a>, <a href="#stdref-std-net"><code>std::net</code></a>, <a href="#stdref-std-crypto-digest"><code>std::crypto::digest</code></a>, <a href="#stdref-std-crypto-kdf"><code>std::crypto::kdf</code></a>, <a href="#stdref-std-crypto-aead"><code>std::crypto::aead</code></a>, <a href="#stdref-std-crypto-pk"><code>std::crypto::pk</code></a>, <a href="#stdref-std-x509"><code>std::x509</code></a>, <a href="#stdref-std-tls"><code>std::tls</code></a>, <a href="#stdref-std-http"><code>std::http</code></a>, <a href="#stdref-std-http-client"><code>std::http::client</code></a>, <a href="#stdref-std-http-server"><code>std::http::server</code></a>, <a href="#stdref-std-database"><code>std::database</code></a>, <a href="#stdref-std-database-postgres"><code>std::database::postgres</code></a>, <a href="#stdref-std-encoding-json"><code>std::encoding::json</code></a>, <a href="#stdref-std-encoding-hex"><code>std::encoding::hex</code></a>, <a href="#stdref-std-encoding-base64"><code>std::encoding::base64</code></a>, <a href="#stdref-std-compress"><code>std::compress</code></a>, <a href="#stdref-std-ffi"><code>std::ffi</code></a></p>
+<p class="std-nav"><a href="#stdref-std-core"><code>std::core</code></a>, <a href="#stdref-std-collections"><code>std::collections</code></a>, <a href="#stdref-std-text"><code>std::text</code></a>, <a href="#stdref-std-io"><code>std::io</code></a>, <a href="#stdref-std-fs"><code>std::fs</code></a>, <a href="#stdref-std-env"><code>std::env</code></a>, <a href="#stdref-std-memory"><code>std::memory</code></a>, <a href="#stdref-std-sync"><code>std::sync</code></a>, <a href="#stdref-std-random"><code>std::random</code></a>, <a href="#stdref-std-math"><code>std::math</code></a>, <a href="#stdref-std-stats"><code>std::stats</code></a>, <a href="#stdref-std-time"><code>std::time</code></a>, <a href="#stdref-std-process"><code>std::process</code></a>, <a href="#stdref-std-net"><code>std::net</code></a>, <a href="#stdref-std-crypto-digest"><code>std::crypto::digest</code></a>, <a href="#stdref-std-crypto-kdf"><code>std::crypto::kdf</code></a>, <a href="#stdref-std-crypto-aead"><code>std::crypto::aead</code></a>, <a href="#stdref-std-crypto-pk"><code>std::crypto::pk</code></a>, <a href="#stdref-std-x509"><code>std::x509</code></a>, <a href="#stdref-std-tls"><code>std::tls</code></a>, <a href="#stdref-std-http"><code>std::http</code></a>, <a href="#stdref-std-http-client"><code>std::http::client</code></a>, <a href="#stdref-std-http-server"><code>std::http::server</code></a>, <a href="#stdref-std-database"><code>std::database</code></a>, <a href="#stdref-std-database-postgres"><code>std::database::postgres</code></a>, <a href="#stdref-std-encoding-json"><code>std::encoding::json</code></a>, <a href="#stdref-std-encoding-hex"><code>std::encoding::hex</code></a>, <a href="#stdref-std-encoding-base64"><code>std::encoding::base64</code></a>, <a href="#stdref-std-encoding-toml"><code>std::encoding::toml</code></a>, <a href="#stdref-std-compress"><code>std::compress</code></a>, <a href="#stdref-std-ffi"><code>std::ffi</code></a></p>
 <h3 id="stdref-std-core"><code>std::core</code> <span class="std-file">impl/std/core.cb</span></h3>
 <div class="stdref-entry">
 <h4 id="stdref-std-core-Option" class="stdref-item"><code>Option</code> <span class="std-file">enum</span></h4>
@@ -14158,6 +14282,110 @@ Rng::shuffle(&amp;<span class="k">mut</span> r, &amp;<span class="k">mut</span> 
 <figure class="code sig"><pre><code><span class="k">fn</span> powf(T x, T y) : T</code></pre></figure>
 <p><code>x</code> to the power <code>y</code> for floating-point operands, within one unit in the last place (<code>[Float-Transcendental-2]</code>); C&#x27;s <code>pow</code>. For an integer exponent, <code>pow</code> (an ordinary <code>std::math</code> function) is exact and checked for overflow.</p>
 </div>
+<h3 id="stdref-std-stats"><code>std::stats</code> <span class="std-file">impl/std/stats.cb</span></h3>
+<div class="stdref-entry">
+<h4 id="stdref-std-stats-Summary" class="stdref-item"><code>Summary</code> <span class="std-file">struct</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">struct</span> Summary</code></pre></figure>
+<p>What <code>describe</code> gives: the count of the values and their minimum, maximum, mean, population standard deviation and median.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-stats-sum" class="stdref-item"><code>sum</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> sum&lt;T: number&gt;(<span class="t">slice</span>&lt;T, <span class="t">shared</span>&gt; data) : T</code></pre></figure>
+<p>The sum of <code>data</code>&#x27;s values in their own type; 0 for an empty slice.</p>
+<p>Added left to right with <code>+</code>, so an integer sum that does not fit in <code>T</code> faults (<code>arith_overflow</code>), as <code>+</code> does. For the sum as an <code>f64</code> whatever <code>T</code> is, multiply <code>mean</code> by the count.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Example: Integers and floats, an empty slice, and an overflow caught</span><span class="badge ok">runs</span></div><pre><code><span class="t">array</span>&lt;<span class="t">i32</span>, <span class="n">4</span>&gt; a = [<span class="n">3</span>, -<span class="n">1</span>, <span class="n">4</span>, <span class="n">1</span>];
+<span class="p">assert</span>(sum(&amp;a[<span class="n">0</span>..$]) == <span class="n">7</span>);
+<span class="p">assert</span>(sum(&amp;a[<span class="n">0</span>..<span class="n">0</span>]) == <span class="n">0</span>);
+<span class="t">array</span>&lt;<span class="t">f64</span>, <span class="n">3</span>&gt; f = [<span class="n">0.5</span>, <span class="n">0.25</span>, <span class="n">2.0</span>];
+<span class="p">assert</span>(sum(&amp;f[<span class="n">0</span>..$]) == <span class="n">2.75</span>);</code></pre></figure>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-stats-mean" class="stdref-item"><code>mean</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> mean&lt;T: number&gt;(<span class="t">slice</span>&lt;T, <span class="t">shared</span>&gt; data) : <span class="p">Option</span>&lt;<span class="t">f64</span>&gt;</code></pre></figure>
+<p>The arithmetic mean of <code>data</code>&#x27;s values; <code>None</code> for an empty slice.</p>
+<p>Each value is converted to <code>f64</code> with <code>to_float</code> and the values added left to right, then divided by the count. A NaN among the values makes the mean a NaN.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-stats-variance" class="stdref-item"><code>variance</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> variance&lt;T: number&gt;(<span class="t">slice</span>&lt;T, <span class="t">shared</span>&gt; data) : <span class="p">Option</span>&lt;<span class="t">f64</span>&gt;</code></pre></figure>
+<p>The population variance of <code>data</code>&#x27;s values, the mean of the squared deviations from their mean; <code>None</code> for an empty slice.</p>
+<p>Two passes: the mean first, then the sum of <code>(x - mean)²</code> left to right, divided by the count. For the variance of a sample drawn from a larger population, use <code>sample_variance</code>.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-stats-stddev" class="stdref-item"><code>stddev</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> stddev&lt;T: number&gt;(<span class="t">slice</span>&lt;T, <span class="t">shared</span>&gt; data) : <span class="p">Option</span>&lt;<span class="t">f64</span>&gt;</code></pre></figure>
+<p>The population standard deviation of <code>data</code>&#x27;s values, the square root of <code>variance</code>; <code>None</code> for an empty slice.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-stats-sample_variance" class="stdref-item"><code>sample_variance</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> sample_variance&lt;T: number&gt;(<span class="t">slice</span>&lt;T, <span class="t">shared</span>&gt; data) : <span class="p">Option</span>&lt;<span class="t">f64</span>&gt;</code></pre></figure>
+<p>The sample variance of <code>data</code>&#x27;s values, the squared deviations from their mean divided by one less than the count (Bessel&#x27;s correction); <code>None</code> for fewer than two values.</p>
+<p>For values that are the whole population, use <code>variance</code>.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-stats-sample_stddev" class="stdref-item"><code>sample_stddev</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> sample_stddev&lt;T: number&gt;(<span class="t">slice</span>&lt;T, <span class="t">shared</span>&gt; data) : <span class="p">Option</span>&lt;<span class="t">f64</span>&gt;</code></pre></figure>
+<p>The sample standard deviation of <code>data</code>&#x27;s values, the square root of <code>sample_variance</code>; <code>None</code> for fewer than two values.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Example: The population and sample forms on the textbook values, and the empty and single-value cases</span><span class="badge ok">runs</span></div><pre><code><span class="t">array</span>&lt;<span class="t">u32</span>, <span class="n">8</span>&gt; a = [<span class="n">2</span>, <span class="n">4</span>, <span class="n">4</span>, <span class="n">4</span>, <span class="n">5</span>, <span class="n">5</span>, <span class="n">7</span>, <span class="n">9</span>];
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(variance(&amp;a[<span class="n">0</span>..$])) == <span class="n">4.0</span>);
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(stddev(&amp;a[<span class="n">0</span>..$])) == <span class="n">2.0</span>);
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(sample_variance(&amp;a[<span class="n">0</span>..$])) == <span class="n">32.0</span> / <span class="n">7.0</span>);
+<span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;variance(&amp;a[<span class="n">0</span>..<span class="n">0</span>])));
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(variance(&amp;a[<span class="n">0</span>..<span class="n">1</span>])) == <span class="n">0.0</span>);
+<span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;sample_variance(&amp;a[<span class="n">0</span>..<span class="n">1</span>])));</code></pre></figure>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-stats-median" class="stdref-item"><code>median</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> median&lt;T: number&gt;(<span class="t">slice</span>&lt;T, <span class="t">shared</span>&gt; data) : <span class="p">Option</span>&lt;<span class="t">f64</span>&gt;</code></pre></figure>
+<p>The median of <code>data</code>&#x27;s values: the middle one of them sorted, or the mean of the two middle ones when the count is even; <code>None</code> for an empty slice.</p>
+<p>The values are copied, converted to <code>f64</code> and sorted as <code>Vec::sort</code> sorts floats (every NaN after every number); <code>data</code> is not changed.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-stats-percentile" class="stdref-item"><code>percentile</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> percentile&lt;T: number&gt;(<span class="t">slice</span>&lt;T, <span class="t">shared</span>&gt; data, <span class="t">f64</span> p) : <span class="p">Option</span>&lt;<span class="t">f64</span>&gt;</code></pre></figure>
+<p>The <code>p</code>th percentile of <code>data</code>&#x27;s values, <code>p</code> from 0 to 100, with linear interpolation between the two sorted values it falls between; <code>None</code> for an empty slice.</p>
+<p>The position is <code>(count - 1) · p / 100</code> in the sorted values (R&#x27;s type 7, the default of spreadsheets and NumPy): <code>percentile(data, 0.0)</code> is the minimum, <code>percentile(data, 100.0)</code> the maximum, and <code>percentile(data, 50.0)</code> the median. Faults (<code>assert_failed</code>) when <code>p</code> is below 0, above 100 or a NaN.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Example: The quartiles of a small run, the median two ways, and the ends</span><span class="badge ok">runs</span></div><pre><code><span class="t">array</span>&lt;<span class="t">i64</span>, <span class="n">5</span>&gt; a = [<span class="n">15</span>, <span class="n">20</span>, <span class="n">35</span>, <span class="n">40</span>, <span class="n">50</span>];
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(percentile(&amp;a[<span class="n">0</span>..$], <span class="n">25.0</span>)) == <span class="n">20.0</span>);
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(percentile(&amp;a[<span class="n">0</span>..$], <span class="n">40.0</span>)) == <span class="n">29.0</span>);
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(percentile(&amp;a[<span class="n">0</span>..$], <span class="n">50.0</span>)) == <span class="n">35.0</span>);
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(median(&amp;a[<span class="n">0</span>..$])) == <span class="n">35.0</span>);
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(median(&amp;a[<span class="n">0</span>..<span class="n">4</span>])) == <span class="n">27.5</span>);
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(percentile(&amp;a[<span class="n">0</span>..$], <span class="n">0.0</span>)) == <span class="n">15.0</span>);
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(percentile(&amp;a[<span class="n">0</span>..$], <span class="n">100.0</span>)) == <span class="n">50.0</span>);
+<span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;median(&amp;a[<span class="n">0</span>..<span class="n">0</span>])));</code></pre></figure>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-stats-minimum" class="stdref-item"><code>minimum</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> minimum&lt;T: number&gt;(<span class="t">slice</span>&lt;T, <span class="t">shared</span>&gt; data) : <span class="p">Option</span>&lt;<span class="t">f64</span>&gt;</code></pre></figure>
+<p>The smallest of <code>data</code>&#x27;s values as an <code>f64</code>; <code>None</code> for an empty slice.</p>
+<p>A NaN is passed over: the result is a NaN only when every value is one.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-stats-maximum" class="stdref-item"><code>maximum</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> maximum&lt;T: number&gt;(<span class="t">slice</span>&lt;T, <span class="t">shared</span>&gt; data) : <span class="p">Option</span>&lt;<span class="t">f64</span>&gt;</code></pre></figure>
+<p>The largest of <code>data</code>&#x27;s values as an <code>f64</code>; <code>None</code> for an empty slice.</p>
+<p>A NaN is passed over: the result is a NaN only when every value is one.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Example: The ends of a run of integers, and a NaN passed over</span><span class="badge ok">runs</span></div><pre><code><span class="t">array</span>&lt;<span class="t">i16</span>, <span class="n">4</span>&gt; a = [<span class="n">7</span>, -<span class="n">3</span>, <span class="n">12</span>, <span class="n">0</span>];
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(minimum(&amp;a[<span class="n">0</span>..$])) == -<span class="n">3.0</span>);
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(maximum(&amp;a[<span class="n">0</span>..$])) == <span class="n">12.0</span>);
+<span class="t">f64</span> nan = <span class="n">0.0</span> / <span class="n">0.0</span>;
+<span class="t">array</span>&lt;<span class="t">f64</span>, <span class="n">3</span>&gt; f = [nan, <span class="n">2.5</span>, <span class="n">1.5</span>];
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(minimum(&amp;f[<span class="n">0</span>..$])) == <span class="n">1.5</span>);
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(maximum(&amp;f[<span class="n">0</span>..$])) == <span class="n">2.5</span>);
+<span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;minimum(&amp;f[<span class="n">0</span>..<span class="n">0</span>])));</code></pre></figure>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-stats-describe" class="stdref-item"><code>describe</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> describe&lt;T: number&gt;(<span class="t">slice</span>&lt;T, <span class="t">shared</span>&gt; data) : <span class="p">Option</span>&lt;Summary&gt;</code></pre></figure>
+<p>The count, <code>minimum</code>, <code>maximum</code>, <code>mean</code>, <code>stddev</code> and <code>median</code> of <code>data</code>&#x27;s values as one <code>Summary</code>; <code>None</code> for an empty slice.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Example: A summary of response times in milliseconds</span><span class="badge ok">runs</span></div><pre><code><span class="t">array</span>&lt;<span class="t">u32</span>, <span class="n">6</span>&gt; ms = [<span class="n">12</span>, <span class="n">15</span>, <span class="n">11</span>, <span class="n">40</span>, <span class="n">13</span>, <span class="n">14</span>];
+Summary s = <span class="p">Option</span>::unwrap(describe(&amp;ms[<span class="n">0</span>..$]));
+<span class="p">assert</span>(s.count == <span class="n">6</span> &amp;&amp; s.minimum == <span class="n">11.0</span> &amp;&amp; s.maximum == <span class="n">40.0</span>);
+<span class="p">assert</span>(s.mean == <span class="n">17.5</span> &amp;&amp; s.median == <span class="n">13.5</span>);
+<span class="p">assert</span>(s.stddev == <span class="p">sqrt</span>(<span class="p">Option</span>::unwrap(variance(&amp;ms[<span class="n">0</span>..$]))));
+<span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;describe(&amp;ms[<span class="n">0</span>..<span class="n">0</span>])));</code></pre></figure>
+</div>
 <h3 id="stdref-std-time"><code>std::time</code> <span class="std-file">impl/std/time.cb</span></h3>
 <div class="stdref-entry">
 <h4 id="stdref-std-time-DateTime" class="stdref-item"><code>DateTime</code> <span class="std-file">struct</span></h4>
@@ -16453,6 +16681,17 @@ c.max_body = <span class="n">1</span>_048_576;</code></pre></figure>
 <p><code>None</code> also when <code>i</code> is past the end.</p>
 </div>
 <div class="stdref-entry">
+<h4 id="stdref-std-encoding-json-Json-lookup" class="stdref-item"><code>Json::lookup</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">Json</span>::lookup(<span class="t">ref</span>&lt;<span class="p">Json</span>, <span class="t">shared</span>&gt; j, <span class="p">StringView</span> path) : <span class="p">Option</span>&lt;<span class="t">ref</span>&lt;<span class="p">Json</span>, <span class="t">shared</span>&gt;&gt;</code></pre></figure>
+<p>The value at the dotted <code>path</code> below <code>j</code>: <code>Json::lookup(&amp;doc, &quot;servers.0.host&quot;)</code>.</p>
+<p>Each part of the path names a member of an object, or, where the value reached is an array, an element by its index written in decimal. <code>None</code> when any part is not there. A key that itself contains a dot is reached with <code>Json::get</code>.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Example: A path through objects and arrays; a part that is not there gives <code>None</code></span><span class="badge ok">runs</span></div><pre><code><span class="p">Json</span> doc = <span class="p">Result</span>::unwrap(<span class="p">Json</span>::<span class="p">parse</span>(<span class="s">&quot;{\&quot;servers\&quot;: [{\&quot;host\&quot;: \&quot;a\&quot;}, {\&quot;host\&quot;: \&quot;b\&quot;}], \&quot;n\&quot;: 1}&quot;</span>));
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(<span class="p">Json</span>::as_text(<span class="p">Option</span>::unwrap(<span class="p">Json</span>::lookup(&amp;doc, <span class="s">&quot;servers.1.host&quot;</span>)))) == <span class="s">&quot;b&quot;</span>);
+<span class="p">assert</span>(<span class="p">Json</span>::as_i64(<span class="p">Option</span>::unwrap(<span class="p">Json</span>::lookup(&amp;doc, <span class="s">&quot;n&quot;</span>))) == <span class="p">Some</span>(<span class="n">1</span>: <span class="t">i64</span>));
+<span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;<span class="p">Json</span>::lookup(&amp;doc, <span class="s">&quot;servers.2.host&quot;</span>)));
+<span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;<span class="p">Json</span>::lookup(&amp;doc, <span class="s">&quot;servers.x&quot;</span>)));</code></pre></figure>
+</div>
+<div class="stdref-entry">
 <h4 id="stdref-std-encoding-json-Json-is_null" class="stdref-item"><code>Json::is_null</code> <span class="std-file">fn</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">Json</span>::is_null(<span class="t">ref</span>&lt;<span class="p">Json</span>, <span class="t">shared</span>&gt; j) : <span class="t">bool</span></code></pre></figure>
 <p>Whether <code>j</code> is <code>JsonNull</code>.</p>
@@ -16572,6 +16811,184 @@ c.max_body = <span class="n">1</span>_048_576;</code></pre></figure>
     <span class="p">Err</span>(Invalid(i)) : <span class="p">assert</span>(i == <span class="n">1</span>),
     _               : <span class="p">assert</span>(<span class="k">false</span>),
 }</code></pre></figure>
+</div>
+<h3 id="stdref-std-encoding-toml"><code>std::encoding::toml</code> <span class="std-file">impl/std/encoding/toml.cb</span></h3>
+<div class="stdref-entry">
+<h4 id="stdref-std-encoding-toml-Toml" class="stdref-item"><code>Toml</code> <span class="std-file">enum</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">enum</span> Toml</code></pre></figure>
+<p>A TOML value: a string, an integer, a float, a boolean, a date-time, an array or a table.</p>
+<ul>
+<li><code>TomlString(s)</code>: a string, its escapes decoded.</li>
+<li><code>TomlInteger(i)</code>: an integer, exact in <code>i64</code>.</li>
+<li><code>TomlFloat(x)</code>: a float, <code>inf</code> and <code>nan</code> included.</li>
+<li><code>TomlBool(b)</code>: <code>true</code> or <code>false</code>.</li>
+<li><code>TomlDateTime(d)</code>: one of the four date-time forms (see <code>TomlDateTime</code>).</li>
+<li><code>TomlArray(items)</code>: the elements, in order; elements may be of different kinds.</li>
+<li><code>TomlTable(members)</code>: the members in the order read or added; a key occurs once.</li>
+</ul>
+<p>The variant names carry <code>Toml</code> so that none clashes with another <code>std</code> enum&#x27;s. Dropping a <code>Toml</code> frees the whole tree.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-encoding-toml-Toml-parse" class="stdref-item"><code>Toml::parse</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Toml::<span class="p">parse</span>(<span class="p">StringView</span> text) : <span class="p">Result</span>&lt;Toml, <span class="p">ParseError</span>&gt;</code></pre></figure>
+<p>The TOML document <code>text</code> holds, as a table.</p>
+<p>The whole of TOML 1.0: tables and arrays of tables under headers, dotted keys, inline tables, the four string forms with every escape, integers in decimal, hexadecimal, octal and binary with underscores, floats with <code>inf</code> and <code>nan</code>, and the four date-time forms. An empty document is an empty table.</p>
+<ul>
+<li><code>Err(Invalid(i))</code> at the first byte that does not fit, or at a key that is defined twice or would add to a table the format has closed (one defined by an earlier header, or an inline table).</li>
+<li><code>Err(OutOfRange)</code> for an integer beyond <code>i64</code>, a float beyond <code>f64</code>, or arrays and inline tables nested deeper than 512.</li>
+</ul>
+<p><code>Err(Empty)</code> never occurs: a document with no key is an empty table.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Example: A document with tables, an array of tables, dotted and quoted keys, and every kind of value</span><span class="badge ok">runs</span></div><pre><code>Toml doc = <span class="p">Result</span>::unwrap(Toml::<span class="p">parse</span>(<span class="s">&quot;title = \&quot;Example\&quot;\n[owner]\nname = \&quot;Tom\&quot;\ndob = 1979-05-27T07:32:00-08:00\n[database]\nports = [ 8001, 8001, 8002 ]\nenabled = true\ntemp_targets = { cpu = 79.5, case = 72.0 }\n[[servers]]\nip = \&quot;10.0.0.1\&quot;\n[[servers]]\nip = \&quot;10.0.0.2\&quot;\n&quot;</span>));
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(Toml::as_text(<span class="p">Option</span>::unwrap(Toml::lookup(&amp;doc, <span class="s">&quot;owner.name&quot;</span>)))) == <span class="s">&quot;Tom&quot;</span>);
+<span class="p">assert</span>(Toml::as_i64(<span class="p">Option</span>::unwrap(Toml::lookup(&amp;doc, <span class="s">&quot;database.ports.2&quot;</span>))) == <span class="p">Some</span>(<span class="n">8002</span>: <span class="t">i64</span>));
+<span class="p">assert</span>(Toml::as_f64(<span class="p">Option</span>::unwrap(Toml::lookup(&amp;doc, <span class="s">&quot;database.temp_targets.cpu&quot;</span>))) == <span class="p">Some</span>(<span class="n">79.5</span>));
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(Toml::as_text(<span class="p">Option</span>::unwrap(Toml::lookup(&amp;doc, <span class="s">&quot;servers.1.ip&quot;</span>)))) == <span class="s">&quot;10.0.0.2&quot;</span>);
+TomlDateTime dob = <span class="p">Option</span>::unwrap(Toml::as_datetime(<span class="p">Option</span>::unwrap(Toml::lookup(&amp;doc, <span class="s">&quot;owner.dob&quot;</span>))));
+<span class="p">assert</span>(dob.year == <span class="n">1979</span> &amp;&amp; dob.hour == <span class="n">7</span> &amp;&amp; dob.offset_minutes == -<span class="n">480</span>);</code></pre></figure>
+<figure class="code"><div class="code-head"><span class="code-title">Example: The error names the byte where the text stops fitting, or the key that is defined twice</span><span class="badge ok">runs</span></div><pre><code><span class="k">match</span> (Toml::<span class="p">parse</span>(<span class="s">&quot;a = 1\nb = \n&quot;</span>))
+{
+    <span class="p">Err</span>(Invalid(i)) : <span class="p">assert</span>(i == <span class="n">10</span>),
+    _               : <span class="p">assert</span>(<span class="k">false</span>),
+}
+<span class="k">match</span> (Toml::<span class="p">parse</span>(<span class="s">&quot;a = 1\na = 2\n&quot;</span>))
+{
+    <span class="p">Err</span>(Invalid(i)) : <span class="p">assert</span>(i == <span class="n">6</span>),
+    _               : <span class="p">assert</span>(<span class="k">false</span>),
+}
+<span class="k">match</span> (Toml::<span class="p">parse</span>(<span class="s">&quot;n = 9223372036854775808&quot;</span>))
+{
+    <span class="p">Err</span>(OutOfRange) : {},
+    _               : <span class="p">assert</span>(<span class="k">false</span>),
+}</code></pre></figure>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-encoding-toml-Toml-text" class="stdref-item"><code>Toml::text</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Toml::text(<span class="t">ref</span>&lt;Toml, <span class="t">shared</span>&gt; t) : <span class="p">String</span></code></pre></figure>
+<p>The value <code>t</code> as TOML text.</p>
+<p>A table is written as a document: its plain members as <code>key = value</code> lines, then each member that is a table under a <code>[header]</code>, and each non-empty array of tables under <code>[[headers]]</code>, in order, recursively; a key is bare when it can be and quoted otherwise. Strings are basic strings with <code>&quot;</code>, <code>\</code> and the control characters escaped; a float is written in the shortest digits that read back as it, with <code>inf</code> and <code>nan</code>; a date-time as <code>TomlDateTime::text</code> writes it. A value that is not a table is written in the form it takes after <code>=</code>: arrays as <code>[a, b]</code>, inline tables as <code>{ k = v }</code>. Comments are not kept. <code>Toml::parse</code> of the text gives <code>t</code> back, the plain members of each table before its sub-tables.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Example: Headers for the tables, lines for the values, and a round trip</span><span class="badge ok">runs</span></div><pre><code>Toml doc = <span class="p">Result</span>::unwrap(Toml::<span class="p">parse</span>(<span class="s">&quot;[server]\nhost = \&quot;example.org\&quot;\nports = [80, 443]\n[server.tls]\ncert = &#x27;a b&#x27;\n[[users]]\nname = \&quot;ann\&quot;\n[[users]]\nname = \&quot;bob\&quot;\n&quot;</span>));
+<span class="p">String</span> t = Toml::text(&amp;doc);
+<span class="p">assert</span>(t == <span class="s">&quot;[server]\nhost = \&quot;example.org\&quot;\nports = [80, 443]\n\n[server.tls]\ncert = \&quot;a b\&quot;\n\n[[users]]\nname = \&quot;ann\&quot;\n\n[[users]]\nname = \&quot;bob\&quot;\n&quot;</span>);
+<span class="p">assert</span>(Toml::text(&amp;<span class="p">Result</span>::unwrap(Toml::<span class="p">parse</span>(<span class="p">String</span>::as_view(&amp;t)))) == t);</code></pre></figure>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-encoding-toml-Toml-get" class="stdref-item"><code>Toml::get</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Toml::get(<span class="t">ref</span>&lt;Toml, <span class="t">shared</span>&gt; t, <span class="p">StringView</span> key) : <span class="p">Option</span>&lt;<span class="t">ref</span>&lt;Toml, <span class="t">shared</span>&gt;&gt;</code></pre></figure>
+<p>The value of the member named <code>key</code> when <code>t</code> is a table, else <code>None</code>.</p>
+<p><code>None</code> also when there is no such member.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-encoding-toml-Toml-at" class="stdref-item"><code>Toml::at</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Toml::at(<span class="t">ref</span>&lt;Toml, <span class="t">shared</span>&gt; t, <span class="t">usize</span> i) : <span class="p">Option</span>&lt;<span class="t">ref</span>&lt;Toml, <span class="t">shared</span>&gt;&gt;</code></pre></figure>
+<p>Element <code>i</code> of <code>t</code> when <code>t</code> is an array, else <code>None</code>.</p>
+<p><code>None</code> also when <code>i</code> is past the end.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-encoding-toml-Toml-lookup" class="stdref-item"><code>Toml::lookup</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Toml::lookup(<span class="t">ref</span>&lt;Toml, <span class="t">shared</span>&gt; t, <span class="p">StringView</span> path) : <span class="p">Option</span>&lt;<span class="t">ref</span>&lt;Toml, <span class="t">shared</span>&gt;&gt;</code></pre></figure>
+<p>The value at the dotted <code>path</code> below <code>t</code>: <code>Toml::lookup(&amp;doc, &quot;database.ports.0&quot;)</code>.</p>
+<p>Each part of the path names a member of a table, or, where the value reached is an array, an element by its index written in decimal. <code>None</code> when any part is not there. A key that itself contains a dot is reached with <code>Toml::get</code>.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-encoding-toml-Toml-as_text" class="stdref-item"><code>Toml::as_text</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Toml::as_text(<span class="t">ref</span>&lt;Toml, <span class="t">shared</span>&gt; t) : <span class="p">Option</span>&lt;<span class="p">StringView</span>&gt;</code></pre></figure>
+<p>The string <code>t</code> holds as a view, or <code>None</code> when <code>t</code> is not <code>TomlString</code>.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-encoding-toml-Toml-as_i64" class="stdref-item"><code>Toml::as_i64</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Toml::as_i64(<span class="t">ref</span>&lt;Toml, <span class="t">shared</span>&gt; t) : <span class="p">Option</span>&lt;<span class="t">i64</span>&gt;</code></pre></figure>
+<p>The integer <code>t</code> holds, or <code>None</code> when <code>t</code> is not <code>TomlInteger</code>.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-encoding-toml-Toml-as_f64" class="stdref-item"><code>Toml::as_f64</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Toml::as_f64(<span class="t">ref</span>&lt;Toml, <span class="t">shared</span>&gt; t) : <span class="p">Option</span>&lt;<span class="t">f64</span>&gt;</code></pre></figure>
+<p>The float <code>t</code> holds, or <code>None</code> when <code>t</code> is not <code>TomlFloat</code>; an integer is not converted.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-encoding-toml-Toml-as_bool" class="stdref-item"><code>Toml::as_bool</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Toml::as_bool(<span class="t">ref</span>&lt;Toml, <span class="t">shared</span>&gt; t) : <span class="p">Option</span>&lt;<span class="t">bool</span>&gt;</code></pre></figure>
+<p>The boolean <code>t</code> holds, or <code>None</code> when <code>t</code> is not <code>TomlBool</code>.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-encoding-toml-Toml-as_datetime" class="stdref-item"><code>Toml::as_datetime</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Toml::as_datetime(<span class="t">ref</span>&lt;Toml, <span class="t">shared</span>&gt; t) : <span class="p">Option</span>&lt;TomlDateTime&gt;</code></pre></figure>
+<p>The date-time <code>t</code> holds, or <code>None</code> when <code>t</code> is not <code>TomlDateTime</code>.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-encoding-toml-Toml-as_array" class="stdref-item"><code>Toml::as_array</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Toml::as_array(<span class="t">ref</span>&lt;Toml, <span class="t">shared</span>&gt; t) : <span class="p">Option</span>&lt;<span class="t">ref</span>&lt;<span class="p">Vec</span>&lt;Toml&gt;, <span class="t">shared</span>&gt;&gt;</code></pre></figure>
+<p>The elements of <code>t</code> when it is an array, or <code>None</code> for another kind of value.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-encoding-toml-Toml-as_table" class="stdref-item"><code>Toml::as_table</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Toml::as_table(<span class="t">ref</span>&lt;Toml, <span class="t">shared</span>&gt; t) : <span class="p">Option</span>&lt;<span class="t">ref</span>&lt;<span class="p">Vec</span>&lt;TomlMember&gt;, <span class="t">shared</span>&gt;&gt;</code></pre></figure>
+<p>The members of <code>t</code>, in order, when it is a table, or <code>None</code> for another kind of value.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-encoding-toml-Toml-set" class="stdref-item"><code>Toml::set</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Toml::set(<span class="t">ref</span>&lt;Toml, <span class="t">exclusive</span>&gt; t, <span class="p">StringView</span> key, Toml v)</code></pre></figure>
+<p>Sets member <code>key</code> of the table <code>t</code> to <code>v</code>.</p>
+<p>The member of that name is replaced, or else a new member appended. Faults (<code>diag.assert-failed</code>) when <code>t</code> is not a table.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-encoding-toml-Toml-push" class="stdref-item"><code>Toml::push</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Toml::push(<span class="t">ref</span>&lt;Toml, <span class="t">exclusive</span>&gt; t, Toml v)</code></pre></figure>
+<p>Appends <code>v</code> to the array <code>t</code>.</p>
+<p>Faults (<code>diag.assert-failed</code>) when <code>t</code> is not an array.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Example: A document built member by member and written out</span><span class="badge ok">runs</span></div><pre><code>Toml doc = TomlTable(<span class="p">Vec</span>::new());
+Toml::set(&amp;<span class="k">mut</span> doc, <span class="s">&quot;name&quot;</span>, TomlString(<span class="p">String</span>::from_str(<span class="s">&quot;demo&quot;</span>)));
+Toml ports = TomlArray(<span class="p">Vec</span>::new());
+Toml::push(&amp;<span class="k">mut</span> ports, TomlInteger(<span class="n">8080</span>));
+Toml::push(&amp;<span class="k">mut</span> ports, TomlInteger(<span class="n">8081</span>));
+Toml server = TomlTable(<span class="p">Vec</span>::new());
+Toml::set(&amp;<span class="k">mut</span> server, <span class="s">&quot;ports&quot;</span>, ports);
+Toml::set(&amp;<span class="k">mut</span> server, <span class="s">&quot;debug&quot;</span>, TomlBool(<span class="k">false</span>));
+Toml::set(&amp;<span class="k">mut</span> doc, <span class="s">&quot;server&quot;</span>, server);
+Toml::set(&amp;<span class="k">mut</span> doc, <span class="s">&quot;name&quot;</span>, TomlString(<span class="p">String</span>::from_str(<span class="s">&quot;demo 2&quot;</span>)));
+<span class="p">assert</span>(Toml::text(&amp;doc) == <span class="s">&quot;name = \&quot;demo 2\&quot;\n\n[server]\nports = [8080, 8081]\ndebug = false\n&quot;</span>);</code></pre></figure>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-encoding-toml-TomlMember" class="stdref-item"><code>TomlMember</code> <span class="std-file">struct</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">struct</span> TomlMember</code></pre></figure>
+<p>One member of a TOML table: its key and its value.</p>
+<ul>
+<li><code>key</code>: the member&#x27;s name, one key part (a dotted key <code>a.b</code> is a member <code>a</code> holding a table with a member <code>b</code>).</li>
+<li><code>value</code>: its value.</li>
+</ul>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-encoding-toml-TomlDateKind" class="stdref-item"><code>TomlDateKind</code> <span class="std-file">enum</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">enum</span> TomlDateKind</code></pre></figure>
+<p>Which of the four date-time forms a <code>TomlDateTime</code> is.</p>
+<ul>
+<li><code>TomlOffsetDateTime</code>: a date, a time and an offset from UTC: <code>1979-05-27T07:32:00Z</code>, <code>…-08:00</code>.</li>
+<li><code>TomlLocalDateTime</code>: a date and a time with no offset: <code>1979-05-27T07:32:00</code>.</li>
+<li><code>TomlLocalDate</code>: a date alone: <code>1979-05-27</code>.</li>
+<li><code>TomlLocalTime</code>: a time alone: <code>07:32:00</code>.</li>
+</ul>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-encoding-toml-TomlDateTime" class="stdref-item"><code>TomlDateTime</code> <span class="std-file">struct</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">struct</span> TomlDateTime</code></pre></figure>
+<p>A TOML date-time: the fields of RFC 3339&#x27;s form, and <code>kind</code>, which of the four forms it is.</p>
+<ul>
+<li><code>kind</code>: the form; the fields a form does not have are 0.</li>
+<li><code>year</code>, <code>month</code>, <code>day</code>: the date (<code>month</code> 1 to 12, <code>day</code> 1 to the month&#x27;s length).</li>
+<li><code>hour</code>, <code>minute</code>, <code>second</code>: the time (<code>second</code> up to 60 for a leap second).</li>
+<li><code>nanoseconds</code>: the fraction of the second, 0 to 999 999 999; digits beyond nine are dropped when read.</li>
+<li><code>offset_minutes</code>: the offset from UTC in minutes, <code>-1439</code> to <code>1439</code>; 0 for every other form.</li>
+</ul>
+<p>A plain struct, assigned by copying. <code>TomlDateTime::text</code> writes it as the format does.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-encoding-toml-TomlDateTime-text" class="stdref-item"><code>TomlDateTime::text</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> TomlDateTime::text(<span class="t">ref</span>&lt;TomlDateTime, <span class="t">shared</span>&gt; d) : <span class="p">String</span></code></pre></figure>
+<p>The date-time as TOML (and RFC 3339) writes it: the date, <code>T</code>, the time, its fraction when there is one, and the offset as <code>Z</code> or <code>±HH:MM</code>; a local form leaves out what it does not have.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Example: Each form written back as it was read</span><span class="badge ok">runs</span></div><pre><code><span class="p">String</span> text = <span class="s">&quot;a = 1979-05-27T07:32:00.999999Z\nb = 1979-05-27T00:32:00.5-07:00\nc = 1979-05-27T07:32:00\nd = 1979-05-27\ne = 07:32:00\n&quot;</span>;
+Toml doc = <span class="p">Result</span>::unwrap(Toml::<span class="p">parse</span>(<span class="p">String</span>::as_view(&amp;text)));
+<span class="p">assert</span>(Toml::text(&amp;doc) == text);
+TomlDateTime b = <span class="p">Option</span>::unwrap(Toml::as_datetime(<span class="p">Option</span>::unwrap(Toml::get(&amp;doc, <span class="s">&quot;b&quot;</span>))));
+<span class="p">assert</span>(b.nanoseconds == <span class="n">500000000</span> &amp;&amp; b.offset_minutes == -<span class="n">420</span> &amp;&amp; TomlDateTime::text(&amp;b) == <span class="s">&quot;1979-05-27T00:32:00.5-07:00&quot;</span>);</code></pre></figure>
 </div>
 <h3 id="stdref-std-compress"><code>std::compress</code> <span class="std-file">impl/std/compress.cb</span></h3>
 <div class="stdref-entry">
