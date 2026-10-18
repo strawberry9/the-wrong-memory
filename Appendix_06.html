@@ -166,7 +166,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.101805</div>
+<div class="sub">Specification edition 2026.101806</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -339,7 +339,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101805</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101806</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -467,7 +467,10 @@ with status 0 when the program runs to completion, and both print a rejected pro
 the same way and exit with status 1. <code>coby --check program.cb</code> (or <code>cobc --check</code>) runs only
 the checks made before a program starts, and prints the same diagnostic for a program they
 reject; nothing runs, so a program that reads input, writes files or serves the network can be
-checked without doing so. Given a directory, it checks every <code>.cb</code> file in it.</p>
+checked without doing so. Given a directory, it checks every <code>.cb</code> file in it. A program's own
+item takes precedence over an imported one of the same name (§17): a <code>struct Vec</code> or <code>fn min</code> beside
+<code>import std;</code> hides <code>std</code>'s silently; <code>--warn-shadow</code>, given first, makes either tool note each such
+name on standard error, with its file and line, and otherwise behave as before.</p>
 <p>There is no project file and no build step besides these commands. A program that
 spans several files names them itself: <code>module parser &quot;./parser.cb&quot;;</code> loads a file as a module, its
 path relative to the file that says so (§17), and <code>extern &quot;./fast.c&quot;;</code> or <code>extern &quot;z&quot;;</code> links C code
@@ -5559,7 +5562,10 @@ this order: an item of the current module; an <code>import</code> in the current
 matches; an item of an enclosing module, outward to the root; finally a variant: first of the
 enums of this module, or else of the nearest enclosing module with one of that name, and only if
 there is none, of an imported enum. So your own <code>enum Shape { …, Empty }</code> keeps its bare <code>Empty</code> even
-though <code>std</code>'s <code>ParseError</code> has an <code>Empty</code> too. More than one candidate at a step is
+though <code>std</code>'s <code>ParseError</code> has an <code>Empty</code> too. And where a value is written, a type the earlier steps
+find is passed over, since a type is no value: your <code>enum Report { File(u64), … }</code> keeps its bare
+<code>File(n)</code> beside <code>import std;</code>, which exports the struct <code>File</code>, and <code>File</code> in a type position is still
+<code>std</code>'s (D-0266). More than one candidate at a step is
 <code>diag.ambiguous-name</code>; none at all is
 <code>diag.unbound-name</code>. A qualified name <code>a::b::c</code> starts by resolving <code>a</code> the same way and then walks
 into it, checking visibility at the end.</p>
