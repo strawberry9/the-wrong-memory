@@ -166,7 +166,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.101901</div>
+<div class="sub">Specification edition 2026.101902</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -339,7 +339,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101901</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.101902</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -3348,15 +3348,15 @@ referenced and moved. To do more with it — compare it, add it — give <code>T
     <span class="p">assert</span>(<span class="p">Vec</span>::len(&amp;c.value) == <span class="n">0</span>);
 }</code></pre></figure>
 <h3>Bounds</h3>
-<p>A function's type parameter may carry one of five bounds, written after a colon:
-<code>fn max&lt;T: ordered&gt;(T a, T b) : T</code>. Each of the first four names a fixed set of built-in types and
-the operators every one of them has, and each includes the ones before it; the fifth, <code>clone</code>, says
-a value of <code>T</code> can be copied (below):</p>
+<p>A function's type parameter may carry one of six bounds, written after a colon:
+<code>fn max&lt;T: ordered&gt;(T a, T b) : T</code>. Each of the first four names a fixed set of types and the
+operators every one of them has, and each includes the ones before it; <code>clone</code> says a value of <code>T</code>
+can be copied (below); <code>plain</code> that its bytes mean the same anywhere (§20):</p>
 <table>
 <thead><tr><th>Bound</th><th>Satisfied by</th><th>Allows on a <code>T</code></th></tr></thead>
 <tbody>
-<tr><td><code>eq</code></td><td>integers, floats, <code>bool</code>, <code>str</code>, <code>String</code></td><td><code>==</code> <code>!=</code></td></tr>
-<tr><td><code>ordered</code></td><td>integers, floats, <code>bool</code>, <code>str</code>, <code>String</code></td><td>also <code>&lt;</code> <code>&lt;=</code> <code>&gt;</code> <code>&gt;=</code></td></tr>
+<tr><td><code>eq</code></td><td>integers, floats, <code>bool</code>, <code>str</code>, <code>String</code>; and every <em>key type</em>: a struct or enum whose fields (payloads) are all integers, <code>bool</code>, <code>str</code>, <code>String</code> or such types (D-0110, D-0271)</td><td><code>==</code> <code>!=</code></td></tr>
+<tr><td><code>ordered</code></td><td>the same</td><td>also <code>&lt;</code> <code>&lt;=</code> <code>&gt;</code> <code>&gt;=</code></td></tr>
 <tr><td><code>number</code></td><td>integers, floats</td><td>also <code>+ - * / %</code>, unary <code>-</code>, <code>+=</code> and the like; integer literals</td></tr>
 <tr><td><code>integer</code></td><td>integers</td><td>also <code>&amp; | ^ ~</code>, <code>&lt;&lt;</code> <code>&gt;&gt;</code></td></tr>
 <tr><td><code>clone</code></td><td>everything above; <code>String</code>, <code>Rc&lt;T&gt;</code>, <code>Box&lt;T: clone&gt;</code>, <code>Vec&lt;T: clone&gt;</code>, the hash tables; a type with its own <code>T::clone</code>; a struct or enum whose fields are all <code>clone</code> (D-0116)</td><td><code>clone(&amp;x)</code>: an independent copy</td></tr>
@@ -3364,10 +3364,15 @@ a value of <code>T</code> can be copied (below):</p>
 </tbody>
 </table>
 <div class="callout note"><div class="callout-title">Note</div>Built-in bounds describe compiler-defined capabilities. They are not user-extensible
-traits: there is no way to declare a new bound. Your own struct or enum satisfies <code>clone</code> alone — by
-its fields, or by a <code>fn T::clone(ref&lt;T, shared&gt; self) : T</code> you declare, recognised by its name as
-<code>T::drop</code> is — and never the four operator bounds: to compare or combine values of your own types in
-generic code, pass the operation in as a function value, as <code>Vec::sort_by</code> takes <code>less</code>.</div>
+traits: there is no way to declare a new bound. Your own struct or enum satisfies <code>clone</code> — by its
+fields, or by a <code>fn T::clone(ref&lt;T, shared&gt; self) : T</code> you declare, recognised by its name as
+<code>T::drop</code> is — and <code>eq</code> and <code>ordered</code> when it is a key type (D-0271): its <code>==</code> is field-by-field
+equality and its <code>&lt;</code> the order <code>Vec::sort</code> gives it, field by field in declaration order, an enum by
+variant order and then payload. So <code>a &lt; b</code> holds exactly when <code>Vec::sort</code> puts <code>a</code> before <code>b</code>, and
+<code>a == b</code> exactly when a hash table treats them as one key. It never satisfies <code>number</code> or
+<code>integer</code>, and a type with a float field satisfies nothing but <code>clone</code> and <code>plain</code>: to combine values
+of your own types in generic code, or order a struct otherwise than by its fields, pass the operation
+in as a function value, as <code>Vec::sort_by</code> takes <code>less</code>.</div>
 <figure class="code"><div class="code-head"><span class="code-title">Bounded type parameters</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> largest&lt;T: ordered&gt;(<span class="t">slice</span>&lt;T, <span class="t">shared</span>&gt; xs) : T
@@ -3400,9 +3405,40 @@ generic code, pass the operation in as a function value, as <code>Vec::sort_by</
 }</code></pre></figure>
 <p>The body is checked once against the bound: <code>a + b</code> in a function whose <code>T</code> is only
 <code>ordered</code> is <code>diag.unbounded-type-parameter</code>. Each call is checked for a type that satisfies it:
-<code>largest</code> of <code>bool</code>s, or of a <code>String</code>, is <code>diag.type-mismatch</code>. Each use is also checked at its
-concrete type, so <code>-x</code> at <code>T = u32</code> is still rejected there. Structs and enums take no bounds;
-put them on the functions that use the operations.</p>
+<code>largest</code> of a struct with a float field is <code>diag.type-mismatch</code>, and the message names the field.
+Each use is also checked at its concrete type, so <code>-x</code> at <code>T = u32</code> is still rejected there. Structs
+and enums take no bounds; put them on the functions that use the operations.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Your own types in bounds</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">struct</span> Point                           <span class="c">// a key type: two integers</span>
+{
+    <span class="t">i32</span> x;
+    <span class="t">i32</span> y;
+}
+
+<span class="k">fn</span> largest&lt;T: ordered&gt;(<span class="t">slice</span>&lt;T, <span class="t">shared</span>&gt; xs) : T
+{
+    T best = xs[<span class="n">0</span>];
+    <span class="k">foreach</span> (x in xs)
+    {
+        <span class="k">if</span> (*x &gt; best) { best = *x; }
+    }
+    best
+}
+
+<span class="k">fn</span> main()
+{
+    Point p = Point { .x = <span class="n">1</span>, .y = <span class="n">2</span> };
+    Point q = Point { .x = <span class="n">1</span>, .y = <span class="n">3</span> };
+    <span class="p">assert</span>(p &lt; q &amp;&amp; p == Point { .x = <span class="n">1</span>, .y = <span class="n">2</span> });   <span class="c">// field by field: x, then y</span>
+    <span class="p">Vec</span>&lt;Point&gt; v = <span class="p">Vec</span>::new();
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, q);
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, p);
+    <span class="p">assert</span>(<span class="p">Vec</span>::contains(&amp;v, &amp;p));                    <span class="c">// Vec::contains wants T: eq</span>
+    <span class="p">assert</span>(largest(&amp;v[<span class="n">0</span>..$]) == q);                   <span class="c">// the generic above, at T = Point</span>
+    <span class="p">Vec</span>::sort(&amp;<span class="k">mut</span> v);                                <span class="c">// the same order as &lt;</span>
+    <span class="p">assert</span>(v[<span class="n">0</span>] == p &amp;&amp; v[<span class="n">0</span>] &lt; v[<span class="n">1</span>]);
+}</code></pre></figure>
 <p><code>clone(&amp;x)</code> copies a value of any <code>clone</code> type: a plain one by reading it, <code>String</code> and the
 containers by their own <code>clone</code>, and a struct or enum of <code>clone</code> fields by a copy the compiler
 derives, field by field. A <code>resource</code> type — one with a destructor — declares its own <code>T::clone</code> or
@@ -7318,7 +7354,7 @@ reference</a>, which gives its declaration, its documentation and examples.</p>
 <thead><tr><th>Kind</th><th>Items</th></tr></thead>
 <tbody>
 <tr><td>Types</td><td><a href="#stdref-std-fs-File"><code>File</code></a>, <a href="#stdref-std-fs-FileError"><code>FileError</code></a>, <a href="#stdref-std-fs-FileInfo"><code>FileInfo</code></a>, <a href="#stdref-std-fs-PathKind"><code>PathKind</code></a></td></tr>
-<tr><td>Functions</td><td><a href="#stdref-std-fs-copy_file"><code>copy_file</code></a>, <code class="priv">file_error_at</code>, <a href="#stdref-std-fs-file_info"><code>file_info</code></a>, <code class="priv">fs_path_op</code>, <a href="#stdref-std-fs-list_dir"><code>list_dir</code></a>, <a href="#stdref-std-fs-make_dir"><code>make_dir</code></a>, <a href="#stdref-std-fs-make_dir_all"><code>make_dir_all</code></a>, <a href="#stdref-std-fs-path_canonical"><code>path_canonical</code></a>, <a href="#stdref-std-fs-path_extension"><code>path_extension</code></a>, <a href="#stdref-std-fs-path_file_name"><code>path_file_name</code></a>, <a href="#stdref-std-fs-path_is_absolute"><code>path_is_absolute</code></a>, <a href="#stdref-std-fs-path_join"><code>path_join</code></a>, <a href="#stdref-std-fs-path_kind"><code>path_kind</code></a>, <a href="#stdref-std-fs-path_normalize"><code>path_normalize</code></a>, <a href="#stdref-std-fs-path_parent"><code>path_parent</code></a>, <a href="#stdref-std-fs-path_stem"><code>path_stem</code></a>, <a href="#stdref-std-fs-read_bytes"><code>read_bytes</code></a>, <a href="#stdref-std-fs-read_file"><code>read_file</code></a>, <a href="#stdref-std-fs-remove_dir"><code>remove_dir</code></a>, <a href="#stdref-std-fs-remove_dir_all"><code>remove_dir_all</code></a>, <a href="#stdref-std-fs-remove_file"><code>remove_file</code></a>, <a href="#stdref-std-fs-rename"><code>rename</code></a>, <a href="#stdref-std-fs-write_bytes"><code>write_bytes</code></a>, <a href="#stdref-std-fs-write_file"><code>write_file</code></a></td></tr>
+<tr><td>Functions</td><td><a href="#stdref-std-fs-copy_file"><code>copy_file</code></a>, <a href="#stdref-std-fs-copy_permissions"><code>copy_permissions</code></a>, <code class="priv">file_error_at</code>, <a href="#stdref-std-fs-file_info"><code>file_info</code></a>, <code class="priv">fs_path_op</code>, <a href="#stdref-std-fs-list_dir"><code>list_dir</code></a>, <a href="#stdref-std-fs-make_dir"><code>make_dir</code></a>, <a href="#stdref-std-fs-make_dir_all"><code>make_dir_all</code></a>, <a href="#stdref-std-fs-path_canonical"><code>path_canonical</code></a>, <a href="#stdref-std-fs-path_extension"><code>path_extension</code></a>, <a href="#stdref-std-fs-path_file_name"><code>path_file_name</code></a>, <a href="#stdref-std-fs-path_is_absolute"><code>path_is_absolute</code></a>, <a href="#stdref-std-fs-path_join"><code>path_join</code></a>, <a href="#stdref-std-fs-path_kind"><code>path_kind</code></a>, <a href="#stdref-std-fs-path_normalize"><code>path_normalize</code></a>, <a href="#stdref-std-fs-path_parent"><code>path_parent</code></a>, <a href="#stdref-std-fs-path_stem"><code>path_stem</code></a>, <a href="#stdref-std-fs-read_bytes"><code>read_bytes</code></a>, <a href="#stdref-std-fs-read_file"><code>read_file</code></a>, <a href="#stdref-std-fs-remove_dir"><code>remove_dir</code></a>, <a href="#stdref-std-fs-remove_dir_all"><code>remove_dir_all</code></a>, <a href="#stdref-std-fs-remove_file"><code>remove_file</code></a>, <a href="#stdref-std-fs-rename"><code>rename</code></a>, <a href="#stdref-std-fs-write_bytes"><code>write_bytes</code></a>, <a href="#stdref-std-fs-write_file"><code>write_file</code></a></td></tr>
 <tr><td><code>FileError::</code></td><td><a href="#stdref-std-fs-FileError-text"><code>text</code></a></td></tr>
 <tr><td><code>File::</code></td><td><a href="#stdref-std-fs-File-append"><code>append</code></a>, <a href="#stdref-std-fs-File-close"><code>close</code></a>, <a href="#stdref-std-fs-File-create"><code>create</code></a>, <a href="#stdref-std-fs-File-create_new"><code>create_new</code></a>, <a href="#stdref-std-fs-File-drop"><code>drop</code></a>, <a href="#stdref-std-fs-File-flush"><code>flush</code></a>, <a href="#stdref-std-fs-File-len"><code>len</code></a>, <a href="#stdref-std-fs-File-open"><code>open</code></a>, <a href="#stdref-std-fs-File-open_rw"><code>open_rw</code></a>, <a href="#stdref-std-fs-File-position"><code>position</code></a>, <a href="#stdref-std-fs-File-read"><code>read</code></a>, <a href="#stdref-std-fs-File-read_line"><code>read_line</code></a>, <a href="#stdref-std-fs-File-read_to_end"><code>read_to_end</code></a>, <a href="#stdref-std-fs-File-seek"><code>seek</code></a>, <code class="priv">start</code>, <code class="priv">take</code>, <a href="#stdref-std-fs-File-write"><code>write</code></a>, <code class="priv">write_formatted</code>, <a href="#stdref-std-fs-File-write_text"><code>write_text</code></a></td></tr>
 </tbody>
@@ -7869,7 +7905,7 @@ destructor destroys each element and frees the buffer. A plain element is copied
 <tr><td><code>Vec::append</code></td><td><code>(ref&lt;Vec&lt;T&gt;, exclusive&gt;, Vec&lt;T&gt; b)</code></td><td>moves <code>b</code>'s elements onto the end, in order; <code>b</code> is consumed</td></tr>
 <tr><td><code>Vec::extend_from</code></td><td><code>(ref&lt;Vec&lt;T&gt;, exclusive&gt;, slice&lt;T, shared&gt;)</code></td><td>copies a slice's elements onto the end by <code>clone</code>: <code>Vec::extend_from(&amp;mut out, &amp;bytes[0..$])</code>; <code>T: clone</code></td></tr>
 <tr><td><code>Vec::position</code></td><td><code>(ref&lt;Vec&lt;T&gt;, shared&gt;, fn(ref&lt;T, shared&gt;) : bool) : Option&lt;usize&gt;</code></td><td>the first index whose element satisfies the test, or <code>None</code>; a closure may capture the key it looks for</td></tr>
-<tr><td><code>Vec::index_of</code>, <code>Vec::contains</code></td><td><code>(ref&lt;Vec&lt;T&gt;, shared&gt;, ref&lt;T, shared&gt;) : Option&lt;usize&gt;</code> / <code>: bool</code></td><td>the first index equal to the value, or whether there is one; <code>T: eq</code> — a number, <code>bool</code>, <code>str</code> or <code>String</code> (a struct takes <code>position</code>)</td></tr>
+<tr><td><code>Vec::index_of</code>, <code>Vec::contains</code></td><td><code>(ref&lt;Vec&lt;T&gt;, shared&gt;, ref&lt;T, shared&gt;) : Option&lt;usize&gt;</code> / <code>: bool</code></td><td>the first index equal to the value, or whether there is one; <code>T: eq</code> — a number, <code>bool</code>, <code>str</code>, <code>String</code>, or a struct or enum of those (D-0271); a struct with a float field takes <code>position</code></td></tr>
 <tr><td><code>Vec::reverse</code></td><td><code>(ref&lt;Vec&lt;T&gt;, exclusive&gt;)</code></td><td>the order inverted in place, by swaps; nothing is destroyed</td></tr>
 <tr><td><code>slice_eq</code></td><td><code>(slice&lt;T, shared&gt;, slice&lt;T, shared&gt;) : bool</code></td><td>the same length and equal elements in order; <code>T: eq</code>. <code>==</code> does not compare vectors (they are resources): <code>slice_eq(&amp;a[0..$], &amp;b[0..$])</code></td></tr>
 <tr><td><code>Vec::push_le(&amp;mut v, x)</code>, <code>Vec::push_be</code></td><td><code>(ref&lt;Vec&lt;u8&gt;, exclusive&gt;, T: integer)</code></td><td><code>x</code>'s bytes onto a byte <code>Vec</code>, least (<code>le</code>) or most (<code>be</code>) significant first; any width, signed as two's complement (D-0119)</td></tr>
@@ -10968,7 +11004,7 @@ specification:</p>
 <li>patterns in <code>match</code> are <code>_</code>, a name (a binder or a constant), a literal, a variant, and a variant with a pattern for its payload, nothing else (no ranges, alternatives, struct patterns or guards); destructuring takes a struct apart whole: every field named, or <code>..</code> for the rest (destroyed as usual), and <code>field : name</code> renames one</li>
 <li>no partial initialisation of aggregates</li>
 <li>no lifetime annotations: a function returning a reference must have exactly one reference parameter</li>
-<li>no user-declared bounds on generic type parameters: only the six built-in ones (<code>eq</code>, <code>ordered</code>, <code>number</code>, <code>integer</code>, <code>clone</code>, <code>plain</code>), on a function's parameters; a struct or enum satisfies <code>clone</code> alone</li>
+<li>no user-declared bounds on generic type parameters: only the six built-in ones (<code>eq</code>, <code>ordered</code>, <code>number</code>, <code>integer</code>, <code>clone</code>, <code>plain</code>), on a function's parameters; a struct or enum satisfies <code>clone</code> by its fields, and <code>eq</code> and <code>ordered</code> when it is a key type (D-0271), never <code>number</code> or <code>integer</code></li>
 <li>no <code>mut</code> qualifier on bindings (the keyword is reserved for <code>&amp;mut</code>)</li>
 <li>no moving a resource out of a field of a live struct; move the whole struct, or take it apart (a field of a temporary may be moved out; the rest ends with the statement)</li>
 <li>no spawning a closure that borrows; use <code>move</code></li>
@@ -13022,6 +13058,26 @@ tools build in, which have no CobaltC body (<code>printf</code>, <code>sqrt</cod
 <h4 id="stdref-std-fs-copy_file" class="stdref-item"><code>copy_file</code> <span class="std-file">fn</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">copy_file</span>(<span class="p">StringView</span> from, <span class="p">StringView</span> to) : <span class="p">Result</span>&lt;<span class="t">u64</span>, <span class="p">FileError</span>&gt;</code></pre></figure>
 <p>Copies the file <code>from</code> to <code>to</code>, replacing a file there, and returns the number of bytes copied.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-fs-copy_permissions" class="stdref-item"><code>copy_permissions</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> copy_permissions(<span class="p">StringView</span> from, <span class="p">StringView</span> to) : <span class="p">Result</span>&lt;<span class="k">void</span>, <span class="p">FileError</span>&gt;</code></pre></figure>
+<p>Gives what is at <code>to</code> the permissions of what is at <code>from</code>: on Unix the mode bits, on Windows the read-only flag.</p>
+<p>For the write-then-rename pattern: a file written beside the original and renamed over it keeps the original&#x27;s permissions only when they are copied to it before the rename. <code>Err(NotFound)</code> when nothing is at <code>from</code> or at <code>to</code>.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Example: The permissions of one file given to another</span><span class="badge ok">runs</span></div><pre><code><span class="p">String</span> tmp = <span class="p">temp_dir</span>();
+<span class="p">String</span> dir = <span class="p">path_join</span>(<span class="p">String</span>::as_view(&amp;tmp), <span class="p">String</span>::as_view(&amp;<span class="p">sprintf</span>(<span class="s">&quot;cb-perm-%v&quot;</span>, <span class="p">process_id</span>())));
+_ = <span class="p">make_dir_all</span>(<span class="p">String</span>::as_view(&amp;dir));
+<span class="p">String</span> a = <span class="p">path_join</span>(<span class="p">String</span>::as_view(&amp;dir), <span class="s">&quot;a.txt&quot;</span>);
+<span class="p">String</span> b = <span class="p">path_join</span>(<span class="p">String</span>::as_view(&amp;dir), <span class="s">&quot;b.txt&quot;</span>);
+_ = <span class="p">write_file</span>(<span class="p">String</span>::as_view(&amp;a), <span class="s">&quot;a&quot;</span>);
+_ = <span class="p">write_file</span>(<span class="p">String</span>::as_view(&amp;b), <span class="s">&quot;b&quot;</span>);
+<span class="p">assert</span>(<span class="p">Result</span>::is_ok(&amp;copy_permissions(<span class="p">String</span>::as_view(&amp;a), <span class="p">String</span>::as_view(&amp;b))));
+<span class="t">bool</span> ra = <span class="p">Result</span>::unwrap(<span class="p">file_info</span>(<span class="p">String</span>::as_view(&amp;a))).readonly;
+<span class="t">bool</span> rb = <span class="p">Result</span>::unwrap(<span class="p">file_info</span>(<span class="p">String</span>::as_view(&amp;b))).readonly;
+<span class="p">assert</span>(ra == rb);
+<span class="p">String</span> gone = <span class="p">path_join</span>(<span class="p">String</span>::as_view(&amp;dir), <span class="s">&quot;gone.txt&quot;</span>);
+<span class="p">assert</span>(<span class="p">Result</span>::is_err(&amp;copy_permissions(<span class="p">String</span>::as_view(&amp;gone), <span class="p">String</span>::as_view(&amp;b))));
+_ = <span class="p">remove_dir_all</span>(<span class="p">String</span>::as_view(&amp;dir));</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-fs-make_dir_all" class="stdref-item"><code>make_dir_all</code> <span class="std-file">fn</span></h4>
