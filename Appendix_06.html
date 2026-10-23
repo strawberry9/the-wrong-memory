@@ -166,7 +166,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.102201</div>
+<div class="sub">Specification edition 2026.102301</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -339,7 +339,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.102201</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.102301</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -383,6 +383,12 @@ it and what you can do with it.</p>
 executables to match <code>coby</code>'s output and diagnostics byte for byte on every program, under both
 GCC and Clang — including every complete example in this guide. Use <code>coby</code> to run a program at
 once; use <code>cobc</code> to build an executable, or to see how fast the program can be.</p>
+<p>A third program, <strong><code>cbc</code></strong>, is <code>cobc</code> written in CobaltC itself
+(the repository's <code>impl/selfhost/</code>, over a front end that is likewise <code>coby</code>'s written in CobaltC). It
+takes the same options and writes the same C, byte for byte, for every program; built by <code>cobc</code>, it
+compiles its own source to that same C again, so CobaltC's compiler can rebuild itself without the Rust
+one (D-0276). Its programs are <code>cobc</code>'s programs, but it compiles them many times more slowly, so the
+examples in this guide say <code>cobc</code>.</p>
 <p>On Linux the two work side by side, and everything in this guide runs under
 either. On Windows, <code>coby</code> runs programs, the formatter <code>cobfmt</code> (below) runs there too, and
 <code>cobc</code> builds Windows programs with a MinGW-w64 GCC, there or from Linux with
