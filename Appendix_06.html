@@ -166,7 +166,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.103102</div>
+<div class="sub">Specification edition 2026.110101</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -339,7 +339,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.103102</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.110101</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -537,9 +537,9 @@ would change (for a test or a commit hook). It changes layout and nothing else: 
 spacing, blank lines, the <code>:</code> of a <code>match</code>'s arms and of a <code>bitstruct</code>'s fields aligned in one column, and trailing comments kept
 in theirs. Before writing, it checks that the result is the same program token for token, so
 formatting can never change what a program does. It keeps your line breaks — a short
-<code>if (n == 0) { return; }</code> stays on one line, though a function's body always opens on its own line — and a line longer than 120 characters
-that holds a list of arguments, parameters or array elements is broken one item per line. <code>--width N</code>
-sets another width, and <code>--no-wrap</code> leaves every line as long as it is. <code>cobfmt --help</code> lists the rest. Like <code>coby</code>, <code>cobfmt</code> runs on Windows as well as
+<code>if (n == 0) { return; }</code> stays on one line, though a function's body always opens on its own line — and it never breaks a line
+of its own accord: where a line ends is yours to decide. With <code>--width N</code> it breaks a line longer than <code>N</code> characters
+that holds a list of arguments, parameters or array elements, one item per line. <code>cobfmt --help</code> lists the rest. Like <code>coby</code>, <code>cobfmt</code> runs on Windows as well as
 Linux, and it keeps a file's Windows line endings (<code>\r\n</code>) as they are.</p>
 <h3 id="intro-generated-c">Reading the C that <code>cobc</code> generates</h3>
 <p><code>cobc</code> does not produce machine code itself. Once the shared front end has checked
@@ -2819,7 +2819,8 @@ may be borrowed there too: <code>HashMap::get(&amp;m, &amp;(k + 1))</code>, <cod
 <p>Part of a temporary may be borrowed there too: a field (<code>String::len(&amp;person().name)</code>),
 an element, or a slice of an array literal or a call's result (<code>sum(&amp;[1, 2, 3][0..2])</code>). A <code>String</code>
 that a call returns may be viewed the same way, so a computed path needs no binding:
-<code>read_file(&amp;sprintf(&quot;%s/%s&quot;, dir, name)[0..$])</code>. It lives as
+<code>read_file(&amp;sprintf(&quot;%s/%s&quot;, dir, name))</code> (where a <code>StringView</code> is declared, <code>&amp;s</code> of a <code>String</code> is
+its view, D-0302). It lives as
 long as the temporary does, to the end of the statement. A field can also be moved out of a
 temporary, <code>String n = person().name;</code>: the rest of the temporary ends at once, as if the struct had
 been destructured. That needs a struct without a destructor of its own.</p>
@@ -5162,7 +5163,11 @@ taking it apart, match a reference to it: <code>match (&amp;e)</code> binds each
 already is a reference, such as a function's <code>ref&lt;Expr, shared&gt;</code> parameter, binds in its own mode.
 The enum is not consumed, and the usual borrow rules apply to what is bound: nothing can replace
 the enum while a payload reference is still in use. This is how a tree built from <code>Box</code>es (§21)
-is walked.</p>
+is walked. A payload that is a <code>Box</code> is bound through it by <code>*x</code>: <code>Neg(*x)</code> binds <code>x</code> to the
+expression inside the box, a reference in the scrutinee's mode, as <code>Box::get(b)</code> (or <code>Box::get_mut</code>)
+of the box's binder <code>b</code> gives it; matched by value, <code>x</code> is the value itself, the box consumed as
+<code>Box::into_inner(b)</code> consumes it (D-0301). <code>*x</code> stands only inside a variant's parentheses, and
+only where the payload is a <code>Box</code>.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Looking inside without taking apart</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">enum</span> Expr
@@ -5175,8 +5180,8 @@ is walked.</p>
 {
     <span class="k">match</span> (e)                         <span class="c">// e is a reference: n and x are references too</span>
     {
-        Num(n) : *n,
-        Neg(x) : -eval(<span class="p">Box</span>::get(x)),
+        Num(n)  : *n,
+        Neg(*x) : -eval(x),           <span class="c">// x : ref&lt;Expr, shared&gt;, through the Box</span>
     }
 }
 
@@ -8304,21 +8309,23 @@ prints with <code>%s</code>, compares with <code>==</code> to another view or a 
 </tbody>
 </table>
 <p>Text that a function only reads is a <code>StringView</code> throughout <code>std</code>: a file's path, the text
-to search for, the text to write (D-0134). A <code>String</code> passes its whole-string view, <code>&amp;s[0..$]</code>. A
-literal passes itself: a <code>str</code> literal where a <code>StringView</code> is expected is a view of it, and since a
-<code>str</code> never ends, neither does the view. A <code>str</code> held in a variable is not a literal; view it with
-<code>StringView::of(t)</code>. (<code>split</code>'s separator is the one <code>str</code>: <code>split</code> returns views of its first
-argument, and a function returning views may borrow only one thing, §10.)</p>
+to search for, the text to write (D-0134). A <code>String</code> passes <code>&amp;s</code>: where a <code>StringView</code> is
+declared, <code>&amp;s</code> is its whole-string view, <code>&amp;s[0..$]</code> (D-0302), and a <code>ref&lt;String, shared&gt;</code> in hand
+passes itself the same way. A literal passes itself: a <code>str</code> literal where a <code>StringView</code> is expected
+is a view of it, and since a <code>str</code> never ends, neither does the view; so does a <code>str</code> held in a
+variable (<code>StringView::of(t)</code> spelled out). The borrow is still written: <code>&amp;mut s</code> is not a view, and
+a <code>String</code> by value is not one either. (<code>split</code>'s separator is the one <code>str</code>: <code>split</code> returns views
+of its first argument, and a function returning views may borrow only one thing, §10.)</p>
 <figure class="code"><div class="code-head"><span class="code-title">Views of a String, of a literal, of a str</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> main()
 {
     <span class="p">String</span> text = <span class="s">&quot;the cat sat on the mat&quot;</span>;
     <span class="p">String</span> word = <span class="s">&quot;sat&quot;</span>;
-    <span class="p">assert</span>(<span class="p">String</span>::find(&amp;text, &amp;word[<span class="n">0</span>..$]) == <span class="p">Some</span>(<span class="n">8</span>));   <span class="c">// a String to search for</span>
+    <span class="p">assert</span>(<span class="p">String</span>::find(&amp;text, &amp;word) == <span class="p">Some</span>(<span class="n">8</span>));         <span class="c">// a String to search for</span>
     <span class="p">assert</span>(<span class="p">String</span>::find(&amp;text, <span class="s">&quot;mat&quot;</span>) == <span class="p">Some</span>(<span class="n">19</span>));        <span class="c">// a literal: already a view</span>
     <span class="t">str</span> w = <span class="s">&quot;on&quot;</span>;
-    <span class="p">assert</span>(<span class="p">String</span>::find(&amp;text, <span class="p">StringView</span>::of(w)) == <span class="p">Some</span>(<span class="n">12</span>));
+    <span class="p">assert</span>(<span class="p">String</span>::find(&amp;text, w) == <span class="p">Some</span>(<span class="n">12</span>));            <span class="c">// a str: a view of it</span>
     <span class="p">StringView</span> label = <span class="s">&quot;fixed&quot;</span>;                            <span class="c">// a view of a literal, for the whole run</span>
     <span class="p">printf</span>(<span class="s">&quot;%s %d\n&quot;</span>, label, <span class="p">StringView</span>::len(label));
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>fixed 5
@@ -8909,7 +8916,7 @@ arguments; <code>Args::from(items, usage)</code> takes any <code>Vec&lt;String&g
     <span class="p">Args</span> a = <span class="p">Result</span>::unwrap(<span class="p">Args</span>::new(<span class="s">&quot;greet [options] NAME...&quot;</span>));
     <span class="t">bool</span> loud = <span class="p">Args</span>::flag(&amp;<span class="k">mut</span> a, <span class="s">&quot;loud&quot;</span>, <span class="s">&quot;l&quot;</span>, <span class="s">&quot;shout&quot;</span>);
     <span class="t">bool</span> help = <span class="p">Args</span>::flag(&amp;<span class="k">mut</span> a, <span class="s">&quot;help&quot;</span>, <span class="s">&quot;h&quot;</span>, <span class="s">&quot;show this help&quot;</span>);
-    <span class="t">usize</span> times = <span class="p">Result</span>::unwrap_or(<span class="p">StringView</span>::<span class="p">parse</span>&lt;<span class="t">usize</span>&gt;(<span class="p">String</span>::as_view(&amp;<span class="p">Option</span>::unwrap_or(<span class="p">Args</span>::option(&amp;<span class="k">mut</span> a, <span class="s">&quot;times&quot;</span>, <span class="s">&quot;n&quot;</span>, <span class="s">&quot;N&quot;</span>, <span class="s">&quot;how many times&quot;</span>), <span class="p">String</span>::from_str(<span class="s">&quot;1&quot;</span>)))), <span class="n">1</span>);
+    <span class="t">usize</span> times = <span class="p">Result</span>::unwrap_or(<span class="p">StringView</span>::<span class="p">parse</span>&lt;<span class="t">usize</span>&gt;(&amp;<span class="p">Option</span>::unwrap_or(<span class="p">Args</span>::option(&amp;<span class="k">mut</span> a, <span class="s">&quot;times&quot;</span>, <span class="s">&quot;n&quot;</span>, <span class="s">&quot;N&quot;</span>, <span class="s">&quot;how many times&quot;</span>), <span class="p">String</span>::from_str(<span class="s">&quot;1&quot;</span>))), <span class="n">1</span>);
     <span class="k">if</span> (help)
     {
         <span class="p">printf</span>(<span class="s">&quot;%v&quot;</span>, &amp;<span class="p">Args</span>::help(&amp;a));
@@ -9592,8 +9599,8 @@ uses only public values and answers <code>false</code> for anything malformed.</
     <span class="c">// The same key, written the way openssl would.</span>
     <span class="p">PrivateKey</span> key = Ed25519Private(private);
     <span class="p">String</span> pem = <span class="p">PrivateKey</span>::to_pem(&amp;key);
-    <span class="p">printf</span>(<span class="s">&quot;%s&quot;</span>, <span class="p">StringView</span>::sub(<span class="p">String</span>::as_view(&amp;pem), <span class="n">0</span>, <span class="n">27</span>));
-    <span class="p">printf</span>(<span class="s">&quot;\nread back: %v\n&quot;</span>, <span class="p">Result</span>::is_ok(&amp;<span class="p">PrivateKey</span>::from_pem(<span class="p">String</span>::as_view(&amp;pem))));
+    <span class="p">printf</span>(<span class="s">&quot;%s&quot;</span>, <span class="p">StringView</span>::sub(&amp;pem, <span class="n">0</span>, <span class="n">27</span>));
+    <span class="p">printf</span>(<span class="s">&quot;\nread back: %v\n&quot;</span>, <span class="p">Result</span>::is_ok(&amp;<span class="p">PrivateKey</span>::from_pem(&amp;pem)));
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>genuine: true
 altered: false
 -----BEGIN PRIVATE KEY-----
@@ -9743,8 +9750,8 @@ subjectAltName=DNS:localhost</code> makes a self-signed pair for development).</
 
 <span class="k">fn</span> main() : <span class="t">u8</span>
 {
-    <span class="p">PrivateKey</span> key = <span class="p">Result</span>::unwrap(<span class="p">PrivateKey</span>::from_pem(<span class="p">String</span>::as_view(&amp;<span class="p">Result</span>::unwrap(<span class="p">read_file</span>(<span class="s">&quot;server.key&quot;</span>)))));
-    <span class="p">Vec</span>&lt;<span class="p">Certificate</span>&gt; chain = <span class="p">certificates_from_pem</span>(<span class="p">String</span>::as_view(&amp;<span class="p">Result</span>::unwrap(<span class="p">read_file</span>(<span class="s">&quot;server.crt&quot;</span>))));
+    <span class="p">PrivateKey</span> key = <span class="p">Result</span>::unwrap(<span class="p">PrivateKey</span>::from_pem(&amp;<span class="p">Result</span>::unwrap(<span class="p">read_file</span>(<span class="s">&quot;server.key&quot;</span>))));
+    <span class="p">Vec</span>&lt;<span class="p">Certificate</span>&gt; chain = <span class="p">certificates_from_pem</span>(&amp;<span class="p">Result</span>::unwrap(<span class="p">read_file</span>(<span class="s">&quot;server.crt&quot;</span>)));
     <span class="p">TcpListener</span> l = <span class="p">Result</span>::unwrap(<span class="p">TcpListener</span>::bind(<span class="p">Result</span>::unwrap(<span class="p">SocketAddr</span>::<span class="p">parse</span>(<span class="s">&quot;0.0.0.0:8443&quot;</span>))));
     <span class="k">while</span> (<span class="k">true</span>)
     {
@@ -9761,7 +9768,7 @@ subjectAltName=DNS:localhost</code> makes a self-signed pair for development).</
         <span class="k">while</span> (<span class="p">Some</span>(line) = <span class="p">Result</span>::unwrap_or(<span class="p">TlsStream</span>::<span class="p">read_line</span>(&amp;<span class="k">mut</span> s), <span class="p">None</span>))
         {
             _ = <span class="p">TlsStream</span>::write_text(&amp;<span class="k">mut</span> s, <span class="s">&quot;echo: &quot;</span>);
-            _ = <span class="p">TlsStream</span>::write_text(&amp;<span class="k">mut</span> s, <span class="p">String</span>::as_view(&amp;line));
+            _ = <span class="p">TlsStream</span>::write_text(&amp;<span class="k">mut</span> s, &amp;line);
             _ = <span class="p">TlsStream</span>::write_text(&amp;<span class="k">mut</span> s, <span class="s">&quot;\n&quot;</span>);
         }
         _ = <span class="p">TlsStream</span>::close(&amp;<span class="k">mut</span> s);
@@ -9849,12 +9856,12 @@ server is a later decision). The example is hermetic: its client and server are 
     <span class="p">HttpServer</span> s = <span class="p">Result</span>::unwrap(<span class="p">HttpServer</span>::bind(<span class="p">SocketAddr</span>::new(<span class="p">IpAddr</span>::localhost_v4(), <span class="n">0</span>)));
     <span class="p">String</span> base = <span class="p">sprintf</span>(<span class="s">&quot;http://127.0.0.1:%u&quot;</span>, <span class="p">HttpServer</span>::local_addr(&amp;s).port);
     <span class="k">auto</span> server = <span class="p">spawn</span>(accept_two, s);
-    <span class="k">match</span> (<span class="p">http_get</span>(<span class="p">String</span>::as_view(&amp;<span class="p">sprintf</span>(<span class="s">&quot;%s/health&quot;</span>, &amp;base))))
+    <span class="k">match</span> (<span class="p">http_get</span>(&amp;<span class="p">sprintf</span>(<span class="s">&quot;%s/health&quot;</span>, &amp;base)))
     {
         <span class="p">Ok</span>(r)  : <span class="p">printf</span>(<span class="s">&quot;%u %s: %s&quot;</span>, r.status, &amp;r.reason, &amp;<span class="p">Result</span>::unwrap_or(<span class="p">Response</span>::text(&amp;r), <span class="p">String</span>::new())),
         <span class="p">Err</span>(e) : <span class="p">printf</span>(<span class="s">&quot;error: %s\n&quot;</span>, <span class="p">HttpError</span>::text(&amp;e)),
     }
-    <span class="k">match</span> (<span class="p">http_post</span>(<span class="p">String</span>::as_view(&amp;<span class="p">sprintf</span>(<span class="s">&quot;%s/echo&quot;</span>, &amp;base)), <span class="s">&quot;text/plain&quot;</span>, &amp;<span class="s">b&quot;hello there&quot;</span>[<span class="n">0</span>..$]))
+    <span class="k">match</span> (<span class="p">http_post</span>(&amp;<span class="p">sprintf</span>(<span class="s">&quot;%s/echo&quot;</span>, &amp;base), <span class="s">&quot;text/plain&quot;</span>, &amp;<span class="s">b&quot;hello there&quot;</span>[<span class="n">0</span>..$]))
     {
         <span class="p">Ok</span>(r)  : <span class="p">printf</span>(<span class="s">&quot;%u, %s echoed %v bytes: %s\n&quot;</span>, r.status, <span class="p">Option</span>::unwrap_or(<span class="p">Response</span>::header(&amp;r, <span class="s">&quot;content-type&quot;</span>), <span class="p">StringView</span>::of(<span class="s">&quot;?&quot;</span>)), <span class="p">Vec</span>::len(&amp;r.body), &amp;<span class="p">Result</span>::unwrap_or(<span class="p">Response</span>::text(&amp;r), <span class="p">String</span>::new())),
         <span class="p">Err</span>(e) : <span class="p">printf</span>(<span class="s">&quot;error: %s\n&quot;</span>, <span class="p">HttpError</span>::text(&amp;e)),
@@ -10857,8 +10864,8 @@ one back to you.</p>
     {
         <span class="k">match</span> (cur)
         {
-            <span class="p">Some</span>(b) : { sum += <span class="p">Box</span>::get(b).val; cur = &amp;<span class="p">Box</span>::get(b).next; },
-            <span class="p">None</span>    : { <span class="k">break</span>; },
+            <span class="p">Some</span>(*b) : { sum += b.val; cur = &amp;b.next; },   <span class="c">// b: the node in the box</span>
+            <span class="p">None</span>     : { <span class="k">break</span>; },
         }
     }
     <span class="p">assert</span>(sum == <span class="n">3</span>);
