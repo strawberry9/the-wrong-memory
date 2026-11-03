@@ -166,7 +166,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.110205</div>
+<div class="sub">Specification edition 2026.110301</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -339,7 +339,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.110205</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.110301</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -782,7 +782,7 @@ and prints the output shown below the code.</p>
     <span class="p">printf</span>(<span class="s">&quot;\n&quot;</span>);
 
     <span class="c">// A lookup gives an Option; a pattern condition takes it apart.</span>
-    <span class="k">if</span> (<span class="p">Some</span>(n) = <span class="p">HashMap</span>::get_str(&amp;log.per_sensor, <span class="s">&quot;sensor-2&quot;</span>))
+    <span class="k">if</span> (<span class="p">Some</span>(n) = <span class="p">HashMap</span>::get(&amp;log.per_sensor, <span class="s">&quot;sensor-2&quot;</span>))
     {
         <span class="p">printf</span>(<span class="s">&quot;sensor-2: %d\n&quot;</span>, *n);
     }
@@ -1042,7 +1042,7 @@ one subject alone (<code>import std::text;</code>). <a href="#s21">§21</a> cove
 <tr><td>Other programs</td><td><code>Command</code> (arg, current_dir, env, output, status, spawn), <code>Child</code> (read_output_line, read_error_line, write_input, wait, terminate, kill), <code>process_id</code>, <code>watch_interrupts</code>, <code>interrupt_requested</code>, <code>exit</code></td><td><code>std::process</code></td></tr>
 <tr><td>Bytes</td><td><code>Vec::push_le</code>, <code>push_be</code>, <code>read_le</code>, <code>read_be</code></td><td><code>std::collections</code></td></tr>
 <tr><td>Checksum</td><td><code>crc32</code> (CRC-32/IEEE; catches accidents, not tampering)</td><td><code>std::crypto</code></td></tr>
-<tr><td>Text</td><td><code>String</code>, <code>StringView</code> (split, lines, split_whitespace, chars, code_point, find, trim, starts/ends_with, strip_prefix/suffix, parse), <code>String::parse&lt;T&gt;</code>, <code>String::append</code>, <code>push_code_point</code>, <code>sprintf</code>, <code>String::appendf</code>, the ASCII tests and case changes, <code>Utf8Error</code>, <code>ParseError</code></td><td><code>std::text</code></td></tr>
+<tr><td>Text</td><td><code>String</code>, <code>StringView</code> (split, lines, split_whitespace, chars, code_point, find, trim, starts/ends_with, strip_prefix/suffix, parse), <code>String::append</code>, <code>push_code_point</code>, <code>sprintf</code>, <code>String::appendf</code>, the ASCII tests and case changes, <code>Utf8Error</code>, <code>ParseError</code></td><td><code>std::text</code></td></tr>
 <tr><td>Output</td><td><code>printf</code>, <code>eprintf</code>, <code>flush_stdout</code>; the extern <code>stdout_write</code></td><td><code>std::io</code></td></tr>
 <tr><td>Checks</td><td><code>assert</code></td><td><code>std::core</code></td></tr>
 <tr><td>Input</td><td><code>read_line</code>, <code>read_all</code>, <code>read_all_bytes</code>; the extern <code>stdin_read</code></td><td><code>std::io</code></td></tr>
@@ -1244,8 +1244,8 @@ access, <code>&amp;</code> or <code>&amp;mut</code>, is visible at the call (§0
 <p>A string is bytes with a length, in UTF-8, with no terminating zero. A literal is a <code>str</code>:
 read-only, indexed by byte with <code>str_byte(s, i)</code>, measured with <code>str_len(s)</code>. Text you build or own is
 a <code>String</code> (a literal where a <code>String</code> is declared, <code>String::append</code>, <code>sprintf</code>); text you only look at, passed to a
-function, is a <code>StringView</code> (§21, <em>Which text type?</em>). Comparison is a function
-(<code>String::eq_str</code>, <code>StringView::eq</code>), never <code>==</code> on pointers, and <code>%s</code> prints any of the three.</p>
+function, is a <code>StringView</code> (§21, <em>Which text type?</em>). Comparison is <code>==</code> on the text
+(<code>s == &quot;quit&quot;</code>, <code>a == b</code>), never on pointers, and <code>%s</code> prints any of the three.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Bytes with a length</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> main()
@@ -1254,7 +1254,7 @@ function, is a <code>StringView</code> (§21, <em>Which text type?</em>). Compar
     <span class="p">printf</span>(<span class="s">&quot;%d bytes\n&quot;</span>, <span class="p">str_len</span>(lit));
     <span class="p">String</span> s = <span class="s">&quot;abc&quot;</span>;
     <span class="p">String</span>::append(&amp;<span class="k">mut</span> s, <span class="s">&quot;def&quot;</span>);
-    <span class="p">printf</span>(<span class="s">&quot;%s has %d bytes; third is %d\n&quot;</span>, &amp;s, <span class="p">String</span>::len(&amp;s), <span class="p">str_byte</span>(<span class="s">&quot;abc&quot;</span>, <span class="n">2</span>));
+    <span class="p">printf</span>(<span class="s">&quot;%s has %d bytes; third is %d\n&quot;</span>, &amp;s, <span class="p">StringView</span>::len(&amp;s), <span class="p">str_byte</span>(<span class="s">&quot;abc&quot;</span>, <span class="n">2</span>));
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>6 bytes
 abcdef has 6 bytes; third is 99
 </pre></div></figure>
@@ -1349,7 +1349,7 @@ drop it, say so: <code>_ = save(x);</code>.</p>
     save(-<span class="n">1</span>);                          <span class="c">// <span class="bad">✗</span> <span class="dg">diag.result-discarded</span>: in C this error would vanish; here it cannot</span>
 }</code></pre></figure>
 <p><code>std</code>'s own functions follow the same shape. <code>File::open</code> is <code>Result&lt;File, FileError&gt;</code>;
-<code>String::parse&lt;u32&gt;</code> is <code>Result&lt;u32, ParseError&gt;</code>; <code>HashMap::get</code> is <code>Option&lt;ref&lt;V, shared&gt;&gt;</code>. Every
+<code>StringView::parse&lt;u32&gt;</code> is <code>Result&lt;u32, ParseError&gt;</code>; <code>HashMap::get</code> is <code>Option&lt;ref&lt;V, shared&gt;&gt;</code>. Every
 <code>std</code> error enum has a <code>text</code> function that gives a short sentence for a message
 (<code>FileError::text(&amp;e)</code>), which is what a program prints when it gives up (§21).</p>
 <h4><code>?</code>: the early return, in one character</h4>
@@ -1683,7 +1683,7 @@ CobaltC catches it at run time.</p>
     <span class="p">String</span> s = <span class="s">&quot;text&quot;</span>;
     <span class="t">ref</span>&lt;<span class="p">String</span>, <span class="t">shared</span>&gt; r = &amp;s;
     <span class="p">String</span> t = s;                  <span class="c">// <span class="bad">✗</span> <span class="dg">diag.move-while-aliased</span>: r still borrows s</span>
-    <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, <span class="p">String</span>::len(r));
+    <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, <span class="p">StringView</span>::len(r));
 }</code></pre></figure>
 <h3 id="rust-types">What a type says</h3>
 <p>Because Rust's checks are static, its types must carry what the checker needs; because
@@ -1705,14 +1705,15 @@ in four places.</p>
 
 <span class="k">fn</span> longer(<span class="t">ref</span>&lt;<span class="p">String</span>, <span class="t">shared</span>&gt; a, <span class="t">ref</span>&lt;<span class="p">String</span>, <span class="t">shared</span>&gt; b) : <span class="t">ref</span>&lt;<span class="p">String</span>, <span class="t">shared</span>&gt;
 {
-    <span class="k">if</span> (<span class="p">String</span>::len(a) &gt;= <span class="p">String</span>::len(b)) { a } <span class="k">else</span> { b }    <span class="c">// <span class="bad">✗</span> which one does the result borrow from?</span>
+    <span class="k">if</span> (<span class="p">StringView</span>::len(a) &gt;= <span class="p">StringView</span>::len(b)) { a } <span class="k">else</span> { b }    <span class="c">// <span class="bad">✗</span> which one does the result borrow from?</span>
 }
 
 <span class="k">fn</span> main()
 {
     <span class="p">String</span> x = <span class="s">&quot;abc&quot;</span>;
     <span class="p">String</span> y = <span class="s">&quot;de&quot;</span>;
-    <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, <span class="p">String</span>::len(longer(&amp;x, &amp;y)));
+    <span class="t">ref</span>&lt;<span class="p">String</span>, <span class="t">shared</span>&gt; l = longer(&amp;x, &amp;y);
+    <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, <span class="p">StringView</span>::len(l));
 }</code></pre></figure>
 <p>Rust lets <code>longest</code> be written by naming the relation; CobaltC, having no names for
 lifetimes (that choice is final, D-0011 and CHG-0022), refuses the shape and asks for a function
@@ -2528,10 +2529,10 @@ closure.</p>
     <span class="t">ref</span>&lt;<span class="p">Vec</span>&lt;<span class="t">u8</span>&gt;, <span class="t">shared</span>&gt; b = <span class="p">String</span>::as_bytes(&amp;cur);
     <span class="p">assert</span>(<span class="p">Vec</span>::len(b) == <span class="n">3</span>);         <span class="c">// the last use of b: it ends after this statement</span>
     <span class="p">String</span>::clear(&amp;<span class="k">mut</span> cur);          <span class="c">// <span class="ok">✓</span> nothing borrows cur any more</span>
-    <span class="p">assert</span>(<span class="p">String</span>::len(&amp;cur) == <span class="n">0</span>);
+    <span class="p">assert</span>(<span class="p">StringView</span>::len(&amp;cur) == <span class="n">0</span>);
     <span class="p">HashMap</span>&lt;<span class="p">String</span>, <span class="t">u32</span>&gt; m = <span class="p">HashMap</span>::new();
     <span class="p">HashMap</span>::insert(&amp;<span class="k">mut</span> m, <span class="s">&quot;a&quot;</span>, <span class="n">1</span>);
-    <span class="p">Option</span>&lt;<span class="t">ref</span>&lt;<span class="t">u32</span>, <span class="t">shared</span>&gt;&gt; hit = <span class="p">HashMap</span>::get_str(&amp;m, <span class="s">&quot;a&quot;</span>);
+    <span class="p">Option</span>&lt;<span class="t">ref</span>&lt;<span class="t">u32</span>, <span class="t">shared</span>&gt;&gt; hit = <span class="p">HashMap</span>::get(&amp;m, <span class="s">&quot;a&quot;</span>);
     <span class="p">assert</span>(<span class="p">Option</span>::is_some(&amp;hit));    <span class="c">// the last use of hit</span>
     <span class="p">HashMap</span>::insert(&amp;<span class="k">mut</span> m, <span class="s">&quot;b&quot;</span>, <span class="n">2</span>);  <span class="c">// <span class="ok">✓</span> hit no longer borrows m</span>
 }</code></pre></figure>
@@ -2817,7 +2818,7 @@ may be borrowed there too: <code>HashMap::get(&amp;m, &amp;(k + 1))</code>, <cod
     <span class="p">assert</span>(<span class="p">HashMap</span>::contains(&amp;names, &amp;(k + <span class="n">1</span>)));                 <span class="c">// an operator&#x27;s result</span>
     <span class="p">printf</span>(<span class="s">&quot;%s\n&quot;</span>, *<span class="p">Option</span>::unwrap(<span class="p">HashMap</span>::get(&amp;names, &amp;<span class="n">3</span>)));   <span class="c">// a literal, as a u64</span>
 }</code></pre></figure>
-<p>Part of a temporary may be borrowed there too: a field (<code>String::len(&amp;person().name)</code>),
+<p>Part of a temporary may be borrowed there too: a field (<code>StringView::len(&amp;person().name)</code>),
 an element, or a slice of an array literal or a call's result (<code>sum(&amp;[1, 2, 3][0..2])</code>). A <code>String</code>
 that a call returns may be viewed the same way, so a computed path needs no binding:
 <code>read_file(&amp;sprintf(&quot;%s/%s&quot;, dir, name))</code> (where a <code>StringView</code> is declared, <code>&amp;s</code> of a <code>String</code> is
@@ -2850,11 +2851,11 @@ been destructured. That needs a struct without a destructor of its own.</p>
 
 <span class="k">fn</span> main()
 {
-    <span class="p">assert</span>(<span class="p">String</span>::len(&amp;person().name) == <span class="n">3</span>);        <span class="c">// a field of a temporary, borrowed</span>
+    <span class="p">assert</span>(<span class="p">StringView</span>::len(&amp;person().name) == <span class="n">3</span>);        <span class="c">// a field of a temporary, borrowed</span>
     <span class="p">assert</span>(sum(&amp;[<span class="n">1</span>, <span class="n">2</span>, <span class="n">3</span>][<span class="n">0</span>..<span class="n">2</span>]) == <span class="n">3</span>);              <span class="c">// a slice of an array literal</span>
     <span class="p">assert</span>(<span class="p">StringView</span>::len(&amp;person().city[<span class="n">0</span>..<span class="n">3</span>]) == <span class="n">3</span>);  <span class="c">// a view of a temporary&#x27;s String</span>
     <span class="p">String</span> n = person().name;                        <span class="c">// moved out; `city` ends here</span>
-    <span class="p">assert</span>(<span class="p">String</span>::eq_str(&amp;n, <span class="s">&quot;Ada&quot;</span>));
+    <span class="p">assert</span>(n == <span class="s">&quot;Ada&quot;</span>);
 }</code></pre></figure>
 <h3>References inside structs</h3>
 <p>A reference may be stored in a field. It then lives as long as the struct that holds it,
@@ -3238,7 +3239,7 @@ literal supplies every field at once; after that, individual fields can be assig
 {
     Entry e = Entry { .item = <span class="s">&quot;pens&quot;</span>, .change = -<span class="n">3</span> };
     Entry { item, change } = e;       <span class="c">// binds `item` and `change`; e is consumed</span>
-    <span class="p">assert</span>(<span class="p">String</span>::len(&amp;item) == <span class="n">4</span> &amp;&amp; change == -<span class="n">3</span>);
+    <span class="p">assert</span>(<span class="p">StringView</span>::len(&amp;item) == <span class="n">4</span> &amp;&amp; change == -<span class="n">3</span>);
 }</code></pre></figure>
 <p>This is the only pattern form outside <code>match</code> and the pattern conditions of <code>if</code> and <code>while</code> (§14). It names fields of the struct,
 each once, in any order, and consumes the struct: a resource field moves out to its new binding, a
@@ -3265,7 +3266,7 @@ cannot be destructured, since the destructor would then run on a struct whose fi
     Entry b = Entry { .item = <span class="s">&quot;ink&quot;</span>, .change = <span class="n">5</span>, .note = <span class="p">String</span>::new() };
     Entry { item : first, change : da, .. } = a;     <span class="c">// renamed; `note` is left and ends with the block</span>
     Entry { item : second, change : db, .. } = b;
-    <span class="p">assert</span>(<span class="p">String</span>::len(&amp;first) + <span class="p">String</span>::len(&amp;second) == <span class="n">7</span> &amp;&amp; da + db == <span class="n">2</span>);
+    <span class="p">assert</span>(<span class="p">StringView</span>::len(&amp;first) + <span class="p">StringView</span>::len(&amp;second) == <span class="n">7</span> &amp;&amp; da + db == <span class="n">2</span>);
 }</code></pre></figure>
 <div class="callout rule"><div class="callout-title">Rules of thumb</div><ul>
 <li>Prefer <code>T x = e;</code> or <code>auto x = e;</code>. Declare uninitialised only when the value genuinely comes from a branch, and then assign in every branch.</li>
@@ -3520,7 +3521,7 @@ the bound:</p>
     Person a = Person { .name = <span class="s">&quot;Ada&quot;</span>, .age = <span class="n">36</span> };
     Person b = clone(&amp;a);                              <span class="c">// derived: name copied, age copied</span>
     <span class="p">String</span>::push_ascii(&amp;<span class="k">mut</span> b.name, b&#x27;!&#x27;);
-    <span class="p">assert</span>(<span class="p">String</span>::eq_str(&amp;a.name, <span class="s">&quot;Ada&quot;</span>) &amp;&amp; <span class="p">String</span>::eq_str(&amp;b.name, <span class="s">&quot;Ada!&quot;</span>));
+    <span class="p">assert</span>(a.name == <span class="s">&quot;Ada&quot;</span> &amp;&amp; b.name == <span class="s">&quot;Ada!&quot;</span>);
     Shape s = Labelled(<span class="s">&quot;x&quot;</span>);
     Shape s2 = clone(&amp;s);
     <span class="p">Vec</span>&lt;Person&gt; people = pair_up(&amp;a);
@@ -3784,7 +3785,7 @@ do work, and the only form that checks every case is handled.</p>
 {
     <span class="p">HashMap</span>&lt;<span class="p">String</span>, <span class="t">i32</span>&gt; ages = <span class="p">HashMap</span>::new();
     <span class="p">HashMap</span>::insert(&amp;<span class="k">mut</span> ages, <span class="s">&quot;Ada&quot;</span>, <span class="n">36</span>);
-    <span class="k">if</span> (<span class="p">Some</span>(a) = <span class="p">HashMap</span>::get_str(&amp;ages, <span class="s">&quot;Ada&quot;</span>))
+    <span class="k">if</span> (<span class="p">Some</span>(a) = <span class="p">HashMap</span>::get(&amp;ages, <span class="s">&quot;Ada&quot;</span>))
     {
         <span class="p">assert</span>(*a == <span class="n">36</span>);             <span class="c">// a: ref&lt;i32, shared&gt;, in scope here only</span>
     }
@@ -4777,7 +4778,7 @@ is written as a closure (§15).</p>
     Entry best = Entry { .len = <span class="p">max_value</span>&lt;<span class="t">usize</span>&gt;(), .at = <span class="n">0</span> };
     <span class="k">foreach</span> (i, w in words)
     {
-        Entry e = Entry { .len = <span class="p">String</span>::len(w), .at = i };
+        Entry e = Entry { .len = <span class="p">StringView</span>::len(w), .at = i };
         <span class="k">if</span> (Entry::better(&amp;e, &amp;best))
         {
             best = e;
@@ -5034,7 +5035,7 @@ literal, a variant, and a variant with a pattern for its payload; there is nothi
 {
     <span class="p">assert</span>(opcode(<span class="s">&quot;jump&quot;</span>) == <span class="n">3</span> &amp;&amp; opcode(<span class="s">&quot;halt&quot;</span>) == -<span class="n">1</span>);
     <span class="p">String</span> cmd = <span class="s">&quot;exit&quot;</span>;
-    <span class="p">assert</span>(is_quit(&amp;cmd) &amp;&amp; <span class="p">String</span>::len(&amp;cmd) == <span class="n">4</span>);
+    <span class="p">assert</span>(is_quit(&amp;cmd) &amp;&amp; <span class="p">StringView</span>::len(&amp;cmd) == <span class="n">4</span>);
     <span class="p">Option</span>&lt;<span class="p">String</span>&gt; first = <span class="p">Some</span>(<span class="s">&quot;load&quot;</span>);
     <span class="t">i32</span> k = <span class="k">match</span> (first) { <span class="p">Some</span>(<span class="s">&quot;load&quot;</span>) : <span class="n">1</span>, <span class="p">Some</span>(_) : <span class="n">2</span>, <span class="p">None</span> : <span class="n">0</span>, };
     <span class="p">assert</span>(k == <span class="n">1</span>);
@@ -5199,12 +5200,12 @@ only where the payload is a <code>Box</code>.</p>
     }
     <span class="t">usize</span> len = <span class="k">match</span> (&amp;name)         <span class="c">// look without consuming</span>
     {
-        <span class="p">Some</span>(s) : <span class="p">String</span>::len(s),
+        <span class="p">Some</span>(s) : <span class="p">StringView</span>::len(s),
         <span class="p">None</span>    : <span class="n">0</span>,
     };
     <span class="p">assert</span>(len == <span class="n">4</span>);
     <span class="p">String</span> kept = <span class="p">Option</span>::unwrap_or(name, <span class="p">String</span>::new());   <span class="c">// name still owns its String</span>
-    <span class="p">assert</span>(<span class="p">String</span>::len(&amp;kept) == <span class="n">4</span>);
+    <span class="p">assert</span>(<span class="p">StringView</span>::len(&amp;kept) == <span class="n">4</span>);
 }</code></pre></figure>
 <p>A nested pattern looks through a reference payload in the same way. <code>HashMap::get</code> gives
 an <code>Option&lt;ref&lt;V, shared&gt;&gt;</code>; when <code>V</code> is an enum, <code>Some(Num(v))</code> matches its variant through the
@@ -5225,7 +5226,7 @@ binder borrows what the reference borrows, so the map cannot change while <code>
     <span class="k">match</span> (c)
     {
         <span class="p">Some</span>(Num(v))  : *v,                                  <span class="c">// v : ref&lt;i64, shared&gt;</span>
-        <span class="p">Some</span>(Text(t)) : <span class="p">narrow</span>&lt;<span class="t">i64</span>&gt;(<span class="p">widen</span>&lt;<span class="t">u64</span>&gt;(<span class="p">String</span>::len(t))),
+        <span class="p">Some</span>(Text(t)) : <span class="p">narrow</span>&lt;<span class="t">i64</span>&gt;(<span class="p">widen</span>&lt;<span class="t">u64</span>&gt;(<span class="p">StringView</span>::len(t))),
         <span class="p">Some</span>(Empty)   : <span class="n">0</span>,
         <span class="p">None</span>          : -<span class="n">1</span>,
     }
@@ -5279,7 +5280,7 @@ enum whatever the arm, match on a reference to it (above).</p>
         _    :                        <span class="c">// takes nothing out: o is still here</span>
         {
             <span class="p">String</span> t = <span class="p">Option</span>::unwrap_or(o, <span class="p">String</span>::new());
-            <span class="p">assert</span>(<span class="p">String</span>::len(&amp;t) == <span class="n">4</span>);
+            <span class="p">assert</span>(<span class="p">StringView</span>::len(&amp;t) == <span class="n">4</span>);
         },
     }
 }</code></pre></figure>
@@ -5929,7 +5930,7 @@ error) is evaluated either way, and one that goes unused is destroyed. <code>Res
     <span class="p">String</span> first = <span class="p">Option</span>::expect(<span class="p">Vec</span>::pop(&amp;<span class="k">mut</span> copy), <span class="s">&quot;the copy has one name&quot;</span>);
     first = <span class="s">&quot;grace&quot;</span>;                                         <span class="c">// a String is quiet: the old one is destroyed</span>
     <span class="t">u32</span> n = <span class="p">Result</span>::unwrap(<span class="p">StringView</span>::<span class="p">parse</span>&lt;<span class="t">u32</span>&gt;(<span class="s">&quot;42&quot;</span>));
-    <span class="p">assert</span>(<span class="p">String</span>::eq_str(&amp;first, <span class="s">&quot;grace&quot;</span>) &amp;&amp; n == <span class="n">42</span> &amp;&amp; <span class="p">Vec</span>::len(&amp;names) == <span class="n">1</span>);
+    <span class="p">assert</span>(first == <span class="s">&quot;grace&quot;</span> &amp;&amp; n == <span class="n">42</span> &amp;&amp; <span class="p">Vec</span>::len(&amp;names) == <span class="n">1</span>);
     <span class="p">Option</span>&lt;<span class="t">u32</span>&gt; none = <span class="p">None</span>;
     <span class="t">u32</span> fails = <span class="p">Option</span>::expect(none, <span class="s">&quot;no value where one was promised&quot;</span>);
     <span class="c">// <span class="bad">✗</span> <span class="dg">diag.unwrap-failed</span> (dynamic), reporting &quot;no value where one was promised&quot;</span>
@@ -6428,7 +6429,7 @@ jobs, closes the channel, and joins the workers, each of which stops at <code>No
     <span class="k">match</span> (<span class="p">Channel</span>::send(&amp;names, <span class="s">&quot;late&quot;</span>))
     {
         <span class="p">Ok</span>(_)  : <span class="p">assert</span>(<span class="k">false</span>, <span class="s">&quot;unreachable&quot;</span>),
-        <span class="p">Err</span>(s) : <span class="p">assert</span>(<span class="p">String</span>::len(&amp;s) == <span class="n">4</span>),   <span class="c">// closed: the value comes back</span>
+        <span class="p">Err</span>(s) : <span class="p">assert</span>(<span class="p">StringView</span>::len(&amp;s) == <span class="n">4</span>),   <span class="c">// closed: the value comes back</span>
     }
 }</code></pre></figure>
 <p>A wait that can never end because no other thread exists — the main thread receiving
@@ -7414,8 +7415,8 @@ reference</a>, which gives its declaration, its documentation and examples.</p>
 <tr><td>Functions</td><td><a href="#stdref-std-text-ascii_is_alnum"><code>ascii_is_alnum</code></a>, <a href="#stdref-std-text-ascii_is_alpha"><code>ascii_is_alpha</code></a>, <a href="#stdref-std-text-ascii_is_digit"><code>ascii_is_digit</code></a>, <a href="#stdref-std-text-ascii_is_lower"><code>ascii_is_lower</code></a>, <a href="#stdref-std-text-ascii_is_space"><code>ascii_is_space</code></a>, <a href="#stdref-std-text-ascii_is_upper"><code>ascii_is_upper</code></a>, <a href="#stdref-std-text-ascii_to_lower"><code>ascii_to_lower</code></a>, <a href="#stdref-std-text-ascii_to_upper"><code>ascii_to_upper</code></a>, <code class="priv">byte_index_from</code>, <code class="priv">parse_bytes</code>, <code class="priv">space_run_end</code>, <a href="#stdref-std-text-sprintf"><code>sprintf</code><sup class="nat">n</sup></a>, <code class="priv">utf8_error_at</code></td></tr>
 <tr><td><code>Utf8Error::</code></td><td><a href="#stdref-std-text-Utf8Error-text"><code>text</code></a></td></tr>
 <tr><td><code>ParseError::</code></td><td><a href="#stdref-std-text-ParseError-text"><code>text</code></a></td></tr>
-<tr><td><code>String::</code></td><td><a href="#stdref-std-text-String-append"><code>append</code></a>, <code class="priv">append_str</code>, <code class="priv">append_string</code>, <code class="priv">append_text</code>, <code class="priv">append_view</code>, <a href="#stdref-std-text-String-appendf"><code>appendf</code><sup class="nat">n</sup></a>, <a href="#stdref-std-text-String-as_bytes"><code>as_bytes</code></a>, <a href="#stdref-std-text-String-as_view"><code>as_view</code></a>, <a href="#stdref-std-text-String-char_count"><code>char_count</code></a>, <a href="#stdref-std-text-String-chars"><code>chars</code></a>, <a href="#stdref-std-text-String-clear"><code>clear</code></a>, <a href="#stdref-std-text-String-clone"><code>clone</code></a>, <a href="#stdref-std-text-String-code_point"><code>code_point</code></a>, <a href="#stdref-std-text-String-contains"><code>contains</code></a>, <code class="priv">copy_str</code>, <a href="#stdref-std-text-String-ends_with"><code>ends_with</code></a>, <a href="#stdref-std-text-String-eq"><code>eq</code></a>, <a href="#stdref-std-text-String-eq_str"><code>eq_str</code></a>, <a href="#stdref-std-text-String-eq_view"><code>eq_view</code></a>, <a href="#stdref-std-text-String-find"><code>find</code></a>, <a href="#stdref-std-text-String-from_c"><code>from_c</code></a>, <a href="#stdref-std-text-String-from_str"><code>from_str</code></a>, <a href="#stdref-std-text-String-from_utf8"><code>from_utf8</code></a>, <a href="#stdref-std-text-String-from_view"><code>from_view</code></a>, <a href="#stdref-std-text-String-into_bytes"><code>into_bytes</code></a>, <a href="#stdref-std-text-String-join"><code>join</code></a>, <a href="#stdref-std-text-String-len"><code>len</code></a>, <a href="#stdref-std-text-String-less"><code>less</code></a>, <a href="#stdref-std-text-String-lines"><code>lines</code></a>, <a href="#stdref-std-text-String-new"><code>new</code></a>, <a href="#stdref-std-text-String-parse"><code>parse</code></a>, <a href="#stdref-std-text-String-push_ascii"><code>push_ascii</code></a>, <a href="#stdref-std-text-String-push_code_point"><code>push_code_point</code></a>, <a href="#stdref-std-text-String-replace"><code>replace</code></a>, <a href="#stdref-std-text-String-reserve"><code>reserve</code></a>, <a href="#stdref-std-text-String-split"><code>split</code></a>, <a href="#stdref-std-text-String-split_whitespace"><code>split_whitespace</code></a>, <a href="#stdref-std-text-String-starts_with"><code>starts_with</code></a>, <a href="#stdref-std-text-String-strip_prefix"><code>strip_prefix</code></a>, <a href="#stdref-std-text-String-strip_suffix"><code>strip_suffix</code></a>, <a href="#stdref-std-text-String-to_ascii_lower"><code>to_ascii_lower</code></a>, <a href="#stdref-std-text-String-to_ascii_upper"><code>to_ascii_upper</code></a>, <a href="#stdref-std-text-String-trim"><code>trim</code></a>, <a href="#stdref-std-text-String-trim_end"><code>trim_end</code></a>, <a href="#stdref-std-text-String-trim_start"><code>trim_start</code></a>, <a href="#stdref-std-text-String-truncate"><code>truncate</code></a>, <a href="#stdref-std-text-String-view"><code>view</code></a></td></tr>
-<tr><td><code>StringView::</code></td><td><a href="#stdref-std-text-StringView-as_bytes"><code>as_bytes</code></a>, <code class="priv">at</code>, <code class="priv">boundary</code>, <a href="#stdref-std-text-StringView-char_count"><code>char_count</code></a>, <a href="#stdref-std-text-StringView-chars"><code>chars</code></a>, <a href="#stdref-std-text-StringView-code_point"><code>code_point</code></a>, <a href="#stdref-std-text-StringView-contains"><code>contains</code></a>, <a href="#stdref-std-text-StringView-ends_with"><code>ends_with</code></a>, <a href="#stdref-std-text-StringView-eq"><code>eq</code></a>, <a href="#stdref-std-text-StringView-eq_str"><code>eq_str</code></a>, <a href="#stdref-std-text-StringView-find"><code>find</code></a>, <a href="#stdref-std-text-StringView-from_utf8"><code>from_utf8</code></a>, <a href="#stdref-std-text-StringView-join"><code>join</code></a>, <a href="#stdref-std-text-StringView-len"><code>len</code></a>, <a href="#stdref-std-text-StringView-less"><code>less</code></a>, <a href="#stdref-std-text-StringView-lines"><code>lines</code></a>, <a href="#stdref-std-text-StringView-of"><code>of</code></a>, <a href="#stdref-std-text-StringView-parse"><code>parse</code></a>, <code class="priv">ptr</code>, <a href="#stdref-std-text-StringView-replace"><code>replace</code></a>, <code class="priv">space</code>, <a href="#stdref-std-text-StringView-split"><code>split</code></a>, <a href="#stdref-std-text-StringView-split_whitespace"><code>split_whitespace</code></a>, <a href="#stdref-std-text-StringView-starts_with"><code>starts_with</code></a>, <a href="#stdref-std-text-StringView-strip_prefix"><code>strip_prefix</code></a>, <a href="#stdref-std-text-StringView-strip_suffix"><code>strip_suffix</code></a>, <a href="#stdref-std-text-StringView-sub"><code>sub</code></a>, <a href="#stdref-std-text-StringView-trim"><code>trim</code></a>, <a href="#stdref-std-text-StringView-trim_end"><code>trim_end</code></a>, <a href="#stdref-std-text-StringView-trim_start"><code>trim_start</code></a></td></tr>
+<tr><td><code>String::</code></td><td><a href="#stdref-std-text-String-append"><code>append</code></a>, <code class="priv">append_str</code>, <code class="priv">append_string</code>, <code class="priv">append_text</code>, <code class="priv">append_view</code>, <a href="#stdref-std-text-String-appendf"><code>appendf</code><sup class="nat">n</sup></a>, <a href="#stdref-std-text-String-as_bytes"><code>as_bytes</code></a>, <a href="#stdref-std-text-String-as_view"><code>as_view</code></a>, <a href="#stdref-std-text-String-char_count"><code>char_count</code></a>, <a href="#stdref-std-text-String-chars"><code>chars</code></a>, <a href="#stdref-std-text-String-clear"><code>clear</code></a>, <a href="#stdref-std-text-String-clone"><code>clone</code></a>, <a href="#stdref-std-text-String-code_point"><code>code_point</code></a>, <a href="#stdref-std-text-String-contains"><code>contains</code></a>, <code class="priv">copy_str</code>, <a href="#stdref-std-text-String-ends_with"><code>ends_with</code></a>, <a href="#stdref-std-text-String-eq"><code>eq</code></a>, <a href="#stdref-std-text-String-eq_str"><code>eq_str</code></a>, <a href="#stdref-std-text-String-eq_view"><code>eq_view</code></a>, <a href="#stdref-std-text-String-find"><code>find</code></a>, <a href="#stdref-std-text-String-from_c"><code>from_c</code></a>, <a href="#stdref-std-text-String-from_str"><code>from_str</code></a>, <a href="#stdref-std-text-String-from_utf8"><code>from_utf8</code></a>, <a href="#stdref-std-text-String-from_view"><code>from_view</code></a>, <a href="#stdref-std-text-String-into_bytes"><code>into_bytes</code></a>, <a href="#stdref-std-text-String-join"><code>join</code></a>, <a href="#stdref-std-text-String-len"><code>len</code></a>, <a href="#stdref-std-text-String-less"><code>less</code></a>, <a href="#stdref-std-text-String-lines"><code>lines</code></a>, <a href="#stdref-std-text-String-new"><code>new</code></a>, <a href="#stdref-std-text-String-parse"><code>parse</code></a>, <code class="priv">part</code>, <a href="#stdref-std-text-String-push_ascii"><code>push_ascii</code></a>, <a href="#stdref-std-text-String-push_code_point"><code>push_code_point</code></a>, <a href="#stdref-std-text-String-replace"><code>replace</code></a>, <a href="#stdref-std-text-String-reserve"><code>reserve</code></a>, <code class="priv">same_str</code>, <code class="priv">same_view</code>, <a href="#stdref-std-text-String-split"><code>split</code></a>, <a href="#stdref-std-text-String-split_whitespace"><code>split_whitespace</code></a>, <a href="#stdref-std-text-String-starts_with"><code>starts_with</code></a>, <code class="priv">static_ref</code>, <a href="#stdref-std-text-String-strip_prefix"><code>strip_prefix</code></a>, <a href="#stdref-std-text-String-strip_suffix"><code>strip_suffix</code></a>, <a href="#stdref-std-text-String-to_ascii_lower"><code>to_ascii_lower</code></a>, <a href="#stdref-std-text-String-to_ascii_upper"><code>to_ascii_upper</code></a>, <a href="#stdref-std-text-String-trim"><code>trim</code></a>, <a href="#stdref-std-text-String-trim_end"><code>trim_end</code></a>, <a href="#stdref-std-text-String-trim_start"><code>trim_start</code></a>, <a href="#stdref-std-text-String-truncate"><code>truncate</code></a>, <a href="#stdref-std-text-String-view"><code>view</code></a></td></tr>
+<tr><td><code>StringView::</code></td><td><a href="#stdref-std-text-StringView-as_bytes"><code>as_bytes</code></a>, <code class="priv">at</code>, <code class="priv">boundary</code>, <a href="#stdref-std-text-StringView-char_count"><code>char_count</code></a>, <a href="#stdref-std-text-StringView-chars"><code>chars</code></a>, <a href="#stdref-std-text-StringView-code_point"><code>code_point</code></a>, <a href="#stdref-std-text-StringView-contains"><code>contains</code></a>, <a href="#stdref-std-text-StringView-ends_with"><code>ends_with</code></a>, <a href="#stdref-std-text-StringView-eq"><code>eq</code></a>, <a href="#stdref-std-text-StringView-eq_str"><code>eq_str</code></a>, <a href="#stdref-std-text-StringView-find"><code>find</code></a>, <a href="#stdref-std-text-StringView-from_utf8"><code>from_utf8</code></a>, <a href="#stdref-std-text-StringView-join"><code>join</code></a>, <a href="#stdref-std-text-StringView-len"><code>len</code></a>, <a href="#stdref-std-text-StringView-less"><code>less</code></a>, <a href="#stdref-std-text-StringView-lines"><code>lines</code></a>, <a href="#stdref-std-text-StringView-of"><code>of</code></a>, <a href="#stdref-std-text-StringView-parse"><code>parse</code></a>, <code class="priv">part</code>, <code class="priv">ptr</code>, <a href="#stdref-std-text-StringView-replace"><code>replace</code></a>, <code class="priv">same_str</code>, <code class="priv">space</code>, <a href="#stdref-std-text-StringView-split"><code>split</code></a>, <a href="#stdref-std-text-StringView-split_whitespace"><code>split_whitespace</code></a>, <a href="#stdref-std-text-StringView-starts_with"><code>starts_with</code></a>, <a href="#stdref-std-text-StringView-strip_prefix"><code>strip_prefix</code></a>, <a href="#stdref-std-text-StringView-strip_suffix"><code>strip_suffix</code></a>, <a href="#stdref-std-text-StringView-sub"><code>sub</code></a>, <a href="#stdref-std-text-StringView-trim"><code>trim</code></a>, <a href="#stdref-std-text-StringView-trim_end"><code>trim_end</code></a>, <a href="#stdref-std-text-StringView-trim_start"><code>trim_start</code></a></td></tr>
 <tr><td><code>Parts::</code></td><td><code class="priv">bound</code>, <code class="priv">chars</code>, <code class="priv">lines</code>, <code class="priv">next</code>, <code class="priv">split</code>, <code class="priv">string_chars</code>, <code class="priv">string_lines</code>, <code class="priv">string_split</code>, <code class="priv">string_words</code>, <code class="priv">words</code></td></tr>
 </tbody>
 </table>
@@ -7880,7 +7881,7 @@ is the rest, for finding a name quickly.</p>
 <table>
 <thead><tr><th>Function</th><th>Purpose</th><th>See</th></tr></thead>
 <tbody>
-<tr><td><code>String::parse&lt;T&gt;(&amp;s)</code></td><td>read a whole <code>String</code> as a number of type <code>T</code></td><td>§21</td></tr>
+<tr><td><code>StringView::parse&lt;T&gt;(&amp;s)</code></td><td>read a whole <code>String</code> as a number of type <code>T</code></td><td>§21</td></tr>
 <tr><td><code>min(a, b)</code>, <code>max(a, b)</code></td><td>the smaller or larger of two values of an <code>ordered</code> type (§12)</td><td>§21</td></tr>
 <tr><td><code>abs(x)</code>, <code>pow(x, n)</code></td><td>absolute value and power (<code>n</code> a <code>u32</code>) of a <code>number</code> type (§12), checked as the operators they use</td><td>§21</td></tr>
 <tr><td><code>sqrt(x)</code>, <code>floor(x)</code>, <code>ceil(x)</code>, <code>round(x)</code>, <code>trunc(x)</code></td><td>an <code>f32</code> or <code>f64</code>'s square root and its roundings to an integral value (<code>round</code>: halfway cases away from zero), exact or correctly rounded, so the same bits everywhere</td><td>§21</td></tr>
@@ -8018,7 +8019,7 @@ need.</p>
     {
         <span class="p">String</span>::append(&amp;<span class="k">mut</span> line, <span class="s">&quot;-=-=-=-=&quot;</span>);
     }
-    <span class="p">assert</span>(<span class="p">String</span>::len(&amp;line) == <span class="n">80</span>);
+    <span class="p">assert</span>(<span class="p">StringView</span>::len(&amp;line) == <span class="n">80</span>);
 }</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">Using Vec</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
@@ -8082,13 +8083,14 @@ joining, searching and reversing. <code>filled</code> and <code>extend_from</cod
     <span class="p">assert</span>(<span class="p">Vec</span>::contains(&amp;row, &amp;b&#x27;#&#x27;) &amp;&amp; !<span class="p">Vec</span>::contains(&amp;row, &amp;b&#x27;?&#x27;));
     <span class="p">assert</span>(<span class="p">Vec</span>::position(&amp;names, [key](<span class="t">ref</span>&lt;<span class="p">String</span>, <span class="t">shared</span>&gt; s) : <span class="t">bool</span> { *s == key }) == <span class="p">Some</span>(<span class="n">1</span>));
     <span class="p">Vec</span>::reverse(&amp;<span class="k">mut</span> names);
-    <span class="p">assert</span>(<span class="p">String</span>::eq_str(&amp;names[<span class="n">0</span>], <span class="s">&quot;x&quot;</span>));
+    <span class="p">assert</span>(names[<span class="n">0</span>] == <span class="s">&quot;x&quot;</span>);
 }</code></pre></figure>
 <p>A <code>String</code> in hand is searched and split by the <code>StringView</code> functions: <code>&amp;s</code> is its view wherever a
 <code>StringView</code> is declared (D-0302), so <code>StringView::find(&amp;s, t)</code>, <code>starts_with</code>, <code>ends_with</code>, <code>contains</code>, <code>replace</code>,
-<code>trim</code> and <code>split</code> take it as it is. And a map keyed by <code>String</code> can be asked with a literal: <code>HashMap::get_str</code>,
-<code>contains_str</code> and <code>remove_str</code> find the entry a <code>String</code> of the same text would, without building
-one (D-0113).</p>
+<code>trim</code> and <code>split</code> take it as it is. And a map keyed by <code>String</code> can be asked with a literal: where a
+<code>ref&lt;String, shared&gt;</code> is declared, a literal (or any <code>str</code>) is a reference to a <code>String</code> of its text that
+never ends, so <code>HashMap::get(&amp;m, &quot;apple&quot;)</code>, <code>contains</code> and <code>remove</code> find the entry a <code>String</code> of the same
+text would, without building one (D-0308).</p>
 <figure class="code"><div class="code-head"><span class="code-title">Text and maps without extra Strings</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> main()
@@ -8107,13 +8109,13 @@ one (D-0113).</p>
             <span class="p">Err</span>(_) : {},
         }
     }
-    <span class="p">assert</span>(<span class="p">HashMap</span>::contains_str(&amp;fields, <span class="s">&quot;born&quot;</span>) &amp;&amp; !<span class="p">HashMap</span>::contains_str(&amp;fields, <span class="s">&quot;name&quot;</span>));
-    <span class="k">match</span> (<span class="p">HashMap</span>::get_str(&amp;fields, <span class="s">&quot;born&quot;</span>))
+    <span class="p">assert</span>(<span class="p">HashMap</span>::contains(&amp;fields, <span class="s">&quot;born&quot;</span>) &amp;&amp; !<span class="p">HashMap</span>::contains(&amp;fields, <span class="s">&quot;name&quot;</span>));
+    <span class="k">match</span> (<span class="p">HashMap</span>::get(&amp;fields, <span class="s">&quot;born&quot;</span>))
     {
         <span class="p">Some</span>(y) : <span class="p">assert</span>(*y == <span class="n">1815</span>),
         <span class="p">None</span>    : <span class="p">assert</span>(<span class="k">false</span>),
     }
-    <span class="p">assert</span>(<span class="p">HashMap</span>::remove_str(&amp;<span class="k">mut</span> fields, <span class="s">&quot;born&quot;</span>) == <span class="p">Some</span>(<span class="n">1815</span>) &amp;&amp; <span class="p">HashMap</span>::len(&amp;fields) == <span class="n">0</span>);
+    <span class="p">assert</span>(<span class="p">HashMap</span>::remove(&amp;<span class="k">mut</span> fields, <span class="s">&quot;born&quot;</span>) == <span class="p">Some</span>(<span class="n">1815</span>) &amp;&amp; <span class="p">HashMap</span>::len(&amp;fields) == <span class="n">0</span>);
 }</code></pre></figure>
 <p>Binary data: <code>Vec::push_le</code> and <code>Vec::push_be</code> write an integer's bytes in a fixed order and
 <code>read_le</code>/<code>read_be</code> read them back, so a file header or a network message never spells a shift by
@@ -8216,7 +8218,7 @@ fault <code>diag.entropy-unavailable</code>, never a quiet fall back to the cloc
     {
         <span class="p">String</span>::appendf(&amp;<span class="k">mut</span> hex, <span class="s">&quot;%02x&quot;</span>, *byte);
     }
-    <span class="p">assert</span>(<span class="p">String</span>::len(&amp;hex) == <span class="n">32</span>);
+    <span class="p">assert</span>(<span class="p">StringView</span>::len(&amp;hex) == <span class="n">32</span>);
     Rng shuffle = Rng::from_os();                    <span class="c">// differs each run; not for secrets</span>
     <span class="p">assert</span>(Rng::below(&amp;<span class="k">mut</span> shuffle, <span class="n">52</span>) &lt; <span class="n">52</span>);
 }</code></pre></figure>
@@ -8244,13 +8246,12 @@ miniature.</p>
 <tr><td><code>String::new</code></td><td><code>() : String</code> (empty)</td></tr>
 <tr><td><code>String::from_utf8</code></td><td><code>(Vec&lt;u8&gt;) : Result&lt;String, Utf8Error&gt;</code></td></tr>
 <tr><td><code>StringView::from_utf8</code></td><td><code>(slice&lt;u8, shared&gt;) : Result&lt;StringView, Utf8Error&gt;</code> -- the same check, and a view of the bytes instead of a copy</td></tr>
-<tr><td><code>String::len</code></td><td><code>(ref&lt;String, shared&gt;) : usize</code> (bytes)</td></tr>
 <tr><td><code>String::into_bytes</code></td><td><code>(String) : Vec&lt;u8&gt;</code> (gives the bytes back, consuming the string)</td></tr>
 <tr><td><code>String::as_bytes</code></td><td><code>(ref&lt;String, shared&gt;) : ref&lt;Vec&lt;u8&gt;, shared&gt;</code> (read the bytes in place)</td></tr>
 <tr><td><code>String::append</code></td><td><code>(ref&lt;String, exclusive&gt;, T)</code> for any <code>T</code> <code>%v</code> takes: adds what <code>printf(&quot;%v&quot;, x)</code> would write</td></tr>
 <tr><td><code>String::clone</code></td><td><code>(ref&lt;String, shared&gt;) : String</code> (a copy with the same bytes)</td></tr>
 <tr><td><code>String::reserve</code></td><td><code>(ref&lt;String, exclusive&gt;, usize n)</code>: room for <code>n</code> more bytes; the text is unchanged (D-0129)</td></tr>
-<tr><td><code>String::eq</code>, <code>String::eq_str</code></td><td><code>(ref&lt;String, shared&gt;, ref&lt;String, shared&gt;) : bool</code>, <code>(ref&lt;String, shared&gt;, str) : bool</code>: the same text? (<code>a == b</code> does the same for two <code>String</code>s, §12)</td></tr>
+<tr><td><code>String::eq</code></td><td><code>(ref&lt;String, shared&gt;, ref&lt;String, shared&gt;) : bool</code>: the same text? (<code>a == b</code> does the same, and <code>s == &quot;x&quot;</code> and <code>s == v</code> compare a <code>String</code> with a <code>str</code> or a view, §12)</td></tr>
 <tr><td><code>String::less</code>, <code>StringView::less</code></td><td><code>(ref&lt;String, shared&gt;, ref&lt;String, shared&gt;) : bool</code>: byte order, a prefix first, as <code>a &lt; b</code> (§12); <code>Vec::sort(&amp;mut v)</code> sorts text</td></tr>
 <tr><td><code>String::to_ascii_lower</code>, <code>String::to_ascii_upper</code></td><td><code>(ref&lt;String, shared&gt;) : String</code>: a copy with ASCII letters changed; other bytes as they are</td></tr>
 <tr><td><code>String::truncate</code></td><td><code>(ref&lt;String, exclusive&gt;, usize n)</code>: keeps the first <code>n</code> bytes; <code>n</code> inside a character faults <code>diag.not-char-boundary</code></td></tr>
@@ -8270,16 +8271,16 @@ Unicode case is not provided.</p>
     <span class="p">assert</span>(ascii_is_digit(b&#x27;<span class="n">7</span>&#x27;) &amp;&amp; !ascii_is_alpha(b&#x27;<span class="n">7</span>&#x27;) &amp;&amp; ascii_is_space(b&#x27;\t&#x27;));
     <span class="p">assert</span>(ascii_to_upper(b&#x27;q&#x27;) == b&#x27;Q&#x27;);
     <span class="p">String</span> shout = <span class="p">String</span>::to_ascii_upper(&amp;<span class="p">String</span>::from_view(<span class="s">&quot;caf\u{e9} au lait&quot;</span>));
-    <span class="p">assert</span>(<span class="p">String</span>::eq_str(&amp;shout, <span class="s">&quot;CAF\u{e9} AU LAIT&quot;</span>));
+    <span class="p">assert</span>(shout == <span class="s">&quot;CAF\u{e9} AU LAIT&quot;</span>);
 }</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">Validating bytes into a String</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> main()
 {
     <span class="p">String</span> owned = <span class="s">&quot;caf\u{e9}&quot;</span>;                      <span class="c">// a str&#x27;s bytes, copied; no validation needed</span>
-    <span class="p">assert</span>(<span class="p">String</span>::len(&amp;owned) == <span class="n">5</span>);                <span class="c">// 5 bytes: é is two of them</span>
-    <span class="p">assert</span>(<span class="p">String</span>::char_count(&amp;owned) == <span class="n">4</span>);         <span class="c">// but 4 characters</span>
-    <span class="p">assert</span>(<span class="p">Vec</span>::len(&amp;<span class="p">String</span>::chars(&amp;owned)) == <span class="n">4</span>);   <span class="c">// each a view of its bytes</span>
+    <span class="p">assert</span>(<span class="p">StringView</span>::len(&amp;owned) == <span class="n">5</span>);                <span class="c">// 5 bytes: é is two of them</span>
+    <span class="p">assert</span>(<span class="p">StringView</span>::char_count(&amp;owned) == <span class="n">4</span>);         <span class="c">// but 4 characters</span>
+    <span class="p">assert</span>(<span class="p">Vec</span>::len(&amp;<span class="p">StringView</span>::chars(&amp;owned)) == <span class="n">4</span>);   <span class="c">// each a view of its bytes</span>
 
     <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; good = <span class="p">Vec</span>::new();
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> good, <span class="n">226</span>);        <span class="c">// the three bytes of U+20AC, the euro sign</span>
@@ -8293,7 +8294,7 @@ Unicode case is not provided.</p>
             <span class="k">return</span>;
         },
     };
-    <span class="p">assert</span>(<span class="p">String</span>::len(&amp;s) == <span class="n">3</span>);
+    <span class="p">assert</span>(<span class="p">StringView</span>::len(&amp;s) == <span class="n">3</span>);
     <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; back = <span class="p">String</span>::into_bytes(s);          <span class="c">// and out again</span>
     <span class="p">assert</span>(<span class="p">Vec</span>::len(&amp;back) == <span class="n">3</span>);
 
@@ -8336,9 +8337,9 @@ prints with <code>%s</code>, compares with <code>==</code> to another view or a 
 <tr><td><code>StringView::contains(v, t)</code></td><td><code>bool</code>: whether the text of <code>t</code> occurs in <code>v</code> (D-0139)</td></tr>
 <tr><td><code>StringView::replace(v, from, to)</code></td><td>a new <code>String</code>: <code>v</code> with every occurrence of <code>from</code> replaced by <code>to</code>, left to right, no overlap; an empty <code>from</code> occurs nowhere</td></tr>
 <tr><td><code>StringView::join(&amp;parts[0..$], sep)</code>, <code>String::join(&amp;strings[0..$], sep)</code></td><td>a new <code>String</code>: the parts with <code>sep</code> between each two; the inverse of <code>split</code></td></tr>
-<tr><td><code>StringView::parse&lt;T&gt;(v)</code></td><td>a number, as <code>String::parse</code></td></tr>
+<tr><td><code>StringView::parse&lt;T&gt;(v)</code></td><td>a number of type <code>T</code>, the whole text or an error; <code>StringView::parse&lt;T&gt;(&amp;s)</code> for a <code>String</code></td></tr>
 <tr><td><code>String::from_view(v)</code>, <code>String::append(&amp;mut s, v)</code></td><td>the text copied into a <code>String</code></td></tr>
-<tr><td><code>StringView::find(&amp;s, t)</code> and the rest, for a <code>String s</code></td><td><code>&amp;s</code> is the view of <code>s</code> where a <code>StringView</code> is declared (D-0302), so each <code>StringView::</code> function takes a <code>String</code> as <code>&amp;s</code>; <code>&amp;s[0..$]</code> is that view where nothing declares one. The <code>String::</code> copies of these functions were removed (D-0306); <code>String::chars</code> and <code>String::char_count</code> remain</td></tr>
+<tr><td><code>StringView::find(&amp;s, t)</code> and the rest, for a <code>String s</code></td><td><code>&amp;s</code> is the view of <code>s</code> where a <code>StringView</code> is declared (D-0302), so each <code>StringView::</code> function takes a <code>String</code> as <code>&amp;s</code>; <code>&amp;s[0..$]</code> is that view where nothing declares one. The <code>String::</code> copies of these functions were removed (D-0306), and <code>String::len</code>, <code>chars</code>, <code>char_count</code>, <code>code_point</code> and <code>parse</code> are deprecated (D-0308): <code>StringView::len(&amp;s)</code> and the rest</td></tr>
 </tbody>
 </table>
 <p>Text that a function only reads is a <code>StringView</code> throughout <code>std</code>: a file's path, the text
@@ -8445,10 +8446,10 @@ ada, grace
     <span class="p">assert</span>(v == <span class="s">&quot;ada&quot;</span>);
 }</code></pre></figure>
 <h4>Going through the characters</h4>
-<p><code>foreach</code> does not take a <code>String</code> itself, and there is no <code>char</code> type; <code>String::chars(&amp;s)</code>
+<p><code>foreach</code> does not take a <code>String</code> itself, and there is no <code>char</code> type; <code>StringView::chars(&amp;s)</code>
 gives the characters instead: a <code>Vec&lt;StringView&gt;</code>, one view per character, in order. A character is
 one to four bytes of UTF-8 (<code>é</code> is two, most emoji four), so <code>Vec::len</code> of it counts characters where
-<code>String::len</code> counts bytes. Each view is text like any other: it prints, compares with <code>==</code> to a
+<code>StringView::len</code> counts bytes. Each view is text like any other: it prints, compares with <code>==</code> to a
 <code>str</code>, is matched by text patterns, and appends to a <code>String</code>; and like any view it borrows the
 <code>String</code> while it is in use. <code>StringView::chars(v)</code> does the same for a view, such as a word from
 <code>split</code>. Building the <code>Vec</code> is one allocation; there is no form that visits the characters without
@@ -8460,14 +8461,14 @@ protocol for a library to plug into (D-0128 explains). Where that matters, walk
 <span class="k">fn</span> main()
 {
     <span class="p">String</span> s = <span class="s">&quot;caf\u{e9} \u{1F600}!&quot;</span>;
-    <span class="k">foreach</span> (c in <span class="p">String</span>::chars(&amp;s))
+    <span class="k">foreach</span> (c in <span class="p">StringView</span>::chars(&amp;s))
     {
         <span class="p">printf</span>(<span class="s">&quot;[%v]&quot;</span>, c);
     }
-    <span class="p">printf</span>(<span class="s">&quot;\n%v characters in %v bytes\n&quot;</span>, <span class="p">Vec</span>::len(&amp;<span class="p">String</span>::chars(&amp;s)), <span class="p">String</span>::len(&amp;s));
+    <span class="p">printf</span>(<span class="s">&quot;\n%v characters in %v bytes\n&quot;</span>, <span class="p">Vec</span>::len(&amp;<span class="p">StringView</span>::chars(&amp;s)), <span class="p">StringView</span>::len(&amp;s));
 
     <span class="c">// Reversed by characters, so the two-byte é and the four-byte emoji stay whole.</span>
-    <span class="p">Vec</span>&lt;<span class="p">StringView</span>&gt; cs = <span class="p">String</span>::chars(&amp;s);
+    <span class="p">Vec</span>&lt;<span class="p">StringView</span>&gt; cs = <span class="p">StringView</span>::chars(&amp;s);
     <span class="p">Vec</span>::reverse(&amp;<span class="k">mut</span> cs);
     <span class="p">String</span> back = <span class="p">String</span>::new();
     <span class="k">foreach</span> (c in &amp;cs)
@@ -8477,7 +8478,7 @@ protocol for a library to plug into (D-0128 explains). Where that matters, walk
     <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, &amp;back);
 
     <span class="c">// Positions and text patterns work on each character.</span>
-    <span class="k">foreach</span> (i, c in <span class="p">String</span>::chars(&amp;s))
+    <span class="k">foreach</span> (i, c in <span class="p">StringView</span>::chars(&amp;s))
     {
         <span class="k">match</span> (c)
         {
@@ -8500,7 +8501,7 @@ gives the words between runs of ASCII whitespace, none empty; <code>strip_prefix
 <code>None</code> otherwise, which is how <code>--name=value</code> is read. <code>code_point(v)</code> is the number of the first
 character (<code>None</code> for empty text), and <code>String::push_code_point(&amp;mut s, cp)</code> appends one as UTF-8,
 turning a surrogate or a value above U+10FFFF into U+FFFD so the <code>String</code> stays valid. Each exists on
-a <code>String</code> as <code>&amp;s</code> (<code>StringView::lines(&amp;s)</code>, …). <code>String::parse&lt;bool&gt;</code> reads exactly <code>true</code> or <code>false</code>.
+a <code>String</code> as <code>&amp;s</code> (<code>StringView::lines(&amp;s)</code>, …). <code>StringView::parse&lt;bool&gt;</code> reads exactly <code>true</code> or <code>false</code>.
 A <code>foreach</code> over a call of <code>lines</code>, <code>split</code>, <code>split_whitespace</code> or <code>chars</code> finds each part as it
 reaches it and makes no <code>Vec</code> (D-0287, guide chapter P); bind the <code>Vec</code> first only to take its
 length or index it, as the example's <code>words</code> does.</p>
@@ -8527,10 +8528,10 @@ length or index it, as the example's <code>words</code> does.</p>
         }
     }
     <span class="p">String</span> s = <span class="s">&quot;é&quot;</span>;
-    <span class="p">printf</span>(<span class="s">&quot;U+%04X\n&quot;</span>, <span class="p">Option</span>::unwrap_or(<span class="p">String</span>::code_point(&amp;s), <span class="n">0</span>));
+    <span class="p">printf</span>(<span class="s">&quot;U+%04X\n&quot;</span>, <span class="p">Option</span>::unwrap_or(<span class="p">StringView</span>::code_point(&amp;s), <span class="n">0</span>));
     <span class="p">String</span> t = <span class="p">String</span>::new();
     <span class="p">String</span>::push_code_point(&amp;<span class="k">mut</span> t, <span class="n">0</span>x1F600);
-    <span class="p">printf</span>(<span class="s">&quot;%v has %v bytes\n&quot;</span>, &amp;t, <span class="p">String</span>::len(&amp;t));
+    <span class="p">printf</span>(<span class="s">&quot;%v has %v bytes\n&quot;</span>, &amp;t, <span class="p">StringView</span>::len(&amp;t));
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>name -&gt; 1 word(s)
 level -&gt; 1 word(s)
 flags -&gt; 2 word(s)
@@ -8556,7 +8557,7 @@ need an owner.</p>
 <tr><td>Valid UTF-8</td><td>yes, by the literal grammar</td><td>yes, by construction or validation</td><td>not guaranteed</td></tr>
 <tr><td>Resource (moved, destroyed)</td><td>no: copied like an integer</td><td>yes</td><td>no</td></tr>
 <tr><td>Allocates</td><td>never</td><td>yes</td><td>no (an ordinary array)</td></tr>
-<tr><td>Passed to</td><td><code>printf</code>, <code>==</code>, <code>str_len</code>, <code>str_byte</code>; any <code>StringView</code> parameter</td><td><code>printf</code> (as <code>&amp;s</code>), <code>String::len</code>, <code>String::into_bytes</code>; a <code>StringView</code> parameter as <code>&amp;s</code> (its view, D-0302)</td><td><code>stdout_write</code> and other raw-byte code</td></tr>
+<tr><td>Passed to</td><td><code>printf</code>, <code>==</code>, <code>str_len</code>, <code>str_byte</code>; any <code>StringView</code> parameter</td><td><code>printf</code> (as <code>&amp;s</code>), <code>String::into_bytes</code>; a <code>StringView</code> parameter as <code>&amp;s</code> (its view, D-0302)</td><td><code>stdout_write</code> and other raw-byte code</td></tr>
 </tbody>
 </table>
 <div class="callout rule"><div class="callout-title">Rules of thumb</div><ul>
@@ -8569,7 +8570,7 @@ need an owner.</p>
 </ul>
 </div>
 <p><strong>Unicode.</strong> All three are UTF-8 bytes, and <code>std</code> works on them as bytes: lengths
-and indices count bytes, <code>==</code> and the orderings compare bytes, and <code>String::chars</code> hands out the code
+and indices count bytes, <code>==</code> and the orderings compare bytes, and <code>StringView::chars</code> hands out the code
 points when you need them. <code>std</code> has no Unicode tables (D-0226): case mapping is ASCII only
 (<code>String::to_ascii_lower</code>), there is no normalization, so <code>&quot;é&quot;</code> and <code>&quot;e\u{301}&quot;</code> are different strings, and no
 splitting into user-perceived characters. A program that needs those brings its own tables.</p>
@@ -8614,7 +8615,7 @@ it while the program runs: a progress line, a log.</p>
 <p>Flags, a width and a precision work as in C: <code>%-8s</code> pads on the right, <code>%05d</code> pads with
 zeros, <code>%+d</code> always shows a sign, <code>%.2f</code> rounds to two decimals, <code>%8.3f</code> does both. Widths count
 characters, so text in any language lines up; to size a column to its text, count the characters
-too, <code>Vec::len(&amp;String::chars(&amp;s))</code>, since <code>String::len</code> counts bytes. There is no <code>%c</code>. A <code>*</code> in place of the width or
+too, <code>Vec::len(&amp;StringView::chars(&amp;s))</code>, since <code>StringView::len</code> counts bytes. There is no <code>%c</code>. A <code>*</code> in place of the width or
 the precision takes it from the next argument, which must be a <code>usize</code>: <code>printf(&quot;%*d&quot;, w, n)</code>,
 <code>printf(&quot;%.*s&quot;, n, &amp;s)</code>.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Computed widths</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
@@ -8807,7 +8808,7 @@ ok
     <span class="p">String</span> s = <span class="s">&quot;hi&quot;</span>;                  <span class="c">// <span class="ok">✓</span> a literal where a String is declared is that String (D-0149)</span>
     <span class="t">str</span> t = <span class="s">&quot;there&quot;</span>;
     <span class="p">String</span> u = <span class="p">String</span>::from_view(t);  <span class="c">// <span class="ok">✓</span> the explicit, allocating bridge for a str value</span>
-    <span class="p">assert</span>(<span class="p">String</span>::len(&amp;s) == <span class="n">2</span> &amp;&amp; <span class="p">String</span>::len(&amp;u) == <span class="n">5</span>);
+    <span class="p">assert</span>(<span class="p">StringView</span>::len(&amp;s) == <span class="n">2</span> &amp;&amp; <span class="p">StringView</span>::len(&amp;u) == <span class="n">5</span>);
 }</code></pre></figure>
 <h3>Reading input</h3>
 <p><em>In <code>std::io</code>.</em></p>
@@ -8840,7 +8841,7 @@ printed with <code>printf</code> appears before the program waits.</p>
     <span class="t">usize</span> count = <span class="n">0</span>;
     <span class="k">while</span> (<span class="p">Some</span>(name) = <span class="p">read_line</span>()?) <span class="c">// None: the end of input; an error goes back to main</span>
     {
-        <span class="k">if</span> (<span class="p">String</span>::len(&amp;name) &gt; <span class="n">0</span>)
+        <span class="k">if</span> (<span class="p">StringView</span>::len(&amp;name) &gt; <span class="n">0</span>)
         {
             <span class="p">printf</span>(<span class="s">&quot;hello, %v\n&quot;</span>, &amp;name);
             count += <span class="n">1</span>;
@@ -8986,7 +8987,7 @@ Options:
 <p><em>In <code>std::text</code>.</em></p>
 <p><code>String::append(&amp;mut s, x)</code> adds to <code>s</code> exactly what <code>printf(&quot;%v&quot;, x)</code> would write, for the same
 types: a <code>str</code>, any integer, <code>f32</code>/<code>f64</code>, <code>bool</code>, a <code>StringView</code>, or another <code>String</code> through <code>&amp;</code>. So a line can be
-built piece by piece and printed, or kept, once. <code>String::parse&lt;T&gt;(&amp;s)</code> goes the other way: it reads the
+built piece by piece and printed, or kept, once. <code>StringView::parse&lt;T&gt;(&amp;s)</code> goes the other way: it reads the
 whole <code>String</code> as a number of type <code>T</code>, any integer type, <code>f32</code> or <code>f64</code>, and returns a
 <code>Result&lt;T, ParseError&gt;</code>.</p>
 <table>
@@ -9012,7 +9013,7 @@ the same value. To take a line apart first, split, trim or search it as views (<
     <span class="k">foreach</span> (i in <span class="n">0</span>..<span class="p">arg_count</span>())
     {
         <span class="p">String</span> a = <span class="p">Result</span>::unwrap_or(<span class="p">arg</span>(i), <span class="p">String</span>::new());
-        <span class="k">match</span> (<span class="p">String</span>::<span class="p">parse</span>&lt;<span class="t">f64</span>&gt;(&amp;a))
+        <span class="k">match</span> (<span class="p">StringView</span>::<span class="p">parse</span>&lt;<span class="t">f64</span>&gt;(&amp;a))
         {
             <span class="p">Ok</span>(v)  : total += v,
             <span class="p">Err</span>(_) :
@@ -9632,7 +9633,7 @@ uses only public values and answers <code>false</code> for anything malformed.</
     <span class="c">// The same key, written the way openssl would.</span>
     <span class="p">PrivateKey</span> key = Ed25519Private(private);
     <span class="p">String</span> pem = <span class="p">PrivateKey</span>::to_pem(&amp;key);
-    <span class="p">printf</span>(<span class="s">&quot;%s&quot;</span>, <span class="p">StringView</span>::sub(&amp;pem, <span class="n">0</span>, <span class="n">27</span>));
+    <span class="p">printf</span>(<span class="s">&quot;%s&quot;</span>, &amp;pem[<span class="n">0</span>..<span class="n">27</span>]);
     <span class="p">printf</span>(<span class="s">&quot;\nread back: %v\n&quot;</span>, <span class="p">Result</span>::is_ok(&amp;<span class="p">PrivateKey</span>::from_pem(&amp;pem)));
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>genuine: true
 altered: false
@@ -10062,9 +10063,9 @@ write; <code>adler32</code> is there beside <code>crc32</code> (D-0183).</p>
         <span class="p">String</span>::append(&amp;<span class="k">mut</span> text, <span class="s">&quot;the same line again and again\n&quot;</span>);
     }
     <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; packed = <span class="p">gzip</span>(<span class="p">StringView</span>::as_bytes(&amp;text));
-    <span class="p">printf</span>(<span class="s">&quot;%v bytes became %v\n&quot;</span>, <span class="p">String</span>::len(&amp;text), <span class="p">Vec</span>::len(&amp;packed));
+    <span class="p">printf</span>(<span class="s">&quot;%v bytes became %v\n&quot;</span>, <span class="p">StringView</span>::len(&amp;text), <span class="p">Vec</span>::len(&amp;packed));
     <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; back = <span class="p">Result</span>::unwrap(<span class="p">gunzip</span>(&amp;packed[<span class="n">0</span>..$], <span class="n">1</span> &lt;&lt; <span class="n">20</span>));
-    <span class="p">printf</span>(<span class="s">&quot;round trip: %v\n&quot;</span>, <span class="p">Vec</span>::len(&amp;back) == <span class="p">String</span>::len(&amp;text) &amp;&amp; <span class="p">digest_eq</span>(&amp;back[<span class="n">0</span>..$], <span class="p">StringView</span>::as_bytes(&amp;text)));
+    <span class="p">printf</span>(<span class="s">&quot;round trip: %v\n&quot;</span>, <span class="p">Vec</span>::len(&amp;back) == <span class="p">StringView</span>::len(&amp;text) &amp;&amp; <span class="p">digest_eq</span>(&amp;back[<span class="n">0</span>..$], <span class="p">StringView</span>::as_bytes(&amp;text)));
     <span class="k">match</span> (<span class="p">gunzip</span>(&amp;packed[<span class="n">0</span>..<span class="n">10</span>], <span class="n">1</span> &lt;&lt; <span class="n">20</span>))
     {
         <span class="p">Err</span>(e) : <span class="p">printf</span>(<span class="s">&quot;cut short: %s\n&quot;</span>, <span class="p">CompressError</span>::text(&amp;e)),
@@ -10395,7 +10396,7 @@ take the key by reference, so they copy nothing.</p>
 <tr><td><code>HashMap::key_at(&amp;m, i)</code>, <code>HashMap::value_at(&amp;m, i)</code></td><td>entry <code>i</code>, for <code>i &lt; len</code>, in insertion order</td></tr>
 <tr><td><code>HashMap::clear(&amp;mut m)</code></td><td>removes every entry, destroying keys and values; the map stays usable</td></tr>
 <tr><td><code>HashMap::clone(&amp;m)</code>, <code>HashSet::clone(&amp;s)</code>, <code>clone(&amp;m)</code></td><td>a copy of a map or set whose contents are <code>clone</code> (§12); <code>Rc::clone</code> shares instead</td></tr>
-<tr><td><code>HashMap::get_str(&amp;m, &quot;k&quot;)</code>, <code>get_mut_str</code>, <code>contains_str</code>, <code>remove_str</code></td><td>for a map keyed by <code>String</code>: the same lookups with a <code>str</code>, so no <code>String</code> is built to ask (D-0113); <code>HashSet::contains_str</code>, <code>remove_str</code> likewise</td></tr>
+<tr><td><code>HashMap::get(&amp;m, &quot;k&quot;)</code>, <code>get_mut</code>, <code>contains</code>, <code>remove</code></td><td>for a map keyed by <code>String</code>: a literal or a <code>str</code> is the key's reference as written, so no <code>String</code> is built to ask (D-0308); <code>HashSet::contains</code>, <code>remove</code> likewise</td></tr>
 <tr><td><code>HashSet::new</code>, <code>len</code>, <code>insert</code>, <code>contains</code>, <code>remove</code>, <code>swap_remove</code>, <code>key_at</code>, <code>clear</code></td><td>the same for a set; <code>insert</code> and the removals say whether anything changed</td></tr>
 <tr><td><code>HashSet::union(&amp;a, &amp;b)</code>, <code>HashSet::intersection(&amp;a, &amp;b)</code>, <code>HashSet::difference(&amp;a, &amp;b)</code></td><td>a new set of the keys in either, in both, or in <code>a</code> but not <code>b</code>, copied with <code>clone</code>; <code>a</code> and <code>b</code> are unchanged. The result keeps <code>a</code>'s order, and <code>union</code> adds <code>b</code>'s new keys after it (D-0138)</td></tr>
 </tbody>
@@ -10831,7 +10832,7 @@ write it, so a live reference that conflicts with either place, such as a shared
     <span class="k">for</span> (<span class="t">usize</span> i = <span class="n">1</span>; i &lt; slice_len(s); i += <span class="n">1</span>)
     {
         <span class="t">usize</span> j = i;
-        <span class="k">while</span> (j &gt; <span class="n">0</span> &amp;&amp; <span class="p">String</span>::len(&amp;s[j - <span class="n">1</span>]) &gt; <span class="p">String</span>::len(&amp;s[j]))
+        <span class="k">while</span> (j &gt; <span class="n">0</span> &amp;&amp; <span class="p">StringView</span>::len(&amp;s[j - <span class="n">1</span>]) &gt; <span class="p">StringView</span>::len(&amp;s[j]))
         {
             slice_swap(s, j - <span class="n">1</span>, j);
             j -= <span class="n">1</span>;
@@ -10853,12 +10854,12 @@ write it, so a live reference that conflicts with either place, such as a shared
         <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> words, <span class="p">String</span>::from_view(w));
     }
     sort_by_len(&amp;<span class="k">mut</span> words[<span class="n">0</span>..$]);
-    <span class="p">assert</span>(<span class="p">String</span>::len(&amp;words[<span class="n">0</span>]) == <span class="n">3</span> &amp;&amp; <span class="p">String</span>::len(&amp;words[$ - <span class="n">1</span>]) == <span class="n">6</span>);
+    <span class="p">assert</span>(<span class="p">StringView</span>::len(&amp;words[<span class="n">0</span>]) == <span class="n">3</span> &amp;&amp; <span class="p">StringView</span>::len(&amp;words[$ - <span class="n">1</span>]) == <span class="n">6</span>);
 
     Pair p = Pair { .left = <span class="s">&quot;L&quot;</span>, .right = <span class="s">&quot;RR&quot;</span> };
     <span class="p">swap</span>(&amp;<span class="k">mut</span> p.left, &amp;<span class="k">mut</span> p.right);
     <span class="p">String</span> old = replace(&amp;<span class="k">mut</span> p.left, <span class="s">&quot;new&quot;</span>);   <span class="c">// old is &quot;RR&quot;</span>
-    <span class="p">assert</span>(<span class="p">String</span>::len(&amp;old) == <span class="n">2</span> &amp;&amp; <span class="p">String</span>::len(&amp;p.left) == <span class="n">3</span>);
+    <span class="p">assert</span>(<span class="p">StringView</span>::len(&amp;old) == <span class="n">2</span> &amp;&amp; <span class="p">StringView</span>::len(&amp;p.left) == <span class="n">3</span>);
 }</code></pre></figure>
 <p>An empty slot is filled by plain assignment: a <code>None</code> owns nothing, so <code>*slot = Some(...)</code>
 writes over it (§07). To put a value where one may already be, use <code>replace</code>, which hands the old
@@ -12043,27 +12044,31 @@ tools build in, which have no CobaltC body (<code>printf</code>, <code>sqrt</cod
 <div class="stdref-entry">
 <h4 id="stdref-std-collections-HashMap-get_str" class="stdref-item"><code>HashMap::get_str</code> <span class="std-file">fn</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">HashMap</span>::get_str&lt;V&gt;(<span class="t">ref</span>&lt;<span class="p">HashMap</span>&lt;<span class="p">String</span>, V&gt;, <span class="t">shared</span>&gt; m, <span class="t">str</span> k) : <span class="p">Option</span>&lt;<span class="t">ref</span>&lt;V, <span class="t">shared</span>&gt;&gt;</code></pre></figure>
+<p class="stdref-retired"><strong>Deprecated</strong> (D-0303): write HashMap::get(…): a literal or a str is the String reference where one is declared (D-0308)</p>
 <p>The value for the key <code>k</code> in a <code>String</code>-keyed map, as a shared reference; <code>None</code> when it is absent.</p>
 <p>Looks the key up by its bytes without making a <code>String</code>, so a literal key costs nothing.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: A <code>String</code>-keyed map looked up by a literal</span><span class="badge ok">runs</span></div><pre><code><span class="p">HashMap</span>&lt;<span class="p">String</span>, <span class="t">i32</span>&gt; m = <span class="p">HashMap</span>::new();
 <span class="p">HashMap</span>::insert(&amp;<span class="k">mut</span> m, <span class="s">&quot;apple&quot;</span>, <span class="n">3</span>);
-<span class="p">assert</span>(*<span class="p">Option</span>::unwrap(<span class="p">HashMap</span>::get_str(&amp;m, <span class="s">&quot;apple&quot;</span>)) == <span class="n">3</span>);
-<span class="p">assert</span>(!<span class="p">HashMap</span>::contains_str(&amp;m, <span class="s">&quot;pear&quot;</span>));</code></pre></figure>
+<span class="p">assert</span>(*<span class="p">Option</span>::unwrap(<span class="p">HashMap</span>::get(&amp;m, <span class="s">&quot;apple&quot;</span>)) == <span class="n">3</span>);
+<span class="p">assert</span>(!<span class="p">HashMap</span>::contains(&amp;m, <span class="s">&quot;pear&quot;</span>));</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-collections-HashMap-get_mut_str" class="stdref-item"><code>HashMap::get_mut_str</code> <span class="std-file">fn</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">HashMap</span>::get_mut_str&lt;V&gt;(<span class="t">ref</span>&lt;<span class="p">HashMap</span>&lt;<span class="p">String</span>, V&gt;, <span class="t">exclusive</span>&gt; m, <span class="t">str</span> k) : <span class="p">Option</span>&lt;<span class="t">ref</span>&lt;V, <span class="t">exclusive</span>&gt;&gt;</code></pre></figure>
+<p class="stdref-retired"><strong>Deprecated</strong> (D-0303): write HashMap::get_mut(…): a literal or a str is the String reference where one is declared (D-0308)</p>
 <p>The value for the key <code>k</code> in a <code>String</code>-keyed map, as an exclusive reference; <code>None</code> when it is absent.</p>
 <p>No <code>String</code> is made.</p>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-collections-HashMap-contains_str" class="stdref-item"><code>HashMap::contains_str</code> <span class="std-file">fn</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">HashMap</span>::contains_str&lt;V&gt;(<span class="t">ref</span>&lt;<span class="p">HashMap</span>&lt;<span class="p">String</span>, V&gt;, <span class="t">shared</span>&gt; m, <span class="t">str</span> k) : <span class="t">bool</span></code></pre></figure>
+<p class="stdref-retired"><strong>Deprecated</strong> (D-0303): write HashMap::contains(…): a literal or a str is the String reference where one is declared (D-0308)</p>
 <p>Whether a <code>String</code>-keyed map has an entry for the key <code>k</code>; no <code>String</code> is made.</p>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-collections-HashMap-remove_str" class="stdref-item"><code>HashMap::remove_str</code> <span class="std-file">fn</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">HashMap</span>::remove_str&lt;V&gt;(<span class="t">ref</span>&lt;<span class="p">HashMap</span>&lt;<span class="p">String</span>, V&gt;, <span class="t">exclusive</span>&gt; m, <span class="t">str</span> k) : <span class="p">Option</span>&lt;V&gt;</code></pre></figure>
+<p class="stdref-retired"><strong>Deprecated</strong> (D-0303): write HashMap::remove(…): a literal or a str is the String reference where one is declared (D-0308)</p>
 <p>Removes the key <code>k</code> from a <code>String</code>-keyed map and returns its value; <code>None</code> when it is absent.</p>
 <p>As <code>HashMap::remove</code>: the other entries keep their order. No <code>String</code> is made for the lookup.</p>
 </div>
@@ -12145,11 +12150,13 @@ tools build in, which have no CobaltC body (<code>printf</code>, <code>sqrt</cod
 <div class="stdref-entry">
 <h4 id="stdref-std-collections-HashSet-contains_str" class="stdref-item"><code>HashSet::contains_str</code> <span class="std-file">fn</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">HashSet</span>::contains_str(<span class="t">ref</span>&lt;<span class="p">HashSet</span>&lt;<span class="p">String</span>&gt;, <span class="t">shared</span>&gt; s, <span class="t">str</span> k) : <span class="t">bool</span></code></pre></figure>
+<p class="stdref-retired"><strong>Deprecated</strong> (D-0303): write HashSet::contains(…): a literal or a str is the String reference where one is declared (D-0308)</p>
 <p>Whether a set of <code>String</code>s holds the text <code>k</code>; no <code>String</code> is made.</p>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-collections-HashSet-remove_str" class="stdref-item"><code>HashSet::remove_str</code> <span class="std-file">fn</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">HashSet</span>::remove_str(<span class="t">ref</span>&lt;<span class="p">HashSet</span>&lt;<span class="p">String</span>&gt;, <span class="t">exclusive</span>&gt; s, <span class="t">str</span> k) : <span class="t">bool</span></code></pre></figure>
+<p class="stdref-retired"><strong>Deprecated</strong> (D-0303): write HashSet::remove(…): a literal or a str is the String reference where one is declared (D-0308)</p>
 <p>Removes the text <code>k</code> from a set of <code>String</code>s, keeping the order of the others; returns true if it was present.</p>
 </div>
 <div class="stdref-entry">
@@ -12397,8 +12404,10 @@ tools build in, which have no CobaltC body (<code>printf</code>, <code>sqrt</cod
 <div class="stdref-entry">
 <h4 id="stdref-std-text-String-len" class="stdref-item"><code>String::len</code> <span class="std-file">fn</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">String</span>::len(<span class="t">ref</span>&lt;<span class="p">String</span>, <span class="t">shared</span>&gt; s) : <span class="t">usize</span></code></pre></figure>
+<p class="stdref-retired"><strong>Deprecated</strong> (D-0303): write StringView::len(&amp;s): <code>&amp;s</code> is a view where a StringView is declared (D-0302, D-0308)</p>
 <p>The length of <code>s</code> in bytes.</p>
 <p><code>String::char_count</code> counts characters.</p>
+<p>Deprecated (D-0308): programs write <code>StringView::len(&amp;s)</code>.</p>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-text-String-into_bytes" class="stdref-item"><code>String::into_bytes</code> <span class="std-file">fn</span></h4>
@@ -12450,12 +12459,6 @@ tools build in, which have no CobaltC body (<code>printf</code>, <code>sqrt</cod
 <p>Programs usually write <code>a == b</code>.</p>
 </div>
 <div class="stdref-entry">
-<h4 id="stdref-std-text-String-eq_str" class="stdref-item"><code>String::eq_str</code> <span class="std-file">fn</span></h4>
-<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">String</span>::eq_str(<span class="t">ref</span>&lt;<span class="p">String</span>, <span class="t">shared</span>&gt; a, <span class="t">str</span> t) : <span class="t">bool</span></code></pre></figure>
-<p>Whether <code>a</code> holds the same text as the <code>str</code> <code>t</code>.</p>
-<p>What <code>a == t</code> becomes for a <code>String</code> and a <code>str</code>; programs write that.</p>
-</div>
-<div class="stdref-entry">
 <h4 id="stdref-std-text-String-push_ascii" class="stdref-item"><code>String::push_ascii</code> <span class="std-file">fn</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">String</span>::push_ascii(<span class="t">ref</span>&lt;<span class="p">String</span>, <span class="t">exclusive</span>&gt; s, <span class="t">u8</span> b)</code></pre></figure>
 <p>Appends the ASCII byte <code>b</code> to <code>s</code>.</p>
@@ -12482,18 +12485,6 @@ tools build in, which have no CobaltC body (<code>printf</code>, <code>sqrt</cod
 <span class="p">assert</span>(s == <span class="s">&quot;caf&quot;</span>);</code></pre></figure>
 </div>
 <div class="stdref-entry">
-<h4 id="stdref-std-text-String-view" class="stdref-item"><code>String::view</code> <span class="std-file">fn</span></h4>
-<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">String</span>::view(<span class="t">ref</span>&lt;<span class="p">String</span>, <span class="t">shared</span>&gt; s, <span class="t">usize</span> lo, <span class="t">usize</span> hi) : <span class="p">StringView</span></code></pre></figure>
-<p>A view of bytes <code>lo</code> to <code>hi</code> of <code>s</code>, <code>hi</code> excluded.</p>
-<p>What <code>&amp;s[lo .. hi]</code> becomes; programs write that. Faults (<code>index_out_of_bounds</code>) when <code>lo &gt; hi</code> or <code>hi</code> is beyond the length, and (<code>not_char_boundary</code>) when <code>lo</code> or <code>hi</code> is inside a character.</p>
-</div>
-<div class="stdref-entry">
-<h4 id="stdref-std-text-String-eq_view" class="stdref-item"><code>String::eq_view</code> <span class="std-file">fn</span></h4>
-<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">String</span>::eq_view(<span class="t">ref</span>&lt;<span class="p">String</span>, <span class="t">shared</span>&gt; a, <span class="p">StringView</span> v) : <span class="t">bool</span></code></pre></figure>
-<p>Whether <code>a</code> holds the same text as the view <code>v</code>.</p>
-<p>What <code>a == v</code> becomes for a <code>String</code> and a <code>StringView</code>; programs write that.</p>
-</div>
-<div class="stdref-entry">
 <h4 id="stdref-std-text-String-join" class="stdref-item"><code>String::join</code> <span class="std-file">fn</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">String</span>::<span class="p">join</span>(<span class="t">slice</span>&lt;<span class="p">String</span>, <span class="t">shared</span>&gt; parts, <span class="p">StringView</span> sep) : <span class="p">String</span></code></pre></figure>
 <p>The texts of the <code>String</code>s in <code>parts</code>, in order, with <code>sep</code> between each two, in a new <code>String</code>.</p>
@@ -12507,18 +12498,22 @@ tools build in, which have no CobaltC body (<code>printf</code>, <code>sqrt</cod
 <div class="stdref-entry">
 <h4 id="stdref-std-text-String-char_count" class="stdref-item"><code>String::char_count</code> <span class="std-file">fn</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">String</span>::char_count(<span class="t">ref</span>&lt;<span class="p">String</span>, <span class="t">shared</span>&gt; s) : <span class="t">usize</span></code></pre></figure>
+<p class="stdref-retired"><strong>Deprecated</strong> (D-0303): write StringView::char_count(&amp;s): <code>&amp;s</code> is a view where a StringView is declared (D-0302, D-0308)</p>
 <p>The number of characters (code points) in <code>s</code>.</p>
 <p><code>String::len</code> counts bytes.</p>
+<p>Deprecated (D-0308): programs write <code>StringView::char_count(&amp;s)</code>.</p>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-text-String-chars" class="stdref-item"><code>String::chars</code> <span class="std-file">fn</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">String</span>::chars(<span class="t">ref</span>&lt;<span class="p">String</span>, <span class="t">shared</span>&gt; s) : <span class="p">Vec</span>&lt;<span class="p">StringView</span>&gt;</code></pre></figure>
+<p class="stdref-retired"><strong>Deprecated</strong> (D-0303): write StringView::chars(&amp;s): <code>&amp;s</code> is a view where a StringView is declared (D-0302, D-0308)</p>
 <p>The characters of <code>s</code>, in order, each a view of that character&#x27;s bytes.</p>
 <p>As <code>StringView::chars</code> on the whole text.</p>
+<p>Deprecated (D-0308): programs write <code>StringView::chars(&amp;s)</code>.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: A character can be several bytes</span><span class="badge ok">runs</span></div><pre><code><span class="p">String</span> s = <span class="s">&quot;h\u{e9}!&quot;</span>;
-<span class="p">assert</span>(<span class="p">String</span>::len(&amp;s) == <span class="n">4</span>);
-<span class="p">assert</span>(<span class="p">String</span>::char_count(&amp;s) == <span class="n">3</span>);
-<span class="p">Vec</span>&lt;<span class="p">StringView</span>&gt; cs = <span class="p">String</span>::chars(&amp;s);
+<span class="p">assert</span>(<span class="p">StringView</span>::len(&amp;s) == <span class="n">4</span>);
+<span class="p">assert</span>(<span class="p">StringView</span>::char_count(&amp;s) == <span class="n">3</span>);
+<span class="p">Vec</span>&lt;<span class="p">StringView</span>&gt; cs = <span class="p">StringView</span>::chars(&amp;s);
 <span class="p">assert</span>(<span class="p">StringView</span>::len(cs[<span class="n">1</span>]) == <span class="n">2</span>);
 <span class="p">assert</span>(<span class="p">StringView</span>::code_point(cs[<span class="n">1</span>]) == <span class="p">Some</span>(<span class="n">0</span>xe9: <span class="t">u32</span>));</code></pre></figure>
 </div>
@@ -12556,7 +12551,9 @@ n = <span class="n">0</span>;
 <div class="stdref-entry">
 <h4 id="stdref-std-text-String-code_point" class="stdref-item"><code>String::code_point</code> <span class="std-file">fn</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">String</span>::code_point(<span class="t">ref</span>&lt;<span class="p">String</span>, <span class="t">shared</span>&gt; s) : <span class="p">Option</span>&lt;<span class="t">u32</span>&gt;</code></pre></figure>
+<p class="stdref-retired"><strong>Deprecated</strong> (D-0303): write StringView::code_point(&amp;s): <code>&amp;s</code> is a view where a StringView is declared (D-0302, D-0308)</p>
 <p>The code point of the first character of <code>s</code>, or <code>None</code> when <code>s</code> is empty.</p>
+<p>Deprecated (D-0308): programs write <code>StringView::code_point(&amp;s)</code>.</p>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-text-String-append" class="stdref-item"><code>String::append</code> <span class="std-file">fn</span></h4>
@@ -12572,6 +12569,7 @@ n = <span class="n">0</span>;
 <div class="stdref-entry">
 <h4 id="stdref-std-text-String-parse" class="stdref-item"><code>String::parse</code> <span class="std-file">fn</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">String</span>::<span class="p">parse</span>&lt;T&gt;(<span class="t">ref</span>&lt;<span class="p">String</span>, <span class="t">shared</span>&gt; s) : <span class="p">Result</span>&lt;T, <span class="p">ParseError</span>&gt;</code></pre></figure>
+<p class="stdref-retired"><strong>Deprecated</strong> (D-0303): write StringView::parse&lt;T&gt;(&amp;s): <code>&amp;s</code> is a view where a StringView is declared (D-0302, D-0308)</p>
 <p>The number the text of <code>s</code> holds, as a <code>T</code>: an integer type, <code>f32</code> or <code>f64</code>.</p>
 <p>The whole text must be the number: no white space, <code>_</code>, other base, or <code>.5</code> and <code>5.</code> forms. Leading zeros are allowed; <code>+</code> is allowed, and <code>-</code> is invalid for an unsigned <code>T</code>, even in <code>-0</code>. A float may also be <code>inf</code> or <code>NaN</code>, and is correctly rounded in <code>T</code> itself.</p>
 <ul>
@@ -12579,14 +12577,36 @@ n = <span class="n">0</span>;
 <li><code>Err(Invalid(k))</code> at the first byte that cannot continue a number, or the length when the text stops too early: <code>&quot;12x4&quot;</code> gives <code>Invalid(2)</code> and <code>&quot;1e&quot;</code> <code>Invalid(2)</code>. An invalid byte is reported even when the digits before it are already out of range.</li>
 <li><code>Err(OutOfRange)</code> when the value does not fit <code>T</code>.</li>
 </ul>
+<p>Deprecated (D-0308): programs write <code>StringView::parse&lt;T&gt;(&amp;s)</code>.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: Each error, and a success</span><span class="badge ok">runs</span></div><pre><code><span class="p">String</span> a = <span class="s">&quot;12x4&quot;</span>;
-<span class="p">assert</span>(<span class="p">String</span>::<span class="p">parse</span>&lt;<span class="t">i32</span>&gt;(&amp;a) == <span class="p">Err</span>(Invalid(<span class="n">2</span>)));
+<span class="p">assert</span>(<span class="p">StringView</span>::<span class="p">parse</span>&lt;<span class="t">i32</span>&gt;(&amp;a) == <span class="p">Err</span>(Invalid(<span class="n">2</span>)));
 <span class="p">String</span> b = <span class="s">&quot;300&quot;</span>;
-<span class="p">assert</span>(<span class="p">String</span>::<span class="p">parse</span>&lt;<span class="t">u8</span>&gt;(&amp;b) == <span class="p">Err</span>(OutOfRange));
+<span class="p">assert</span>(<span class="p">StringView</span>::<span class="p">parse</span>&lt;<span class="t">u8</span>&gt;(&amp;b) == <span class="p">Err</span>(OutOfRange));
 <span class="p">String</span> c = <span class="s">&quot;&quot;</span>;
-<span class="p">assert</span>(<span class="p">String</span>::<span class="p">parse</span>&lt;<span class="t">i32</span>&gt;(&amp;c) == <span class="p">Err</span>(Empty));
+<span class="p">assert</span>(<span class="p">StringView</span>::<span class="p">parse</span>&lt;<span class="t">i32</span>&gt;(&amp;c) == <span class="p">Err</span>(Empty));
 <span class="p">String</span> d = <span class="s">&quot;-17&quot;</span>;
-<span class="p">assert</span>(<span class="p">String</span>::<span class="p">parse</span>&lt;<span class="t">i32</span>&gt;(&amp;d) == <span class="p">Ok</span>(-<span class="n">17</span>));</code></pre></figure>
+<span class="p">assert</span>(<span class="p">StringView</span>::<span class="p">parse</span>&lt;<span class="t">i32</span>&gt;(&amp;d) == <span class="p">Ok</span>(-<span class="n">17</span>));</code></pre></figure>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-text-String-eq_str" class="stdref-item"><code>String::eq_str</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">String</span>::eq_str(<span class="t">ref</span>&lt;<span class="p">String</span>, <span class="t">shared</span>&gt; a, <span class="t">str</span> t) : <span class="t">bool</span></code></pre></figure>
+<p class="stdref-retired"><strong>Deprecated</strong> (D-0303): write a == t (D-0164, D-0308)</p>
+<p>Whether <code>a</code> holds the same text as the <code>str</code> <code>t</code>.</p>
+<p>Deprecated (D-0308): programs write <code>a == t</code>.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-text-String-eq_view" class="stdref-item"><code>String::eq_view</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">String</span>::eq_view(<span class="t">ref</span>&lt;<span class="p">String</span>, <span class="t">shared</span>&gt; a, <span class="p">StringView</span> v) : <span class="t">bool</span></code></pre></figure>
+<p class="stdref-retired"><strong>Deprecated</strong> (D-0303): write a == v (D-0164, D-0308)</p>
+<p>Whether <code>a</code> holds the same text as the view <code>v</code>.</p>
+<p>Deprecated (D-0308): programs write <code>a == v</code>.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-text-String-view" class="stdref-item"><code>String::view</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">String</span>::view(<span class="t">ref</span>&lt;<span class="p">String</span>, <span class="t">shared</span>&gt; s, <span class="t">usize</span> lo, <span class="t">usize</span> hi) : <span class="p">StringView</span></code></pre></figure>
+<p class="stdref-retired"><strong>Deprecated</strong> (D-0303): write &amp;s[lo..hi] (D-0308)</p>
+<p>A view of bytes <code>lo</code> to <code>hi</code> of <code>s</code>, <code>hi</code> excluded.</p>
+<p>Deprecated (D-0308): programs write <code>&amp;s[lo..hi]</code>.</p>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-text-String-from_str" class="stdref-item"><code>String::from_str</code> <span class="std-file">fn</span></h4>
@@ -12692,12 +12712,6 @@ n = <span class="n">0</span>;
 <p>A literal where a <code>StringView</code> is expected is this call, so programs usually write the literal.</p>
 </div>
 <div class="stdref-entry">
-<h4 id="stdref-std-text-StringView-sub" class="stdref-item"><code>StringView::sub</code> <span class="std-file">fn</span></h4>
-<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">StringView</span>::sub(<span class="p">StringView</span> v, <span class="t">usize</span> lo, <span class="t">usize</span> hi) : <span class="p">StringView</span></code></pre></figure>
-<p>A view of bytes <code>lo</code> to <code>hi</code> of <code>v</code>, <code>hi</code> excluded.</p>
-<p>What <code>&amp;v[lo .. hi]</code> becomes for a view; programs write that. Faults (<code>index_out_of_bounds</code>) when <code>lo &gt; hi</code> or <code>hi</code> is beyond the length, and (<code>not_char_boundary</code>) when <code>lo</code> or <code>hi</code> is inside a character.</p>
-</div>
-<div class="stdref-entry">
 <h4 id="stdref-std-text-StringView-len" class="stdref-item"><code>StringView::len</code> <span class="std-file">fn</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">StringView</span>::len(<span class="p">StringView</span> v) : <span class="t">usize</span></code></pre></figure>
 <p>The length of <code>v</code> in bytes.</p>
@@ -12722,12 +12736,6 @@ n = <span class="n">0</span>;
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">StringView</span>::as_bytes(<span class="p">StringView</span> v) : <span class="t">slice</span>&lt;<span class="t">u8</span>, <span class="t">shared</span>&gt;</code></pre></figure>
 <p>The bytes of <code>v</code> as a slice, not a copy, valid as long as <code>v</code> is.</p>
 <p>For what takes <code>slice&lt;u8, shared&gt;</code>: a hash, a MAC, a socket&#x27;s write. A literal in its place is a view, and <code>&amp;s</code> gives a <code>String</code>&#x27;s where a <code>StringView</code> is declared (D-0302).</p>
-</div>
-<div class="stdref-entry">
-<h4 id="stdref-std-text-StringView-eq_str" class="stdref-item"><code>StringView::eq_str</code> <span class="std-file">fn</span></h4>
-<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">StringView</span>::eq_str(<span class="p">StringView</span> a, <span class="t">str</span> t) : <span class="t">bool</span></code></pre></figure>
-<p>Whether <code>a</code> holds the same text as the <code>str</code> <code>t</code>.</p>
-<p>What <code>a == t</code> becomes for a view and a <code>str</code>; programs write that.</p>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-text-StringView-find" class="stdref-item"><code>StringView::find</code> <span class="std-file">fn</span></h4>
@@ -12863,10 +12871,24 @@ n = <span class="n">0</span>;
 <h4 id="stdref-std-text-StringView-parse" class="stdref-item"><code>StringView::parse</code> <span class="std-file">fn</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">StringView</span>::<span class="p">parse</span>&lt;T&gt;(<span class="p">StringView</span> v) : <span class="p">Result</span>&lt;T, <span class="p">ParseError</span>&gt;</code></pre></figure>
 <p>The number the text of <code>v</code> holds, as a <code>T</code>: an integer type, <code>f32</code> or <code>f64</code>.</p>
-<p>Parsed in place, by the rules and with the errors of <code>String::parse</code>: the whole text or nothing, so white space around the number must be trimmed first.</p>
+<p>Parsed in place, by the rules and with the errors of <code>[Parse]</code> (spec/21 §2d): the whole text or nothing, so white space around the number must be trimmed first.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: The whole text must be the number</span><span class="badge ok">runs</span></div><pre><code><span class="p">StringView</span> v = <span class="s">&quot; 42 &quot;</span>;
 <span class="p">assert</span>(<span class="p">StringView</span>::<span class="p">parse</span>&lt;<span class="t">u32</span>&gt;(v) == <span class="p">Err</span>(Invalid(<span class="n">0</span>)));
 <span class="p">assert</span>(<span class="p">StringView</span>::<span class="p">parse</span>&lt;<span class="t">u32</span>&gt;(<span class="p">StringView</span>::trim(v)) == <span class="p">Ok</span>(<span class="n">42</span>));</code></pre></figure>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-text-StringView-eq_str" class="stdref-item"><code>StringView::eq_str</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">StringView</span>::eq_str(<span class="p">StringView</span> a, <span class="t">str</span> t) : <span class="t">bool</span></code></pre></figure>
+<p class="stdref-retired"><strong>Deprecated</strong> (D-0303): write a == t (D-0308)</p>
+<p>Whether <code>a</code> holds the same text as the <code>str</code> <code>t</code>.</p>
+<p>Deprecated (D-0308): programs write <code>a == t</code>.</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-text-StringView-sub" class="stdref-item"><code>StringView::sub</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">StringView</span>::sub(<span class="p">StringView</span> v, <span class="t">usize</span> lo, <span class="t">usize</span> hi) : <span class="p">StringView</span></code></pre></figure>
+<p class="stdref-retired"><strong>Deprecated</strong> (D-0303): write &amp;v[lo..hi] (D-0308)</p>
+<p>A view of bytes <code>lo</code> to <code>hi</code> of <code>v</code>, <code>hi</code> excluded.</p>
+<p>Deprecated (D-0308): programs write <code>&amp;v[lo..hi]</code>.</p>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-text-ascii_is_digit" class="stdref-item"><code>ascii_is_digit</code> <span class="std-file">fn</span></h4>
@@ -13462,7 +13484,7 @@ _ = <span class="p">remove_dir_all</span>(&amp;dir);</code></pre></figure>
 <p>The value never comes back once ended: after the last <code>Rc</code> is destroyed every upgrade gives <code>None</code>.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: A <code>Weak</code> upgrades while any <code>Rc</code> remains and gives <code>None</code> after the last one ends</span><span class="badge ok">runs</span></div><pre><code><span class="p">Rc</span>&lt;<span class="p">String</span>&gt; a = <span class="p">Rc</span>::new(<span class="s">&quot;shared&quot;</span>);
 <span class="p">Rc</span>&lt;<span class="p">String</span>&gt; b = <span class="p">Rc</span>::clone(&amp;a);
-<span class="p">assert</span>(<span class="p">String</span>::len(<span class="p">Rc</span>::get(&amp;b)) == <span class="n">6</span>);
+<span class="p">assert</span>(<span class="p">StringView</span>::len(&amp;(*<span class="p">Rc</span>::get(&amp;b))[<span class="n">0</span>..$]) == <span class="n">6</span>);
 Weak&lt;<span class="p">String</span>&gt; w = <span class="p">Rc</span>::downgrade(&amp;a);
 <span class="p">drop</span>(a);
 <span class="p">assert</span>(<span class="p">Option</span>::is_some(&amp;Weak::upgrade(&amp;w)));
@@ -13556,7 +13578,7 @@ ArcWeak&lt;<span class="t">mutex</span>&lt;<span class="t">u32</span>&gt;&gt; w 
 <p>When no strong or weak handle remains, the memory is freed.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: An <code>ArcWeak</code> upgrades while any <code>Arc</code> remains and gives <code>None</code> after the last one ends</span><span class="badge ok">runs</span></div><pre><code>Arc&lt;<span class="p">String</span>&gt; a = Arc::new(<span class="s">&quot;shared&quot;</span>);
 Arc&lt;<span class="p">String</span>&gt; b = clone(&amp;a);
-<span class="p">assert</span>(<span class="p">String</span>::len(Arc::get(&amp;b)) == <span class="n">6</span>);
+<span class="p">assert</span>(<span class="p">StringView</span>::len(&amp;(*Arc::get(&amp;b))[<span class="n">0</span>..$]) == <span class="n">6</span>);
 ArcWeak&lt;<span class="p">String</span>&gt; w = Arc::downgrade(&amp;a);
 ArcWeak&lt;<span class="p">String</span>&gt; w2 = clone(&amp;w);
 <span class="p">drop</span>(a);
@@ -14095,7 +14117,7 @@ Atomic&lt;<span class="t">u32</span>&gt; runs = Atomic::new(<span class="n">0</s
     <span class="p">Err</span>(f) :
     {
         <span class="p">String</span> d = ThreadFailure::diagnostic(&amp;f);
-        <span class="p">assert</span>(<span class="p">String</span>::eq_str(&amp;d, <span class="s">&quot;diag.unwrap-failed&quot;</span>));
+        <span class="p">assert</span>(d == <span class="s">&quot;diag.unwrap-failed&quot;</span>);
         <span class="p">assert</span>(!ThreadFailure::is_cancelled(&amp;f));
     },
 }</code></pre></figure>
@@ -14218,9 +14240,9 @@ Rng::shuffle(&amp;<span class="k">mut</span> r, &amp;<span class="k">mut</span> 
 <p>A version 4 UUID (RFC 9562) from the operating system&#x27;s secure source, as 36 lowercase characters.</p>
 <p>The form is <code>xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx</code>, with <code>y</code> one of <code>8</code>, <code>9</code>, <code>a</code>, <code>b</code>. Faults (<code>entropy_unavailable</code>) when the system has no secure source.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: The version digit <code>4</code> stands at position 14, after the second hyphen</span><span class="badge ok">runs</span></div><pre><code><span class="p">String</span> id = <span class="p">uuid_v4</span>();
-<span class="p">assert</span>(<span class="p">String</span>::len(&amp;id) == <span class="n">36</span>);
-<span class="p">assert</span>(<span class="p">StringView</span>::eq_str(<span class="p">String</span>::view(&amp;id, <span class="n">8</span>, <span class="n">9</span>), <span class="s">&quot;-&quot;</span>));
-<span class="p">assert</span>(<span class="p">StringView</span>::eq_str(<span class="p">String</span>::view(&amp;id, <span class="n">14</span>, <span class="n">15</span>), <span class="s">&quot;4&quot;</span>));</code></pre></figure>
+<span class="p">assert</span>(<span class="p">StringView</span>::len(&amp;id) == <span class="n">36</span>);
+<span class="p">assert</span>(&amp;id[<span class="n">8</span>..<span class="n">9</span>] == <span class="s">&quot;-&quot;</span>);
+<span class="p">assert</span>(&amp;id[<span class="n">14</span>..<span class="n">15</span>] == <span class="s">&quot;4&quot;</span>);</code></pre></figure>
 </div>
 <h3 id="stdref-std-math"><code>std::math</code> <span class="std-file">impl/std/math.cb</span></h3>
 <div class="stdref-entry">
@@ -14363,7 +14385,7 @@ Rng::shuffle(&amp;<span class="k">mut</span> r, &amp;<span class="k">mut</span> 
 <figure class="code"><div class="code-head"><span class="code-title">Example: 2 to the power 100, written in decimal and read back</span><span class="badge ok">runs</span></div><pre><code><span class="p">BigUint</span> big = <span class="p">BigUint</span>::shift_left(&amp;<span class="p">BigUint</span>::from_u64(<span class="n">1</span>), <span class="n">100</span>);
 <span class="p">assert</span>(<span class="p">BigUint</span>::bit_len(&amp;big) == <span class="n">101</span>);
 <span class="p">String</span> t = <span class="p">BigUint</span>::text(&amp;big);
-<span class="p">assert</span>(<span class="p">String</span>::eq_str(&amp;t, <span class="s">&quot;1267650600228229401496703205376&quot;</span>));
+<span class="p">assert</span>(t == <span class="s">&quot;1267650600228229401496703205376&quot;</span>);
 <span class="p">BigUint</span> back = <span class="p">Result</span>::unwrap(<span class="p">BigUint</span>::<span class="p">parse</span>(&amp;t));
 <span class="p">assert</span>(<span class="p">BigUint</span>::eq(&amp;back, &amp;big));</code></pre></figure>
 </div>
@@ -15512,7 +15534,7 @@ Summary s = <span class="p">Option</span>::unwrap(describe(&amp;ms[<span class="
 <p>The same as <code>Sha256::new</code>, one <code>Sha256::update</code> and <code>Sha256::finish</code>. <code>to_hex</code> prints it.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: The digest of <code>abc</code> is the FIPS 180-4 example's</span><span class="badge ok">runs</span></div><pre><code><span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; d = <span class="p">sha256</span>(&amp;<span class="s">b&quot;abc&quot;</span>[<span class="n">0</span>..$]);
 <span class="p">String</span> hex = <span class="p">to_hex</span>(&amp;d[<span class="n">0</span>..$]);
-<span class="p">assert</span>(<span class="p">String</span>::eq_str(&amp;hex, <span class="s">&quot;ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad&quot;</span>));</code></pre></figure>
+<span class="p">assert</span>(hex == <span class="s">&quot;ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad&quot;</span>);</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-crypto-digest-sha512" class="stdref-item"><code>sha512</code> <span class="std-file">fn</span></h4>
@@ -15533,7 +15555,7 @@ Summary s = <span class="p">Option</span>::unwrap(describe(&amp;ms[<span class="
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">sha1</span>(<span class="t">slice</span>&lt;<span class="t">u8</span>, <span class="t">shared</span>&gt; data) : <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">20</span>&gt;</code></pre></figure>
 <p>The SHA-1 digest of <code>data</code>, 20 bytes; legacy, as <code>Sha1</code> says.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: The digest of <code>abc</code> is the FIPS 180-4 example's</span><span class="badge ok">runs</span></div><pre><code><span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">20</span>&gt; d = <span class="p">sha1</span>(&amp;<span class="s">b&quot;abc&quot;</span>[<span class="n">0</span>..$]);
-<span class="p">assert</span>(<span class="p">String</span>::eq_str(&amp;<span class="p">to_hex</span>(&amp;d[<span class="n">0</span>..$]), <span class="s">&quot;a9993e364706816aba3e25717850c26c9cd0d89d&quot;</span>));</code></pre></figure>
+<span class="p">assert</span>(<span class="p">to_hex</span>(&amp;d[<span class="n">0</span>..$]) == <span class="s">&quot;a9993e364706816aba3e25717850c26c9cd0d89d&quot;</span>);</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-crypto-digest-hash" class="stdref-item"><code>hash</code> <span class="std-file">fn</span></h4>
@@ -15621,7 +15643,7 @@ Summary s = <span class="p">Option</span>::unwrap(describe(&amp;ms[<span class="
 <p>Check a MAC that arrived with <code>digest_eq</code>, never <code>==</code>.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: The MAC of RFC 4231's test case 2 is the published one</span><span class="badge ok">runs</span></div><pre><code><span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; mac = <span class="p">hmac_sha256</span>(&amp;<span class="s">b&quot;Jefe&quot;</span>[<span class="n">0</span>..$], &amp;<span class="s">b&quot;what do ya want for nothing?&quot;</span>[<span class="n">0</span>..$]);
 <span class="p">String</span> hex = <span class="p">to_hex</span>(&amp;mac[<span class="n">0</span>..$]);
-<span class="p">assert</span>(<span class="p">String</span>::eq_str(&amp;hex, <span class="s">&quot;5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843&quot;</span>));</code></pre></figure>
+<span class="p">assert</span>(hex == <span class="s">&quot;5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843&quot;</span>);</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-crypto-kdf-hkdf_extract" class="stdref-item"><code>hkdf_extract</code> <span class="std-file">fn</span></h4>
@@ -15694,7 +15716,7 @@ Summary s = <span class="p">Option</span>::unwrap(describe(&amp;ms[<span class="
 <p>PBKDF2 (RFC 8018 §5.2) over HMAC of <code>kind</code>: <code>len</code> bytes derived from <code>password</code> and <code>salt</code>.</p>
 <p>Each block of the result costs <code>iterations</code> HMACs. It is here for the formats that still use it (SCRAM among them); to store a password, use <code>hash_password</code>. Faults (<code>kdf_parameters</code>) when <code>iterations</code> is 0.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: Two iterations of PBKDF2-HMAC-SHA-1 give RFC 6070's result</span><span class="badge ok">runs</span></div><pre><code><span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; dk = <span class="p">pbkdf2</span>(<span class="p">Sha1</span>, &amp;<span class="s">b&quot;password&quot;</span>[<span class="n">0</span>..$], &amp;<span class="s">b&quot;salt&quot;</span>[<span class="n">0</span>..$], <span class="n">2</span>, <span class="n">20</span>);
-<span class="p">assert</span>(<span class="p">String</span>::eq_str(&amp;<span class="p">to_hex</span>(&amp;dk[<span class="n">0</span>..$]), <span class="s">&quot;ea6c014dc72d6f8ccd1ed92ace1d41f0d8de8957&quot;</span>));</code></pre></figure>
+<span class="p">assert</span>(<span class="p">to_hex</span>(&amp;dk[<span class="n">0</span>..$]) == <span class="s">&quot;ea6c014dc72d6f8ccd1ed92ace1d41f0d8de8957&quot;</span>);</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-crypto-kdf-argon2id" class="stdref-item"><code>argon2id</code> <span class="std-file">fn</span></h4>
@@ -15741,7 +15763,7 @@ Summary s = <span class="p">Option</span>::unwrap(describe(&amp;ms[<span class="
 <figure class="code"><div class="code-head"><span class="code-title">Example: The tag of RFC 8439 §2.5.2's message is the published one</span><span class="badge ok">runs</span></div><pre><code><span class="p">StringView</span> k = <span class="s">&quot;85d6be7857556d337f4452fe42d506a80103808afb0db2fd4abff6af4149f51b&quot;</span>;
 <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; key = <span class="p">Result</span>::unwrap(<span class="p">from_hex</span>(k));
 <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">16</span>&gt; tag = <span class="p">poly1305</span>(&amp;key[<span class="n">0</span>..$], &amp;<span class="s">b&quot;Cryptographic Forum Research Group&quot;</span>[<span class="n">0</span>..$]);
-<span class="p">assert</span>(<span class="p">String</span>::eq_str(&amp;<span class="p">to_hex</span>(&amp;tag[<span class="n">0</span>..$]), <span class="s">&quot;a8061dc1305136c6c22b8baf0c0127a9&quot;</span>));</code></pre></figure>
+<span class="p">assert</span>(<span class="p">to_hex</span>(&amp;tag[<span class="n">0</span>..$]) == <span class="s">&quot;a8061dc1305136c6c22b8baf0c0127a9&quot;</span>);</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-crypto-aead-chacha20_poly1305_seal" class="stdref-item"><code>chacha20_poly1305_seal</code> <span class="std-file">fn</span></h4>
@@ -15777,7 +15799,7 @@ sealed[<span class="n">0</span>] = sealed[<span class="n">0</span>] ^ <span clas
     block[i] = b[i];
 }
 <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">16</span>&gt; out = aes_encrypt_block(&amp;key[<span class="n">0</span>..$], block);
-<span class="p">assert</span>(<span class="p">String</span>::eq_str(&amp;<span class="p">to_hex</span>(&amp;out[<span class="n">0</span>..$]), <span class="s">&quot;69c4e0d86a7b0430d8cdb78070b4c55a&quot;</span>));</code></pre></figure>
+<span class="p">assert</span>(<span class="p">to_hex</span>(&amp;out[<span class="n">0</span>..$]) == <span class="s">&quot;69c4e0d86a7b0430d8cdb78070b4c55a&quot;</span>);</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-crypto-aead-aes_gcm_seal" class="stdref-item"><code>aes_gcm_seal</code> <span class="std-file">fn</span></h4>
@@ -16651,7 +16673,7 @@ c.max_body = <span class="n">1</span>_048_576;</code></pre></figure>
 <p>Whether the server&#x27;s final message (<code>v=…</code>) carries the signature this exchange expects.</p>
 <p><code>false</code> for anything else, an <code>e=</code> error among them, and <code>false</code> before <code>Scram::respond</code> has succeeded (there is no signature to expect yet).</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: RFC 7677's exchange with the iteration count 4, and the server's signature checked</span><span class="badge ok">runs</span></div><pre><code><span class="p">Scram</span> s = <span class="p">Scram</span>::start(<span class="s">&quot;user&quot;</span>, <span class="s">&quot;rOprNGfwEbeRWgbNEkqO&quot;</span>);
-<span class="p">assert</span>(<span class="p">String</span>::eq_str(&amp;<span class="p">Scram</span>::client_first(&amp;s), <span class="s">&quot;n,,n=user,r=rOprNGfwEbeRWgbNEkqO&quot;</span>));
+<span class="p">assert</span>(<span class="p">Scram</span>::client_first(&amp;s) == <span class="s">&quot;n,,n=user,r=rOprNGfwEbeRWgbNEkqO&quot;</span>);
 <span class="p">String</span> first = <span class="s">&quot;r=rOprNGfwEbeRWgbNEkqO%hvYDpWUa2RaTCAfuxFIlj)hNlF$k0,&quot;</span>;
 <span class="p">String</span>::append(&amp;<span class="k">mut</span> first, <span class="s">&quot;s=W22ZaJ0SNY7soEsUEjb6gQ==,i=4&quot;</span>);
 <span class="p">String</span> reply = <span class="p">Result</span>::unwrap(<span class="p">Scram</span>::respond(&amp;<span class="k">mut</span> s, &amp;first, <span class="s">&quot;pencil&quot;</span>));
@@ -16718,11 +16740,11 @@ c.max_body = <span class="n">1</span>_048_576;</code></pre></figure>
 <p>The connection URL <code>text</code> taken apart.</p>
 <p>The scheme is <code>postgres</code> or <code>postgresql</code>. The port defaults to 5432, the database to the user, <code>sslmode</code> to <code>verify-full</code>; the only query key is <code>sslmode</code>, <code>disable</code> or <code>verify-full</code>. <code>Err(BadConnectionUrl)</code> for another scheme, no user, no host, a port that is not a number, another query key or mode, or a bad percent-encoding.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: Percent-encoding is decoded, a bracketed IPv6 host loses its brackets, and the defaults fill the rest</span><span class="badge ok">runs</span></div><pre><code><span class="p">PgUrl</span> u = <span class="p">Result</span>::unwrap(<span class="p">PgUrl</span>::<span class="p">parse</span>(<span class="s">&quot;postgres://app:p%40ss@[::1]/?sslmode=disable&quot;</span>));
-<span class="p">assert</span>(<span class="p">String</span>::eq_str(&amp;u.host, <span class="s">&quot;::1&quot;</span>) &amp;&amp; u.port == <span class="n">5432</span>);
-<span class="p">assert</span>(<span class="p">String</span>::eq_str(&amp;u.database, <span class="s">&quot;app&quot;</span>));
+<span class="p">assert</span>(u.host == <span class="s">&quot;::1&quot;</span> &amp;&amp; u.port == <span class="n">5432</span>);
+<span class="p">assert</span>(u.database == <span class="s">&quot;app&quot;</span>);
 <span class="k">match</span> (&amp;u.password)
 {
-    <span class="p">Some</span>(p) : <span class="p">assert</span>(<span class="p">String</span>::eq_str(p, <span class="s">&quot;p@ss&quot;</span>)),
+    <span class="p">Some</span>(p) : <span class="p">assert</span>(*p == <span class="s">&quot;p@ss&quot;</span>),
     <span class="p">None</span>    : <span class="p">assert</span>(<span class="k">false</span>),
 }
 <span class="p">Result</span>&lt;<span class="p">PgUrl</span>, <span class="p">PgError</span>&gt; no_user = <span class="p">PgUrl</span>::<span class="p">parse</span>(<span class="s">&quot;postgres://db.example/shop&quot;</span>);
@@ -16739,9 +16761,9 @@ c.max_body = <span class="n">1</span>_048_576;</code></pre></figure>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">PgValue</span>::text(<span class="t">ref</span>&lt;<span class="p">PgValue</span>, <span class="t">shared</span>&gt; value) : <span class="p">Option</span>&lt;<span class="p">String</span>&gt;</code></pre></figure>
 <p>The text <code>value</code> is sent as; <code>None</code> for <code>Null</code>.</p>
 <p>An integer and a float as decimal text (a float that is not finite as <code>Infinity</code>, <code>-Infinity</code> or <code>NaN</code>), a bool as <code>t</code> or <code>f</code>, bytes as bytea&#x27;s hex form (<code>\x</code> and the hex digits).</p>
-<figure class="code"><div class="code-head"><span class="code-title">Example: The text forms of a bool, bytes and an infinite float</span><span class="badge ok">runs</span></div><pre><code><span class="p">assert</span>(<span class="p">String</span>::eq_str(&amp;<span class="p">Option</span>::unwrap(<span class="p">PgValue</span>::text(&amp;Bool(<span class="k">true</span>))), <span class="s">&quot;t&quot;</span>));
-<span class="p">assert</span>(<span class="p">String</span>::eq_str(&amp;<span class="p">Option</span>::unwrap(<span class="p">PgValue</span>::text(&amp;Bytes(<span class="p">Vec</span>::filled(<span class="n">2</span>, <span class="n">0</span>xAB: <span class="t">u8</span>)))), <span class="s">&quot;\\xabab&quot;</span>));
-<span class="p">assert</span>(<span class="p">String</span>::eq_str(&amp;<span class="p">Option</span>::unwrap(<span class="p">PgValue</span>::text(&amp;Float(<span class="n">1.0</span> / <span class="n">0.0</span>))), <span class="s">&quot;Infinity&quot;</span>));
+<figure class="code"><div class="code-head"><span class="code-title">Example: The text forms of a bool, bytes and an infinite float</span><span class="badge ok">runs</span></div><pre><code><span class="p">assert</span>(<span class="p">Option</span>::unwrap(<span class="p">PgValue</span>::text(&amp;Bool(<span class="k">true</span>))) == <span class="s">&quot;t&quot;</span>);
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(<span class="p">PgValue</span>::text(&amp;Bytes(<span class="p">Vec</span>::filled(<span class="n">2</span>, <span class="n">0</span>xAB: <span class="t">u8</span>)))) == <span class="s">&quot;\\xabab&quot;</span>);
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(<span class="p">PgValue</span>::text(&amp;Float(<span class="n">1.0</span> / <span class="n">0.0</span>))) == <span class="s">&quot;Infinity&quot;</span>);
 <span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;<span class="p">PgValue</span>::text(&amp;Null)));</code></pre></figure>
 </div>
 <div class="stdref-entry">
