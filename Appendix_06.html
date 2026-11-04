@@ -166,7 +166,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.110301</div>
+<div class="sub">Specification edition 2026.110401</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -339,7 +339,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.110301</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.110401</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -11437,23 +11437,22 @@ struct of plain fields. Where that state belongs to something larger (a struct t
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>input: 1010 bytes, 4 newlines, sum 126831
 </pre></div></figure>
 <h3 id="perf-text">Text in hot code</h3>
-<p><code>std</code> takes text it only reads as a <code>StringView</code> (D-0134), and for most code that is the
-right choice. In compiled code a view is not quite free, though: making one from a <code>String</code>
-(<code>&amp;s</code> where a <code>StringView</code> is declared) costs about 100 nanoseconds for its checks, and every piece
-<code>split</code> returns holds its own borrow of the text. For a function of your own that a hot loop calls
-millions of times:</p>
+<p><code>std</code> takes text it only reads as a <code>StringView</code> (D-0134), and that is the right choice in hot
+code too. A view made from a <code>String</code> (<code>&amp;s</code> where a <code>StringView</code> is declared) for a function that only
+reads it costs nothing to make: the function is given the text's address and length, and the view's checks
+are decided before the run. For a function of your own that a hot loop calls millions of times:</p>
 <table>
-<thead><tr><th>1,000,000 calls of a function that reads a 60-byte text</th><th>Time, relative</th></tr></thead>
+<thead><tr><th>1,000,000 calls of a function that reads a 60-byte text</th><th>Instructions per call, gcc</th><th>clang</th></tr></thead>
 <tbody>
-<tr><td><code>fn f(StringView s)</code>, one view made before the loop and passed each time</td><td>0.1</td></tr>
-<tr><td><code>fn f(ref&lt;String, shared&gt; s)</code>, called <code>f(&amp;text)</code></td><td>1</td></tr>
-<tr><td><code>fn f(StringView s)</code>, called <code>f(&amp;text)</code>, a view made at each call</td><td>1.8</td></tr>
-<tr><td><code>fn f(String s)</code>, called <code>f(String::clone(&amp;text))</code></td><td>14</td></tr>
+<tr><td><code>fn f(StringView s)</code>, one view made before the loop and passed each time</td><td>4</td><td>0.3</td></tr>
+<tr><td><code>fn f(StringView s)</code>, called <code>f(&amp;text)</code>, a view made at each call</td><td>4</td><td>0.3</td></tr>
+<tr><td><code>fn f(ref&lt;String, shared&gt; s)</code>, called <code>f(&amp;text)</code></td><td>6</td><td>0.3</td></tr>
+<tr><td><code>fn f(String s)</code>, called <code>f(String::clone(&amp;text))</code></td><td>208</td><td>202</td></tr>
 </tbody>
 </table>
 <ul>
-<li>A function that only reads its <code>StringView</code> (indexes it, takes its length, hands it to <code>std</code>'s readers) costs nothing to call: the view is passed as its address and length. Make the view once, outside a hot loop: each view made from a <code>String</code> costs about 100 nanoseconds.</li>
-<li>To process input line by line, use a <code>read_line</code> loop: <code>read_all</code> followed by <code>StringView::split</code> took about nine times as long over the same 200,000 lines, the price of keeping every line's view at once.</li>
+<li>A function that only reads its <code>StringView</code> (indexes it, takes its length, hands it to <code>std</code>'s readers) costs nothing to call, whether the view is made at the call or once before the loop: it is passed as its address and length. Copying the text to pass a <code>String</code> costs an allocation and a copy each time.</li>
+<li>To process input line by line, use a <code>read_line</code> loop: <code>read_all</code> followed by <code>StringView::split</code> took about six times as long over the same 200,000 lines, the price of keeping every line's view at once.</li>
 <li>Calls to <code>std</code> that take a view cost per call, not per byte (a 620-byte text cost the same as a 60-byte one).</li>
 </ul>
 <h3 id="perf-output">Building and writing text</h3>
