@@ -11446,8 +11446,8 @@ are decided before the run. For a function of your own that a hot loop calls mil
 <tbody>
 <tr><td><code>fn f(StringView s)</code>, one view made before the loop and passed each time</td><td>4</td><td>0.3</td></tr>
 <tr><td><code>fn f(StringView s)</code>, called <code>f(&amp;text)</code>, a view made at each call</td><td>4</td><td>0.3</td></tr>
-<tr><td><code>fn f(ref&lt;String, shared&gt; s)</code>, called <code>f(&amp;text)</code></td><td>5</td><td>0.3</td></tr>
-<tr><td><code>fn f(String s)</code>, called <code>f(String::clone(&amp;text))</code></td><td>191</td><td>190</td></tr>
+<tr><td><code>fn f(ref&lt;String, shared&gt; s)</code>, called <code>f(&amp;text)</code></td><td>4</td><td>0.3</td></tr>
+<tr><td><code>fn f(String s)</code>, called <code>f(String::clone(&amp;text))</code></td><td>148</td><td>147</td></tr>
 </tbody>
 </table>
 <ul>
