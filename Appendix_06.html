@@ -166,7 +166,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.110401</div>
+<div class="sub">Specification edition 2026.110601</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -339,7 +339,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.110401</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.110601</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -6614,7 +6614,7 @@ their own fault or the cancellation, is discarded), and its result becomes the f
 one of theirs. The rest of the program goes on. This is what lets a server give each connection a thread and survive a bug
 in one of them. Nothing continues in a state the failed check protected:</p>
 <ul>
-<li><strong>A mutex the thread held is poisoned.</strong> Its interior may be half-changed, so the next <code>lock</code> of it faults with <code>diag.mutex-poisoned</code>.</li>
+<li><strong>A mutex the thread held is poisoned.</strong> Its interior may be half-changed, so the next <code>lock</code> of it faults with <code>diag.mutex-poisoned</code>. The poison goes with the mutex: moved to another binding or into a struct's field, it stays poisoned, while a mutex made later in the same storage starts unlocked (D-0310).</li>
 <li><strong>A thread lent an exclusive reference is not contained.</strong> Given one at <code>spawn</code>, or by locking a mutex whose contents can hold one (receiving from a <code>Channel</code> of <code>&amp;mut</code> references, say), it may be changing data that belongs to a thread still running, so its fault ends the program at once, as a fault always did.</li>
 <li><strong>The main thread's fault</strong> ends the program, as before.</li>
 </ul>
