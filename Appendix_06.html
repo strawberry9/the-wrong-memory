@@ -166,7 +166,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.110702</div>
+<div class="sub">Specification edition 2026.110801</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -339,7 +339,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.110702</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.110801</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -404,7 +404,7 @@ Where two objectives conflict, the earlier one wins.</p>
 <li><strong>Safety of valid safe programs.</strong> A well-formed program that writes no <code>unsafe</code> block of its own cannot violate any of those invariants on any conforming implementation. The standard library's own bodies do use <code>unsafe</code> (a <code>Vec</code> writes its elements through a raw pointer); those blocks are the implementation's to keep true, each listed in the specification with the fact that justifies it, so they cost the program nothing (§20, <em>Who asserts what</em>). If the language cannot establish a fact, the operation is one of: statically rejected, dynamically checked, explicitly fallible (returns a <code>Result</code> or <code>Option</code>), explicitly trusted (inside <code>unsafe</code>), or simply not provided.</li>
 <li><strong>Consistency and composability.</strong> A handful of mechanisms that combine cleanly, instead of many overlapping features. Every value-placing construct (declarations, arguments, fields, returns) follows one rule; every access (through a name, a field, an index, a reference) follows one rule.</li>
 <li><strong>Formal precision and deterministic diagnostics.</strong> The specification is written as rules, so two implementations must reject exactly the same programs and report the same named diagnostic. Every error you see has a stable identifier such as <code>diag.aliasing-conflict</code>.</li>
-<li><strong>A small language.</strong> Every feature starts as absent and must earn its place. The result is a language you can hold in your head: no traits, no inheritance, no exceptions, no implicit conversions, no operator overloading, no macros.</li>
+<li><strong>A small language.</strong> Every feature starts as absent and must earn its place. The result is a language you can hold in your head: no traits, no inheritance, no exceptions, no implicit conversions beyond the two coercions (text and sequences fit the type declared for them), no operator overloading, no macros.</li>
 <li><strong>Low-level capability.</strong> Raw pointers, manual allocation, FFI, threads, and defined representation are all available, gated by <code>unsafe</code> where the language cannot check them.</li>
 </ol>
 <h3>Which features were chosen, and why</h3>
@@ -419,7 +419,7 @@ turn.</p>
 <tr><td>No conflicting simultaneous access</td><td>Two reference modes: <code>ref&lt;T, shared&gt;</code> (read-only, any number) and <code>ref&lt;T, exclusive&gt;</code> (read and write, alone). Conflicts are checked at every use, so a stale or conflicting reference is always caught. There is no <code>mut</code> on variables: mutability is a property of the access path, not the binding.</td><td>§08, §09</td></tr>
 <tr><td>A reference never outlives what it points at</td><td>References cannot be returned or stored beyond their referent's scope; the obvious cases are rejected at compile time, the rest at run time. Functions with one reference parameter may return a reference without annotations.</td><td>§10</td></tr>
 <tr><td>No read of uninitialised storage</td><td>Definite assignment: a variable must be written on every path before it is read. Aggregates are initialised whole.</td><td>§11</td></tr>
-<tr><td>Types mean what they say</td><td>Nominal typing, no subtyping, no coercions. Generics are monomorphic: each use with concrete types becomes its own copy of the function, so there is no run-time type information; a type parameter's operations come from one of five built-in bounds. Type inference is local: <code>auto</code> infers from the initialiser, and generic arguments come from arguments or the expected type.</td><td>§12</td></tr>
+<tr><td>Types mean what they say</td><td>Nominal typing, no subtyping, and two coercions, both about a value fitting the type declared for its position: text (a literal, a <code>str</code> or <code>&amp;s</code> is the <code>String</code> or <code>StringView</code> declared) and sequences (<code>&amp;v</code> is the slice declared); nothing else converts. Generics are monomorphic: each use with concrete types becomes its own copy of the function, so there is no run-time type information; a type parameter's operations come from one of five built-in bounds. Type inference is local: <code>auto</code> infers from the initialiser, and generic arguments come from arguments or the expected type.</td><td>§12</td></tr>
 <tr><td>Evaluation order is defined</td><td>Strict left-to-right evaluation everywhere. Blocks, <code>if</code> and <code>match</code> are expressions.</td><td>§13, §14</td></tr>
 <tr><td>Function interfaces carry the whole contract</td><td>A by-value resource parameter takes ownership; a shared reference can only read; an exclusive reference can mutate but not destroy. Closures declare their captures and the language checks the list.</td><td>§15</td></tr>
 <tr><td>Aggregates are whole and exhaustive</td><td>Structs, fixed arrays and enums with payloads. Array indexing is bounds-checked. <code>match</code> must be exhaustive.</td><td>§16</td></tr>
@@ -946,7 +946,7 @@ the program that caused it; <code>RUST_BACKTRACE=1</code> adds the tool's backtr
 <li><strong><code>Log</code> is a <code>resource</code></strong>: it owns a <code>Vec</code> and a <code>HashMap</code>. Its destructor <code>fn Log::drop</code> runs at the end of <code>main</code>, then its fields are freed. Passing or assigning a resource moves it.</li>
 <li><strong><code>String</code>, <code>HashMap</code> and <code>sprintf</code>.</strong> <code>sprintf(&quot;sensor-%d&quot;, s)</code> builds a <code>String</code>; <code>*HashMap::entry(&amp;mut m, key, 0) += 1</code> counts. The standard library lives in the module <code>std</code>, imported by <code>import std;</code>.</li>
 <li><strong>Errors are values.</strong> A <code>Result</code> must be used (dropping one is rejected), <code>?</code> returns an <code>Err</code> or a <code>None</code> early, and <code>checked_add</code> turns an overflow into <code>None</code>. Plain arithmetic that overflows is never silent: it is rejected when the compiler can see it, and stops the program when it happens.</li>
-<li><strong>No implicit conversions.</strong> <code>widen&lt;i32&gt;(b - b&#x27;0&#x27;)</code> and <code>narrow&lt;i32&gt;(n)</code> say what happens to the representation; <code>narrow</code> checks that the value fits.</li>
+<li><strong>No implicit numeric conversions.</strong> <code>widen&lt;i32&gt;(b - b&#x27;0&#x27;)</code> and <code>narrow&lt;i32&gt;(n)</code> say what happens to the representation; <code>narrow</code> checks that the value fits.</li>
 <li><strong>Library calls are qualified</strong>: <code>Vec::push(&amp;mut v, x)</code>, <code>Vec::sort(&amp;mut v)</code>, <code>HashMap::get(&amp;m, &quot;k&quot;)</code>. There is no method-call syntax.</li>
 <li><strong>Generics, closures and threads.</strong> <code>larger&lt;T: integer&gt;</code> works for any integer type; <code>to_f</code> is a closure whose capture list names what it uses; <code>spawn</code> starts a thread and <code>join</code> waits for its result. The two threads share their counter only through a <code>mutex</code>: <code>lock</code> is the only way in.</li>
 </ul>
@@ -1177,7 +1177,9 @@ with <code>wrapping_add</code> and friends; when you want to detect it, <code>ch
 <p><strong>Nothing converts implicitly.</strong> <code>int</code> to <code>long</code>, <code>char</code> to <code>int</code>, <code>float</code> to
 <code>double</code>, a pointer to <code>bool</code>: none of it happens. Every change of representation is a named
 intrinsic, and the ones that can lose information check the value (§06, <em>Conversions are
-explicit</em>). The error message tells you which one to write.</p>
+explicit</em>). The error message tells you which one to write. The two coercions the language does
+have are about text and sequences fitting their declaration (<code>StringView v = &amp;s;</code>,
+<code>slice&lt;u8, shared&gt; b = &amp;v;</code>), never about numbers (§12).</p>
 <figure class="code"><div class="code-head"><span class="code-title">No implicit widening</span><span class="badge bad">rejected: diag.type-mismatch</span></div><pre><code><span class="k">fn</span> main()
 {
     <span class="t">i32</span> a = <span class="n">5</span>;
@@ -1869,8 +1871,10 @@ one too large for its type (<code>1e400</code>) is a static error, not infinity.
 is one ASCII character or an escape (<code>b&#x27;\n&#x27;</code>, <code>b&#x27;\&#x27;&#x27;</code>, <code>b&#x27;\x7f&#x27;</code>), for writing bytes readably
 in code that parses. It is a number like any other literal and takes an unsigned type from its
 context (<code>u32 c = …; c == b&#x27;|&#x27;</code> compares two <code>u32</code>s), and is a <code>u8</code> when nothing fixes its type;
-a signed context is a type error. A string literal <code>&quot;…&quot;</code> is always a <code>str</code> and a byte literal
-<code>b&quot;…&quot;</code> always an <code>array&lt;u8, N&gt;</code> (§21, §22); neither takes an expected type.</p>
+a signed context is a type error. A string literal <code>&quot;…&quot;</code> is a <code>str</code> unless its position declares
+a <code>String</code> or a <code>StringView</code>, and a byte literal <code>b&quot;…&quot;</code> an <code>array&lt;u8, N&gt;</code> unless its position
+declares a <code>slice&lt;u8, shared&gt;</code>, where it is a slice of bytes that live as long as the program
+(§12, §22).</p>
 <figure class="code"><div class="code-head"><span class="code-title">Literal typing</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> main()
@@ -3158,7 +3162,7 @@ parameters.</p>
     <span class="k">const</span> <span class="k">auto</span> D = B + <span class="n">1</span>;             <span class="c">// constants: checked before it runs (auto: D is a u8)</span>
     <span class="p">static_assert</span>(D == <span class="n">201</span>, <span class="s">&quot;D is %v&quot;</span>, D);
     <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">3</span>&gt; abc = [<span class="n">97</span>, <span class="n">98</span>, <span class="n">99</span>];
-    <span class="p">assert</span>(checksum(&amp;abc[<span class="n">0</span>..$]) == <span class="n">440920331</span>);
+    <span class="p">assert</span>(checksum(&amp;abc) == <span class="n">440920331</span>);
 }</code></pre></figure>
 <h4><code>const</code> means known when the program is compiled</h4>
 <p>A <code>const</code> can never change: assigning to it, or borrowing it with <code>&amp;mut</code>, is rejected when
@@ -3310,7 +3314,7 @@ cannot be destructured, since the destructor would then run on a struct whose fi
 <nav class="pager"><a class="prev" href="#s10">&larr; §10 Lifetimes and temporal validity</a><a class="top" href="#top">Top</a><a class="next" href="#s12">§12 The type system &rarr;</a></nav></section>
 <section id="s12">
 <h2><span class="secnum">§12</span>The type system</h2>
-<div class="spec-ref">Governing specification file: <code>spec/12-type-system.md</code></div><p class="blurb">Nominal types, no coercions, monomorphic generics (one copy per use with concrete types) with five built-in bounds, and local inference that only flows downward.</p>
+<div class="spec-ref">Governing specification file: <code>spec/12-type-system.md</code></div><p class="blurb">Nominal types with two coercions (text and sequences fit the type declared for them; nothing else converts), monomorphic generics (one copy per use with concrete types) with five built-in bounds, and local inference that only flows downward.</p>
 <p>CobaltC's type system is deliberately plain: every type is exactly what it is declared to
 be, nothing converts to anything else, and generics are templates instantiated with concrete types.
 What it gives you in return is that the type of every expression is decidable from the text, and
@@ -3334,14 +3338,19 @@ arguments.</p>
 <tr><td><code>never</code></td><td>the type of <code>return</code>, <code>break</code> and <code>continue</code>: an expression that never yields a value, accepted wherever any type is expected</td><td>n/a</td></tr>
 </tbody>
 </table>
-<h3>Nominal, exact, no coercions</h3>
+<h3>Nominal, exact, two coercions</h3>
 <p>Two types are the same only if they have the same name and the same type arguments.
-<code>ref&lt;i32, shared&gt;</code> and <code>ref&lt;i32, exclusive&gt;</code> are different types. There is no subtyping and no
-implicit conversion anywhere: not between integer widths, not from <code>T</code> to <code>ref&lt;T, m&gt;</code>, not from
-<code>Option&lt;T&gt;</code> to <code>T</code>. This applies to arguments too. A literal is not an exception but a different
-thing: it has no type of its own until its position gives it one, so <code>u64 x = 5;</code>, <code>StringView v =
-&quot;x&quot;;</code> and <code>String s = &quot;x&quot;;</code> type the literal (§21) rather than convert a value, and the same
-positions still reject an <code>i32</code>, a <code>str</code> or any other typed value.</p>
+<code>ref&lt;i32, shared&gt;</code> and <code>ref&lt;i32, exclusive&gt;</code> are different types. There is no subtyping, and no
+implicit conversion between types — not between integer widths, not from <code>T</code> to <code>ref&lt;T, m&gt;</code>, not
+from <code>Option&lt;T&gt;</code> to <code>T</code> — with two exceptions, which the rules call coercions. Both are about a
+value fitting the type declared for its position: <strong>text</strong> (a literal, a <code>str</code> value
+or <code>&amp;s</code> of a <code>String</code> is the <code>String</code> or the <code>StringView</code> declared, §21) and
+<strong>sequences</strong> (<code>&amp;v</code> of a <code>Vec</code> or an array is the slice declared, and an array literal
+of literals is a slice of static data, §16). Each coercion is exactly the expression you could have
+written yourself, and the same positions still reject an <code>i32</code> where an <code>i64</code> is declared, or any
+other typed value. A literal is not a third exception but a different thing: it has no type of its
+own until its position gives it one, so <code>u64 x = 5;</code> types the literal rather than converting a
+value.</p>
 <figure class="code"><div class="code-head"><span class="code-title">No implicit widening, even for arguments</span><span class="badge bad">rejected: diag.type-mismatch</span></div><pre><code><span class="k">fn</span> takes_i64(<span class="t">i64</span> x) : <span class="t">i64</span>
 {
     x
@@ -3467,9 +3476,9 @@ in as a function value, as <code>Vec::sort_by</code> takes <code>less</code>.</d
 {
     <span class="t">array</span>&lt;<span class="t">i32</span>, <span class="n">3</span>&gt; a = [<span class="n">4</span>, -<span class="n">2</span>, <span class="n">9</span>];
     <span class="t">array</span>&lt;<span class="t">f64</span>, <span class="n">2</span>&gt; f = [<span class="n">1.5</span>, <span class="n">2.25</span>];
-    <span class="p">assert</span>(largest(&amp;a[<span class="n">0</span>..$]) == <span class="n">9</span>);
-    <span class="p">assert</span>(total(&amp;a[<span class="n">0</span>..$]) == <span class="n">11</span>);
-    <span class="p">assert</span>(total(&amp;f[<span class="n">0</span>..$]) == <span class="n">3.75</span>);
+    <span class="p">assert</span>(largest(&amp;a) == <span class="n">9</span>);
+    <span class="p">assert</span>(total(&amp;a) == <span class="n">11</span>);
+    <span class="p">assert</span>(total(&amp;f) == <span class="n">3.75</span>);
 }</code></pre></figure>
 <p>The body is checked once against the bound: <code>a + b</code> in a function whose <code>T</code> is only
 <code>ordered</code> is <code>diag.unbounded-type-parameter</code>. Each call is checked for a type that satisfies it:
@@ -3503,7 +3512,7 @@ and enums take no bounds; put them on the functions that use the operations.</p>
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, q);
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, p);
     <span class="p">assert</span>(<span class="p">Vec</span>::contains(&amp;v, &amp;p));                    <span class="c">// Vec::contains wants T: eq</span>
-    <span class="p">assert</span>(largest(&amp;v[<span class="n">0</span>..$]) == q);                   <span class="c">// the generic above, at T = Point</span>
+    <span class="p">assert</span>(largest(&amp;v) == q);                   <span class="c">// the generic above, at T = Point</span>
     <span class="p">Vec</span>::sort(&amp;<span class="k">mut</span> v);                                <span class="c">// the same order as &lt;</span>
     <span class="p">assert</span>(v[<span class="n">0</span>] == p &amp;&amp; v[<span class="n">0</span>] &lt; v[<span class="n">1</span>]);
 }</code></pre></figure>
@@ -4660,10 +4669,10 @@ through it, its source cannot be pushed to or popped from, and a slice of a loca
     {
         <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, x);
     }
-    sort(&amp;<span class="k">mut</span> v[<span class="n">0</span>..$]);                     <span class="c">// the same function, on a Vec</span>
+    sort(&amp;<span class="k">mut</span> v);                     <span class="c">// the same function, on a Vec</span>
     <span class="p">assert</span>(v[<span class="n">0</span>] == <span class="n">10</span> &amp;&amp; v[$ - <span class="n">1</span>] == <span class="n">40</span>);
     v[<span class="n">0</span>] += <span class="n">1</span>;                              <span class="c">// indexing a Vec, written</span>
-    <span class="p">assert</span>(sum(&amp;v[<span class="n">0</span>..$]) == <span class="n">101</span>);
+    <span class="p">assert</span>(sum(&amp;v) == <span class="n">101</span>);
 }</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">A slice keeps its source borrowed</span><span class="badge bad">rejected: diag.aliasing-conflict</span></div><pre><code><span class="k">import</span> std;
 
@@ -4700,7 +4709,7 @@ of it.</p>
     {
         <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">0</span>);
     }
-    <span class="t">usize</span> mid = slice_len(&amp;v[<span class="n">0</span> .. $]) / <span class="n">2</span>;
+    <span class="t">usize</span> mid = slice_len(&amp;v) / <span class="n">2</span>;
     {
         <span class="t">slice</span>&lt;<span class="t">u64</span>, <span class="t">exclusive</span>&gt; left = &amp;<span class="k">mut</span> v[<span class="n">0</span> .. mid];     <span class="c">// elements 0 .. 50</span>
         <span class="t">slice</span>&lt;<span class="t">u64</span>, <span class="t">exclusive</span>&gt; right = &amp;<span class="k">mut</span> v[mid .. $];    <span class="c">// elements 50 .. 100: disjoint</span>
@@ -4759,7 +4768,7 @@ same bit for bit under both tools; it can differ from a scalar loop's, which add
 {
     <span class="p">Vec</span>&lt;<span class="t">f32</span>&gt; a = <span class="p">Vec</span>::filled(<span class="n">19</span>, <span class="n">0.5</span>: <span class="t">f32</span>);
     <span class="p">Vec</span>&lt;<span class="t">f32</span>&gt; b = <span class="p">Vec</span>::filled(<span class="n">19</span>, <span class="n">2.0</span>: <span class="t">f32</span>);
-    <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, dot(&amp;a[<span class="n">0</span> .. $], &amp;b[<span class="n">0</span> .. $]));
+    <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, dot(&amp;a, &amp;b));
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>19.0
 </pre></div></figure>
 <p>A comparison of two vectors is a <em>mask</em>: lanes of the same width holding -1 where the
@@ -5136,7 +5145,7 @@ list is built at run time. Text works the same way: one arm per word.</p>
     describe(<span class="n">3</span>);
     <span class="p">assert</span>(is_square(<span class="n">4</span>) &amp;&amp; !is_square(<span class="n">5</span>));
     <span class="t">array</span>&lt;<span class="t">u32</span>, <span class="n">6</span>&gt; small = [<span class="n">2</span>, <span class="n">3</span>, <span class="n">5</span>, <span class="n">7</span>, <span class="n">11</span>, <span class="n">13</span>];                             <span class="c">// a longer list</span>
-    <span class="p">Vec</span>&lt;<span class="t">u32</span>&gt; primes = <span class="p">Vec</span>::from_slice(&amp;small[<span class="n">0</span> .. $]);
+    <span class="p">Vec</span>&lt;<span class="t">u32</span>&gt; primes = <span class="p">Vec</span>::from_slice(&amp;small);
     <span class="p">assert</span>(<span class="p">Vec</span>::contains(&amp;primes, <span class="n">7</span>) &amp;&amp; !<span class="p">Vec</span>::contains(&amp;primes, <span class="n">9</span>));       <span class="c">// a number is its own probe</span>
     <span class="t">str</span> cmd = <span class="s">&quot;exit&quot;</span>;
     <span class="t">bool</span> quit = <span class="k">match</span> (cmd)
@@ -6820,7 +6829,7 @@ explored <span class="n">50</span> schedules of counter.cb: <span class="n">2</s
 <span class="n">31</span> runs, <span class="p">exit</span> <span class="n">0</span> -- replay: coby --schedule-seed <span class="n">2</span> counter.cb
   | total <span class="n">2</span></code></pre></figure>
 <h3>Data parallelism: <code>slice_parts</code></h3>
-<p><code>slice_parts(&amp;mut v[0..$], k)</code> splits a vector (or any exclusive slice) into <code>k</code> consecutive
+<p><code>slice_parts(&amp;mut v, k)</code> splits a vector (or any exclusive slice) into <code>k</code> consecutive
 runs as nearly equal as they can be, each an exclusive slice of its own. Give each run to a thread
 and the threads write one vector at once, with no lock: the runs are disjoint, and the checker
 proves it the way it proves any two ranges apart. The vector is usable again once every thread is
@@ -6844,7 +6853,7 @@ goes to one thread, and one closure cannot run in several threads at once.</p>
         <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, i);
     }
     {
-        <span class="p">Vec</span>&lt;<span class="t">slice</span>&lt;<span class="t">u64</span>, <span class="t">exclusive</span>&gt;&gt; parts = slice_parts(&amp;<span class="k">mut</span> v[<span class="n">0</span>..$], <span class="p">cpu_count</span>());
+        <span class="p">Vec</span>&lt;<span class="t">slice</span>&lt;<span class="t">u64</span>, <span class="t">exclusive</span>&gt;&gt; parts = slice_parts(&amp;<span class="k">mut</span> v, <span class="p">cpu_count</span>());
         <span class="p">Vec</span>&lt;<span class="t">handle</span>&lt;<span class="k">void</span>&gt;&gt; hs = <span class="p">Vec</span>::new();
         <span class="k">while</span> (<span class="p">Vec</span>::len(&amp;parts) &gt; <span class="n">0</span>)
         {
@@ -7931,17 +7940,52 @@ an <code>f32</code> or an <code>f64</code> and give the same type; an integer is
 The logarithms, the exponential, the trigonometric functions and <code>powf</code> come from the platform's
 maths library, so their last bit may differ between platforms; <code>sqrt</code> and the roundings are exact
 everywhere.</p>
+<h3>Text: <code>str</code>, <code>String</code>, <code>StringView</code></h3>
+<p>CobaltC has three text types, which stand to each other as an array, a vector and a slice
+do. A literal <code>&quot;…&quot;</code> is a <code>str</code>: a constant, free to copy, never freed. <code>String</code> is text you own.
+<code>StringView</code> is a read-only view of text someone else owns, or of a constant.</p>
+<p><strong>Text fits its declaration.</strong> Where the declaration says <code>String</code>, a literal is
+one (this is the one place a literal allocates). Where it says <code>StringView</code>, a literal, a <code>str</code> and
+<code>&amp;s</code> of a <code>String</code> are views, and so is <code>&amp;v</code> of a <code>Vec</code> or an array where a <code>slice</code> is declared.
+Nothing turns a view or a <code>String</code> into a <code>str</code>, and a <code>str</code> variable never becomes a <code>String</code>
+without <code>String::copy</code>.</p>
+<p><strong>Write <code>&amp;</code> on the thing you own and nowhere else:</strong> <code>&amp;s</code> for a <code>String</code>, <code>&amp;v</code> for a
+<code>Vec</code>; a view, a slice, a <code>str</code>, a literal or a reference you already hold is passed as it is.
+<code>[lo..hi]</code> is written only where a part is meant: <code>&amp;s[2..5]</code>, never <code>&amp;s[0..$]</code> for the whole.</p>
+<p>All three compare with <code>==</code> and <code>&lt;</code> by their bytes, in any combination. Functions that read
+text take a <code>StringView</code>; a <code>String</code>-keyed map is asked with any text and allocates only when it
+inserts.</p>
+<figure class="code"><div class="code-head"><span class="code-title">The three text types in one program</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> shout(<span class="p">StringView</span> t) : <span class="p">String</span>
+{
+    <span class="p">String</span> out = <span class="p">StringView</span>::to_ascii_upper(t);
+    <span class="p">String</span>::append(&amp;<span class="k">mut</span> out, <span class="s">&quot;!&quot;</span>);
+    out
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="t">str</span> fixed = <span class="s">&quot;ready&quot;</span>;                      <span class="c">// a constant</span>
+    <span class="p">String</span> owned = <span class="s">&quot;set&quot;</span>;                     <span class="c">// a literal where a String is declared: one copy, owned</span>
+    <span class="p">StringView</span> part = &amp;owned[<span class="n">0</span>..<span class="n">2</span>];           <span class="c">// a view of part of it</span>
+    <span class="p">HashMap</span>&lt;<span class="p">String</span>, <span class="t">i32</span>&gt; seen = <span class="p">HashMap</span>::new();
+    <span class="p">HashMap</span>::insert(&amp;<span class="k">mut</span> seen, <span class="s">&quot;go&quot;</span>, <span class="n">1</span>);
+    <span class="p">printf</span>(<span class="s">&quot;%v %v %v %v\n&quot;</span>, &amp;shout(fixed), &amp;shout(&amp;owned), &amp;shout(part), <span class="p">HashMap</span>::contains(&amp;seen, <span class="s">&quot;go&quot;</span>));
+    <span class="p">printf</span>(<span class="s">&quot;%v %v\n&quot;</span>, fixed == <span class="s">&quot;ready&quot;</span>, &amp;owned &lt; <span class="s">&quot;tea&quot;</span>);
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>READY! SET! SE! true
+true true
+</pre></div></figure>
 <h3><code>str</code></h3>
-<p>CobaltC has two text types, and the short version is: <strong><code>str</code> is a text constant,
-<code>String</code> is text you own.</strong> Fixed text you write in your program is a <code>str</code>; text you build,
-receive or keep ownership of is a <code>String</code> (below). The end of this section compares them side by
-side.</p>
+<p><strong><code>str</code> is a text constant, <code>String</code> is text you own.</strong> Fixed text you write in
+your program is a <code>str</code>; text you build, receive or keep ownership of is a <code>String</code> (below). The
+end of this section compares them side by side.</p>
 <p>A string literal <code>&quot;…&quot;</code> is a value of type <code>str</code>: a sequence of bytes that is valid UTF-8
 by construction, because the literal syntax has no way to write an arbitrary byte. A <code>str</code> is not a
 reference and not a resource. It behaves exactly like an integer: copying it is free, nothing owns
 it, nothing frees it, and you can pass it, store it in a struct or a <code>Vec&lt;str&gt;</code>, compare it with
 <code>==</code>, and hand it to another thread without any annotation. Its bytes are reached with <code>str_len</code>
-and <code>str_byte</code>; there is no indexing or slicing syntax. Escapes are <code>\n \r \t \0 \\ \&quot;</code> and
+and <code>str_byte</code>; <code>&amp;t[lo..hi]</code> is a <code>StringView</code> of part of it, which never ends. Escapes are <code>\n \r \t \0 \\ \&quot;</code> and
 <code>\u{…}</code> for a Unicode scalar value; a literal must close on its own line. Adjacent literals are
 one literal, as in C, so longer text is written a line at a time: <code>&quot;one\n&quot; &quot;two\n&quot;</code> is the
 single <code>str</code> <code>&quot;one\ntwo\n&quot;</code>, and a long <code>printf</code> format can be split the same way.</p>
@@ -7989,7 +8033,50 @@ hello
 <p>A byte literal <code>b&quot;…&quot;</code> is different: it is an <code>array&lt;u8, N&gt;</code>, exactly the array you
 would have written by hand, and admits <code>\xNN</code> for any byte value (and only ASCII characters
 otherwise). Use it where bytes are the honest type, such as data handed to <code>stdout_write</code> or to a
-validator.</p>
+validator. Where a <code>slice&lt;u8, shared&gt;</code> is declared it is a slice of bytes that live as long as the
+program, as any array literal written out as literals is (D-0314): a binding, a struct's field or
+an argument can hold a magic number or a table without a named constant. A named constant's
+parts are borrowed the same way, <code>&amp;K[0..2]</code>.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Static bytes where a slice is declared</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">const</span> <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">4</span>&gt; ELF = <span class="s">b&quot;\x7fELF&quot;</span>;
+
+<span class="k">struct</span> Format
+{
+    <span class="t">str</span> name;
+    <span class="t">slice</span>&lt;<span class="t">u8</span>, <span class="t">shared</span>&gt; magic;
+}
+
+<span class="k">fn</span> starts_with(<span class="t">slice</span>&lt;<span class="t">u8</span>, <span class="t">shared</span>&gt; data, <span class="t">slice</span>&lt;<span class="t">u8</span>, <span class="t">shared</span>&gt; magic) : <span class="t">bool</span>
+{
+    <span class="k">if</span> (slice_len(data) &lt; slice_len(magic))
+    {
+        <span class="k">return</span> <span class="k">false</span>;
+    }
+    <span class="k">foreach</span> (i in <span class="n">0</span>..slice_len(magic))
+    {
+        <span class="k">if</span> (data[i] != magic[i])
+        {
+            <span class="k">return</span> <span class="k">false</span>;
+        }
+    }
+    <span class="k">true</span>
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="t">array</span>&lt;Format, <span class="n">2</span>&gt; known = [
+        Format { .name = <span class="s">&quot;zip&quot;</span>, .magic = <span class="s">b&quot;PK\x03\x04&quot;</span> },
+        Format { .name = <span class="s">&quot;elf&quot;</span>, .magic = &amp;ELF },
+    ];
+    <span class="t">slice</span>&lt;<span class="t">u8</span>, <span class="t">shared</span>&gt; file = <span class="s">b&quot;PK\x03\x04rest&quot;</span>;
+    <span class="k">foreach</span> (f in &amp;known)
+    {
+        <span class="p">printf</span>(<span class="s">&quot;%v %v\n&quot;</span>, f.name, starts_with(file, f.magic));
+    }
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>zip true
+elf false
+</pre></div></figure>
 <h3><code>Vec&lt;T&gt;</code></h3>
 <p><em>In <code>std::collections</code>.</em></p>
 <p>A growable array with a raw buffer, a length and a capacity. It is a <code>resource</code> whose
@@ -8020,14 +8107,14 @@ destructor destroys each element and frees the buffer. A plain element is copied
 <tr><td><code>Vec::filled</code></td><td><code>(usize n, T x) : Vec&lt;T&gt;</code></td><td><code>n</code> copies of <code>x</code> by <code>clone</code>: <code>Vec::filled(80, b&#x27; &#x27;)</code>, <code>Vec::filled(3, Vec::filled(4, 0: u8))</code>; <code>T: clone</code></td></tr>
 <tr><td><code>Vec::from_fn</code></td><td><code>(usize n, fn(usize) : T) : Vec&lt;T&gt;</code></td><td><code>f(0)</code>, <code>f(1)</code>, …, <code>f(n - 1)</code>, any <code>T</code>: a grid is <code>Vec::from_fn(rows, [](usize r) : Vec&lt;u8&gt; { Vec::filled(cols, 0) })</code></td></tr>
 <tr><td><code>Vec::append</code></td><td><code>(ref&lt;Vec&lt;T&gt;, exclusive&gt;, Vec&lt;T&gt; b)</code></td><td>moves <code>b</code>'s elements onto the end, in order; <code>b</code> is consumed</td></tr>
-<tr><td><code>Vec::extend_from</code></td><td><code>(ref&lt;Vec&lt;T&gt;, exclusive&gt;, slice&lt;T, shared&gt;)</code></td><td>copies a slice's elements onto the end by <code>clone</code>: <code>Vec::extend_from(&amp;mut out, &amp;bytes[0..$])</code>; <code>T: clone</code></td></tr>
+<tr><td><code>Vec::extend_from</code></td><td><code>(ref&lt;Vec&lt;T&gt;, exclusive&gt;, slice&lt;T, shared&gt;)</code></td><td>copies a slice's elements onto the end by <code>clone</code>: <code>Vec::extend_from(&amp;mut out, &amp;bytes)</code>; <code>T: clone</code></td></tr>
 <tr><td><code>Vec::position</code></td><td><code>(ref&lt;Vec&lt;T&gt;, shared&gt;, fn(ref&lt;T, shared&gt;) : bool) : Option&lt;usize&gt;</code></td><td>the first index whose element satisfies the test, or <code>None</code>; a closure may capture the key it looks for</td></tr>
 <tr><td><code>Vec::index_of</code>, <code>Vec::contains</code></td><td><code>(ref&lt;Vec&lt;T&gt;, shared&gt;, ref&lt;T, shared&gt;) : Option&lt;usize&gt;</code> / <code>: bool</code></td><td>the first index equal to the value, or whether there is one; <code>T: eq</code> — a number, <code>bool</code>, <code>str</code>, <code>String</code>, or a struct or enum of those (D-0271); a struct with a float field takes <code>position</code></td></tr>
 <tr><td><code>Vec::reverse</code></td><td><code>(ref&lt;Vec&lt;T&gt;, exclusive&gt;)</code></td><td>the order inverted in place, by swaps; nothing is destroyed</td></tr>
-<tr><td><code>slice_eq</code></td><td><code>(slice&lt;T, shared&gt;, slice&lt;T, shared&gt;) : bool</code></td><td>the same length and equal elements in order; <code>T: eq</code>. <code>==</code> does not compare vectors (they are resources): <code>slice_eq(&amp;a[0..$], &amp;b[0..$])</code></td></tr>
+<tr><td><code>slice_eq</code></td><td><code>(slice&lt;T, shared&gt;, slice&lt;T, shared&gt;) : bool</code></td><td>the same length and equal elements in order; <code>T: eq</code>. <code>==</code> does not compare vectors (they are resources): <code>slice_eq(&amp;a, &amp;b)</code></td></tr>
 <tr><td><code>Vec::push_le(&amp;mut v, x)</code>, <code>Vec::push_be</code></td><td><code>(ref&lt;Vec&lt;u8&gt;, exclusive&gt;, T: integer)</code></td><td><code>x</code>'s bytes onto a byte <code>Vec</code>, least (<code>le</code>) or most (<code>be</code>) significant first; any width, signed as two's complement (D-0119)</td></tr>
-<tr><td><code>read_le&lt;T&gt;(&amp;v[0..$], at)</code>, <code>read_be&lt;T&gt;</code></td><td><code>(slice&lt;u8, shared&gt;, usize) : T</code></td><td>the <code>T</code> whose bytes start at <code>at</code>; <code>diag.index-out-of-bounds</code> when fewer than <code>sizeof&lt;T&gt;()</code> remain</td></tr>
-<tr><td><code>crc32(&amp;v[0..$])</code></td><td><code>(slice&lt;u8, shared&gt;) : u32</code></td><td>CRC-32/IEEE, the checksum of zlib, gzip and PNG; <code>crc32</code> of <code>&quot;123456789&quot;</code>'s bytes is <code>0xCBF43926</code> (§21 of the specification writes the algorithm out)</td></tr>
+<tr><td><code>read_le&lt;T&gt;(&amp;v, at)</code>, <code>read_be&lt;T&gt;</code></td><td><code>(slice&lt;u8, shared&gt;, usize) : T</code></td><td>the <code>T</code> whose bytes start at <code>at</code>; <code>diag.index-out-of-bounds</code> when fewer than <code>sizeof&lt;T&gt;()</code> remain</td></tr>
+<tr><td><code>crc32(&amp;v)</code></td><td><code>(slice&lt;u8, shared&gt;) : u32</code></td><td>CRC-32/IEEE, the checksum of zlib, gzip and PNG; <code>crc32</code> of <code>&quot;123456789&quot;</code>'s bytes is <code>0xCBF43926</code> (§21 of the specification writes the algorithm out)</td></tr>
 </tbody>
 </table>
 <p>When you know how many elements are coming, say so first: <code>Vec::reserve(&amp;mut v, n)</code>
@@ -8112,7 +8199,7 @@ joining, searching and reversing. <code>filled</code> and <code>extend_from</cod
     <span class="p">Vec</span>&lt;<span class="p">String</span>&gt; more = <span class="p">Vec</span>::new();
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> more, <span class="s">&quot;x&quot;</span>);
     <span class="p">Vec</span>::append(&amp;<span class="k">mut</span> names, more);                                        <span class="c">// more is consumed</span>
-    <span class="p">Vec</span>::extend_from(&amp;<span class="k">mut</span> row, &amp;grid[<span class="n">1</span>][<span class="n">0</span>..$]);                           <span class="c">// copies bytes</span>
+    <span class="p">Vec</span>::extend_from(&amp;<span class="k">mut</span> row, &amp;grid[<span class="n">1</span>]);                           <span class="c">// copies bytes</span>
     <span class="p">assert</span>(<span class="p">Vec</span>::len(&amp;names) == <span class="n">4</span> &amp;&amp; <span class="p">Vec</span>::len(&amp;row) == <span class="n">8</span> &amp;&amp; row[<span class="n">6</span>] == b&#x27;#&#x27;);
 
     <span class="p">String</span> key = <span class="s">&quot;n1&quot;</span>;
@@ -8169,10 +8256,10 @@ crosses into bytes the same way, through <code>Name::bits(v)</code>.</p>
     <span class="p">Vec</span>::push_le(&amp;<span class="k">mut</span> header, <span class="n">640</span>: <span class="t">u16</span>);                 <span class="c">// a little-endian width</span>
     <span class="p">Vec</span>::push_le(&amp;<span class="k">mut</span> header, -<span class="n">1</span>: <span class="t">i8</span>);
     <span class="p">assert</span>(<span class="p">Vec</span>::len(&amp;header) == <span class="n">7</span> &amp;&amp; header[<span class="n">0</span>] == <span class="n">0</span>x89 &amp;&amp; header[<span class="n">4</span>] == <span class="n">0</span>x80 &amp;&amp; header[<span class="n">5</span>] == <span class="n">2</span>);
-    <span class="p">assert</span>(read_be&lt;<span class="t">u32</span>&gt;(&amp;header[<span class="n">0</span>..$], <span class="n">0</span>) == <span class="n">0</span>x89504E47 &amp;&amp; read_le&lt;<span class="t">u16</span>&gt;(&amp;header[<span class="n">0</span>..$], <span class="n">4</span>) == <span class="n">640</span>);
-    <span class="p">assert</span>(read_le&lt;<span class="t">i8</span>&gt;(&amp;header[<span class="n">0</span>..$], <span class="n">6</span>) == -<span class="n">1</span>);
+    <span class="p">assert</span>(read_be&lt;<span class="t">u32</span>&gt;(&amp;header, <span class="n">0</span>) == <span class="n">0</span>x89504E47 &amp;&amp; read_le&lt;<span class="t">u16</span>&gt;(&amp;header, <span class="n">4</span>) == <span class="n">640</span>);
+    <span class="p">assert</span>(read_le&lt;<span class="t">i8</span>&gt;(&amp;header, <span class="n">6</span>) == -<span class="n">1</span>);
     <span class="p">String</span> text = <span class="s">&quot;123456789&quot;</span>;
-    <span class="p">assert</span>(crc32(&amp;<span class="p">StringView</span>::as_bytes(&amp;text)[<span class="n">0</span>..$]) == <span class="n">0</span>xCBF43926);
+    <span class="p">assert</span>(crc32(<span class="p">StringView</span>::as_bytes(&amp;text)) == <span class="n">0</span>xCBF43926);
 }</code></pre></figure>
 <p>A <code>Vec</code> can hold references. While it does, they count as live borrows: the referent
 cannot be written past them, and a stored <code>&amp;mut</code> is the only way in until the element is popped or
@@ -8220,7 +8307,7 @@ never use it for keys, tokens, nonces, passwords, or anything an adversary must 
 <thead><tr><th>Function</th><th>Does</th></tr></thead>
 <tbody>
 <tr><td><code>Rng::new(s)</code>, <code>Rng::next_u64(&amp;mut r)</code>, <code>Rng::below(&amp;mut r, n)</code>, <code>Rng::unit_f64(&amp;mut r)</code></td><td>a general-purpose pseudo-random generator (xoshiro256**, fixed by the specification): the same seed gives the same numbers everywhere; <code>below</code> is unbiased in <code>0 .. n</code>. It is not suitable for cryptographic purposes — keys, tokens, nonces, anything an adversary must not predict (D-0120)</td></tr>
-<tr><td><code>Rng::shuffle(&amp;mut r, &amp;mut v[0..$])</code>, <code>uuid_v4()</code></td><td>a slice put in random order (Fisher-Yates; the same seed, the same order everywhere); a version-4 UUID as text, from the operating system's secure source (D-0181)</td></tr>
+<tr><td><code>Rng::shuffle(&amp;mut r, &amp;mut v)</code>, <code>uuid_v4()</code></td><td>a slice put in random order (Fisher-Yates; the same seed, the same order everywhere); a version-4 UUID as text, from the operating system's secure source (D-0181)</td></tr>
 </tbody>
 </table>
 <figure class="code"><div class="code-head"><span class="code-title">A reproducible random sequence</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
@@ -8240,7 +8327,7 @@ never use it for keys, tokens, nonces, passwords, or anything an adversary must 
     <span class="p">assert</span>(x &gt;= <span class="n">0.0</span> &amp;&amp; x &lt; <span class="n">1.0</span>);
 }</code></pre></figure>
 <p>For anything secret, take bytes from the operating system's cryptographically secure source
-instead (<code>std::random</code>): <code>os_random_bytes(&amp;mut buf[0..$])</code> fills a slice, <code>os_random_u64()</code> gives one
+instead (<code>std::random</code>): <code>os_random_bytes(&amp;mut buf)</code> fills a slice, <code>os_random_u64()</code> gives one
 number. These are what keys, session tokens and nonces are made of. <code>Rng::from_os()</code> seeds an <code>Rng</code>
 from them, which makes its sequence differ between runs but not secret: the sequence is still
 <code>Rng</code>'s. Every system both tools run on has such a source; if one did not, the call would be the
@@ -8250,7 +8337,7 @@ fault <code>diag.entropy-unavailable</code>, never a quiet fall back to the cloc
 <span class="k">fn</span> main()
 {
     <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; token = <span class="p">Vec</span>::filled(<span class="n">16</span>, <span class="n">0</span>: <span class="t">u8</span>);
-    <span class="p">os_random_bytes</span>(&amp;<span class="k">mut</span> token[<span class="n">0</span>..$]);
+    <span class="p">os_random_bytes</span>(&amp;<span class="k">mut</span> token);
     <span class="p">String</span> hex = <span class="p">String</span>::new();
     <span class="k">foreach</span> (byte in &amp;token)
     {
@@ -8373,10 +8460,10 @@ prints with <code>%s</code>, compares with <code>==</code> to another view or a 
 <tr><td><code>StringView::char_count(v)</code></td><td>how many characters it holds (<code>len</code> counts bytes; D-0193)</td></tr>
 <tr><td><code>StringView::contains(v, t)</code></td><td><code>bool</code>: whether the text of <code>t</code> occurs in <code>v</code> (D-0139)</td></tr>
 <tr><td><code>StringView::replace(v, from, to)</code></td><td>a new <code>String</code>: <code>v</code> with every occurrence of <code>from</code> replaced by <code>to</code>, left to right, no overlap; an empty <code>from</code> occurs nowhere</td></tr>
-<tr><td><code>StringView::join(&amp;parts[0..$], sep)</code>, <code>String::join(&amp;strings[0..$], sep)</code></td><td>a new <code>String</code>: the parts with <code>sep</code> between each two; the inverse of <code>split</code></td></tr>
+<tr><td><code>StringView::join(&amp;parts, sep)</code>, <code>String::join(&amp;strings, sep)</code></td><td>a new <code>String</code>: the parts with <code>sep</code> between each two; the inverse of <code>split</code></td></tr>
 <tr><td><code>StringView::parse&lt;T&gt;(v)</code></td><td>a number of type <code>T</code>, the whole text or an error; <code>StringView::parse&lt;T&gt;(&amp;s)</code> for a <code>String</code></td></tr>
 <tr><td><code>String::copy(v)</code>, <code>String::append(&amp;mut s, v)</code></td><td>the text copied into a <code>String</code></td></tr>
-<tr><td><code>StringView::find(&amp;s, t)</code> and the rest, for a <code>String s</code></td><td><code>&amp;s</code> is the view of <code>s</code> where a <code>StringView</code> is declared (D-0302), so each <code>StringView::</code> function takes a <code>String</code> as <code>&amp;s</code>; <code>&amp;s[0..$]</code> is that view where nothing declares one. The <code>String::</code> copies of these functions were removed (D-0306), and <code>String::len</code>, <code>chars</code>, <code>char_count</code>, <code>code_point</code> and <code>parse</code> were removed too (D-0308): <code>StringView::len(&amp;s)</code> and the rest</td></tr>
+<tr><td><code>StringView::find(&amp;s, t)</code> and the rest, for a <code>String s</code></td><td><code>&amp;s</code> is the view of <code>s</code> where a <code>StringView</code> is declared (D-0302), so each <code>StringView::</code> function takes a <code>String</code> as <code>&amp;s</code>; <code>&amp;s</code> is that view where nothing declares one. The <code>String::</code> copies of these functions were removed (D-0306), and <code>String::len</code>, <code>chars</code>, <code>char_count</code>, <code>code_point</code> and <code>parse</code> were removed too (D-0308): <code>StringView::len(&amp;s)</code> and the rest</td></tr>
 </tbody>
 </table>
 <p>Text that a function only reads is a <code>StringView</code> throughout <code>std</code>: a file's path, the text
@@ -8462,12 +8549,12 @@ and another view all serve.</p>
 
     <span class="p">Vec</span>&lt;<span class="p">StringView</span>&gt; parts = <span class="p">StringView</span>::split(&amp;path, <span class="s">&quot;/&quot;</span>);          <span class="c">// &quot;&quot;, &quot;usr&quot;, &quot;local&quot;, &quot;lib&quot;, &quot;cobaltc&quot;</span>
     <span class="p">printf</span>(<span class="s">&quot;%s\n&quot;</span>, &amp;<span class="p">StringView</span>::<span class="p">join</span>(&amp;parts[<span class="n">1</span>..$], <span class="s">&quot; &gt; &quot;</span>));
-    <span class="p">assert</span>(<span class="p">StringView</span>::<span class="p">join</span>(&amp;parts[<span class="n">0</span>..$], <span class="s">&quot;/&quot;</span>) == path);        <span class="c">// join undoes split</span>
+    <span class="p">assert</span>(<span class="p">StringView</span>::<span class="p">join</span>(&amp;parts, <span class="s">&quot;/&quot;</span>) == path);        <span class="c">// join undoes split</span>
 
     <span class="p">Vec</span>&lt;<span class="p">String</span>&gt; names = <span class="p">Vec</span>::new();
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> names, <span class="s">&quot;ada&quot;</span>);
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> names, <span class="s">&quot;grace&quot;</span>);
-    <span class="p">printf</span>(<span class="s">&quot;%s\n&quot;</span>, &amp;<span class="p">String</span>::<span class="p">join</span>(&amp;names[<span class="n">0</span>..$], <span class="s">&quot;, &quot;</span>));
+    <span class="p">printf</span>(<span class="s">&quot;%s\n&quot;</span>, &amp;<span class="p">String</span>::<span class="p">join</span>(&amp;names, <span class="s">&quot;, &quot;</span>));
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>\usr\local\lib\cobaltc
 ba
 usr &gt; local &gt; lib &gt; cobaltc
@@ -8478,7 +8565,7 @@ ada, grace
 <span class="k">fn</span> main()
 {
     <span class="p">String</span> name = <span class="s">&quot;ada&quot;</span>;
-    <span class="p">StringView</span> v = &amp;name[<span class="n">0</span>..$];
+    <span class="p">StringView</span> v = &amp;name;
     <span class="p">String</span>::push_ascii(&amp;<span class="k">mut</span> name, b&#x27;!&#x27;);   <span class="c">// <span class="bad">✗</span> <span class="dg">diag.aliasing-conflict</span> (static): v still views name</span>
     <span class="p">assert</span>(v == <span class="s">&quot;ada&quot;</span>);
 }</code></pre></figure>
@@ -9084,7 +9171,7 @@ floating-point functions. <code>Vec::sort</code> orders <code>f32</code> and <co
 <p><code>read_file(path)</code> reads a whole file as a <code>String</code>; <code>write_file(path, text)</code> makes the
 file hold exactly <code>text</code>, creating it or replacing what it held. Both take the path, and the text,
 as a <code>StringView</code> (D-0134): a literal, <code>read_file(&quot;notes.txt&quot;)</code>, or a <code>String</code>'s whole-string view,
-<code>read_file(&amp;path[0..$])</code> for a path that came from <code>arg</code>. They return a <code>Result</code> whose error is a
+<code>read_file(&amp;path)</code> for a path that came from <code>arg</code>. They return a <code>Result</code> whose error is a
 <code>FileError</code>: <code>NotFound</code>,
 <code>Denied</code>, <code>Utf8(e)</code> for a file that is not valid UTF-8 (with the offset of the first bad byte), or
 <code>Io</code> for anything else. A relative path is relative to the directory the program runs in. Both
@@ -9104,7 +9191,7 @@ theirs (D-0117); <code>%v</code> of an error prints its variant's name instead.<
 <span class="k">fn</span> main() : <span class="t">u8</span>
 {
     <span class="p">String</span> text = <span class="s">&quot;first line\nsecond line\n&quot;</span>;
-    <span class="k">if</span> (<span class="p">Err</span>(_) = <span class="p">write_file</span>(<span class="s">&quot;notes.txt&quot;</span>, &amp;text[<span class="n">0</span>..$]))
+    <span class="k">if</span> (<span class="p">Err</span>(_) = <span class="p">write_file</span>(<span class="s">&quot;notes.txt&quot;</span>, &amp;text))
     {
         <span class="p">printf</span>(<span class="s">&quot;cannot write notes.txt\n&quot;</span>);
         <span class="k">return</span> <span class="n">1</span>;
@@ -9230,12 +9317,12 @@ it puts in the right separator, only one, and an absolute tail replaces the base
 {
     <span class="p">DateTime</span> day = <span class="p">DateTime</span>::from_unix(<span class="n">1791022620</span>);
     <span class="p">String</span> name = <span class="p">sprintf</span>(<span class="s">&quot;app-%d-%02d-%02d.log&quot;</span>, day.year, day.month, day.day);
-    <span class="p">String</span> dir = <span class="p">path_join</span>(&amp;<span class="p">temp_dir</span>()[<span class="n">0</span>..$], <span class="s">&quot;cobaltc-guide-logs/2026&quot;</span>);
+    <span class="p">String</span> dir = <span class="p">path_join</span>(&amp;<span class="p">temp_dir</span>(), <span class="s">&quot;cobaltc-guide-logs/2026&quot;</span>);
     <span class="k">if</span> (<span class="p">Err</span>(_) = <span class="p">make_dir_all</span>(&amp;dir))
     {
         <span class="k">return</span> <span class="n">1</span>;
     }
-    <span class="p">String</span> log = <span class="p">path_join</span>(&amp;dir, &amp;name[<span class="n">0</span>..$]);
+    <span class="p">String</span> log = <span class="p">path_join</span>(&amp;dir, &amp;name);
     <span class="k">if</span> (<span class="p">Err</span>(_) = <span class="p">write_file</span>(&amp;log, <span class="s">&quot;started\n&quot;</span>))
     {
         <span class="k">return</span> <span class="n">1</span>;
@@ -9248,7 +9335,7 @@ it puts in the right separator, only one, and an absolute tail replaces the base
         <span class="p">Ok</span>(i)  : <span class="p">printf</span>(<span class="s">&quot;%u bytes, written in the last minute: %v\n&quot;</span>, i.len, <span class="p">unix_seconds</span>() - i.modified_unix &lt; <span class="n">60</span>),
         <span class="p">Err</span>(e) : <span class="p">printf</span>(<span class="s">&quot;file_info: %s\n&quot;</span>, <span class="p">FileError</span>::text(&amp;e)),
     }
-    <span class="p">String</span> top = <span class="p">path_join</span>(&amp;<span class="p">temp_dir</span>()[<span class="n">0</span>..$], <span class="s">&quot;cobaltc-guide-logs&quot;</span>);
+    <span class="p">String</span> top = <span class="p">path_join</span>(&amp;<span class="p">temp_dir</span>(), <span class="s">&quot;cobaltc-guide-logs&quot;</span>);
     _ = <span class="p">remove_dir_all</span>(&amp;top);
     <span class="p">String</span> up = <span class="p">path_normalize</span>(<span class="s">&quot;logs/2026/../2025/./app.log&quot;</span>);
     <span class="p">printf</span>(<span class="s">&quot;normalized: %s\n&quot;</span>, &amp;up);
@@ -9546,8 +9633,8 @@ authenticates (RFC 8439): a 32-byte key, a 12-byte nonce that must never repeat 
 <code>aad</code>, data sent in the clear but protected from change; the result is the ciphertext and a 16-byte
 tag. <code>chacha20_poly1305_open</code> gives the plaintext back, or <code>None</code> if a single bit of the message, the
 tag or the <code>aad</code> was changed, and never any part of a refused message. <strong>Agreeing on a
-key.</strong> Each side makes <code>x25519_private_key()</code>, sends <code>x25519_public_key(&amp;private[0..$])</code>, and
-computes <code>x25519(&amp;private[0..$], &amp;their_public[0..$])</code>: both get the same 32 bytes, which nobody who
+key.</strong> Each side makes <code>x25519_private_key()</code>, sends <code>x25519_public_key(&amp;private)</code>, and
+computes <code>x25519(&amp;private, &amp;their_public)</code>: both get the same 32 bytes, which nobody who
 saw only the public keys can (RFC 7748); <code>None</code> means the other side sent a key that must be refused.
 Feed the shared secret to <code>hkdf_sha256</code>, never use it as a key directly. <strong>The NIST
 alternatives.</strong> <code>aes_gcm_seal</code> and <code>aes_gcm_open</code> are the same pair with AES-GCM (NIST SP
@@ -9564,17 +9651,17 @@ wrong length is the fault <code>diag.crypto-length</code>.</p>
 {
     <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; alice = <span class="p">x25519_private_key</span>();
     <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; bob = <span class="p">x25519_private_key</span>();
-    <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; alice_public = <span class="p">x25519_public_key</span>(&amp;alice[<span class="n">0</span>..$]);
-    <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; bob_public = <span class="p">x25519_public_key</span>(&amp;bob[<span class="n">0</span>..$]);
-    <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; <span class="t">shared</span> = <span class="p">Option</span>::unwrap(<span class="p">x25519</span>(&amp;alice[<span class="n">0</span>..$], &amp;bob_public[<span class="n">0</span>..$]));
+    <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; alice_public = <span class="p">x25519_public_key</span>(&amp;alice);
+    <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; bob_public = <span class="p">x25519_public_key</span>(&amp;bob);
+    <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; <span class="t">shared</span> = <span class="p">Option</span>::unwrap(<span class="p">x25519</span>(&amp;alice, &amp;bob_public));
     <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; nothing = <span class="p">Vec</span>::new();
-    <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; key = <span class="p">hkdf_sha256</span>(&amp;nothing[<span class="n">0</span>..$], &amp;<span class="t">shared</span>[<span class="n">0</span>..$], &amp;<span class="s">b&quot;example key&quot;</span>[<span class="n">0</span>..$], <span class="n">32</span>);
+    <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; key = <span class="p">hkdf_sha256</span>(&amp;nothing, &amp;<span class="t">shared</span>, <span class="s">b&quot;example key&quot;</span>, <span class="n">32</span>);
     <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; nonce = <span class="p">Vec</span>::filled(<span class="n">12</span>, <span class="n">0</span>: <span class="t">u8</span>);
-    <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; sealed = <span class="p">chacha20_poly1305_seal</span>(&amp;key[<span class="n">0</span>..$], &amp;nonce[<span class="n">0</span>..$], &amp;<span class="s">b&quot;header&quot;</span>[<span class="n">0</span>..$], &amp;<span class="s">b&quot;attack at dawn&quot;</span>[<span class="n">0</span>..$]);
+    <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; sealed = <span class="p">chacha20_poly1305_seal</span>(&amp;key, &amp;nonce, <span class="s">b&quot;header&quot;</span>, <span class="s">b&quot;attack at dawn&quot;</span>);
     <span class="c">// Bob derives the same key from his side of the exchange.</span>
-    <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; bobs = <span class="p">Option</span>::unwrap(<span class="p">x25519</span>(&amp;bob[<span class="n">0</span>..$], &amp;alice_public[<span class="n">0</span>..$]));
-    <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; bob_key = <span class="p">hkdf_sha256</span>(&amp;nothing[<span class="n">0</span>..$], &amp;bobs[<span class="n">0</span>..$], &amp;<span class="s">b&quot;example key&quot;</span>[<span class="n">0</span>..$], <span class="n">32</span>);
-    <span class="k">match</span> (<span class="p">chacha20_poly1305_open</span>(&amp;bob_key[<span class="n">0</span>..$], &amp;nonce[<span class="n">0</span>..$], &amp;<span class="s">b&quot;header&quot;</span>[<span class="n">0</span>..$], &amp;sealed[<span class="n">0</span>..$]))
+    <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; bobs = <span class="p">Option</span>::unwrap(<span class="p">x25519</span>(&amp;bob, &amp;alice_public));
+    <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; bob_key = <span class="p">hkdf_sha256</span>(&amp;nothing, &amp;bobs, <span class="s">b&quot;example key&quot;</span>, <span class="n">32</span>);
+    <span class="k">match</span> (<span class="p">chacha20_poly1305_open</span>(&amp;bob_key, &amp;nonce, <span class="s">b&quot;header&quot;</span>, &amp;sealed))
     {
         <span class="p">Some</span>(p) : <span class="p">printf</span>(<span class="s">&quot;bob reads: %s\n&quot;</span>, &amp;<span class="p">Result</span>::unwrap_or(<span class="p">String</span>::from_utf8(p), <span class="p">String</span>::new())),
         <span class="p">None</span>    : <span class="p">printf</span>(<span class="s">&quot;refused\n&quot;</span>),
@@ -9583,10 +9670,10 @@ wrong length is the fault <code>diag.crypto-length</code>.</p>
     <span class="p">printf</span>(
         <span class="s">&quot;changed in transit: %s\n&quot;</span>,
         <span class="k">if</span> (<span class="p">Option</span>::is_none(&amp;<span class="p">chacha20_poly1305_open</span>(
-            &amp;bob_key[<span class="n">0</span>..$],
-            &amp;nonce[<span class="n">0</span>..$],
-            &amp;<span class="s">b&quot;header&quot;</span>[<span class="n">0</span>..$],
-            &amp;sealed[<span class="n">0</span>..$],
+            &amp;bob_key,
+            &amp;nonce,
+            <span class="s">b&quot;header&quot;</span>,
+            &amp;sealed,
         ))) { <span class="s">&quot;refused&quot;</span> } <span class="k">else</span> { <span class="s">&quot;accepted&quot;</span> },
     );
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>bob reads: attack at dawn
@@ -9624,13 +9711,13 @@ changed in transit: refused
 
 <span class="k">fn</span> main()
 {
-    <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; d = <span class="p">sha256</span>(&amp;<span class="s">b&quot;abc&quot;</span>[<span class="n">0</span>..$]);
-    <span class="p">printf</span>(<span class="s">&quot;%s\n&quot;</span>, &amp;<span class="p">to_hex</span>(&amp;d[<span class="n">0</span>..$]));
-    <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; mac = <span class="p">hmac_sha256</span>(&amp;<span class="s">b&quot;Jefe&quot;</span>[<span class="n">0</span>..$], &amp;<span class="s">b&quot;what do ya want for nothing?&quot;</span>[<span class="n">0</span>..$]);
-    <span class="p">printf</span>(<span class="s">&quot;%s\n&quot;</span>, &amp;<span class="p">to_hex</span>(&amp;mac[<span class="n">0</span>..$]));
-    <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; again = <span class="p">hmac_sha256</span>(&amp;<span class="s">b&quot;Jefe&quot;</span>[<span class="n">0</span>..$], &amp;<span class="s">b&quot;what do ya want for nothing?&quot;</span>[<span class="n">0</span>..$]);
-    <span class="p">printf</span>(<span class="s">&quot;verified: %v\n&quot;</span>, <span class="p">digest_eq</span>(&amp;mac[<span class="n">0</span>..$], &amp;again[<span class="n">0</span>..$]));
-    <span class="p">printf</span>(<span class="s">&quot;%s\n&quot;</span>, &amp;<span class="p">base64_encode</span>(&amp;<span class="s">b&quot;foobar&quot;</span>[<span class="n">0</span>..$]));
+    <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; d = <span class="p">sha256</span>(<span class="s">b&quot;abc&quot;</span>);
+    <span class="p">printf</span>(<span class="s">&quot;%s\n&quot;</span>, &amp;<span class="p">to_hex</span>(&amp;d));
+    <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; mac = <span class="p">hmac_sha256</span>(<span class="s">b&quot;Jefe&quot;</span>, <span class="s">b&quot;what do ya want for nothing?&quot;</span>);
+    <span class="p">printf</span>(<span class="s">&quot;%s\n&quot;</span>, &amp;<span class="p">to_hex</span>(&amp;mac));
+    <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; again = <span class="p">hmac_sha256</span>(<span class="s">b&quot;Jefe&quot;</span>, <span class="s">b&quot;what do ya want for nothing?&quot;</span>);
+    <span class="p">printf</span>(<span class="s">&quot;verified: %v\n&quot;</span>, <span class="p">digest_eq</span>(&amp;mac, &amp;again));
+    <span class="p">printf</span>(<span class="s">&quot;%s\n&quot;</span>, &amp;<span class="p">base64_encode</span>(<span class="s">b&quot;foobar&quot;</span>));
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
 5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843
 verified: true
@@ -9638,19 +9725,19 @@ Zm9vYmFy
 </pre></div></figure>
 <p><strong>Signatures.</strong> Three families, each with a key pair, a signing function and a
 verifying one. <em>Ed25519</em> (RFC 8032) is the simplest and the one to choose where you can:
-<code>ed25519_private_key()</code>, <code>ed25519_public_key(&amp;private[0..$])</code>, <code>ed25519_sign(&amp;private[0..$],
-message)</code> gives 64 bytes, <code>ed25519_verify(&amp;public[0..$], message, &amp;sig[0..$])</code> says whether they are
+<code>ed25519_private_key()</code>, <code>ed25519_public_key(&amp;private)</code>, <code>ed25519_sign(&amp;private,
+message)</code> gives 64 bytes, <code>ed25519_verify(&amp;public, message, &amp;sig)</code> says whether they are
 that key's signature of that message. Signing is deterministic: the same key and message give the
 same bytes, and no random number is involved that could repeat. <em>ECDSA</em> on <code>P256</code> or <code>P384</code>
-(what certificates and TLS mostly carry): <code>ec_private_key(curve)</code>, <code>ec_public_key(curve, &amp;k[0..$])</code>
-(the uncompressed point, 65 or 97 bytes), <code>ecdsa_sign(curve, &amp;k[0..$], &amp;digest[0..$])</code> (a DER
+(what certificates and TLS mostly carry): <code>ec_private_key(curve)</code>, <code>ec_public_key(curve, &amp;k)</code>
+(the uncompressed point, 65 or 97 bytes), <code>ecdsa_sign(curve, &amp;k, &amp;digest)</code> (a DER
 signature over the digest made with <code>hash</code>; the nonce is derived from the key and the digest as
 RFC 6979 says, so it too is deterministic) and <code>ecdsa_verify(curve, public, digest, sig)</code>; the same
-keys do key agreement with <code>ecdh(curve, &amp;k[0..$], &amp;their_public[0..$])</code>, of which the <code>p256_*</code>
+keys do key agreement with <code>ecdh(curve, &amp;k, &amp;their_public)</code>, of which the <code>p256_*</code>
 functions are the P-256 case. <em>RSA</em>: <code>rsa_generate_key(2048)</code> makes an <code>RsaPrivateKey</code>
 (minutes under the interpreter, seconds compiled), or <code>RsaPrivateKey::new(n, e, d, p, q)</code> builds one
 from numbers read elsewhere (<code>None</code> if they do not fit together); <code>rsa_sign_pkcs1v15(&amp;key, kind,
-&amp;digest[0..$])</code> and <code>rsa_sign_pss(&amp;key, kind, &amp;digest[0..$])</code> sign the digest in the two standard
+&amp;digest)</code> and <code>rsa_sign_pss(&amp;key, kind, &amp;digest)</code> sign the digest in the two standard
 encodings, <code>RsaPrivateKey::public_key(&amp;key)</code> gives the <code>RsaPublicKey</code> that <code>rsa_verify_pkcs1v15</code> and
 <code>rsa_verify_pss</code> check with. Signing with any of them takes the same steps whatever the key; the
 RSA operation is blinded and checked against the public key before its result leaves. Verification
@@ -9668,10 +9755,10 @@ uses only public values and answers <code>false</code> for anything malformed.</
 <span class="k">fn</span> main()
 {
     <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; private = <span class="p">ed25519_private_key</span>();
-    <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; public = <span class="p">ed25519_public_key</span>(&amp;private[<span class="n">0</span>..$]);
-    <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">64</span>&gt; sig = <span class="p">ed25519_sign</span>(&amp;private[<span class="n">0</span>..$], &amp;<span class="s">b&quot;release 1.4.0&quot;</span>[<span class="n">0</span>..$]);
-    <span class="p">printf</span>(<span class="s">&quot;genuine: %v\n&quot;</span>, <span class="p">ed25519_verify</span>(&amp;public[<span class="n">0</span>..$], &amp;<span class="s">b&quot;release 1.4.0&quot;</span>[<span class="n">0</span>..$], &amp;sig[<span class="n">0</span>..$]));
-    <span class="p">printf</span>(<span class="s">&quot;altered: %v\n&quot;</span>, <span class="p">ed25519_verify</span>(&amp;public[<span class="n">0</span>..$], &amp;<span class="s">b&quot;release 1.4.1&quot;</span>[<span class="n">0</span>..$], &amp;sig[<span class="n">0</span>..$]));
+    <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; public = <span class="p">ed25519_public_key</span>(&amp;private);
+    <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">64</span>&gt; sig = <span class="p">ed25519_sign</span>(&amp;private, <span class="s">b&quot;release 1.4.0&quot;</span>);
+    <span class="p">printf</span>(<span class="s">&quot;genuine: %v\n&quot;</span>, <span class="p">ed25519_verify</span>(&amp;public, <span class="s">b&quot;release 1.4.0&quot;</span>, &amp;sig));
+    <span class="p">printf</span>(<span class="s">&quot;altered: %v\n&quot;</span>, <span class="p">ed25519_verify</span>(&amp;public, <span class="s">b&quot;release 1.4.1&quot;</span>, &amp;sig));
     <span class="c">// The same key, written the way openssl would.</span>
     <span class="p">PrivateKey</span> key = Ed25519Private(private);
     <span class="p">String</span> pem = <span class="p">PrivateKey</span>::to_pem(&amp;key);
@@ -9682,9 +9769,9 @@ altered: false
 -----BEGIN PRIVATE KEY-----
 read back: true
 </pre></div></figure>
-<p><strong>Passwords.</strong> Store <code>hash_password(&amp;password[0..$])</code>, a text like
+<p><strong>Passwords.</strong> Store <code>hash_password(&amp;password)</code>, a text like
 <code>$argon2id$v=19$m=19456,t=2,p=1$…$…</code> that records the Argon2id parameters and the random salt beside
-the result; check a login with <code>verify_password(stored, &amp;attempt[0..$])</code>. Argon2id (RFC 9106) costs
+the result; check a login with <code>verify_password(stored, &amp;attempt)</code>. Argon2id (RFC 9106) costs
 memory as well as time (19 MiB and two passes here, the OWASP recommendation), so a stolen table
 cannot be searched at hardware speed; the parameters can be raised later and old entries still
 verify, since each carries its own. Never store a plain <code>sha256</code> of a password, salted or not. For
@@ -9721,7 +9808,7 @@ mod 1000000007 = 109361473
 </pre></div></figure>
 <h3>Statistics</h3>
 <p><em>In <code>std::stats</code>.</em></p>
-<p>Descriptive statistics over a slice of numbers of any numeric type (D-0267). <code>sum(&amp;v[0..$])</code> adds
+<p>Descriptive statistics over a slice of numbers of any numeric type (D-0267). <code>sum(&amp;v)</code> adds
 in the slice's own type, checked, so an integer sum that does not fit faults as <code>+</code> does. <code>mean</code>,
 <code>variance</code> and <code>stddev</code> (of the population: divided by the count), <code>sample_variance</code> and
 <code>sample_stddev</code> (divided by one less, for a sample of a larger population), <code>median</code>,
@@ -9738,25 +9825,25 @@ NaN, sorts last for the median, and is passed over by <code>minimum</code> and <
 {
     <span class="t">array</span>&lt;<span class="t">f64</span>, <span class="n">7</span>&gt; scores = [<span class="n">71.5</span>, <span class="n">88.0</span>, <span class="n">64.0</span>, <span class="n">92.5</span>, <span class="n">79.0</span>, <span class="n">88.0</span>, <span class="n">55.5</span>];
     <span class="p">printf</span>(<span class="s">&quot;mean %.2f, stddev %.2f (sample %.2f)\n&quot;</span>,
-           <span class="p">Option</span>::unwrap(mean(&amp;scores[<span class="n">0</span>..$])),
-           <span class="p">Option</span>::unwrap(stddev(&amp;scores[<span class="n">0</span>..$])),
-           <span class="p">Option</span>::unwrap(sample_stddev(&amp;scores[<span class="n">0</span>..$])));
+           <span class="p">Option</span>::unwrap(mean(&amp;scores)),
+           <span class="p">Option</span>::unwrap(stddev(&amp;scores)),
+           <span class="p">Option</span>::unwrap(sample_stddev(&amp;scores)));
     <span class="p">printf</span>(<span class="s">&quot;median %v, quartiles %v and %v\n&quot;</span>,
-           <span class="p">Option</span>::unwrap(median(&amp;scores[<span class="n">0</span>..$])),
-           <span class="p">Option</span>::unwrap(percentile(&amp;scores[<span class="n">0</span>..$], <span class="n">25.0</span>)),
-           <span class="p">Option</span>::unwrap(percentile(&amp;scores[<span class="n">0</span>..$], <span class="n">75.0</span>)));
+           <span class="p">Option</span>::unwrap(median(&amp;scores)),
+           <span class="p">Option</span>::unwrap(percentile(&amp;scores, <span class="n">25.0</span>)),
+           <span class="p">Option</span>::unwrap(percentile(&amp;scores, <span class="n">75.0</span>)));
     <span class="p">Vec</span>&lt;<span class="t">i64</span>&gt; sizes = <span class="p">Vec</span>::new();
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> sizes, <span class="n">4096</span>);
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> sizes, <span class="n">512</span>);
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> sizes, <span class="n">1</span>_048_576);
     <span class="p">printf</span>(
         <span class="s">&quot;%v bytes in %v files, the largest %v\n&quot;</span>,
-        sum(&amp;sizes[<span class="n">0</span>..$]),
+        sum(&amp;sizes),
         <span class="p">Vec</span>::len(&amp;sizes),
-        <span class="p">Option</span>::unwrap(maximum(&amp;sizes[<span class="n">0</span>..$])),
+        <span class="p">Option</span>::unwrap(maximum(&amp;sizes)),
     );
     <span class="p">Vec</span>::clear(&amp;<span class="k">mut</span> sizes);
-    <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, <span class="p">Option</span>::is_none(&amp;describe(&amp;sizes[<span class="n">0</span>..$])));
+    <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, <span class="p">Option</span>::is_none(&amp;describe(&amp;sizes)));
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>mean 76.93, stddev 12.80 (sample 13.83)
 median 79.0, quartiles 67.75 and 88.0
 1053184 bytes in 3 files, the largest 1048576.0
@@ -9768,7 +9855,7 @@ true
 <p><code>Certificate::parse(der)</code> reads an X.509 certificate; <code>certificates_from_pem(text)</code> reads every
 certificate in PEM text. A <code>TrustStore</code> holds the roots a chain may end at: <code>TrustStore::system()</code> reads
 the operating system's bundle on Unix (on Windows, pass a bundle to <code>TrustStore::from_pem_file</code>).
-<code>verify_chain(&amp;leaf, &amp;intermediates[0..$], &amp;roots, host, &amp;now)</code> decides whether a server's certificates
+<code>verify_chain(&amp;leaf, &amp;intermediates, &amp;roots, host, &amp;now)</code> decides whether a server's certificates
 prove it is <code>host</code>: the leaf names the host (a DNS name, a one-label wildcard, or an IP address; never
 the common name), every certificate is in date and signed by the next, every issuer is a CA, and the
 chain ends at a root. The error says why not: <code>HostMismatch</code>, <code>Expired</code>, <code>UnknownAuthority</code> and so on.
@@ -9812,7 +9899,7 @@ about ten seconds, and the interpreter's client then fails with the network erro
     _ = <span class="p">TlsStream</span>::close(&amp;<span class="k">mut</span> s);
     <span class="n">0</span>
 }</code></pre></figure>
-<p><strong>Serving TLS</strong> (D-0186). <code>TlsStream::server(tcp, &amp;key, &amp;chain[0..$])</code> performs the
+<p><strong>Serving TLS</strong> (D-0186). <code>TlsStream::server(tcp, &amp;key, &amp;chain)</code> performs the
 handshake as the server, with a <code>PrivateKey</code> (RSA, P-256, P-384 or Ed25519, read with
 <code>PrivateKey::from_pem</code>) and the server's certificate chain (<code>certificates_from_pem</code>, the server's
 own certificate first); the client's first suite, key share and the key's signature scheme are
@@ -9832,7 +9919,7 @@ subjectAltName=DNS:localhost</code> makes a self-signed pair for development).</
     <span class="k">while</span> (<span class="k">true</span>)
     {
         <span class="p">TcpStream</span> tcp = <span class="p">Result</span>::unwrap(<span class="p">TcpListener</span>::accept(&amp;<span class="k">mut</span> l));
-        <span class="p">TlsStream</span> s = <span class="k">match</span> (<span class="p">TlsStream</span>::server(tcp, &amp;key, &amp;chain[<span class="n">0</span>..$]))
+        <span class="p">TlsStream</span> s = <span class="k">match</span> (<span class="p">TlsStream</span>::server(tcp, &amp;key, &amp;chain))
         {
             <span class="p">Ok</span>(s)  : s,
             <span class="p">Err</span>(e) :
@@ -9892,21 +9979,21 @@ server is a later decision). The example is hermetic: its client and server are 
             {
                 <span class="k">if</span> (req.url == <span class="s">&quot;/health&quot;</span>)
                 {
-                    _ = <span class="p">HttpConnection</span>::respond(&amp;<span class="k">mut</span> c, <span class="n">200</span>, &amp;headers[<span class="n">0</span>..$], &amp;<span class="s">b&quot;ok\n&quot;</span>[<span class="n">0</span>..$]);
+                    _ = <span class="p">HttpConnection</span>::respond(&amp;<span class="k">mut</span> c, <span class="n">200</span>, &amp;headers, <span class="s">b&quot;ok\n&quot;</span>);
                 }
                 <span class="k">else</span> <span class="k">if</span> (req.method == <span class="s">&quot;POST&quot;</span> &amp;&amp; req.url == <span class="s">&quot;/echo&quot;</span>)
                 {
-                    _ = <span class="p">HttpConnection</span>::respond(&amp;<span class="k">mut</span> c, <span class="n">200</span>, &amp;headers[<span class="n">0</span>..$], &amp;req.body[<span class="n">0</span>..$]);
+                    _ = <span class="p">HttpConnection</span>::respond(&amp;<span class="k">mut</span> c, <span class="n">200</span>, &amp;headers, &amp;req.body);
                 }
                 <span class="k">else</span>
                 {
-                    _ = <span class="p">HttpConnection</span>::respond(&amp;<span class="k">mut</span> c, <span class="n">404</span>, &amp;headers[<span class="n">0</span>..$], &amp;<span class="s">b&quot;no such page\n&quot;</span>[<span class="n">0</span>..$]);
+                    _ = <span class="p">HttpConnection</span>::respond(&amp;<span class="k">mut</span> c, <span class="n">404</span>, &amp;headers, <span class="s">b&quot;no such page\n&quot;</span>);
                 }
             },
             <span class="p">Ok</span>(<span class="p">None</span>) : <span class="k">return</span> <span class="n">0</span>,
             <span class="p">Err</span>(_)   :
             {
-                _ = <span class="p">HttpConnection</span>::respond(&amp;<span class="k">mut</span> c, <span class="n">400</span>, &amp;headers[<span class="n">0</span>..$], &amp;<span class="s">b&quot;bad request\n&quot;</span>[<span class="n">0</span>..$]);
+                _ = <span class="p">HttpConnection</span>::respond(&amp;<span class="k">mut</span> c, <span class="n">400</span>, &amp;headers, <span class="s">b&quot;bad request\n&quot;</span>);
                 <span class="k">return</span> <span class="n">1</span>;
             },
         }
@@ -9937,7 +10024,7 @@ server is a later decision). The example is hermetic: its client and server are 
         <span class="p">Ok</span>(r)  : <span class="p">printf</span>(<span class="s">&quot;%u %s: %s&quot;</span>, r.status, &amp;r.reason, &amp;<span class="p">Result</span>::unwrap_or(<span class="p">Response</span>::text(&amp;r), <span class="p">String</span>::new())),
         <span class="p">Err</span>(e) : <span class="p">printf</span>(<span class="s">&quot;error: %s\n&quot;</span>, <span class="p">HttpError</span>::text(&amp;e)),
     }
-    <span class="k">match</span> (<span class="p">http_post</span>(&amp;<span class="p">sprintf</span>(<span class="s">&quot;%s/echo&quot;</span>, &amp;base), <span class="s">&quot;text/plain&quot;</span>, &amp;<span class="s">b&quot;hello there&quot;</span>[<span class="n">0</span>..$]))
+    <span class="k">match</span> (<span class="p">http_post</span>(&amp;<span class="p">sprintf</span>(<span class="s">&quot;%s/echo&quot;</span>, &amp;base), <span class="s">&quot;text/plain&quot;</span>, <span class="s">b&quot;hello there&quot;</span>))
     {
         <span class="p">Ok</span>(r)  : <span class="p">printf</span>(<span class="s">&quot;%u, %s echoed %v bytes: %s\n&quot;</span>, r.status, <span class="p">Option</span>::unwrap_or(<span class="p">Response</span>::header(&amp;r, <span class="s">&quot;content-type&quot;</span>), <span class="p">StringView</span>::of(<span class="s">&quot;?&quot;</span>)), <span class="p">Vec</span>::len(&amp;r.body), &amp;<span class="p">Result</span>::unwrap_or(<span class="p">Response</span>::text(&amp;r), <span class="p">String</span>::new())),
         <span class="p">Err</span>(e) : <span class="p">printf</span>(<span class="s">&quot;error: %s\n&quot;</span>, <span class="p">HttpError</span>::text(&amp;e)),
@@ -9964,10 +10051,10 @@ bytes (D-0183).</p>
     {
         <span class="p">printf</span>(<span class="s">&quot;%v = %v\n&quot;</span>, &amp;p.name, &amp;p.value);
     }
-    <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, <span class="p">Option</span>::unwrap_or(<span class="p">find_param</span>(&amp;form[<span class="n">0</span>..$], <span class="s">&quot;note&quot;</span>), <span class="p">StringView</span>::of(<span class="s">&quot;-&quot;</span>)));
+    <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, <span class="p">Option</span>::unwrap_or(<span class="p">find_param</span>(&amp;form, <span class="s">&quot;note&quot;</span>), <span class="p">StringView</span>::of(<span class="s">&quot;-&quot;</span>)));
     <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, &amp;<span class="p">form_encode</span>(&amp;form[<span class="n">0</span>..<span class="n">2</span>]));
     <span class="p">Url</span> u = <span class="p">Result</span>::unwrap(<span class="p">Url</span>::<span class="p">parse</span>(<span class="s">&quot;https://example.org/search?q=cobalt%20c&amp;page=2&quot;</span>));
-    <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, <span class="p">Option</span>::unwrap_or(<span class="p">find_param</span>(&amp;<span class="p">Url</span>::query_pairs(&amp;u)[<span class="n">0</span>..$], <span class="s">&quot;q&quot;</span>), <span class="p">StringView</span>::of(<span class="s">&quot;-&quot;</span>)));
+    <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, <span class="p">Option</span>::unwrap_or(<span class="p">find_param</span>(&amp;<span class="p">Url</span>::query_pairs(&amp;u), <span class="s">&quot;q&quot;</span>), <span class="p">StringView</span>::of(<span class="s">&quot;-&quot;</span>)));
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>name = Ada Lovelace
 note = 100%
 tag = x
@@ -10106,8 +10193,8 @@ write; <code>adler32</code> is there beside <code>crc32</code> (D-0183).</p>
     }
     <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; packed = <span class="p">gzip</span>(<span class="p">StringView</span>::as_bytes(&amp;text));
     <span class="p">printf</span>(<span class="s">&quot;%v bytes became %v\n&quot;</span>, <span class="p">StringView</span>::len(&amp;text), <span class="p">Vec</span>::len(&amp;packed));
-    <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; back = <span class="p">Result</span>::unwrap(<span class="p">gunzip</span>(&amp;packed[<span class="n">0</span>..$], <span class="n">1</span> &lt;&lt; <span class="n">20</span>));
-    <span class="p">printf</span>(<span class="s">&quot;round trip: %v\n&quot;</span>, <span class="p">Vec</span>::len(&amp;back) == <span class="p">StringView</span>::len(&amp;text) &amp;&amp; <span class="p">digest_eq</span>(&amp;back[<span class="n">0</span>..$], <span class="p">StringView</span>::as_bytes(&amp;text)));
+    <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; back = <span class="p">Result</span>::unwrap(<span class="p">gunzip</span>(&amp;packed, <span class="n">1</span> &lt;&lt; <span class="n">20</span>));
+    <span class="p">printf</span>(<span class="s">&quot;round trip: %v\n&quot;</span>, <span class="p">Vec</span>::len(&amp;back) == <span class="p">StringView</span>::len(&amp;text) &amp;&amp; <span class="p">digest_eq</span>(&amp;back, <span class="p">StringView</span>::as_bytes(&amp;text)));
     <span class="k">match</span> (<span class="p">gunzip</span>(&amp;packed[<span class="n">0</span>..<span class="n">10</span>], <span class="n">1</span> &lt;&lt; <span class="n">20</span>))
     {
         <span class="p">Err</span>(e) : <span class="p">printf</span>(<span class="s">&quot;cut short: %s\n&quot;</span>, <span class="p">CompressError</span>::text(&amp;e)),
@@ -10127,14 +10214,14 @@ needs only a C compiler. <code>PgConnection::connect(url)</code> opens a connect
 when left out), encrypting with TLS and verifying the server's certificate against the system roots
 unless the URL says <code>?sslmode=disable</code>; <code>connect_with(url, &amp;roots, timeout_ms)</code> takes its own
 <code>TrustStore</code> (a self-signed server's issuer, say) and timeout. There is no unverified TLS.</p>
-<p><code>PgConnection::query(&amp;mut c, sql, &amp;params[0..$])</code> runs one statement with <code>$1</code>, <code>$2</code>, … bound to
+<p><code>PgConnection::query(&amp;mut c, sql, &amp;params)</code> runs one statement with <code>$1</code>, <code>$2</code>, … bound to
 the <code>PgValue</code>s given (<code>Null</code>, <code>Text</code>, <code>Int</code>, <code>Float</code>, <code>Bool</code>, <code>Bytes</code>): a parameter is sent beside
 the statement, never spliced into it, so no quoting is ever needed. The <code>PgResult</code> has the
 <code>columns</code> (name and type OID), the <code>rows</code> (each cell <code>Some(text)</code> as the server prints the value,
 or <code>None</code> for NULL; read it with <code>PgRow::get(&amp;row, i)</code> and parse it with <code>StringView::parse&lt;T&gt;</code>),
 the <code>affected</code> count and the command <code>tag</code>. <code>execute</code> is <code>query</code> for a statement without rows,
 giving the count; <code>run_script</code> runs a file of <code>;</code>-separated statements without parameters, for
-schemas and migrations. Transactions are statements: <code>execute(&amp;mut c, &quot;BEGIN&quot;, &amp;none[0..$])</code> and
+schemas and migrations. Transactions are statements: <code>execute(&amp;mut c, &quot;BEGIN&quot;, &amp;none)</code> and
 <code>&quot;COMMIT&quot;</code> or <code>&quot;ROLLBACK&quot;</code>.</p>
 <p>An error the server reports is <code>Err(Server(e))</code> with its <code>severity</code>, SQLSTATE <code>code</code>, <code>message</code>,
 <code>detail</code>, <code>hint</code> and <code>position</code>; the connection stays usable after it, as it does after a result
@@ -10147,8 +10234,8 @@ queries from several keeps one per thread.</p>
 <thead><tr><th>Function</th><th>Does</th></tr></thead>
 <tbody>
 <tr><td><code>PgConnection::connect(url)</code>, <code>connect_with(url, &amp;roots, timeout_ms)</code></td><td>open a connection (30 s timeout; the system roots), or with the roots and timeout given</td></tr>
-<tr><td><code>PgConnection::query(&amp;mut c, sql, &amp;params[0..$])</code></td><td>one statement with <code>$n</code> bound to the <code>PgValue</code>s: its <code>PgResult</code> (<code>columns</code>, <code>rows</code>, <code>affected</code>, <code>tag</code>)</td></tr>
-<tr><td><code>PgConnection::execute(&amp;mut c, sql, &amp;params[0..$])</code></td><td>the same, giving only the affected count</td></tr>
+<tr><td><code>PgConnection::query(&amp;mut c, sql, &amp;params)</code></td><td>one statement with <code>$n</code> bound to the <code>PgValue</code>s: its <code>PgResult</code> (<code>columns</code>, <code>rows</code>, <code>affected</code>, <code>tag</code>)</td></tr>
+<tr><td><code>PgConnection::execute(&amp;mut c, sql, &amp;params)</code></td><td>the same, giving only the affected count</td></tr>
 <tr><td><code>PgConnection::run_script(&amp;mut c, sql)</code></td><td>several <code>;</code>-separated statements, no parameters, results dropped, the first error given</td></tr>
 <tr><td><code>PgConnection::parameter(&amp;c, name)</code>, <code>c.notices</code>, <code>c.max_result</code></td><td>a setting the server reported at startup (<code>server_version</code>, …); the notices received; the most a result may take</td></tr>
 <tr><td><code>PgRow::get(&amp;row, i)</code>, <code>PgResult::column(&amp;res, name)</code></td><td>a cell's text (<code>None</code> for NULL or past the end); a column's index by name</td></tr>
@@ -10178,14 +10265,14 @@ queries from several keeps one per thread.</p>
     <span class="p">Vec</span>&lt;<span class="p">PgValue</span>&gt; order = <span class="p">Vec</span>::new();
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> order, Text(<span class="s">&quot;widget&quot;</span>));
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> order, Int(<span class="n">3</span>));
-    <span class="k">match</span> (<span class="p">PgConnection</span>::execute(&amp;<span class="k">mut</span> c, <span class="s">&quot;INSERT INTO orders (item, qty) VALUES ($1, $2)&quot;</span>, &amp;order[<span class="n">0</span>..$]))
+    <span class="k">match</span> (<span class="p">PgConnection</span>::execute(&amp;<span class="k">mut</span> c, <span class="s">&quot;INSERT INTO orders (item, qty) VALUES ($1, $2)&quot;</span>, &amp;order))
     {
         <span class="p">Ok</span>(n)  : <span class="p">printf</span>(<span class="s">&quot;inserted %v\n&quot;</span>, n),
         <span class="p">Err</span>(e) : <span class="p">printf</span>(<span class="s">&quot;insert: %s\n&quot;</span>, &amp;<span class="p">PgError</span>::text(&amp;e)),
     }
     <span class="p">Vec</span>&lt;<span class="p">PgValue</span>&gt; at_least = <span class="p">Vec</span>::new();
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> at_least, Int(<span class="n">2</span>));
-    <span class="k">match</span> (<span class="p">PgConnection</span>::query(&amp;<span class="k">mut</span> c, <span class="s">&quot;SELECT id, item, qty FROM orders WHERE qty &gt;= $1 ORDER BY id&quot;</span>, &amp;at_least[<span class="n">0</span>..$]))
+    <span class="k">match</span> (<span class="p">PgConnection</span>::query(&amp;<span class="k">mut</span> c, <span class="s">&quot;SELECT id, item, qty FROM orders WHERE qty &gt;= $1 ORDER BY id&quot;</span>, &amp;at_least))
     {
         <span class="p">Ok</span>(res) :
         {
@@ -10214,7 +10301,7 @@ is sent as.</p>
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> params, Int(-<span class="n">7</span>));
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> params, Float(<span class="n">0.5</span>));
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> params, Bool(<span class="k">true</span>));
-    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> params, Bytes(<span class="p">Vec</span>::from_slice(&amp;<span class="s">b&quot;\x00\xff&quot;</span>[<span class="n">0</span>..$])));
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> params, Bytes(<span class="p">Vec</span>::from_slice(<span class="s">b&quot;\x00\xff&quot;</span>)));
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> params, Null);
     <span class="k">foreach</span> (v in &amp;params)
     {
@@ -10399,7 +10486,7 @@ that are equal keep the order they had. In a sorted <code>Vec</code>, <code>Vec:
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> names, <span class="s">&quot;ada&quot;</span>);
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> names, <span class="s">&quot;lin&quot;</span>);
     <span class="p">Vec</span>::sort(&amp;<span class="k">mut</span> names);
-    <span class="p">assert</span>(&amp;names[<span class="n">0</span>][<span class="n">0</span>..$] == <span class="s">&quot;ada&quot;</span> &amp;&amp; &amp;names[<span class="n">2</span>][<span class="n">0</span>..$] == <span class="s">&quot;mira&quot;</span>);
+    <span class="p">assert</span>(&amp;names[<span class="n">0</span>] == <span class="s">&quot;ada&quot;</span> &amp;&amp; &amp;names[<span class="n">2</span>] == <span class="s">&quot;mira&quot;</span>);
     <span class="p">String</span> who = <span class="s">&quot;lin&quot;</span>;
     <span class="p">assert</span>(<span class="p">Result</span>::unwrap_or(<span class="p">Vec</span>::binary_search(&amp;names, &amp;who), <span class="n">99</span>) == <span class="n">1</span>);
     <span class="p">String</span> bob = <span class="s">&quot;bob&quot;</span>;
@@ -10415,7 +10502,7 @@ that are equal keep the order they had. In a sorted <code>Vec</code>, <code>Vec:
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> ps, Player { .name = <span class="s">&quot;c&quot;</span>, .score = <span class="n">3</span> });
     <span class="p">Vec</span>::sort_by(&amp;<span class="k">mut</span> ps, higher);
     <span class="p">assert</span>(ps[<span class="n">0</span>].score == <span class="n">9</span>);
-    <span class="p">assert</span>(&amp;ps[<span class="n">1</span>].name[<span class="n">0</span>..$] == <span class="s">&quot;a&quot;</span> &amp;&amp; &amp;ps[<span class="n">2</span>].name[<span class="n">0</span>..$] == <span class="s">&quot;c&quot;</span>);   <span class="c">// equal scores keep their order</span>
+    <span class="p">assert</span>(&amp;ps[<span class="n">1</span>].name == <span class="s">&quot;a&quot;</span> &amp;&amp; &amp;ps[<span class="n">2</span>].name == <span class="s">&quot;c&quot;</span>);   <span class="c">// equal scores keep their order</span>
 }</code></pre></figure>
 <h3><code>HashMap&lt;K, V&gt;</code> and <code>HashSet&lt;K&gt;</code></h3>
 <p><em>In <code>std::collections</code>.</em></p>
@@ -10895,7 +10982,7 @@ write it, so a live reference that conflicts with either place, such as a shared
     {
         <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> words, <span class="p">String</span>::copy(w));
     }
-    sort_by_len(&amp;<span class="k">mut</span> words[<span class="n">0</span>..$]);
+    sort_by_len(&amp;<span class="k">mut</span> words);
     <span class="p">assert</span>(<span class="p">StringView</span>::len(&amp;words[<span class="n">0</span>]) == <span class="n">3</span> &amp;&amp; <span class="p">StringView</span>::len(&amp;words[$ - <span class="n">1</span>]) == <span class="n">6</span>);
 
     Pair p = Pair { .left = <span class="s">&quot;L&quot;</span>, .right = <span class="s">&quot;RR&quot;</span> };
@@ -10965,7 +11052,7 @@ for looking things up; the semantics are in the earlier sections.</p>
 <li><strong>Comments:</strong> <code>// to end of line</code> and <code>/* block */</code> (block comments do not nest).</li>
 <li><strong>Identifiers:</strong> ASCII letters, digits and <code>_</code>, not starting with a digit.</li>
 <li><strong>Integer literals:</strong> decimal digits, or hexadecimal, octal or binary after <code>0x</code>, <code>0o</code>, <code>0b</code>, optionally <code>: type</code> (<code>255: u8</code>, <code>0xFF: u8</code>). No sign: <code>-</code> is an operator. <strong>Float literals:</strong> <code>1.5</code>, <code>0.25: f32</code>, <code>1.0e-7</code>. <strong>Digit separators:</strong> a <code>_</code> between two digits is ignored (<code>1_000_000</code>, <code>0xFFFF_0000</code>). <strong>Booleans:</strong> <code>true</code>, <code>false</code>. <strong>Unit value:</strong> <code>()</code>.</li>
-<li><strong>String literals:</strong> <code>&quot;…&quot;</code>, type <code>str</code>. Escapes <code>\n \r \t \0 \\ \&quot;</code> and <code>\u{hex}</code>; any other source character stands for itself. A literal must close on its own line. <strong>Byte literals:</strong> <code>b&quot;…&quot;</code>, type <code>array&lt;u8, N&gt;</code>; the same escapes except <code>\xNN</code> in place of <code>\u{…}</code>, ASCII characters only, at least one byte. <strong>Byte character literals:</strong> <code>b&#x27;a&#x27;</code>, one ASCII character or escape: an unsigned integer literal, <code>u8</code> unless its context gives another unsigned type. <strong>No character literals</strong> (a <code>char</code> type).</li>
+<li><strong>String literals:</strong> <code>&quot;…&quot;</code>, type <code>str</code>. Escapes <code>\n \r \t \0 \\ \&quot;</code> and <code>\u{hex}</code>; any other source character stands for itself. A literal must close on its own line. <strong>Byte literals:</strong> <code>b&quot;…&quot;</code>, type <code>array&lt;u8, N&gt;</code> (a slice of static bytes where a <code>slice&lt;u8, shared&gt;</code> is declared); the same escapes except <code>\xNN</code> in place of <code>\u{…}</code>, ASCII characters only, at least one byte. <strong>Byte character literals:</strong> <code>b&#x27;a&#x27;</code>, one ASCII character or escape: an unsigned integer literal, <code>u8</code> unless its context gives another unsigned type. <strong>No character literals</strong> (a <code>char</code> type).</li>
 <li><strong>Keywords:</strong> <code>fn struct bitstruct enum resource match if else while for foreach return auto const module import export unsafe extern break continue move mut true false as void</code> (<code>as</code> is reserved and unused).</li>
 <li><strong>Reserved type names</strong> (cannot be identifiers): <code>i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 isize usize f32 f64 bool str ref rawptr array slice handle mutex guard</code>. The words <code>shared</code> and <code>exclusive</code> are ordinary identifiers that only have meaning inside <code>ref&lt;…, …&gt;</code>.</li>
 <li>Whitespace and newlines are insignificant between tokens; brace placement is a matter of style.</li>
@@ -11473,7 +11560,7 @@ struct of plain fields. Where that state belongs to something larger (a struct t
         <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> data, <span class="p">narrow_wrapping</span>&lt;<span class="t">u8</span>&gt;(k * <span class="n">7</span>));
     }
     Report r = Report { .name = <span class="s">&quot;input&quot;</span>, .counts = Counts { .bytes = <span class="n">0</span>, .newlines = <span class="n">0</span>, .sum = <span class="n">0</span> } };
-    count(&amp;<span class="k">mut</span> r.counts, &amp;data[<span class="n">0</span>..$]);    <span class="c">// the struct holds a String: pass only its plain part</span>
+    count(&amp;<span class="k">mut</span> r.counts, &amp;data);    <span class="c">// the struct holds a String: pass only its plain part</span>
     count(&amp;<span class="k">mut</span> r.counts, &amp;data[<span class="n">0</span>..<span class="n">10</span>]);
     <span class="p">printf</span>(<span class="s">&quot;%v: %v bytes, %v newlines, sum %v\n&quot;</span>, &amp;r.name, r.counts.bytes, r.counts.newlines, r.counts.sum);
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>input: 1010 bytes, 4 newlines, sum 126831
@@ -12355,8 +12442,8 @@ tools build in, which have no CobaltC body (<code>printf</code>, <code>sqrt</cod
 <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">1</span>);
 <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">2</span>);
 <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">2</span>&gt; a = [<span class="n">1</span>, <span class="n">2</span>];
-<span class="p">assert</span>(slice_eq(&amp;v[<span class="n">0</span>..$], &amp;a[<span class="n">0</span>..$]));
-<span class="p">assert</span>(!slice_eq(&amp;v[<span class="n">0</span>..<span class="n">1</span>], &amp;a[<span class="n">0</span>..$]));</code></pre></figure>
+<span class="p">assert</span>(slice_eq(&amp;v, &amp;a));
+<span class="p">assert</span>(!slice_eq(&amp;v[<span class="n">0</span>..<span class="n">1</span>], &amp;a));</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-collections-read_le" class="stdref-item"><code>read_le</code> <span class="std-file">fn</span></h4>
@@ -12367,8 +12454,8 @@ tools build in, which have no CobaltC body (<code>printf</code>, <code>sqrt</cod
 <span class="p">Vec</span>::push_be(&amp;<span class="k">mut</span> out, <span class="n">0</span>x0102: <span class="t">u16</span>);
 <span class="p">Vec</span>::push_le(&amp;<span class="k">mut</span> out, -<span class="n">2</span>: <span class="t">i16</span>);
 <span class="p">assert</span>(out[<span class="n">0</span>] == <span class="n">0</span>x01 &amp;&amp; out[<span class="n">1</span>] == <span class="n">0</span>x02 &amp;&amp; out[<span class="n">2</span>] == <span class="n">0</span>xfe &amp;&amp; out[<span class="n">3</span>] == <span class="n">0</span>xff);
-<span class="p">assert</span>(read_be&lt;<span class="t">u16</span>&gt;(&amp;out[<span class="n">0</span>..$], <span class="n">0</span>) == <span class="n">0</span>x0102);
-<span class="p">assert</span>(read_le&lt;<span class="t">i16</span>&gt;(&amp;out[<span class="n">0</span>..$], <span class="n">2</span>) == -<span class="n">2</span>);</code></pre></figure>
+<span class="p">assert</span>(read_be&lt;<span class="t">u16</span>&gt;(&amp;out, <span class="n">0</span>) == <span class="n">0</span>x0102);
+<span class="p">assert</span>(read_le&lt;<span class="t">i16</span>&gt;(&amp;out, <span class="n">2</span>) == -<span class="n">2</span>);</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-collections-read_be" class="stdref-item"><code>read_be</code> <span class="std-file">fn</span></h4>
@@ -12382,7 +12469,7 @@ tools build in, which have no CobaltC body (<code>printf</code>, <code>sqrt</cod
 <p>Splits <code>s</code> into <code>parts</code> disjoint exclusive slices of consecutive elements, in order, as nearly equal in length as they can be.</p>
 <p>With <code>n</code> elements, each part has <code>n / parts</code> elements and the first <code>n % parts</code> parts one more; some are empty when <code>parts &gt; n</code>. The result is empty when <code>parts</code> is 0. The parts are disjoint, so each can be given to a thread of its own (<code>spawn(work, part)</code>) and written there without a lock; the borrow of <code>s</code> ends when the last part ends.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: Five elements in two parts: the first part is the longer</span><span class="badge ok">runs</span></div><pre><code><span class="t">array</span>&lt;<span class="t">i32</span>, <span class="n">5</span>&gt; a = [<span class="n">1</span>, <span class="n">2</span>, <span class="n">3</span>, <span class="n">4</span>, <span class="n">5</span>];
-<span class="p">Vec</span>&lt;<span class="t">slice</span>&lt;<span class="t">i32</span>, <span class="t">exclusive</span>&gt;&gt; parts = slice_parts(&amp;<span class="k">mut</span> a[<span class="n">0</span>..$], <span class="n">2</span>);
+<span class="p">Vec</span>&lt;<span class="t">slice</span>&lt;<span class="t">i32</span>, <span class="t">exclusive</span>&gt;&gt; parts = slice_parts(&amp;<span class="k">mut</span> a, <span class="n">2</span>);
 <span class="p">assert</span>(<span class="p">Vec</span>::len(&amp;parts) == <span class="n">2</span>);
 <span class="p">assert</span>(slice_len(parts[<span class="n">0</span>]) == <span class="n">3</span> &amp;&amp; slice_len(parts[<span class="n">1</span>]) == <span class="n">2</span>);</code></pre></figure>
 </div>
@@ -12839,7 +12926,7 @@ n = <span class="n">0</span>;
 <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> parts, <span class="p">StringView</span>::of(<span class="s">&quot;a&quot;</span>));
 <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> parts, <span class="p">StringView</span>::of(<span class="s">&quot;b&quot;</span>));
 <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> parts, <span class="p">StringView</span>::of(<span class="s">&quot;c&quot;</span>));
-<span class="p">String</span> j = <span class="p">StringView</span>::<span class="p">join</span>(&amp;parts[<span class="n">0</span>..$], <span class="s">&quot;, &quot;</span>);
+<span class="p">String</span> j = <span class="p">StringView</span>::<span class="p">join</span>(&amp;parts, <span class="s">&quot;, &quot;</span>);
 <span class="p">assert</span>(j == <span class="s">&quot;a, b, c&quot;</span>);</code></pre></figure>
 </div>
 <div class="stdref-entry">
@@ -13515,7 +13602,7 @@ _ = <span class="p">remove_dir_all</span>(&amp;dir);</code></pre></figure>
 <p>The value never comes back once ended: after the last <code>Rc</code> is destroyed every upgrade gives <code>None</code>.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: A <code>Weak</code> upgrades while any <code>Rc</code> remains and gives <code>None</code> after the last one ends</span><span class="badge ok">runs</span></div><pre><code><span class="p">Rc</span>&lt;<span class="p">String</span>&gt; a = <span class="p">Rc</span>::new(<span class="s">&quot;shared&quot;</span>);
 <span class="p">Rc</span>&lt;<span class="p">String</span>&gt; b = <span class="p">Rc</span>::clone(&amp;a);
-<span class="p">assert</span>(<span class="p">StringView</span>::len(&amp;(*<span class="p">Rc</span>::get(&amp;b))[<span class="n">0</span>..$]) == <span class="n">6</span>);
+<span class="p">assert</span>(<span class="p">StringView</span>::len(<span class="p">Rc</span>::get(&amp;b)) == <span class="n">6</span>);
 Weak&lt;<span class="p">String</span>&gt; w = <span class="p">Rc</span>::downgrade(&amp;a);
 <span class="p">drop</span>(a);
 <span class="p">assert</span>(<span class="p">Option</span>::is_some(&amp;Weak::upgrade(&amp;w)));
@@ -13609,7 +13696,7 @@ ArcWeak&lt;<span class="t">mutex</span>&lt;<span class="t">u32</span>&gt;&gt; w 
 <p>When no strong or weak handle remains, the memory is freed.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: An <code>ArcWeak</code> upgrades while any <code>Arc</code> remains and gives <code>None</code> after the last one ends</span><span class="badge ok">runs</span></div><pre><code>Arc&lt;<span class="p">String</span>&gt; a = Arc::new(<span class="s">&quot;shared&quot;</span>);
 Arc&lt;<span class="p">String</span>&gt; b = clone(&amp;a);
-<span class="p">assert</span>(<span class="p">StringView</span>::len(&amp;(*Arc::get(&amp;b))[<span class="n">0</span>..$]) == <span class="n">6</span>);
+<span class="p">assert</span>(<span class="p">StringView</span>::len(Arc::get(&amp;b)) == <span class="n">6</span>);
 ArcWeak&lt;<span class="p">String</span>&gt; w = Arc::downgrade(&amp;a);
 ArcWeak&lt;<span class="p">String</span>&gt; w2 = clone(&amp;w);
 <span class="p">drop</span>(a);
@@ -14250,7 +14337,7 @@ Rng b = Rng::new(<span class="n">42</span>);
 {
     <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, i);
 }
-Rng::shuffle(&amp;<span class="k">mut</span> r, &amp;<span class="k">mut</span> v[<span class="n">0</span>..$]);
+Rng::shuffle(&amp;<span class="k">mut</span> r, &amp;<span class="k">mut</span> v);
 <span class="p">assert</span>(<span class="p">Vec</span>::len(&amp;v) == <span class="n">5</span> &amp;&amp; <span class="p">Vec</span>::contains(&amp;v, <span class="n">3</span>));</code></pre></figure>
 </div>
 <div class="stdref-entry">
@@ -14308,7 +14395,7 @@ Rng::shuffle(&amp;<span class="k">mut</span> r, &amp;<span class="k">mut</span> 
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">BigUint</span>::to_bytes_be_padded(<span class="t">ref</span>&lt;<span class="p">BigUint</span>, <span class="t">shared</span>&gt; a, <span class="t">usize</span> width) : <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt;</code></pre></figure>
 <p>The big-endian bytes of <code>a</code> in exactly <code>width</code> bytes, zeros in front.</p>
 <p>Faults (<code>arith_overflow</code>) when <code>a</code> needs more than <code>width</code> bytes.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Example: The minimal bytes drop leading zeros; the padded form keeps exactly the width asked for</span><span class="badge ok">runs</span></div><pre><code><span class="p">BigUint</span> x = <span class="p">BigUint</span>::from_bytes_be(&amp;<span class="s">b&quot;\x00\x01\x02&quot;</span>[<span class="n">0</span>..$]);
+<figure class="code"><div class="code-head"><span class="code-title">Example: The minimal bytes drop leading zeros; the padded form keeps exactly the width asked for</span><span class="badge ok">runs</span></div><pre><code><span class="p">BigUint</span> x = <span class="p">BigUint</span>::from_bytes_be(<span class="s">b&quot;\x00\x01\x02&quot;</span>);
 <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; <span class="p">min</span> = <span class="p">BigUint</span>::to_bytes_be(&amp;x);
 <span class="p">assert</span>(<span class="p">Vec</span>::len(&amp;<span class="p">min</span>) == <span class="n">2</span> &amp;&amp; <span class="p">min</span>[<span class="n">0</span>] == <span class="n">1</span>);
 <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; wide = <span class="p">BigUint</span>::to_bytes_be_padded(&amp;x, <span class="n">4</span>);
@@ -14587,10 +14674,10 @@ Rng::shuffle(&amp;<span class="k">mut</span> r, &amp;<span class="k">mut</span> 
 <p>The sum of <code>data</code>&#x27;s values in their own type; 0 for an empty slice.</p>
 <p>Added left to right with <code>+</code>, so an integer sum that does not fit in <code>T</code> faults (<code>arith_overflow</code>), as <code>+</code> does. For the sum as an <code>f64</code> whatever <code>T</code> is, multiply <code>mean</code> by the count.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: Integers and floats, an empty slice, and an overflow caught</span><span class="badge ok">runs</span></div><pre><code><span class="t">array</span>&lt;<span class="t">i32</span>, <span class="n">4</span>&gt; a = [<span class="n">3</span>, -<span class="n">1</span>, <span class="n">4</span>, <span class="n">1</span>];
-<span class="p">assert</span>(sum(&amp;a[<span class="n">0</span>..$]) == <span class="n">7</span>);
+<span class="p">assert</span>(sum(&amp;a) == <span class="n">7</span>);
 <span class="p">assert</span>(sum(&amp;a[<span class="n">0</span>..<span class="n">0</span>]) == <span class="n">0</span>);
 <span class="t">array</span>&lt;<span class="t">f64</span>, <span class="n">3</span>&gt; f = [<span class="n">0.5</span>, <span class="n">0.25</span>, <span class="n">2.0</span>];
-<span class="p">assert</span>(sum(&amp;f[<span class="n">0</span>..$]) == <span class="n">2.75</span>);</code></pre></figure>
+<span class="p">assert</span>(sum(&amp;f) == <span class="n">2.75</span>);</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-stats-mean" class="stdref-item"><code>mean</code> <span class="std-file">fn</span></h4>
@@ -14620,9 +14707,9 @@ Rng::shuffle(&amp;<span class="k">mut</span> r, &amp;<span class="k">mut</span> 
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> sample_stddev&lt;T: number&gt;(<span class="t">slice</span>&lt;T, <span class="t">shared</span>&gt; data) : <span class="p">Option</span>&lt;<span class="t">f64</span>&gt;</code></pre></figure>
 <p>The sample standard deviation of <code>data</code>&#x27;s values, the square root of <code>sample_variance</code>; <code>None</code> for fewer than two values.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: The population and sample forms on the textbook values, and the empty and single-value cases</span><span class="badge ok">runs</span></div><pre><code><span class="t">array</span>&lt;<span class="t">u32</span>, <span class="n">8</span>&gt; a = [<span class="n">2</span>, <span class="n">4</span>, <span class="n">4</span>, <span class="n">4</span>, <span class="n">5</span>, <span class="n">5</span>, <span class="n">7</span>, <span class="n">9</span>];
-<span class="p">assert</span>(<span class="p">Option</span>::unwrap(variance(&amp;a[<span class="n">0</span>..$])) == <span class="n">4.0</span>);
-<span class="p">assert</span>(<span class="p">Option</span>::unwrap(stddev(&amp;a[<span class="n">0</span>..$])) == <span class="n">2.0</span>);
-<span class="p">assert</span>(<span class="p">Option</span>::unwrap(sample_variance(&amp;a[<span class="n">0</span>..$])) == <span class="n">32.0</span> / <span class="n">7.0</span>);
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(variance(&amp;a)) == <span class="n">4.0</span>);
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(stddev(&amp;a)) == <span class="n">2.0</span>);
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(sample_variance(&amp;a)) == <span class="n">32.0</span> / <span class="n">7.0</span>);
 <span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;variance(&amp;a[<span class="n">0</span>..<span class="n">0</span>])));
 <span class="p">assert</span>(<span class="p">Option</span>::unwrap(variance(&amp;a[<span class="n">0</span>..<span class="n">1</span>])) == <span class="n">0.0</span>);
 <span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;sample_variance(&amp;a[<span class="n">0</span>..<span class="n">1</span>])));</code></pre></figure>
@@ -14639,13 +14726,13 @@ Rng::shuffle(&amp;<span class="k">mut</span> r, &amp;<span class="k">mut</span> 
 <p>The <code>p</code>th percentile of <code>data</code>&#x27;s values, <code>p</code> from 0 to 100, with linear interpolation between the two sorted values it falls between; <code>None</code> for an empty slice.</p>
 <p>The position is <code>(count - 1) · p / 100</code> in the sorted values (R&#x27;s type 7, the default of spreadsheets and NumPy): <code>percentile(data, 0.0)</code> is the minimum, <code>percentile(data, 100.0)</code> the maximum, and <code>percentile(data, 50.0)</code> the median. Faults (<code>assert_failed</code>) when <code>p</code> is below 0, above 100 or a NaN.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: The quartiles of a small run, the median two ways, and the ends</span><span class="badge ok">runs</span></div><pre><code><span class="t">array</span>&lt;<span class="t">i64</span>, <span class="n">5</span>&gt; a = [<span class="n">15</span>, <span class="n">20</span>, <span class="n">35</span>, <span class="n">40</span>, <span class="n">50</span>];
-<span class="p">assert</span>(<span class="p">Option</span>::unwrap(percentile(&amp;a[<span class="n">0</span>..$], <span class="n">25.0</span>)) == <span class="n">20.0</span>);
-<span class="p">assert</span>(<span class="p">Option</span>::unwrap(percentile(&amp;a[<span class="n">0</span>..$], <span class="n">40.0</span>)) == <span class="n">29.0</span>);
-<span class="p">assert</span>(<span class="p">Option</span>::unwrap(percentile(&amp;a[<span class="n">0</span>..$], <span class="n">50.0</span>)) == <span class="n">35.0</span>);
-<span class="p">assert</span>(<span class="p">Option</span>::unwrap(median(&amp;a[<span class="n">0</span>..$])) == <span class="n">35.0</span>);
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(percentile(&amp;a, <span class="n">25.0</span>)) == <span class="n">20.0</span>);
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(percentile(&amp;a, <span class="n">40.0</span>)) == <span class="n">29.0</span>);
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(percentile(&amp;a, <span class="n">50.0</span>)) == <span class="n">35.0</span>);
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(median(&amp;a)) == <span class="n">35.0</span>);
 <span class="p">assert</span>(<span class="p">Option</span>::unwrap(median(&amp;a[<span class="n">0</span>..<span class="n">4</span>])) == <span class="n">27.5</span>);
-<span class="p">assert</span>(<span class="p">Option</span>::unwrap(percentile(&amp;a[<span class="n">0</span>..$], <span class="n">0.0</span>)) == <span class="n">15.0</span>);
-<span class="p">assert</span>(<span class="p">Option</span>::unwrap(percentile(&amp;a[<span class="n">0</span>..$], <span class="n">100.0</span>)) == <span class="n">50.0</span>);
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(percentile(&amp;a, <span class="n">0.0</span>)) == <span class="n">15.0</span>);
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(percentile(&amp;a, <span class="n">100.0</span>)) == <span class="n">50.0</span>);
 <span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;median(&amp;a[<span class="n">0</span>..<span class="n">0</span>])));</code></pre></figure>
 </div>
 <div class="stdref-entry">
@@ -14660,12 +14747,12 @@ Rng::shuffle(&amp;<span class="k">mut</span> r, &amp;<span class="k">mut</span> 
 <p>The largest of <code>data</code>&#x27;s values as an <code>f64</code>; <code>None</code> for an empty slice.</p>
 <p>A NaN is passed over: the result is a NaN only when every value is one.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: The ends of a run of integers, and a NaN passed over</span><span class="badge ok">runs</span></div><pre><code><span class="t">array</span>&lt;<span class="t">i16</span>, <span class="n">4</span>&gt; a = [<span class="n">7</span>, -<span class="n">3</span>, <span class="n">12</span>, <span class="n">0</span>];
-<span class="p">assert</span>(<span class="p">Option</span>::unwrap(minimum(&amp;a[<span class="n">0</span>..$])) == -<span class="n">3.0</span>);
-<span class="p">assert</span>(<span class="p">Option</span>::unwrap(maximum(&amp;a[<span class="n">0</span>..$])) == <span class="n">12.0</span>);
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(minimum(&amp;a)) == -<span class="n">3.0</span>);
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(maximum(&amp;a)) == <span class="n">12.0</span>);
 <span class="t">f64</span> nan = <span class="n">0.0</span> / <span class="n">0.0</span>;
 <span class="t">array</span>&lt;<span class="t">f64</span>, <span class="n">3</span>&gt; f = [nan, <span class="n">2.5</span>, <span class="n">1.5</span>];
-<span class="p">assert</span>(<span class="p">Option</span>::unwrap(minimum(&amp;f[<span class="n">0</span>..$])) == <span class="n">1.5</span>);
-<span class="p">assert</span>(<span class="p">Option</span>::unwrap(maximum(&amp;f[<span class="n">0</span>..$])) == <span class="n">2.5</span>);
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(minimum(&amp;f)) == <span class="n">1.5</span>);
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(maximum(&amp;f)) == <span class="n">2.5</span>);
 <span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;minimum(&amp;f[<span class="n">0</span>..<span class="n">0</span>])));</code></pre></figure>
 </div>
 <div class="stdref-entry">
@@ -14673,10 +14760,10 @@ Rng::shuffle(&amp;<span class="k">mut</span> r, &amp;<span class="k">mut</span> 
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> describe&lt;T: number&gt;(<span class="t">slice</span>&lt;T, <span class="t">shared</span>&gt; data) : <span class="p">Option</span>&lt;Summary&gt;</code></pre></figure>
 <p>The count, <code>minimum</code>, <code>maximum</code>, <code>mean</code>, <code>stddev</code> and <code>median</code> of <code>data</code>&#x27;s values as one <code>Summary</code>; <code>None</code> for an empty slice.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: A summary of response times in milliseconds</span><span class="badge ok">runs</span></div><pre><code><span class="t">array</span>&lt;<span class="t">u32</span>, <span class="n">6</span>&gt; ms = [<span class="n">12</span>, <span class="n">15</span>, <span class="n">11</span>, <span class="n">40</span>, <span class="n">13</span>, <span class="n">14</span>];
-Summary s = <span class="p">Option</span>::unwrap(describe(&amp;ms[<span class="n">0</span>..$]));
+Summary s = <span class="p">Option</span>::unwrap(describe(&amp;ms));
 <span class="p">assert</span>(s.count == <span class="n">6</span> &amp;&amp; s.minimum == <span class="n">11.0</span> &amp;&amp; s.maximum == <span class="n">40.0</span>);
 <span class="p">assert</span>(s.mean == <span class="n">17.5</span> &amp;&amp; s.median == <span class="n">13.5</span>);
-<span class="p">assert</span>(s.stddev == <span class="p">sqrt</span>(<span class="p">Option</span>::unwrap(variance(&amp;ms[<span class="n">0</span>..$]))));
+<span class="p">assert</span>(s.stddev == <span class="p">sqrt</span>(<span class="p">Option</span>::unwrap(variance(&amp;ms))));
 <span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;describe(&amp;ms[<span class="n">0</span>..<span class="n">0</span>])));</code></pre></figure>
 </div>
 <h3 id="stdref-std-time"><code>std::time</code> <span class="std-file">impl/std/time.cb</span></h3>
@@ -15401,14 +15488,14 @@ Summary s = <span class="p">Option</span>::unwrap(describe(&amp;ms[<span class="
 <p>Make one with <code>Sha256::new</code>, give it the message with <code>Sha256::update</code> as the message arrives, and take the 32-byte digest with <code>Sha256::finish</code>; the digest is the same however the message is cut. A <code>Sha256</code> is a plain value, so a copy continues on its own: copy one to hash two continuations of one prefix.</p>
 <p>Not independently audited: <code>std::crypto</code> is implemented to the standards its documentation names, tested against their vectors and against OpenSSL, and fuzzed continuously, but it has not been independently audited.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: A copy of a computation in progress continues on its own</span><span class="badge ok">runs</span></div><pre><code><span class="p">Sha256</span> s = <span class="p">Sha256</span>::new();
-<span class="p">Sha256</span>::update(&amp;<span class="k">mut</span> s, &amp;<span class="s">b&quot;ab&quot;</span>[<span class="n">0</span>..$]);
+<span class="p">Sha256</span>::update(&amp;<span class="k">mut</span> s, <span class="s">b&quot;ab&quot;</span>);
 <span class="p">Sha256</span> copy = s;
-<span class="p">Sha256</span>::update(&amp;<span class="k">mut</span> s, &amp;<span class="s">b&quot;c&quot;</span>[<span class="n">0</span>..$]);
-<span class="p">Sha256</span>::update(&amp;<span class="k">mut</span> copy, &amp;<span class="s">b&quot;d&quot;</span>[<span class="n">0</span>..$]);
+<span class="p">Sha256</span>::update(&amp;<span class="k">mut</span> s, <span class="s">b&quot;c&quot;</span>);
+<span class="p">Sha256</span>::update(&amp;<span class="k">mut</span> copy, <span class="s">b&quot;d&quot;</span>);
 <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; abc = <span class="p">Sha256</span>::finish(s);
 <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; abd = <span class="p">Sha256</span>::finish(copy);
-<span class="p">assert</span>(<span class="p">digest_eq</span>(&amp;abc[<span class="n">0</span>..$], &amp;<span class="p">sha256</span>(&amp;<span class="s">b&quot;abc&quot;</span>[<span class="n">0</span>..$])[<span class="n">0</span>..$]));
-<span class="p">assert</span>(<span class="p">digest_eq</span>(&amp;abd[<span class="n">0</span>..$], &amp;<span class="p">sha256</span>(&amp;<span class="s">b&quot;abd&quot;</span>[<span class="n">0</span>..$])[<span class="n">0</span>..$]));</code></pre></figure>
+<span class="p">assert</span>(<span class="p">digest_eq</span>(&amp;abc, &amp;<span class="p">sha256</span>(<span class="s">b&quot;abc&quot;</span>)));
+<span class="p">assert</span>(<span class="p">digest_eq</span>(&amp;abd, &amp;<span class="p">sha256</span>(<span class="s">b&quot;abd&quot;</span>)));</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-crypto-digest-Sha256-new" class="stdref-item"><code>Sha256::new</code> <span class="std-file">fn</span></h4>
@@ -15508,11 +15595,11 @@ Summary s = <span class="p">Option</span>::unwrap(describe(&amp;ms[<span class="
 <p>A hash computation whose <code>HashKind</code> is chosen at run time.</p>
 <p>Used as <code>Sha256</code> is: <code>Hasher::new(kind)</code>, <code>Hasher::update</code> as often as needed, then <code>Hasher::finish</code>, which gives <code>hash(kind, d)</code> of the concatenation <code>d</code> of everything given. A plain value: a copy continues on its own.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: Hashing a message in pieces gives what <code>hash</code> gives for the whole</span><span class="badge ok">runs</span></div><pre><code><span class="p">Hasher</span> h = <span class="p">Hasher</span>::new(Sha2_384);
-<span class="p">Hasher</span>::update(&amp;<span class="k">mut</span> h, &amp;<span class="s">b&quot;ab&quot;</span>[<span class="n">0</span>..$]);
-<span class="p">Hasher</span>::update(&amp;<span class="k">mut</span> h, &amp;<span class="s">b&quot;c&quot;</span>[<span class="n">0</span>..$]);
+<span class="p">Hasher</span>::update(&amp;<span class="k">mut</span> h, <span class="s">b&quot;ab&quot;</span>);
+<span class="p">Hasher</span>::update(&amp;<span class="k">mut</span> h, <span class="s">b&quot;c&quot;</span>);
 <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; d = <span class="p">Hasher</span>::finish(h);
 <span class="p">assert</span>(<span class="p">Vec</span>::len(&amp;d) == <span class="n">48</span>);
-<span class="p">assert</span>(<span class="p">digest_eq</span>(&amp;d[<span class="n">0</span>..$], &amp;<span class="p">hash</span>(Sha2_384, &amp;<span class="s">b&quot;abc&quot;</span>[<span class="n">0</span>..$])[<span class="n">0</span>..$]));</code></pre></figure>
+<span class="p">assert</span>(<span class="p">digest_eq</span>(&amp;d, &amp;<span class="p">hash</span>(Sha2_384, <span class="s">b&quot;abc&quot;</span>)));</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-crypto-digest-Hasher-new" class="stdref-item"><code>Hasher::new</code> <span class="std-file">fn</span></h4>
@@ -15563,18 +15650,18 @@ Summary s = <span class="p">Option</span>::unwrap(describe(&amp;ms[<span class="
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">sha256</span>(<span class="t">slice</span>&lt;<span class="t">u8</span>, <span class="t">shared</span>&gt; data) : <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt;</code></pre></figure>
 <p>The SHA-256 digest of <code>data</code>, 32 bytes.</p>
 <p>The same as <code>Sha256::new</code>, one <code>Sha256::update</code> and <code>Sha256::finish</code>. <code>to_hex</code> prints it.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Example: The digest of <code>abc</code> is the FIPS 180-4 example's</span><span class="badge ok">runs</span></div><pre><code><span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; d = <span class="p">sha256</span>(&amp;<span class="s">b&quot;abc&quot;</span>[<span class="n">0</span>..$]);
-<span class="p">String</span> hex = <span class="p">to_hex</span>(&amp;d[<span class="n">0</span>..$]);
+<figure class="code"><div class="code-head"><span class="code-title">Example: The digest of <code>abc</code> is the FIPS 180-4 example's</span><span class="badge ok">runs</span></div><pre><code><span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; d = <span class="p">sha256</span>(<span class="s">b&quot;abc&quot;</span>);
+<span class="p">String</span> hex = <span class="p">to_hex</span>(&amp;d);
 <span class="p">assert</span>(hex == <span class="s">&quot;ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad&quot;</span>);</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-crypto-digest-sha512" class="stdref-item"><code>sha512</code> <span class="std-file">fn</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">sha512</span>(<span class="t">slice</span>&lt;<span class="t">u8</span>, <span class="t">shared</span>&gt; data) : <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">64</span>&gt;</code></pre></figure>
 <p>The SHA-512 digest of <code>data</code>, 64 bytes.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Example: The digest of <code>abc</code> is the FIPS 180-4 example's</span><span class="badge ok">runs</span></div><pre><code><span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">64</span>&gt; d = <span class="p">sha512</span>(&amp;<span class="s">b&quot;abc&quot;</span>[<span class="n">0</span>..$]);
+<figure class="code"><div class="code-head"><span class="code-title">Example: The digest of <code>abc</code> is the FIPS 180-4 example's</span><span class="badge ok">runs</span></div><pre><code><span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">64</span>&gt; d = <span class="p">sha512</span>(<span class="s">b&quot;abc&quot;</span>);
 <span class="p">String</span> want = <span class="s">&quot;ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a&quot;</span>;
 <span class="p">String</span>::append(&amp;<span class="k">mut</span> want, <span class="s">&quot;2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f&quot;</span>);
-<span class="p">assert</span>((<span class="p">to_hex</span>(&amp;d[<span class="n">0</span>..$]) == want));</code></pre></figure>
+<span class="p">assert</span>((<span class="p">to_hex</span>(&amp;d) == want));</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-crypto-digest-sha384" class="stdref-item"><code>sha384</code> <span class="std-file">fn</span></h4>
@@ -15585,8 +15672,8 @@ Summary s = <span class="p">Option</span>::unwrap(describe(&amp;ms[<span class="
 <h4 id="stdref-std-crypto-digest-sha1" class="stdref-item"><code>sha1</code> <span class="std-file">fn</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">sha1</span>(<span class="t">slice</span>&lt;<span class="t">u8</span>, <span class="t">shared</span>&gt; data) : <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">20</span>&gt;</code></pre></figure>
 <p>The SHA-1 digest of <code>data</code>, 20 bytes; legacy, as <code>Sha1</code> says.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Example: The digest of <code>abc</code> is the FIPS 180-4 example's</span><span class="badge ok">runs</span></div><pre><code><span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">20</span>&gt; d = <span class="p">sha1</span>(&amp;<span class="s">b&quot;abc&quot;</span>[<span class="n">0</span>..$]);
-<span class="p">assert</span>(<span class="p">to_hex</span>(&amp;d[<span class="n">0</span>..$]) == <span class="s">&quot;a9993e364706816aba3e25717850c26c9cd0d89d&quot;</span>);</code></pre></figure>
+<figure class="code"><div class="code-head"><span class="code-title">Example: The digest of <code>abc</code> is the FIPS 180-4 example's</span><span class="badge ok">runs</span></div><pre><code><span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">20</span>&gt; d = <span class="p">sha1</span>(<span class="s">b&quot;abc&quot;</span>);
+<span class="p">assert</span>(<span class="p">to_hex</span>(&amp;d) == <span class="s">&quot;a9993e364706816aba3e25717850c26c9cd0d89d&quot;</span>);</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-crypto-digest-hash" class="stdref-item"><code>hash</code> <span class="std-file">fn</span></h4>
@@ -15599,10 +15686,10 @@ Summary s = <span class="p">Option</span>::unwrap(describe(&amp;ms[<span class="
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">blake2b</span>(<span class="t">slice</span>&lt;<span class="t">u8</span>, <span class="t">shared</span>&gt; data, <span class="t">usize</span> out_len) : <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt;</code></pre></figure>
 <p>The BLAKE2b digest of <code>data</code>, <code>out_len</code> bytes long (64 for BLAKE2b-512).</p>
 <p>Faults (<code>crypto_length</code>) when <code>out_len</code> is 0 or above 64.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Example: The 64-byte digest of <code>abc</code> is RFC 7693's example</span><span class="badge ok">runs</span></div><pre><code><span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; d = <span class="p">blake2b</span>(&amp;<span class="s">b&quot;abc&quot;</span>[<span class="n">0</span>..$], <span class="n">64</span>);
+<figure class="code"><div class="code-head"><span class="code-title">Example: The 64-byte digest of <code>abc</code> is RFC 7693's example</span><span class="badge ok">runs</span></div><pre><code><span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; d = <span class="p">blake2b</span>(<span class="s">b&quot;abc&quot;</span>, <span class="n">64</span>);
 <span class="p">String</span> want = <span class="s">&quot;ba80a53f981c4d0d6a2797b69f12f6e94c212f14685ac4b74b12bb6fdbffa2d1&quot;</span>;
 <span class="p">String</span>::append(&amp;<span class="k">mut</span> want, <span class="s">&quot;7d87c5392aab792dc252d5de4533cc9518d38aa8dbf1925ab92386edd4009923&quot;</span>);
-<span class="p">assert</span>((<span class="p">to_hex</span>(&amp;d[<span class="n">0</span>..$]) == want));</code></pre></figure>
+<span class="p">assert</span>((<span class="p">to_hex</span>(&amp;d) == want));</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-crypto-digest-crc32" class="stdref-item"><code>crc32</code> <span class="std-file">fn</span></h4>
@@ -15610,7 +15697,7 @@ Summary s = <span class="p">Option</span>::unwrap(describe(&amp;ms[<span class="
 <p>The CRC-32 checksum of <code>data</code>, as zlib, PNG, gzip and Ethernet compute it.</p>
 <p>CRC-32/IEEE: polynomial 0x04C11DB7 (reflected 0xEDB88320), initial value and final exclusive or 0xFFFFFFFF, input and output reflected; computed bit by bit.</p>
 <p>It is not cryptographic: it detects accidental corruption, and anyone can make data with any CRC they choose. To detect tampering, use a hash or a MAC.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Example: The checksum of <code>123456789</code> is CRC-32's published check value</span><span class="badge ok">runs</span></div><pre><code><span class="p">assert</span>(crc32(&amp;<span class="s">b&quot;123456789&quot;</span>[<span class="n">0</span>..$]) == <span class="n">0</span>xCBF43926);</code></pre></figure>
+<figure class="code"><div class="code-head"><span class="code-title">Example: The checksum of <code>123456789</code> is CRC-32's published check value</span><span class="badge ok">runs</span></div><pre><code><span class="p">assert</span>(crc32(<span class="s">b&quot;123456789&quot;</span>) == <span class="n">0</span>xCBF43926);</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-crypto-digest-digest_eq" class="stdref-item"><code>digest_eq</code> <span class="std-file">fn</span></h4>
@@ -15619,8 +15706,8 @@ Summary s = <span class="p">Option</span>::unwrap(describe(&amp;ms[<span class="
 <p>Every byte is compared, however early they differ, so a sender guessing a MAC learns nothing from how long the check took. A program that checks a MAC or a digest it received compares with this, never <code>==</code>. Slices of different lengths are <code>false</code>.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: Equal bytes of different lengths are not equal</span><span class="badge ok">runs</span></div><pre><code><span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">3</span>&gt; a = [<span class="n">1</span>, <span class="n">2</span>, <span class="n">3</span>];
 <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">4</span>&gt; b = [<span class="n">1</span>, <span class="n">2</span>, <span class="n">3</span>, <span class="n">0</span>];
-<span class="p">assert</span>(<span class="p">digest_eq</span>(&amp;a[<span class="n">0</span>..$], &amp;b[<span class="n">0</span>..<span class="n">3</span>]));
-<span class="p">assert</span>(!<span class="p">digest_eq</span>(&amp;a[<span class="n">0</span>..$], &amp;b[<span class="n">0</span>..$]));</code></pre></figure>
+<span class="p">assert</span>(<span class="p">digest_eq</span>(&amp;a, &amp;b[<span class="n">0</span>..<span class="n">3</span>]));
+<span class="p">assert</span>(!<span class="p">digest_eq</span>(&amp;a, &amp;b));</code></pre></figure>
 </div>
 <h3 id="stdref-std-crypto-kdf"><code>std::crypto::kdf</code> <span class="std-file">impl/std/crypto/kdf.cb</span></h3>
 <div class="stdref-entry">
@@ -15672,8 +15759,8 @@ Summary s = <span class="p">Option</span>::unwrap(describe(&amp;ms[<span class="
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">hmac_sha256</span>(<span class="t">slice</span>&lt;<span class="t">u8</span>, <span class="t">shared</span>&gt; key, <span class="t">slice</span>&lt;<span class="t">u8</span>, <span class="t">shared</span>&gt; data) : <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt;</code></pre></figure>
 <p>The HMAC-SHA-256 of <code>data</code> under <code>key</code> (RFC 2104), 32 bytes.</p>
 <p>Check a MAC that arrived with <code>digest_eq</code>, never <code>==</code>.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Example: The MAC of RFC 4231's test case 2 is the published one</span><span class="badge ok">runs</span></div><pre><code><span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; mac = <span class="p">hmac_sha256</span>(&amp;<span class="s">b&quot;Jefe&quot;</span>[<span class="n">0</span>..$], &amp;<span class="s">b&quot;what do ya want for nothing?&quot;</span>[<span class="n">0</span>..$]);
-<span class="p">String</span> hex = <span class="p">to_hex</span>(&amp;mac[<span class="n">0</span>..$]);
+<figure class="code"><div class="code-head"><span class="code-title">Example: The MAC of RFC 4231's test case 2 is the published one</span><span class="badge ok">runs</span></div><pre><code><span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; mac = <span class="p">hmac_sha256</span>(<span class="s">b&quot;Jefe&quot;</span>, <span class="s">b&quot;what do ya want for nothing?&quot;</span>);
+<span class="p">String</span> hex = <span class="p">to_hex</span>(&amp;mac);
 <span class="p">assert</span>(hex == <span class="s">&quot;5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843&quot;</span>);</code></pre></figure>
 </div>
 <div class="stdref-entry">
@@ -15695,10 +15782,10 @@ Summary s = <span class="p">Option</span>::unwrap(describe(&amp;ms[<span class="
 <p>The same as <code>hkdf_expand</code> of <code>hkdf_extract(salt, ikm)</code>, <code>info</code> and <code>len</code>. Faults (<code>hkdf_length</code>) when <code>len</code> is above 8160.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: With an empty salt and info, the output is RFC 5869's test case A.3</span><span class="badge ok">runs</span></div><pre><code><span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; ikm = <span class="p">Vec</span>::filled(<span class="n">22</span>, <span class="n">0</span>x0b: <span class="t">u8</span>);
 <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; none = <span class="p">Vec</span>::new();
-<span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; okm = <span class="p">hkdf_sha256</span>(&amp;none[<span class="n">0</span>..$], &amp;ikm[<span class="n">0</span>..$], &amp;none[<span class="n">0</span>..$], <span class="n">42</span>);
+<span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; okm = <span class="p">hkdf_sha256</span>(&amp;none, &amp;ikm, &amp;none, <span class="n">42</span>);
 <span class="p">String</span> want = <span class="s">&quot;8da4e775a563c18f715f802a063c5a31b8a11f5c5ee1879ec345&quot;</span>;
 <span class="p">String</span>::append(&amp;<span class="k">mut</span> want, <span class="s">&quot;4e5f3c738d2d9d201395faa4b61a96c8&quot;</span>);
-<span class="p">assert</span>((<span class="p">to_hex</span>(&amp;okm[<span class="n">0</span>..$]) == want));</code></pre></figure>
+<span class="p">assert</span>((<span class="p">to_hex</span>(&amp;okm) == want));</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-crypto-kdf-hkdf_expand_label" class="stdref-item"><code>hkdf_expand_label</code> <span class="std-file">fn</span></h4>
@@ -15712,10 +15799,10 @@ Summary s = <span class="p">Option</span>::unwrap(describe(&amp;ms[<span class="
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">hmac</span>(<span class="p">HashKind</span> kind, <span class="t">slice</span>&lt;<span class="t">u8</span>, <span class="t">shared</span>&gt; key, <span class="t">slice</span>&lt;<span class="t">u8</span>, <span class="t">shared</span>&gt; data) : <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt;</code></pre></figure>
 <p>The HMAC of <code>data</code> under <code>key</code> over the hash <code>kind</code>, as long as that hash&#x27;s digest.</p>
 <p><code>hmac(Sha2_256, key, data)</code> gives the same bytes as <code>hmac_sha256(key, data)</code>.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Example: The HMAC-SHA-512 of RFC 4231's test case 2 is the published one</span><span class="badge ok">runs</span></div><pre><code><span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; mac = <span class="p">hmac</span>(Sha2_512, &amp;<span class="s">b&quot;Jefe&quot;</span>[<span class="n">0</span>..$], &amp;<span class="s">b&quot;what do ya want for nothing?&quot;</span>[<span class="n">0</span>..$]);
+<figure class="code"><div class="code-head"><span class="code-title">Example: The HMAC-SHA-512 of RFC 4231's test case 2 is the published one</span><span class="badge ok">runs</span></div><pre><code><span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; mac = <span class="p">hmac</span>(Sha2_512, <span class="s">b&quot;Jefe&quot;</span>, <span class="s">b&quot;what do ya want for nothing?&quot;</span>);
 <span class="p">String</span> want = <span class="s">&quot;164b7a7bfcf819e2e395fbe73b56e0a387bd64222e831fd610270cd7ea250554&quot;</span>;
 <span class="p">String</span>::append(&amp;<span class="k">mut</span> want, <span class="s">&quot;9758bf75c05a994a6d034f65f8f0e6fdcaeab1a34d4a6b4b636e070a38bce737&quot;</span>);
-<span class="p">assert</span>((<span class="p">to_hex</span>(&amp;mac[<span class="n">0</span>..$]) == want));</code></pre></figure>
+<span class="p">assert</span>((<span class="p">to_hex</span>(&amp;mac) == want));</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-crypto-kdf-hkdf_extract_with" class="stdref-item"><code>hkdf_extract_with</code> <span class="std-file">fn</span></h4>
@@ -15746,8 +15833,8 @@ Summary s = <span class="p">Option</span>::unwrap(describe(&amp;ms[<span class="
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">pbkdf2</span>(<span class="p">HashKind</span> kind, <span class="t">slice</span>&lt;<span class="t">u8</span>, <span class="t">shared</span>&gt; password, <span class="t">slice</span>&lt;<span class="t">u8</span>, <span class="t">shared</span>&gt; salt, <span class="t">usize</span> iterations, <span class="t">usize</span> len) : <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt;</code></pre></figure>
 <p>PBKDF2 (RFC 8018 §5.2) over HMAC of <code>kind</code>: <code>len</code> bytes derived from <code>password</code> and <code>salt</code>.</p>
 <p>Each block of the result costs <code>iterations</code> HMACs. It is here for the formats that still use it (SCRAM among them); to store a password, use <code>hash_password</code>. Faults (<code>kdf_parameters</code>) when <code>iterations</code> is 0.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Example: Two iterations of PBKDF2-HMAC-SHA-1 give RFC 6070's result</span><span class="badge ok">runs</span></div><pre><code><span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; dk = <span class="p">pbkdf2</span>(<span class="p">Sha1</span>, &amp;<span class="s">b&quot;password&quot;</span>[<span class="n">0</span>..$], &amp;<span class="s">b&quot;salt&quot;</span>[<span class="n">0</span>..$], <span class="n">2</span>, <span class="n">20</span>);
-<span class="p">assert</span>(<span class="p">to_hex</span>(&amp;dk[<span class="n">0</span>..$]) == <span class="s">&quot;ea6c014dc72d6f8ccd1ed92ace1d41f0d8de8957&quot;</span>);</code></pre></figure>
+<figure class="code"><div class="code-head"><span class="code-title">Example: Two iterations of PBKDF2-HMAC-SHA-1 give RFC 6070's result</span><span class="badge ok">runs</span></div><pre><code><span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; dk = <span class="p">pbkdf2</span>(<span class="p">Sha1</span>, <span class="s">b&quot;password&quot;</span>, <span class="s">b&quot;salt&quot;</span>, <span class="n">2</span>, <span class="n">20</span>);
+<span class="p">assert</span>(<span class="p">to_hex</span>(&amp;dk) == <span class="s">&quot;ea6c014dc72d6f8ccd1ed92ace1d41f0d8de8957&quot;</span>);</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-crypto-kdf-argon2id" class="stdref-item"><code>argon2id</code> <span class="std-file">fn</span></h4>
@@ -15769,9 +15856,9 @@ Summary s = <span class="p">Option</span>::unwrap(describe(&amp;ms[<span class="
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">verify_password</span>(<span class="p">StringView</span> stored, <span class="t">slice</span>&lt;<span class="t">u8</span>, <span class="t">shared</span>&gt; password) : <span class="t">bool</span></code></pre></figure>
 <p>Whether <code>password</code> is the one the Argon2id PHC string <code>stored</code> was made from.</p>
 <p><code>stored</code> is a hash written by <code>hash_password</code> or by any Argon2id implementation (<code>$argon2id$v=19$m=M,t=T,p=P$salt$hash</code>); its parameters are taken from it, and the result is compared with <code>digest_eq</code>. <code>false</code> when <code>stored</code> does not have that shape or its parameters are outside the bounds <code>argon2id</code> accepts, so it never faults on them. Cost: one <code>argon2id</code> with the stored parameters.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Example: A string that is not an Argon2id hash, or has parameters out of bounds, verifies nothing</span><span class="badge ok">runs</span></div><pre><code><span class="p">assert</span>(!<span class="p">verify_password</span>(<span class="s">&quot;not a password hash&quot;</span>, &amp;<span class="s">b&quot;secret&quot;</span>[<span class="n">0</span>..$]));
+<figure class="code"><div class="code-head"><span class="code-title">Example: A string that is not an Argon2id hash, or has parameters out of bounds, verifies nothing</span><span class="badge ok">runs</span></div><pre><code><span class="p">assert</span>(!<span class="p">verify_password</span>(<span class="s">&quot;not a password hash&quot;</span>, <span class="s">b&quot;secret&quot;</span>));
 <span class="p">StringView</span> no_memory = <span class="s">&quot;$argon2id$v=19$m=0,t=1,p=1$c2FsdHNhbHQ$AAAAAA&quot;</span>;
-<span class="p">assert</span>(!<span class="p">verify_password</span>(no_memory, &amp;<span class="s">b&quot;secret&quot;</span>[<span class="n">0</span>..$]));</code></pre></figure>
+<span class="p">assert</span>(!<span class="p">verify_password</span>(no_memory, <span class="s">b&quot;secret&quot;</span>));</code></pre></figure>
 </div>
 <h3 id="stdref-std-crypto-aead"><code>std::crypto::aead</code> <span class="std-file">impl/std/crypto/aead.cb</span></h3>
 <div class="stdref-entry">
@@ -15782,9 +15869,9 @@ Summary s = <span class="p">Option</span>::unwrap(describe(&amp;ms[<span class="
 <p>Faults (<code>crypto_length</code>) for another key or nonce length, or when <code>data</code> would need a block counter past 2^32 - 1.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: Applying the keystream twice gives the data back</span><span class="badge ok">runs</span></div><pre><code><span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; key = [<span class="n">9</span>; <span class="n">32</span>];
 <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">12</span>&gt; nonce = [<span class="n">0</span>; <span class="n">12</span>];
-<span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; hidden = <span class="p">chacha20</span>(&amp;key[<span class="n">0</span>..$], &amp;nonce[<span class="n">0</span>..$], <span class="n">1</span>, &amp;<span class="s">b&quot;attack at dawn&quot;</span>[<span class="n">0</span>..$]);
-<span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; back = <span class="p">chacha20</span>(&amp;key[<span class="n">0</span>..$], &amp;nonce[<span class="n">0</span>..$], <span class="n">1</span>, &amp;hidden[<span class="n">0</span>..$]);
-<span class="p">assert</span>(slice_eq(&amp;back[<span class="n">0</span>..$], &amp;<span class="s">b&quot;attack at dawn&quot;</span>[<span class="n">0</span>..$]));</code></pre></figure>
+<span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; hidden = <span class="p">chacha20</span>(&amp;key, &amp;nonce, <span class="n">1</span>, <span class="s">b&quot;attack at dawn&quot;</span>);
+<span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; back = <span class="p">chacha20</span>(&amp;key, &amp;nonce, <span class="n">1</span>, &amp;hidden);
+<span class="p">assert</span>(slice_eq(&amp;back, <span class="s">b&quot;attack at dawn&quot;</span>));</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-crypto-aead-poly1305" class="stdref-item"><code>poly1305</code> <span class="std-file">fn</span></h4>
@@ -15793,8 +15880,8 @@ Summary s = <span class="p">Option</span>::unwrap(describe(&amp;ms[<span class="
 <p>A key must never authenticate two messages; <code>chacha20_poly1305_seal</code> derives a fresh one for each nonce. Constant-time: the steps taken depend on the lengths of the arguments only. Faults (<code>crypto_length</code>) when <code>key</code> is not 32 bytes.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: The tag of RFC 8439 §2.5.2's message is the published one</span><span class="badge ok">runs</span></div><pre><code><span class="p">StringView</span> k = <span class="s">&quot;85d6be7857556d337f4452fe42d506a80103808afb0db2fd4abff6af4149f51b&quot;</span>;
 <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; key = <span class="p">Result</span>::unwrap(<span class="p">from_hex</span>(k));
-<span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">16</span>&gt; tag = <span class="p">poly1305</span>(&amp;key[<span class="n">0</span>..$], &amp;<span class="s">b&quot;Cryptographic Forum Research Group&quot;</span>[<span class="n">0</span>..$]);
-<span class="p">assert</span>(<span class="p">to_hex</span>(&amp;tag[<span class="n">0</span>..$]) == <span class="s">&quot;a8061dc1305136c6c22b8baf0c0127a9&quot;</span>);</code></pre></figure>
+<span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">16</span>&gt; tag = <span class="p">poly1305</span>(&amp;key, <span class="s">b&quot;Cryptographic Forum Research Group&quot;</span>);
+<span class="p">assert</span>(<span class="p">to_hex</span>(&amp;tag) == <span class="s">&quot;a8061dc1305136c6c22b8baf0c0127a9&quot;</span>);</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-crypto-aead-chacha20_poly1305_seal" class="stdref-item"><code>chacha20_poly1305_seal</code> <span class="std-file">fn</span></h4>
@@ -15804,12 +15891,12 @@ Summary s = <span class="p">Option</span>::unwrap(describe(&amp;ms[<span class="
 <figure class="code"><div class="code-head"><span class="code-title">Example: What is sealed opens under the same key, nonce and aad, and a changed byte is refused</span><span class="badge ok">runs</span></div><pre><code><span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; key = [<span class="n">7</span>; <span class="n">32</span>];
 <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">12</span>&gt; nonce = [<span class="n">1</span>; <span class="n">12</span>];
 <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">2</span>&gt; ad = [<span class="n">0</span>xa1, <span class="n">0</span>xa2];
-<span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; sealed = <span class="p">chacha20_poly1305_seal</span>(&amp;key[<span class="n">0</span>..$], &amp;nonce[<span class="n">0</span>..$], &amp;ad[<span class="n">0</span>..$], &amp;<span class="s">b&quot;hello&quot;</span>[<span class="n">0</span>..$]);
+<span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; sealed = <span class="p">chacha20_poly1305_seal</span>(&amp;key, &amp;nonce, &amp;ad, <span class="s">b&quot;hello&quot;</span>);
 <span class="p">assert</span>(<span class="p">Vec</span>::len(&amp;sealed) == <span class="n">5</span> + <span class="n">16</span>);
-<span class="p">Option</span>&lt;<span class="p">Vec</span>&lt;<span class="t">u8</span>&gt;&gt; opened = <span class="p">chacha20_poly1305_open</span>(&amp;key[<span class="n">0</span>..$], &amp;nonce[<span class="n">0</span>..$], &amp;ad[<span class="n">0</span>..$], &amp;sealed[<span class="n">0</span>..$]);
-<span class="p">assert</span>(slice_eq(&amp;<span class="p">Option</span>::unwrap(opened)[<span class="n">0</span>..$], &amp;<span class="s">b&quot;hello&quot;</span>[<span class="n">0</span>..$]));
+<span class="p">Option</span>&lt;<span class="p">Vec</span>&lt;<span class="t">u8</span>&gt;&gt; opened = <span class="p">chacha20_poly1305_open</span>(&amp;key, &amp;nonce, &amp;ad, &amp;sealed);
+<span class="p">assert</span>(slice_eq(&amp;<span class="p">Option</span>::unwrap(opened), <span class="s">b&quot;hello&quot;</span>));
 sealed[<span class="n">0</span>] = sealed[<span class="n">0</span>] ^ <span class="n">1</span>;
-<span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;<span class="p">chacha20_poly1305_open</span>(&amp;key[<span class="n">0</span>..$], &amp;nonce[<span class="n">0</span>..$], &amp;ad[<span class="n">0</span>..$], &amp;sealed[<span class="n">0</span>..$])));</code></pre></figure>
+<span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;<span class="p">chacha20_poly1305_open</span>(&amp;key, &amp;nonce, &amp;ad, &amp;sealed)));</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-crypto-aead-chacha20_poly1305_open" class="stdref-item"><code>chacha20_poly1305_open</code> <span class="std-file">fn</span></h4>
@@ -15829,8 +15916,8 @@ sealed[<span class="n">0</span>] = sealed[<span class="n">0</span>] ^ <span clas
 {
     block[i] = b[i];
 }
-<span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">16</span>&gt; out = aes_encrypt_block(&amp;key[<span class="n">0</span>..$], block);
-<span class="p">assert</span>(<span class="p">to_hex</span>(&amp;out[<span class="n">0</span>..$]) == <span class="s">&quot;69c4e0d86a7b0430d8cdb78070b4c55a&quot;</span>);</code></pre></figure>
+<span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">16</span>&gt; out = aes_encrypt_block(&amp;key, block);
+<span class="p">assert</span>(<span class="p">to_hex</span>(&amp;out) == <span class="s">&quot;69c4e0d86a7b0430d8cdb78070b4c55a&quot;</span>);</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-crypto-aead-aes_gcm_seal" class="stdref-item"><code>aes_gcm_seal</code> <span class="std-file">fn</span></h4>
@@ -15841,13 +15928,13 @@ sealed[<span class="n">0</span>] = sealed[<span class="n">0</span>] ^ <span clas
 <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">12</span>&gt; nonce = [<span class="n">0</span>; <span class="n">12</span>];
 <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">16</span>&gt; plain = [<span class="n">0</span>; <span class="n">16</span>];
 <span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; none = <span class="p">Vec</span>::new();
-<span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; sealed = aes_gcm_seal(&amp;key[<span class="n">0</span>..$], &amp;nonce[<span class="n">0</span>..$], &amp;none[<span class="n">0</span>..$], &amp;plain[<span class="n">0</span>..$]);
+<span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; sealed = aes_gcm_seal(&amp;key, &amp;nonce, &amp;none, &amp;plain);
 <span class="p">String</span> want = <span class="s">&quot;0388dace60b6a392f328c2b971b2fe78&quot;</span>;
 <span class="p">String</span>::append(&amp;<span class="k">mut</span> want, <span class="s">&quot;ab6e47d42cec13bdf53a67b21257bddf&quot;</span>);
-<span class="p">assert</span>((<span class="p">to_hex</span>(&amp;sealed[<span class="n">0</span>..$]) == want));
-<span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; opened = <span class="p">Option</span>::unwrap(aes_gcm_open(&amp;key[<span class="n">0</span>..$], &amp;nonce[<span class="n">0</span>..$], &amp;none[<span class="n">0</span>..$], &amp;sealed[<span class="n">0</span>..$]));
-<span class="p">assert</span>(slice_eq(&amp;opened[<span class="n">0</span>..$], &amp;plain[<span class="n">0</span>..$]));
-<span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;aes_gcm_open(&amp;key[<span class="n">0</span>..$], &amp;nonce[<span class="n">0</span>..$], &amp;<span class="s">b&quot;aad&quot;</span>[<span class="n">0</span>..$], &amp;sealed[<span class="n">0</span>..$])));</code></pre></figure>
+<span class="p">assert</span>((<span class="p">to_hex</span>(&amp;sealed) == want));
+<span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; opened = <span class="p">Option</span>::unwrap(aes_gcm_open(&amp;key, &amp;nonce, &amp;none, &amp;sealed));
+<span class="p">assert</span>(slice_eq(&amp;opened, &amp;plain));
+<span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;aes_gcm_open(&amp;key, &amp;nonce, <span class="s">b&quot;aad&quot;</span>, &amp;sealed)));</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-crypto-aead-aes_gcm_open" class="stdref-item"><code>aes_gcm_open</code> <span class="std-file">fn</span></h4>
@@ -15949,9 +16036,9 @@ sealed[<span class="n">0</span>] = sealed[<span class="n">0</span>] ^ <span clas
 <p>The public key of <code>private_key</code> on <code>curve</code>: 0x04 ‖ x ‖ y of the private key times the base point.</p>
 <p>65 bytes on P-256, 97 on P-384; <code>None</code> when <code>private_key</code> does not name a number in [1, n-1]. Constant-time. Faults (<code>crypto_length</code>) when <code>private_key</code> is not 32 bytes (P-256) or 48 (P-384).</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: Zero and a number above the group order are not private keys</span><span class="badge ok">runs</span></div><pre><code><span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; zero = [<span class="n">0</span>; <span class="n">32</span>];
-<span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;<span class="p">ec_public_key</span>(P256, &amp;zero[<span class="n">0</span>..$])));
+<span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;<span class="p">ec_public_key</span>(P256, &amp;zero)));
 <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">32</span>&gt; above = [<span class="n">0</span>xff; <span class="n">32</span>];
-<span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;<span class="p">ec_public_key</span>(P256, &amp;above[<span class="n">0</span>..$])));</code></pre></figure>
+<span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;<span class="p">ec_public_key</span>(P256, &amp;above)));</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-crypto-pk-ecdh" class="stdref-item"><code>ecdh</code> <span class="std-file">fn</span></h4>
@@ -16230,12 +16317,12 @@ sealed[<span class="n">0</span>] = sealed[<span class="n">0</span>] ^ <span clas
 <p>The DER element at <code>at</code> in <code>buf</code>, or <code>None</code> when it is not well-formed.</p>
 <p>Well-formed means a single-byte tag, the shortest length form, at most four length bytes, no indefinite length, and contents inside <code>buf</code>. Read an element&#x27;s first child by calling it again at <code>start</code>, and the element after it at <code>next</code>.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: A SEQUENCE holding one INTEGER is read, then its child; a long length where the short would do is not</span><span class="badge ok">runs</span></div><pre><code><span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">5</span>&gt; der = [<span class="n">0</span>x30, <span class="n">0</span>x03, <span class="n">0</span>x02, <span class="n">0</span>x01, <span class="n">0</span>x05];
-<span class="p">Der</span> seq = <span class="p">Option</span>::unwrap(<span class="p">der_read</span>(&amp;der[<span class="n">0</span>..$], <span class="n">0</span>));
+<span class="p">Der</span> seq = <span class="p">Option</span>::unwrap(<span class="p">der_read</span>(&amp;der, <span class="n">0</span>));
 <span class="p">assert</span>(seq.tag == <span class="n">0</span>x30 &amp;&amp; seq.start == <span class="n">2</span> &amp;&amp; seq.end == <span class="n">5</span> &amp;&amp; seq.next == <span class="n">5</span>);
-<span class="p">Der</span> int = <span class="p">Option</span>::unwrap(<span class="p">der_read</span>(&amp;der[<span class="n">0</span>..$], seq.start));
+<span class="p">Der</span> int = <span class="p">Option</span>::unwrap(<span class="p">der_read</span>(&amp;der, seq.start));
 <span class="p">assert</span>(int.tag == <span class="n">0</span>x02 &amp;&amp; der[int.start] == <span class="n">5</span>);
 <span class="t">array</span>&lt;<span class="t">u8</span>, <span class="n">4</span>&gt; long_form = [<span class="n">0</span>x04, <span class="n">0</span>x81, <span class="n">0</span>x01, <span class="n">0</span>x00];
-<span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;<span class="p">der_read</span>(&amp;long_form[<span class="n">0</span>..$], <span class="n">0</span>)));</code></pre></figure>
+<span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;<span class="p">der_read</span>(&amp;long_form, <span class="n">0</span>)));</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-x509-certificates_from_pem" class="stdref-item"><code>certificates_from_pem</code> <span class="std-file">fn</span></h4>
@@ -16271,7 +16358,7 @@ sealed[<span class="n">0</span>] = sealed[<span class="n">0</span>] ^ <span clas
 <p>The RSA PKCS #1 v1.5, RSA-PSS and ECDSA schemes sign the scheme&#x27;s hash of <code>message</code>; Ed25519 signs <code>message</code> whole. <code>None</code> when <code>key</code> is not of the scheme&#x27;s kind, the scheme is <code>UnsupportedSignature</code>, or an EC key&#x27;s scalar is not in [1, n-1]. An RSA modulus too short for the scheme&#x27;s hash faults (<code>crypto_length</code>).</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: An Ed25519 key cannot make an RSA-PSS signature</span><span class="badge ok">runs</span></div><pre><code><span class="p">PrivateKey</span> key = Ed25519Private([<span class="n">1</span>; <span class="n">32</span>]);
 <span class="p">SignatureScheme</span> scheme = RsaPss(Sha2_256);
-<span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;<span class="p">sign</span>(&amp;key, &amp;scheme, &amp;<span class="s">b&quot;message&quot;</span>[<span class="n">0</span>..$])));</code></pre></figure>
+<span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;<span class="p">sign</span>(&amp;key, &amp;scheme, <span class="s">b&quot;message&quot;</span>)));</code></pre></figure>
 </div>
 <h3 id="stdref-std-tls"><code>std::tls</code> <span class="std-file">impl/std/tls.cb</span></h3>
 <div class="stdref-entry">
@@ -16524,11 +16611,11 @@ sealed[<span class="n">0</span>] = sealed[<span class="n">0</span>] ^ <span clas
 <p>The text is split into <code>name=value</code> pairs at <code>&amp;</code> and <code>;</code>, and empty pairs are skipped. A pair without <code>=</code> has an empty value. Each name and value is read with <code>+</code> as a space and then percent-decoded; one that is not UTF-8 after decoding, or holds a bad escape, is kept as given, so nothing is lost.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: Bare names get an empty value, empty pairs are skipped, and a bad escape is kept as given</span><span class="badge ok">runs</span></div><pre><code><span class="p">Vec</span>&lt;<span class="p">Param</span>&gt; ps = <span class="p">form_decode</span>(<span class="s">&quot;q=red+fish&amp;flag&amp;&amp;n=%41;x=%zz&quot;</span>);
 <span class="p">assert</span>(<span class="p">Vec</span>::len(&amp;ps) == <span class="n">4</span>);
-<span class="p">assert</span>(<span class="p">Option</span>::unwrap(<span class="p">find_param</span>(&amp;ps[<span class="n">0</span>..$], <span class="s">&quot;q&quot;</span>)) == <span class="s">&quot;red fish&quot;</span>);
-<span class="p">assert</span>(<span class="p">Option</span>::unwrap(<span class="p">find_param</span>(&amp;ps[<span class="n">0</span>..$], <span class="s">&quot;flag&quot;</span>)) == <span class="s">&quot;&quot;</span>);
-<span class="p">assert</span>(<span class="p">Option</span>::unwrap(<span class="p">find_param</span>(&amp;ps[<span class="n">0</span>..$], <span class="s">&quot;n&quot;</span>)) == <span class="s">&quot;A&quot;</span>);
-<span class="p">assert</span>(<span class="p">Option</span>::unwrap(<span class="p">find_param</span>(&amp;ps[<span class="n">0</span>..$], <span class="s">&quot;x&quot;</span>)) == <span class="s">&quot;%zz&quot;</span>);
-<span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;<span class="p">find_param</span>(&amp;ps[<span class="n">0</span>..$], <span class="s">&quot;Q&quot;</span>)));</code></pre></figure>
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(<span class="p">find_param</span>(&amp;ps, <span class="s">&quot;q&quot;</span>)) == <span class="s">&quot;red fish&quot;</span>);
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(<span class="p">find_param</span>(&amp;ps, <span class="s">&quot;flag&quot;</span>)) == <span class="s">&quot;&quot;</span>);
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(<span class="p">find_param</span>(&amp;ps, <span class="s">&quot;n&quot;</span>)) == <span class="s">&quot;A&quot;</span>);
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(<span class="p">find_param</span>(&amp;ps, <span class="s">&quot;x&quot;</span>)) == <span class="s">&quot;%zz&quot;</span>);
+<span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;<span class="p">find_param</span>(&amp;ps, <span class="s">&quot;Q&quot;</span>)));</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-http-form_encode" class="stdref-item"><code>form_encode</code> <span class="std-file">fn</span></h4>
@@ -16538,7 +16625,7 @@ sealed[<span class="n">0</span>] = sealed[<span class="n">0</span>] ^ <span clas
 <figure class="code"><div class="code-head"><span class="code-title">Example: A space becomes <code>+</code> and a reserved byte an escape, so the value comes back intact</span><span class="badge ok">runs</span></div><pre><code><span class="p">Vec</span>&lt;<span class="p">Param</span>&gt; ps = <span class="p">Vec</span>::new();
 <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> ps, <span class="p">Param</span>::new(<span class="s">&quot;q&quot;</span>, <span class="s">&quot;a b&amp;c&quot;</span>));
 <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> ps, <span class="p">Param</span>::new(<span class="s">&quot;lang&quot;</span>, <span class="s">&quot;en&quot;</span>));
-<span class="p">String</span> body = <span class="p">form_encode</span>(&amp;ps[<span class="n">0</span>..$]);
+<span class="p">String</span> body = <span class="p">form_encode</span>(&amp;ps);
 <span class="p">assert</span>(body == <span class="s">&quot;q=a+b%26c&amp;lang=en&quot;</span>);
 <span class="p">Vec</span>&lt;<span class="p">Param</span>&gt; back = <span class="p">form_decode</span>(&amp;body);
 <span class="p">assert</span>(back[<span class="n">0</span>].value == <span class="s">&quot;a b&amp;c&quot;</span>);</code></pre></figure>
@@ -16579,7 +16666,7 @@ sealed[<span class="n">0</span>] = sealed[<span class="n">0</span>] ^ <span clas
 <figure class="code"><div class="code-head"><span class="code-title">Example: A new client's settings are fields a program may change before sending</span><span class="badge ok">runs</span></div><pre><code><span class="p">HttpClient</span> c = <span class="p">HttpClient</span>::new();
 <span class="p">assert</span>(c.timeout_ms == <span class="n">30000</span> &amp;&amp; c.max_redirects == <span class="n">10</span> &amp;&amp; !c.keep_alive);
 <span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;c.roots));
-<span class="p">assert</span>(<span class="p">Option</span>::is_some(&amp;<span class="p">find_header</span>(&amp;c.headers[<span class="n">0</span>..$], <span class="s">&quot;user-agent&quot;</span>)));
+<span class="p">assert</span>(<span class="p">Option</span>::is_some(&amp;<span class="p">find_header</span>(&amp;c.headers, <span class="s">&quot;user-agent&quot;</span>)));
 c.max_body = <span class="n">1</span>_048_576;</code></pre></figure>
 </div>
 <div class="stdref-entry">
@@ -17064,7 +17151,7 @@ c.max_body = <span class="n">1</span>_048_576;</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">Example: Either case is read, lowercase is written, and an odd count is an error at the end</span><span class="badge ok">runs</span></div><pre><code><span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; b = <span class="p">Result</span>::unwrap(<span class="p">from_hex</span>(<span class="s">&quot;00FFa0&quot;</span>));
 <span class="p">assert</span>(<span class="p">Vec</span>::len(&amp;b) == <span class="n">3</span>);
 <span class="p">assert</span>(b[<span class="n">1</span>] == <span class="n">255</span>);
-<span class="p">String</span> h = <span class="p">to_hex</span>(&amp;b[<span class="n">0</span>..$]);
+<span class="p">String</span> h = <span class="p">to_hex</span>(&amp;b);
 <span class="p">assert</span>(h == <span class="s">&quot;00ffa0&quot;</span>);
 <span class="k">match</span> (<span class="p">from_hex</span>(<span class="s">&quot;abc&quot;</span>))
 {
@@ -17311,11 +17398,11 @@ TomlDateTime b = <span class="p">Option</span>::unwrap(Toml::as_datetime(<span c
 <p><code>data</code> compressed as a raw DEFLATE stream (RFC 1951, no header or checksum).</p>
 <p>One fixed strategy, so every implementation writes the same bytes: LZ77 over a 32 KiB window, each block stored, fixed or dynamic Huffman, whichever is shortest. Empty data is one empty block (<code>03 00</code>).</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: Empty data compresses to two bytes, and the checksum of <code>Wikipedia</code> is fixed by RFC 1950</span><span class="badge ok">runs</span></div><pre><code><span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; nothing = <span class="p">Vec</span>::new();
-<span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; empty = <span class="p">deflate</span>(&amp;nothing[<span class="n">0</span>..$]);
+<span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; empty = <span class="p">deflate</span>(&amp;nothing);
 <span class="p">assert</span>(<span class="p">Vec</span>::len(&amp;empty) == <span class="n">2</span> &amp;&amp; empty[<span class="n">0</span>] == <span class="n">0</span>x03 &amp;&amp; empty[<span class="n">1</span>] == <span class="n">0</span>x00);
-<span class="p">assert</span>(<span class="p">Vec</span>::len(&amp;<span class="p">Result</span>::unwrap(<span class="p">inflate</span>(&amp;empty[<span class="n">0</span>..$], <span class="n">0</span>))) == <span class="n">0</span>);
-<span class="p">assert</span>(<span class="p">adler32</span>(&amp;<span class="s">b&quot;Wikipedia&quot;</span>[<span class="n">0</span>..$]) == <span class="n">300286872</span>);
-<span class="p">assert</span>(<span class="p">adler32</span>(&amp;nothing[<span class="n">0</span>..$]) == <span class="n">1</span>);</code></pre></figure>
+<span class="p">assert</span>(<span class="p">Vec</span>::len(&amp;<span class="p">Result</span>::unwrap(<span class="p">inflate</span>(&amp;empty, <span class="n">0</span>))) == <span class="n">0</span>);
+<span class="p">assert</span>(<span class="p">adler32</span>(<span class="s">b&quot;Wikipedia&quot;</span>) == <span class="n">300286872</span>);
+<span class="p">assert</span>(<span class="p">adler32</span>(&amp;nothing) == <span class="n">1</span>);</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-compress-adler32" class="stdref-item"><code>adler32</code> <span class="std-file">fn</span></h4>
@@ -17333,10 +17420,10 @@ TomlDateTime b = <span class="p">Option</span>::unwrap(Toml::as_datetime(<span c
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">zlib_inflate</span>(<span class="t">slice</span>&lt;<span class="t">u8</span>, <span class="t">shared</span>&gt; data, <span class="t">usize</span> <span class="p">max</span>) : <span class="p">Result</span>&lt;<span class="p">Vec</span>&lt;<span class="t">u8</span>&gt;, <span class="p">CompressError</span>&gt;</code></pre></figure>
 <p>The bytes a zlib stream encodes, at most <code>max</code> of them, its header checked and its checksum verified.</p>
 <p><code>Err(Corrupt(0))</code> for a header that is not DEFLATE without a preset dictionary; <code>Err(Corrupt(i))</code> at the trailer when the Adler-32 does not match; <code>Err(Truncated)</code> for fewer than 6 bytes or a missing trailer; otherwise as <code>inflate</code>, <code>Err(Oversize)</code> included.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Example: A damaged checksum is <code>Corrupt</code> at the trailer, the last four bytes</span><span class="badge ok">runs</span></div><pre><code><span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; z = <span class="p">zlib_deflate</span>(&amp;<span class="s">b&quot;hello hello hello&quot;</span>[<span class="n">0</span>..$]);
+<figure class="code"><div class="code-head"><span class="code-title">Example: A damaged checksum is <code>Corrupt</code> at the trailer, the last four bytes</span><span class="badge ok">runs</span></div><pre><code><span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; z = <span class="p">zlib_deflate</span>(<span class="s">b&quot;hello hello hello&quot;</span>);
 <span class="t">usize</span> last = <span class="p">Vec</span>::len(&amp;z) - <span class="n">1</span>;
 z[last] = z[last] ^ <span class="n">1</span>;
-<span class="k">match</span> (<span class="p">zlib_inflate</span>(&amp;z[<span class="n">0</span>..$], <span class="n">100</span>))
+<span class="k">match</span> (<span class="p">zlib_inflate</span>(&amp;z, <span class="n">100</span>))
 {
     <span class="p">Err</span>(Corrupt(at)) : <span class="p">assert</span>(at == last - <span class="n">3</span>),
     _                : <span class="p">assert</span>(<span class="k">false</span>),
@@ -17354,11 +17441,11 @@ z[last] = z[last] ^ <span class="n">1</span>;
 <p>The bytes a gzip file encodes, every member in turn, at most <code>max</code> of them.</p>
 <p>Each header&#x27;s optional fields are skipped. <code>Err(Corrupt(i))</code> at a header that is not gzip&#x27;s, or at a trailer whose CRC-32 or length does not match; <code>Err(Truncated)</code> for a member cut short; otherwise as <code>inflate</code>, <code>Err(Oversize)</code> included.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: A round trip, and <code>Oversize</code> when <code>max</code> is one byte short of the output</span><span class="badge ok">runs</span></div><pre><code><span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; data = <span class="p">Vec</span>::filled(<span class="n">1000</span>, b&#x27;a&#x27;);
-<span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; packed = <span class="p">gzip</span>(&amp;data[<span class="n">0</span>..$]);
+<span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; packed = <span class="p">gzip</span>(&amp;data);
 <span class="p">assert</span>(<span class="p">Vec</span>::len(&amp;packed) &lt; <span class="n">100</span>);
-<span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; back = <span class="p">Result</span>::unwrap(<span class="p">gunzip</span>(&amp;packed[<span class="n">0</span>..$], <span class="n">1000</span>));
+<span class="p">Vec</span>&lt;<span class="t">u8</span>&gt; back = <span class="p">Result</span>::unwrap(<span class="p">gunzip</span>(&amp;packed, <span class="n">1000</span>));
 <span class="p">assert</span>(<span class="p">Vec</span>::len(&amp;back) == <span class="n">1000</span> &amp;&amp; back[<span class="n">999</span>] == b&#x27;a&#x27;);
-<span class="k">match</span> (<span class="p">gunzip</span>(&amp;packed[<span class="n">0</span>..$], <span class="n">999</span>))
+<span class="k">match</span> (<span class="p">gunzip</span>(&amp;packed, <span class="n">999</span>))
 {
     <span class="p">Err</span>(Oversize) : {},
     _             : <span class="p">assert</span>(<span class="k">false</span>),
