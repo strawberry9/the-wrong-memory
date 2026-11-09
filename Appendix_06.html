@@ -166,7 +166,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.110802</div>
+<div class="sub">Specification edition 2026.110901</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -339,7 +339,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.110802</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.110901</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -11286,6 +11286,14 @@ program: a value of a recursive type, a local that is assigned, matched, sliced 
 variant built as the result, a reference parameter -- none of them has a runtime object, and where
 the generated C still asked for a record that nothing could read, the record is removed. The
 self-hosted compiler, a decided program, runs in half the instructions it took before.</p>
+<p>Since D-0315 a decided program keeps almost no cleanup bookkeeping either. A value whose end frees
+memory alone goes from the call that makes it to the binding, argument or field that takes it with no
+runtime object, and generated C frees it where its scope ends; the temporaries a statement borrows end
+where the statement ends; a <code>fn</code> parameter the function only calls, and a local whose type has a
+destructor of its own, are noted in a table the runtime reads only if a fault comes, so they end in the
+order the rules give; and a statement stores its location for a fault only before a call that may read
+it. The self-hosted compiler now runs in about a fifth of the instructions it took before D-0315, the
+runtime about a tenth of its time.</p>
 <p>Threads are decided too when what they are lent is held by a handle a binding of the lending frame
 keeps until <code>join</code> (D-0289): no thread outlives the frame that holds its handle, so the compiler
 checks the lender's accesses against the lend as it would any borrow, and a lock takes no record
@@ -11316,7 +11324,9 @@ is recorded as it arrives, an element reference is light too once the element's 
 (D-0295), and slices, views, lock guards and what a thread is lent are recorded everywhere. So a program that keeps paths for one function pays for that function,
 not for all of them.</p>
 <p>To see where your own program still pays for tracking, run <code>cobc --report-tracking prog.cb</code>. It
-compiles nothing: for a decided program it says so; otherwise it names the first conflict left to
+compiles nothing: for a decided program it says so, and lists by line the frames, statement scopes
+and objects its generated C still writes for an unwind (D-0315), for most decided programs none;
+otherwise it names the first conflict left to
 the run, then lists the lines whose generated C still calls the runtime's tracking, with the
 kinds of call on each, lines inside a loop first. A line inside a loop is the one to look at; a
 line that runs once (a binding, a move into a call) costs next to nothing. The sections below say
