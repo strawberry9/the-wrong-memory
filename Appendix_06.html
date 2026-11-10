@@ -166,7 +166,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.111001</div>
+<div class="sub">Specification edition 2026.111002</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -339,7 +339,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.111001</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.111002</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -12157,12 +12157,12 @@ tools build in, which have no CobaltC body (<code>printf</code>, <code>sqrt</cod
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-collections-HashMap-get" class="stdref-item"><code>HashMap::get</code> <span class="std-file">fn</span></h4>
-<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">HashMap</span>::get&lt;K, V&gt;(<span class="t">ref</span>&lt;<span class="p">HashMap</span>&lt;K, V&gt;, <span class="t">shared</span>&gt; m, probe&lt;K&gt; k) : <span class="p">Option</span>&lt;<span class="t">ref</span>&lt;V, <span class="t">shared</span>&gt;&gt;</code></pre></figure>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">HashMap</span>::get&lt;K, V&gt;(<span class="t">ref</span>&lt;<span class="p">HashMap</span>&lt;K, V&gt;, <span class="t">shared</span>&gt; m, probe&lt;K&gt; k) : <span class="p">Option</span>&lt;<span class="t">ref</span>&lt;V, <span class="t">shared</span>&gt;&gt; from m</code></pre></figure>
 <p>The value for <code>k</code>, as a shared reference; <code>None</code> when <code>k</code> is absent.</p>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-collections-HashMap-get_mut" class="stdref-item"><code>HashMap::get_mut</code> <span class="std-file">fn</span></h4>
-<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">HashMap</span>::get_mut&lt;K, V&gt;(<span class="t">ref</span>&lt;<span class="p">HashMap</span>&lt;K, V&gt;, <span class="t">exclusive</span>&gt; m, probe&lt;K&gt; k) : <span class="p">Option</span>&lt;<span class="t">ref</span>&lt;V, <span class="t">exclusive</span>&gt;&gt;</code></pre></figure>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">HashMap</span>::get_mut&lt;K, V&gt;(<span class="t">ref</span>&lt;<span class="p">HashMap</span>&lt;K, V&gt;, <span class="t">exclusive</span>&gt; m, probe&lt;K&gt; k) : <span class="p">Option</span>&lt;<span class="t">ref</span>&lt;V, <span class="t">exclusive</span>&gt;&gt; from m</code></pre></figure>
 <p>The value for <code>k</code>, as an exclusive reference; <code>None</code> when <code>k</code> is absent.</p>
 </div>
 <div class="stdref-entry">
