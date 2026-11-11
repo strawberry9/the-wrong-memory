@@ -166,7 +166,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.111101</div>
+<div class="sub">Specification edition 2026.111102</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -339,7 +339,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.111101</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.111102</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -5870,7 +5870,6 @@ before the program runs.</p>
 
 <span class="k">fn</span> average(<span class="t">ref</span>&lt;<span class="p">Vec</span>&lt;<span class="t">u32</span>&gt;, <span class="t">shared</span>&gt; v) : <span class="t">u32</span>
 {
-    <span class="p">assert</span>(<span class="p">Vec</span>::len(v) &gt; <span class="n">0</span>, <span class="s">&quot;average of an empty list&quot;</span>);
     <span class="t">u32</span> sum = <span class="n">0</span>;
     <span class="k">foreach</span> (x in v)
     {
@@ -5889,6 +5888,47 @@ before the program runs.</p>
     <span class="p">assert</span>(<span class="p">Vec</span>::len(&amp;v) &lt;= cap, <span class="s">&quot;%v items exceed the capacity %v&quot;</span>, <span class="p">Vec</span>::len(&amp;v), cap);
     <span class="c">// <span class="bad">✗</span> <span class="dg">diag.assert-failed</span> (dynamic), reporting &quot;2 items exceed the capacity 1&quot;</span>
 }</code></pre></figure>
+<h3>Requirements: <code>requires</code></h3>
+<p>A condition a function needs of its arguments belongs to its caller, and a <code>requires</code> block
+between the signature and the body says so: each requirement is a condition, then optionally the
+fault it is (named as <code>fault(d)</code> names one) and a message (as <code>assert</code>'s), ending with <code>;</code>. They are
+checked in order when the function is called, before its body runs, so a later one may rely on an
+earlier one. A false one is reported at the call, the line where the mistake is, as
+<code>diag.precondition-failed</code> unless the requirement names another; a function <code>std</code> calls back, or one
+run by <code>spawn</code>, reports the program's call or the <code>spawn</code>. A call whose literal arguments, or
+literal-bound locals, make a requirement false is rejected before the program runs. <code>std</code> states its
+own preconditions this way: <code>Vec::remove</code>'s is <code>i &lt; v.len, index_out_of_bounds;</code>.</p>
+<figure class="code"><div class="code-head"><span class="code-title">A requirement, broken by its caller</span><span class="badge bad">rejected: diag.precondition-failed</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> average(<span class="t">ref</span>&lt;<span class="p">Vec</span>&lt;<span class="t">u32</span>&gt;, <span class="t">shared</span>&gt; v) : <span class="t">u32</span>
+    requires
+    {
+        <span class="p">Vec</span>::len(v) &gt; <span class="n">0</span>, <span class="s">&quot;average of an empty list&quot;</span>;
+    }
+{
+    <span class="t">u32</span> sum = <span class="n">0</span>;
+    <span class="k">foreach</span> (x in v)
+    {
+        sum += *x;
+    }
+    sum / <span class="p">narrow</span>&lt;<span class="t">u32</span>&gt;(<span class="p">Vec</span>::len(v))
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="p">Vec</span>&lt;<span class="t">u32</span>&gt; v = <span class="p">Vec</span>::new();
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">4</span>);
+    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">8</span>);
+    <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, average(&amp;v));
+    <span class="p">Vec</span>&lt;<span class="t">u32</span>&gt; none = <span class="p">Vec</span>::new();
+    <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, average(&amp;none));   <span class="c">// <span class="bad">✗</span> <span class="dg">diag.precondition-failed</span> (dynamic), at this line</span>
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>6
+</pre></div></figure>
+<p>The line between the two is who must change when the condition fails. A condition on the
+parameters at the top of a body is a requirement; what a function believes of its own state part-way
+through, and what a test expects, stays an <code>assert</code>. A requirement states a programming error: input
+from outside the program (a file, the network, C) is checked into a <code>Result</code>, never guarded by a
+requirement. It costs its condition once per call, and nothing where none is written.</p>
 <p>Faults are named <code>diag.…</code> and listed in the appendix. Both the interpreter and a compiled
 program print the name, the rule that fired, what was required and what was observed, and a repair
 hint.</p>
