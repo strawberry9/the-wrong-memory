@@ -166,7 +166,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.111003</div>
+<div class="sub">Specification edition 2026.111101</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -339,7 +339,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.111003</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.111101</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -585,7 +585,7 @@ leaves the directives out, for reading the C on its own terms.</p>
 <li><strong>Debug it.</strong> <code>cobc -O0 -g prog.cb</code> compiles with debug information and keeps it in the executable; <code>gdb prog</code> then stops at and steps through the lines of <code>prog.cb</code>, and a sanitizer build (<code>--cc</code> naming a wrapper that adds <code>-fsanitize=address</code>) reports a memory error in <code>unsafe</code> code at its <code>.cb</code> line. <code>perf annotate</code> shows the C beside them.</li>
 <li><strong>Report a compiler bug.</strong> If GCC or Clang rejects the generated C, that kept file and the C compiler's message are the whole report.</li>
 </ul>
-<figure class="code"><div class="code-head"><span class="code-title">building prog.c by hand (Linux; clang takes the same flags)</span></div><pre><code>gcc -std=gnu11 -O2 -ffp-contract=off -fno-optimize-sibling-calls -w prog.c \
+<figure class="code"><div class="code-head"><span class="code-title">building prog.c by hand (Linux; clang takes the same flags, with -mllvm -unroll-threshold=300 for -fpeel-loops)</span></div><pre><code>gcc -std=gnu11 -O2 -ffp-contract=off -fno-optimize-sibling-calls -w -fpeel-loops prog.c \
     -L /path/to/cobc/dir -lcbrt -lpthread -ldl -lm \
     -Wl,--gc-sections -Wl,--strip-debug -o prog</code></pre></figure>
 <p>Keep <code>-std=gnu11</code> and the two <code>-f</code> flags when you change the rest; each is part of
@@ -593,7 +593,9 @@ the program's meaning. <code>-ffp-contract=off</code> stops the C compiler fusin
 fused multiply-add with a single rounding, since the specification rounds each operation on its
 own (§06). <code>-fno-optimize-sibling-calls</code> keeps every call a real call, so a recursion too deep for
 the stack stops with the same diagnostic it gets from <code>coby</code>, instead of being turned into a loop
-that runs to completion. A program that links its own C code (<code>extern &quot;./mine.c&quot;;</code>, §20) also
+that runs to completion. <code>-fpeel-loops</code> (Clang: <code>-mllvm -unroll-threshold=300</code>) only makes
+loops faster: a loop of a few iterations known before it runs, such as <code>foreach (c in 0..9)</code>, is
+unrolled whole, as GCC does at <code>-O3</code> and Rust's compiler at <code>-O</code>. A program that links its own C code (<code>extern &quot;./mine.c&quot;;</code>, §20) also
 needs that code compiled and added before <code>-lcbrt</code>; <code>cobc -v</code> shows both commands. The last two
 options only make the executable smaller: they leave out the parts of the runtime the program does
 not use, and the runtime's debug information (a hello world is about 0.8 MB with them, 5.9 MB
