@@ -166,7 +166,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.111201</div>
+<div class="sub">Specification edition 2026.111202</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -339,7 +339,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.111201</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.111202</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -416,11 +416,11 @@ turn.</p>
 <tr><td>Arithmetic stays in range</td><td>Integer <code>+ - *</code> and <code>/ %</code> are <em>checked</em>: overflow is a fault, never silent wrap. Wrapping, saturating and <code>checked_</code> families are explicit opt-ins. There are no implicit numeric conversions; <code>widen</code>, <code>narrow</code>, <code>reinterpret</code> and friends are named calls.</td><td>§06</td></tr>
 <tr><td>A resource is owned once and released once</td><td><em>Resource types</em> (anything that owns something, marked <code>resource</code> or containing a resource) have a single holder. Assigning or passing one <em>moves</em> it. The old name becomes stale. Destruction is automatic at scope end, in reverse order, running the type's <code>drop</code> destructor.</td><td>§07</td></tr>
 <tr><td>No conflicting simultaneous access</td><td>Two reference modes: <code>ref&lt;T, shared&gt;</code> (read-only, any number) and <code>ref&lt;T, exclusive&gt;</code> (read and write, alone). Conflicts are checked at every use, so a stale or conflicting reference is always caught. There is no <code>mut</code> on variables: mutability is a property of the access path, not the binding.</td><td>§08, §09</td></tr>
-<tr><td>A reference never outlives what it points at</td><td>References cannot be returned or stored beyond their referent's scope; the obvious cases are rejected at compile time, the rest at run time. Functions with one reference parameter may return a reference without annotations.</td><td>§10</td></tr>
+<tr><td>A reference never outlives what it points at</td><td>References cannot be returned or stored beyond their referent's scope; the obvious cases are rejected at compile time, the rest at run time. A function returning a reference borrows from its one reference parameter without annotations; with several, a <code>from</code> clause names the ones the result may come from.</td><td>§10</td></tr>
 <tr><td>No read of uninitialised storage</td><td>Definite assignment: a variable must be written on every path before it is read. Aggregates are initialised whole.</td><td>§11</td></tr>
-<tr><td>Types mean what they say</td><td>Nominal typing, no subtyping, and two coercions, both about a value fitting the type declared for its position: text (a literal, a <code>str</code> or <code>&amp;s</code> is the <code>String</code> or <code>StringView</code> declared) and sequences (<code>&amp;v</code> is the slice declared); nothing else converts. Generics are monomorphic: each use with concrete types becomes its own copy of the function, so there is no run-time type information; a type parameter's operations come from one of five built-in bounds. Type inference is local: <code>auto</code> infers from the initialiser, and generic arguments come from arguments or the expected type.</td><td>§12</td></tr>
+<tr><td>Types mean what they say</td><td>Nominal typing, no subtyping, and two coercions, both about a value fitting the type declared for its position: text (a literal, a <code>str</code> or <code>&amp;s</code> is the <code>String</code> or <code>StringView</code> declared) and sequences (<code>&amp;v</code> is the slice declared); nothing else converts. Generics are monomorphic: each use with concrete types becomes its own copy of the function, so there is no run-time type information; a type parameter's operations come from one of six built-in bounds. Type inference is local: <code>auto</code> infers from the initialiser, and generic arguments come from arguments or the expected type.</td><td>§12</td></tr>
 <tr><td>Evaluation order is defined</td><td>Strict left-to-right evaluation everywhere. Blocks, <code>if</code> and <code>match</code> are expressions.</td><td>§13, §14</td></tr>
-<tr><td>Function interfaces carry the whole contract</td><td>A by-value resource parameter takes ownership; a shared reference can only read; an exclusive reference can mutate but not destroy. Closures declare their captures and the language checks the list.</td><td>§15</td></tr>
+<tr><td>Function interfaces carry the whole contract</td><td>A by-value resource parameter takes ownership; a shared reference can only read; an exclusive reference can mutate but not destroy; a reference result comes from the one reference parameter, or from those a <code>from</code> clause names. Closures declare their captures and the language checks the list.</td><td>§15</td></tr>
 <tr><td>Aggregates are whole and exhaustive</td><td>Structs, fixed arrays and enums with payloads. Array indexing is bounds-checked. <code>match</code> must be exhaustive.</td><td>§16</td></tr>
 <tr><td>Names are unambiguous</td><td>Modules with <code>export</code>/<code>import</code>, private by default. Name resolution is a fixed, documented order.</td><td>§17</td></tr>
 <tr><td>Failure is never silent</td><td>Two channels only: a <em>checked fault</em> is fatal and unwinds destructors; recoverable errors are <code>Result</code> values with the <code>?</code> operator. There is no catch.</td><td>§18</td></tr>
@@ -440,7 +440,7 @@ mechanism or would have hidden a semantic fact the language wants to keep visibl
 <li><strong>Garbage collection.</strong> Ownership and scope-end destruction are deterministic; <code>Rc&lt;T&gt;</code> is a library type.</li>
 <li><strong>Character literals, and indexing or slicing a <code>str</code>.</strong> A <code>str</code> is a whole value; its bytes are reached with <code>str_byte</code>, and a single byte is written <code>b&#x27;a&#x27;</code>: a <code>u8</code>, or the wider unsigned type its context asks for (§06). A <code>String</code> is sliced into views, <code>&amp;s[i..j]</code>, and taken apart by <code>StringView::split</code>, <code>find</code> and <code>chars</code> (§21). Text that arrives from outside is still bytes until <code>String::from_utf8</code> validates it.</li>
 <li><strong>Method-call syntax.</strong> A call names the function's owner and writes the borrow it takes: <code>Vec::push(&amp;mut v, x)</code>, never <code>v.push(x)</code>. The mode of every access path is visible where the path is formed, and <code>.</code> means one thing, field access. This is final (<code>CHG-0132</code>): no receiver sugar, no uniform call syntax, no auto-borrowing dot, no chaining.</li>
-<li><strong>A <code>mut</code> qualifier on bindings, <code>switch</code> and <code>goto</code>, <code>import … as</code> renaming, partial initialisation, lifetime annotations, memory orders weaker than sequential consistency.</strong> <code>std::sync</code>'s <code>Atomic</code> (§19) is sequentially consistent.</li>
+<li><strong>A <code>mut</code> qualifier on bindings, <code>switch</code> and <code>goto</code>, <code>import … as</code> renaming, partial initialisation, lifetime annotations (a function with several reference parameters names its result's sources with <code>from</code>, §10), memory orders weaker than sequential consistency.</strong> <code>std::sync</code>'s <code>Atomic</code> (§19) is sequentially consistent.</li>
 </ul>
 <h3>How to read this guide</h3>
 <p>The next section is a complete program you can read top to bottom to absorb the
@@ -995,7 +995,7 @@ layer each part belongs to.</p>
 </ul>
 <h4>Language constructs</h4>
 <p><code>struct</code>, <code>bitstruct</code>, <code>enum</code> (with numeric codes), <code>resource</code>, destructors (<code>Type::drop</code>),
-generics with the built-in bounds <code>eq</code>, <code>ordered</code>, <code>number</code>, <code>integer</code> and <code>clone</code>, <code>match</code> with
+generics with the built-in bounds <code>eq</code>, <code>ordered</code>, <code>number</code>, <code>integer</code>, <code>clone</code> and <code>plain</code>, <code>match</code> with
 nested, literal and text patterns, <code>if</code> and <code>while</code> (either with a pattern as the condition), <code>for</code>,
 <code>foreach</code> (over collections and ranges), <code>break</code>, <code>continue</code>, <code>?</code>, <code>const</code>, modules and <code>import</code>, <code>unsafe</code>,
 <code>unsafe extern fn</code> and <code>extern &quot;code&quot;;</code>.</p>
@@ -1190,7 +1190,10 @@ have are about text and sequences fitting their declaration (<code>StringView v 
 anywhere that outlives the local; a reference into a <code>Vec</code> cannot be kept across a <code>push</code> that may
 move the elements; a value cannot be used after it was moved. These are rejected before the program
 runs where the compiler can see them (<code>diag.reference-escapes-scope</code>, <code>diag.stale-binding</code>) and
-stop the program at the first use otherwise (§09, §10). There is no dangling pointer to find later.</p>
+stop the program at the first use otherwise (§09, §10). There is no dangling pointer to find later.
+A function may still return a reference into what it was given: with one reference parameter
+nothing is written, and with several a <code>from</code> clause names those the result may come from
+(§10).</p>
 <figure class="code"><div class="code-head"><span class="code-title">A pointer to a dead local, caught</span><span class="badge bad">rejected: diag.reference-escapes-scope</span></div><pre><code><span class="k">fn</span> <span class="p">dangling</span>() : <span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt;
 {
     <span class="t">i32</span> local = <span class="n">5</span>;
@@ -1601,7 +1604,8 @@ object still exists, which other references to it are live and in what mode. The
 are written over that state, and the interpreter and the compiled program check them at each
 access. The price is a run-time cost and a fault instead of a compile error: a mistake becomes a
 named diagnostic at the step that commits it, in the run that reaches it, and a path no test runs
-is a path no check has run. The payoff is that no annotation is needed and no correct program is
+is a path no check has run. The payoff is that no lifetime annotation is needed (a function with
+several reference parameters names its result's sources with <code>from</code>) and no correct program is
 refused for lack of a proof. Both languages are in fact hybrids. Rust keeps run-time checks for
 the cases its static rule cannot express (<code>RefCell</code>, <code>Mutex</code>, <code>Rc</code>, bounds, and overflow in debug
 builds); CobaltC rejects at compile time what its checker can see without running the program
@@ -1635,27 +1639,30 @@ runs.</p>
     <span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt; r;
 }
 
-<span class="k">fn</span> keep(<span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt; r) : Holder
+<span class="k">fn</span> stash(<span class="t">ref</span>&lt;Holder, <span class="t">exclusive</span>&gt; h, <span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt; r)
 {
-    Holder { .r = r }
+    h.r = r;
 }
 
 <span class="k">fn</span> main()
 {
     <span class="t">i32</span> outer = <span class="n">1</span>;
-    Holder h = keep(&amp;outer);
+    Holder h = Holder { .r = &amp;outer };
     {
         <span class="t">i32</span> inner = <span class="n">2</span>;
-        h = keep(&amp;inner);          <span class="c">// a reference to inner, stored by a function</span>
+        stash(&amp;<span class="k">mut</span> h, &amp;inner);     <span class="c">// a reference to inner, stored by a function</span>
         <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, *h.r);      <span class="c">// fine: inner is alive</span>
     }
     <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, *h.r);          <span class="c">// <span class="bad">✗</span> <span class="dg">diag.stale-binding</span>: inner ended with its block</span>
 }</code></pre></figure>
-<p>In Rust, <code>Holder</code> would be <code>Holder&lt;&#x27;a&gt;</code>, <code>keep</code> would carry the same <code>&#x27;a</code>, and the second
-assignment would not compile, because <code>h</code> outlives <code>inner</code>. CobaltC has no <code>&#x27;a</code> to carry, so the
-escape through <code>keep</code> is invisible to the checker and the program runs until the read, which faults.
-The same escape written in one function, with no call between, is caught before the program runs,
-because there the checker can see it:</p>
+<p>In Rust, <code>Holder</code> would be <code>Holder&lt;&#x27;a&gt;</code>, <code>stash</code> would take <code>&amp;mut Holder&lt;&#x27;a&gt;</code> and <code>&amp;&#x27;a i32</code>,
+and the call would not compile, because <code>h</code> outlives <code>inner</code>. A CobaltC signature says what a
+function's <em>result</em> may refer to (its one reference parameter, or those its <code>from</code> clause
+names), but not what it stores through one parameter into another, so the escape through <code>stash</code>
+is left to the run, and the program runs until the read, which faults. A function that returns the
+reference, or a struct holding it (<code>h = keep(&amp;inner)</code> with <code>fn keep(ref&lt;i32, shared&gt; r) : Holder</code>),
+is tied to its argument by its signature and is rejected before the run. So is the same escape
+written in one function, with no call between:</p>
 <figure class="code"><div class="code-head"><span class="code-title">The same escape, visible to the checker</span><span class="badge bad">rejected: diag.reference-escapes-scope</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">struct</span> Holder
@@ -1733,8 +1740,8 @@ no type parameter to say how long it lives.</p>
 requires one (<code>T: Ord</code>), and traits also serve as interfaces, as operator overloading, as the
 mechanism for iteration, formatting, conversion, and, through <code>dyn Trait</code>, as run-time
 polymorphism. Most of Rust's expressiveness and most of its learning curve are there. CobaltC has
-no traits. A generic parameter takes one of five built-in bounds, <code>ordered</code>, <code>number</code>, <code>integer</code>,
-<code>clone</code> or <code>plain</code>, which name what the language itself knows about a type
+no traits. A generic parameter takes one of six built-in bounds, <code>eq</code>, <code>ordered</code>, <code>number</code>,
+<code>integer</code>, <code>clone</code> or <code>plain</code>, which name what the language itself knows about a type
 (<a href="#s12">§12</a>); a type joins <code>clone</code> by defining <code>T::clone</code>, and nothing else is
 user-extensible. There is no operator overloading, no interface a user type can implement, and no
 run-time dispatch except through function values and closures. Where a Rust program would define a
@@ -1814,7 +1821,7 @@ the invariants; neither can promise anything once a trusted claim is false.</p>
 <tr><td>Formatting</td><td><code>println!(&quot;{x} {y:?}&quot;)</code>, a macro</td><td><code>printf(&quot;%v %v\\n&quot;, x, y)</code>, a built-in whose format is checked</td></tr>
 <tr><td>Modules</td><td><code>mod</code>, <code>use</code>, crates, <code>pub</code></td><td><code>module</code>, <code>import</code>, <code>export</code>; one standard library, no package manager (<a href="#s17">§17</a>)</td></tr>
 <tr><td>Macros</td><td>declarative and procedural</td><td>none</td></tr>
-<tr><td>Traits</td><td><code>trait</code>, <code>impl … for</code>, <code>dyn</code></td><td>five built-in bounds; <code>T::clone</code> and <code>T::drop</code> by name</td></tr>
+<tr><td>Traits</td><td><code>trait</code>, <code>impl … for</code>, <code>dyn</code></td><td>six built-in bounds; <code>T::clone</code> and <code>T::drop</code> by name</td></tr>
 </tbody>
 </table>
 <h3 id="rust-tooling">Semantics and tooling</h3>
@@ -2927,7 +2934,8 @@ directly, without a new <code>&amp;mut</code>, because it already is an exclusiv
 <p>A reference must never outlive the object it refers to. CobaltC enforces this with two
 layers: a lexical check that rejects the obvious escapes before the program runs, and a use-time
 check that catches everything else as <code>diag.stale-binding</code> at the first use of a dead reference. No
-lifetime annotations exist; the language decides validity from where things are declared.</p>
+lifetime annotations exist; the language decides validity from where things are declared and, for
+a function's result, from its reference parameters or the ones its <code>from</code> clause names.</p>
 <h3>A reference cannot leave its referent's scope</h3>
 <p>If a reference to a local is returned from the function, or stored into a variable
 declared in an enclosing block, it is rejected statically as <code>diag.reference-escapes-scope</code>.</p>
@@ -2965,12 +2973,14 @@ rule does not fire and the run-time check takes over. The program is still rejec
     *held.r;                          <span class="c">// <span class="bad">✗</span> <span class="dg">diag.stale-binding</span> (dynamic): first use of the dead reference</span>
 }</code></pre></figure>
 <h3>Returning references from functions</h3>
-<p>A function may return a reference when it has <em>exactly one</em> reference-typed
-parameter: the result is understood to point into whatever that argument pointed at, and callers are
-checked accordingly. This is the shape of every library accessor (<code>Vec::index_shared</code>,
-<code>Rc::get</code>). A function with zero reference parameters may not return a reference, and one with
-several only with a <code>from</code> clause, below (<code>diag.lifetime-elision-ambiguous</code>); otherwise compose
-single-reference helpers, or return an owned value.</p>
+<p>A function may return a reference, a view, or a value holding them, as long as the
+checker can tell what the result points into, because each caller is checked against that. With
+one reference-typed parameter there is only one answer, so nothing is written: the result is
+understood to point into whatever that argument pointed at. This is the shape of most library
+accessors (<code>Vec::index_shared</code>, <code>Rc::get</code>). With two or more reference parameters, the signature
+says which ones the result may come from, with a <code>from</code> clause (below). With none, there is
+nothing for the result to point into, and it may not be a reference
+(<code>diag.lifetime-elision-ambiguous</code> names both of these last cases).</p>
 <figure class="code"><div class="code-head"><span class="code-title">Single-parameter elision</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">struct</span> Pair
@@ -2992,15 +3002,15 @@ single-reference helpers, or return an owned value.</p>
 }</code></pre></figure>
 <p>Because <code>y</code> above is known to borrow from <code>pr</code>, a later <code>pr.a = 3;</code> while <code>y</code> is still in
 use is an aliasing conflict (§08), exactly as if you had written <code>auto y = &amp;pr.a;</code>.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Two reference parameters, one reference result</span></div><pre><code><span class="k">fn</span> pick(<span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt; p1, <span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt; p2) : <span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt;
-{
-    p1                                <span class="c">// <span class="bad">✗</span> <span class="dg">diag.lifetime-elision-ambiguous</span>: which argument does the</span>
-}                                     <span class="c">//   result depend on? The language will not guess.</span></code></pre></figure>
+<figure class="code"><div class="code-head"><span class="code-title">Two reference parameters and no <code>from</code> clause</span></div><pre><code><span class="k">fn</span> pick(<span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt; p1, <span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt; p2) : <span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt;
+{                                     <span class="c">// <span class="bad">✗</span> <span class="dg">diag.lifetime-elision-ambiguous</span>: which argument does the</span>
+    p1                                <span class="c">//   result depend on? The language will not guess: write</span>
+}                                     <span class="c">//   `from p1` (or `from p1, p2`) after the result type</span></code></pre></figure>
 <h3 id="from-clause">Naming the result's sources: <code>from</code></h3>
 <p>A <code>from</code> clause after the result type names the parameters a function's result may refer
 into. It is the one way to return a reference, a view or a value holding them (<code>Vec&lt;StringView&gt;</code>,
 <code>Option&lt;ref&lt;T, shared&gt;&gt;</code>) from a function that takes more than one reference parameter, and it is
-written only there: with one reference parameter the result is understood to come from it.</p>
+needed only there: with one reference parameter the result is understood to come from it.</p>
 <p>The clause is a promise in the signature, and the checker holds both sides to it:</p>
 <table>
 <thead><tr><th></th><th>The function body</th><th>Each caller</th></tr></thead>
@@ -3150,7 +3160,7 @@ not read freed memory.</p>
     *first;                                  <span class="c">//   while first (derived from v) is still live</span>
 }</code></pre></figure>
 <div class="callout rule"><div class="callout-title">Rules of thumb</div><ul>
-<li>Return values, not references, unless the function has exactly one reference parameter and the result points into it.</li>
+<li>Return values, not references, unless the result points into a reference parameter: with one such parameter that is implied, with several the <code>from</code> clause names the ones it may come from.</li>
 <li>Do not store a reference in a variable that outlives the block where the referent was declared.</li>
 <li>Re-fetch element references after any call that may grow or shrink a <code>Vec</code>.</li>
 <li>If you see <code>diag.stale-binding</code>, ask what ended the referent: a scope exit, a move, a <code>drop</code>, or a reallocation.</li>
@@ -4262,7 +4272,8 @@ Three exceptions are stricter: definite assignment (§11), a use of a variable t
 <h2><span class="secnum">§15</span>Functions and closures</h2>
 <div class="spec-ref">Governing specification file: <code>spec/15-function-semantics.md</code></div><p class="blurb">Signatures that state the whole contract, associated functions, function values, and closures with checked capture lists.</p>
 <p>Functions in CobaltC carry their whole contract in the signature. A parameter's type says
-whether the function takes ownership, may only look, or may modify. Closures are ordinary structs
+whether the function takes ownership, may only look, or may modify; a reference result says where
+it may come from, the one reference parameter or those a <code>from</code> clause names (§10). Closures are ordinary structs
 that capture what they use, and the capture list is checked, not trusted.</p>
 <h3>Declaring and calling</h3>
 <figure class="code"><div class="code-head"><span class="code-title">Functions</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
@@ -7499,7 +7510,7 @@ validator has accepted the bytes, the resulting <code>String</code> is guarantee
 its life, because there is no operation that could break it.</p>
 <div class="callout rule"><div class="callout-title">Rules of thumb</div><ul>
 <li>Keep <code>unsafe</code> blocks tiny and wrap them in a safe function whose signature makes the precondition impossible to violate from outside.</li>
-<li>Never let a raw pointer stand in for a reference in an API. Return <code>ref&lt;T, m&gt;</code> (from <code>reclaim</code>) so callers get checked access.</li>
+<li>Never let a raw pointer stand in for a reference in an API. Return <code>ref&lt;T, m&gt;</code> (from <code>reclaim</code>), taken through a reference to whatever owns the memory, as <code>Vec::index_shared</code> takes <code>&amp;v</code>, so the result is tied to its owner and callers get checked access.</li>
 <li>Validate external data once, at the boundary, into a type that cannot represent the invalid state.</li>
 </ul>
 </div>
@@ -11370,9 +11381,9 @@ specification:</p>
 <ul>
 <li>no character literals (<code>b&#x27;x&#x27;</code> is a byte: a <code>u8</code>, or the unsigned type its context asks for), no indexing or slicing of a <code>str</code>; no <code>switch</code> (a <code>match</code> on an integer, §16, is the checked form); no <code>goto</code></li>
 <li>no <code>import … as</code> renaming; no method-call syntax (<code>v.push(x)</code> — final, <code>CHG-0132</code>); no operator overloading</li>
-<li>patterns in <code>match</code> are <code>_</code>, a name (a binder or a constant), a literal, a variant, and a variant with a pattern for its payload, nothing else (no ranges, alternatives, struct patterns or guards); destructuring takes a struct apart whole: every field named, or <code>..</code> for the rest (destroyed as usual), and <code>field : name</code> renames one</li>
+<li>patterns in <code>match</code> are <code>_</code>, a name (a binder or a constant), a literal, a variant, a variant with a pattern for its payload, and a struct pattern (<code>P { a, .. }</code>, which takes the value apart, §16), nothing else (no ranges, alternatives or guards); destructuring takes a struct apart whole: every field named, or <code>..</code> for the rest (destroyed as usual), and <code>field : name</code> renames one</li>
 <li>no partial initialisation of aggregates</li>
-<li>no lifetime annotations: a function returning a reference must have exactly one reference parameter</li>
+<li>no lifetime annotations: a function returning a reference borrows from its one reference parameter, or, with several, from those its <code>from</code> clause names (§10); a result whose parts come from different arguments cannot be described</li>
 <li>no user-declared bounds on generic type parameters: only the six built-in ones (<code>eq</code>, <code>ordered</code>, <code>number</code>, <code>integer</code>, <code>clone</code>, <code>plain</code>), on a function's parameters; a struct or enum satisfies <code>clone</code> by its fields, and <code>eq</code> and <code>ordered</code> when it is a key type (D-0271), never <code>number</code> or <code>integer</code></li>
 <li>no <code>mut</code> qualifier on bindings (the keyword is reserved for <code>&amp;mut</code>)</li>
 <li>no moving a resource out of a field of a live struct; move the whole struct, or take it apart (a field of a temporary may be moved out; the rest ends with the statement)</li>
@@ -13095,7 +13106,7 @@ n = <span class="n">0</span>;
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-text-StringView-strip_prefix" class="stdref-item"><code>StringView::strip_prefix</code> <span class="std-file">fn</span></h4>
-<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">StringView</span>::strip_prefix(<span class="p">StringView</span> v, <span class="p">StringView</span> t) : <span class="p">Option</span>&lt;<span class="p">StringView</span>&gt;</code></pre></figure>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">StringView</span>::strip_prefix(<span class="p">StringView</span> v, <span class="p">StringView</span> t) : <span class="p">Option</span>&lt;<span class="p">StringView</span>&gt; from v</code></pre></figure>
 <p>The rest of <code>v</code> after <code>t</code> when <code>v</code> begins with <code>t</code>, else <code>None</code>.</p>
 <p>It reads an option&#x27;s value: <code>StringView::strip_prefix(a, &quot;--name=&quot;)</code> gives the value, or <code>None</code> for another argument.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: The prefix is removed only when it is there</span><span class="badge ok">runs</span></div><pre><code><span class="p">StringView</span> a = <span class="s">&quot;--name=value&quot;</span>;
@@ -13104,7 +13115,7 @@ n = <span class="n">0</span>;
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-text-StringView-strip_suffix" class="stdref-item"><code>StringView::strip_suffix</code> <span class="std-file">fn</span></h4>
-<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">StringView</span>::strip_suffix(<span class="p">StringView</span> v, <span class="p">StringView</span> t) : <span class="p">Option</span>&lt;<span class="p">StringView</span>&gt;</code></pre></figure>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">StringView</span>::strip_suffix(<span class="p">StringView</span> v, <span class="p">StringView</span> t) : <span class="p">Option</span>&lt;<span class="p">StringView</span>&gt; from v</code></pre></figure>
 <p>The part of <code>v</code> before <code>t</code> when <code>v</code> ends with <code>t</code>, else <code>None</code>.</p>
 </div>
 <div class="stdref-entry">
@@ -17208,7 +17219,7 @@ c.max_body = <span class="n">1</span>_048_576;</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-encoding-json-Json-get" class="stdref-item"><code>Json::get</code> <span class="std-file">fn</span></h4>
-<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">Json</span>::get(<span class="t">ref</span>&lt;<span class="p">Json</span>, <span class="t">shared</span>&gt; j, <span class="p">StringView</span> key) : <span class="p">Option</span>&lt;<span class="t">ref</span>&lt;<span class="p">Json</span>, <span class="t">shared</span>&gt;&gt;</code></pre></figure>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">Json</span>::get(<span class="t">ref</span>&lt;<span class="p">Json</span>, <span class="t">shared</span>&gt; j, <span class="p">StringView</span> key) : <span class="p">Option</span>&lt;<span class="t">ref</span>&lt;<span class="p">Json</span>, <span class="t">shared</span>&gt;&gt; from j</code></pre></figure>
 <p>The value of the first member named <code>key</code> when <code>j</code> is an object, else <code>None</code>.</p>
 <p><code>None</code> also when there is no such member.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: A parsed document is read with <code>get</code>, <code>at</code> and the <code>as_</code> functions</span><span class="badge ok">runs</span></div><pre><code><span class="p">Json</span> doc = <span class="p">Result</span>::unwrap(<span class="p">Json</span>::<span class="p">parse</span>(<span class="s">&quot;{\&quot;name\&quot;: \&quot;ok\&quot;, \&quot;n\&quot;: [1, 2.5]}&quot;</span>));
@@ -17226,7 +17237,7 @@ c.max_body = <span class="n">1</span>_048_576;</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-encoding-json-Json-lookup" class="stdref-item"><code>Json::lookup</code> <span class="std-file">fn</span></h4>
-<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">Json</span>::lookup(<span class="t">ref</span>&lt;<span class="p">Json</span>, <span class="t">shared</span>&gt; j, <span class="p">StringView</span> path) : <span class="p">Option</span>&lt;<span class="t">ref</span>&lt;<span class="p">Json</span>, <span class="t">shared</span>&gt;&gt;</code></pre></figure>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">Json</span>::lookup(<span class="t">ref</span>&lt;<span class="p">Json</span>, <span class="t">shared</span>&gt; j, <span class="p">StringView</span> path) : <span class="p">Option</span>&lt;<span class="t">ref</span>&lt;<span class="p">Json</span>, <span class="t">shared</span>&gt;&gt; from j</code></pre></figure>
 <p>The value at the dotted <code>path</code> below <code>j</code>: <code>Json::lookup(&amp;doc, &quot;servers.0.host&quot;)</code>.</p>
 <p>Each part of the path names a member of an object, or, where the value reached is an array, an element by its index written in decimal. <code>None</code> when any part is not there. A key that itself contains a dot is reached with <code>Json::get</code>.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: A path through objects and arrays; a part that is not there gives <code>None</code></span><span class="badge ok">runs</span></div><pre><code><span class="p">Json</span> doc = <span class="p">Result</span>::unwrap(<span class="p">Json</span>::<span class="p">parse</span>(<span class="s">&quot;{\&quot;servers\&quot;: [{\&quot;host\&quot;: \&quot;a\&quot;}, {\&quot;host\&quot;: \&quot;b\&quot;}], \&quot;n\&quot;: 1}&quot;</span>));
@@ -17417,7 +17428,7 @@ TomlDateTime dob = <span class="p">Option</span>::unwrap(Toml::as_datetime(<span
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-encoding-toml-Toml-get" class="stdref-item"><code>Toml::get</code> <span class="std-file">fn</span></h4>
-<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Toml::get(<span class="t">ref</span>&lt;Toml, <span class="t">shared</span>&gt; t, <span class="p">StringView</span> key) : <span class="p">Option</span>&lt;<span class="t">ref</span>&lt;Toml, <span class="t">shared</span>&gt;&gt;</code></pre></figure>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Toml::get(<span class="t">ref</span>&lt;Toml, <span class="t">shared</span>&gt; t, <span class="p">StringView</span> key) : <span class="p">Option</span>&lt;<span class="t">ref</span>&lt;Toml, <span class="t">shared</span>&gt;&gt; from t</code></pre></figure>
 <p>The value of the member named <code>key</code> when <code>t</code> is a table, else <code>None</code>.</p>
 <p><code>None</code> also when there is no such member.</p>
 </div>
@@ -17429,7 +17440,7 @@ TomlDateTime dob = <span class="p">Option</span>::unwrap(Toml::as_datetime(<span
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-encoding-toml-Toml-lookup" class="stdref-item"><code>Toml::lookup</code> <span class="std-file">fn</span></h4>
-<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Toml::lookup(<span class="t">ref</span>&lt;Toml, <span class="t">shared</span>&gt; t, <span class="p">StringView</span> path) : <span class="p">Option</span>&lt;<span class="t">ref</span>&lt;Toml, <span class="t">shared</span>&gt;&gt;</code></pre></figure>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Toml::lookup(<span class="t">ref</span>&lt;Toml, <span class="t">shared</span>&gt; t, <span class="p">StringView</span> path) : <span class="p">Option</span>&lt;<span class="t">ref</span>&lt;Toml, <span class="t">shared</span>&gt;&gt; from t</code></pre></figure>
 <p>The value at the dotted <code>path</code> below <code>t</code>: <code>Toml::lookup(&amp;doc, &quot;database.ports.0&quot;)</code>.</p>
 <p>Each part of the path names a member of a table, or, where the value reached is an array, an element by its index written in decimal. <code>None</code> when any part is not there. A key that itself contains a dot is reached with <code>Toml::get</code>.</p>
 </div>
@@ -17707,8 +17718,8 @@ rule is applied statically where the checker can see the problem and dynamically
 <tr><td><code>diag.stale-binding</code></td><td>both</td><td>use of a moved-from, dropped, or dead binding or reference</td><td>use the current owner; re-fetch after a move or reallocation</td></tr>
 <tr><td><code>diag.use-of-uninitialized</code></td><td>static</td><td>a read on a path with no prior write</td><td>initialise on every path; initialise aggregates whole</td></tr>
 <tr><td><code>diag.reference-escapes-scope</code></td><td>static</td><td>a reference stored or returned beyond its referent's block</td><td>return an owned value</td></tr>
-<tr><td><code>diag.lifetime-elision-ambiguous</code></td><td>static</td><td>a reference returned from a function with 0 or 2+ reference parameters and no <code>from</code> clause</td><td>one reference parameter, <code>from p</code> or <code>from p, q</code>, or return owned</td></tr>
-<tr><td><code>diag.result-source-invalid</code></td><td>static</td><td>a <code>from</code> clause naming something other than a reference parameter, or one twice, or on a result holding no reference</td><td>name each reference parameter the result comes from once, or drop the clause</td></tr>
+<tr><td><code>diag.lifetime-elision-ambiguous</code></td><td>static</td><td>a reference or view returned from a function with no reference parameter; or a reference, a view or a value holding them (<code>Option&lt;ref&lt;T, shared&gt;&gt;</code>, <code>Vec&lt;StringView&gt;</code>) returned from one with two or more and no <code>from</code> clause</td><td>with several, name the parameters it may come from (<code>from a</code>, <code>from a, b</code>) or take the others by value; with none, return an owned value</td></tr>
+<tr><td><code>diag.result-source-invalid</code></td><td>static</td><td>a <code>from</code> clause naming something other than a reference parameter, or one twice, or on a result holding no reference</td><td>name once each reference parameter the result may come from, or drop the clause</td></tr>
 <tr><td><code>diag.result-source-kept</code></td><td>static</td><td>a reference parameter the <code>from</code> clause does not name, kept rather than probed</td><td>only compare, measure or search it; or name it in the clause</td></tr>
 <tr><td><code>diag.aliasing-conflict</code></td><td>both</td><td>a read or write while a conflicting reference is live</td><td>end the earlier borrow first</td></tr>
 <tr><td><code>diag.borrow-exceeds-source</code></td><td>static</td><td><code>&amp;mut</code> taken through a shared reference</td><td>take <code>ref&lt;T, exclusive&gt;</code></td></tr>
