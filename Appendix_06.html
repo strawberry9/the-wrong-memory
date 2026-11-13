@@ -166,7 +166,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.111301</div>
+<div class="sub">Specification edition 2026.111302</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -339,7 +339,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.111301</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.111302</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -11771,46 +11771,44 @@ struct of plain fields. Where that state belongs to something larger (a struct t
 <p>Every index is checked against its slice's length, and the C compiler removes a check it can
 prove always passes. When a loop's bounds come from the slice itself (<code>i &lt; slice_len(s)</code>) it can.
 When they come from somewhere else, such as a constant, a grid's width and height or a row stride,
-it cannot: a slice parameter's length is a number it knows nothing about, so every access keeps
-its check. In a loop that reads several neighbours of each cell, the checks can be half the
-work.</p>
-<p>Say what the loop needs once, at the top of the function: <code>assert(slice_len(src) &gt;= CELLS);</code>.
-An <code>assert</code> is an ordinary check, made in every build and never removed, which fails with
-<code>diag.assert-failed</code> (§18). But it runs once per call, and after it the C compiler knows enough
-to prove the checks inside the loop and remove them. When the size is fixed, a parameter of type
-<code>ref&lt;array&lt;u32, CELLS&gt;, shared&gt;</code> does the same with no assert, since the length is part of the
-type.</p>
+it cannot by itself: a slice parameter's length is a number it knows nothing about. In a loop that
+reads several neighbours of each cell, those checks can be half the work.</p>
+<p>So <code>cobc</code> tells it (D-0320). A loop whose bounds are known before the program runs, and which
+indexes slices it never rebinds, is emitted twice: under a test of the slices' lengths
+(<code>if (src.len &gt;= 65535 &amp;&amp; dst.len &gt;= 65279)</code>, one past the largest index the loop can form), the copy
+in which the C compiler proves the checks and removes them; otherwise the same loop. Both copies keep
+every check, so nothing the program does can change. Given a short slice it runs the loop as written
+and faults at the first index out of range, as it always did.</p>
 <table>
 <thead><tr><th>A 256 × 256 five-point blur over two slices, 1,000 passes</th><th>GCC</th><th>Clang</th></tr></thead>
 <tbody>
-<tr><td>Slice parameters, no assert</td><td>31 instructions a cell</td><td>38</td></tr>
-<tr><td><code>assert(slice_len(src) == CELLS &amp;&amp; slice_len(dst) == CELLS)</code></td><td>16</td><td>28</td></tr>
-<tr><td>The same assert with <code>&gt;=</code></td><td>16</td><td>16</td></tr>
+<tr><td>Slice parameters, before D-0320</td><td>31 instructions a cell</td><td>38</td></tr>
+<tr><td>Slice parameters, now</td><td>17</td><td>16</td></tr>
+<tr><td>Now, with <code>assert(slice_len(src) &gt;= CELLS &amp;&amp; slice_len(dst) &gt;= CELLS)</code> before the loop</td><td>17</td><td>16</td></tr>
+<tr><td>Now, with the same assert written with <code>==</code></td><td>17</td><td>28</td></tr>
 <tr><td><code>ref&lt;array&lt;u32, CELLS&gt;, …&gt;</code> parameters</td><td>17</td><td>16</td></tr>
+<tr><td>Slice parameters, the additions <code>wrapping_add</code></td><td>12</td><td>4.9</td></tr>
 <tr><td>The same loop written in C, which checks nothing and whose additions wrap</td><td>12</td><td>4.9</td></tr>
 </tbody>
 </table>
-<p>In time, the <code>&gt;=</code> assert took the GCC build to two thirds of the first row's time and the Clang
-build to under three fifths. Some points from the measurements:</p>
 <ul>
-<li>Write <code>&gt;=</code>, the length the loop needs, rather than <code>==</code>. It does not refuse a longer slice, and Clang uses it fully where it does not use <code>==</code> (28 instructions a cell against 16). GCC uses either.</li>
-<li>Put the assert in the function that does the indexing, before its loop. An assert in the caller tells the callee nothing unless the C compiler inlines the call.</li>
-<li>The difference that remains from the C is the overflow checks on the four additions, which C does not make. They are what <code>+</code> means, so keep them unless wrapping is what you mean (§06). With <code>wrapping_add</code> in their place, the Clang build ran as fast as the C (5.1 instructions a cell, the same time), and GCC came within 15%.</li>
-<li>A program given a short slice now stops at the assert, before the loop has written anything, with <code>diag.assert-failed</code> rather than <code>diag.index-out-of-bounds</code> partway through. That is usually what you want; where it matters, put a message on the assert (<code>assert(slice_len(s) &gt;= n, &quot;need %v cells&quot;, n)</code>).</li>
+<li>What the guard needs: the loops' bounds made from literals, <code>const</code>s, locals bound to such values that nothing assigns, and the variables of the loops around them, through tests such as <code>x &lt; B</code>, <code>x &lt;= B</code> and <code>x + 1 &lt; B</code>; indices made from those with <code>+</code>, <code>*</code>, and <code>-</code>, <code>/</code> and <code>%</code> of constants; slices the loop does not write, borrow or declare again. <code>simd_load</code> and <code>simd_store</code> count their lanes. <code>cobc --keep-c</code> shows the test before each loop it guarded.</li>
+<li>A loop whose bounds are known only when the program runs is not guarded. Where its bound is the slice's own length, say so: in <code>foreach (i in 0..slice_len(s))</code> the C compiler proves <code>s[i]</code> from the loop alone.</li>
+<li>An <code>assert</code> of the length is no longer needed for speed; it stays the way to stop early with a message of your own (<code>assert(slice_len(s) &gt;= n, &quot;need %v cells&quot;, n)</code>). If you write one, write <code>&gt;=</code>: Clang draws nothing from <code>==</code> (28 instructions a cell against 16).</li>
+<li>The rest of the difference from the C is the overflow checks on the additions, which C does not make. They are what <code>+</code> means, so keep them unless wrapping is what you mean (§06). With <code>wrapping_add</code> in their place, the build ran the same instructions as the C under both compilers.</li>
 <li>Whether every check goes also depends on how the indices are written. An index the loop only adds to, and loop bounds as tight as the accesses (<code>p &lt; LANES - 1</code> where the body reads <code>p + 1</code>), are the forms the C compiler proves best. <code>perf stat</code> on the build, or <code>cobc --keep-c</code> and the disassembly, shows whether it did.</li>
 </ul>
-<figure class="code"><div class="code-head"><span class="code-title">One assert before the loop</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+<figure class="code"><div class="code-head"><span class="code-title">A loop the compiler guards</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">const</span> <span class="t">usize</span> W = <span class="n">16</span>;
 <span class="k">const</span> <span class="t">usize</span> H = <span class="n">16</span>;
 <span class="k">const</span> <span class="t">usize</span> CELLS = W * H;
 
-<span class="c">// The loops&#x27; bounds are constants, so nothing tells the C compiler that</span>
-<span class="c">// `i + W` is inside `src` until the assert does; after it, every index</span>
-<span class="c">// check in the loop is proved and removed.</span>
+<span class="c">// The loops&#x27; bounds are constants: `cobc` tests the slices&#x27; lengths once,</span>
+<span class="c">// before the loop, and the C compiler removes every index check in the copy</span>
+<span class="c">// it then runs (D-0320). A short slice faults where it always would.</span>
 <span class="k">fn</span> blur(<span class="t">slice</span>&lt;<span class="t">u32</span>, <span class="t">shared</span>&gt; src, <span class="t">slice</span>&lt;<span class="t">u32</span>, <span class="t">exclusive</span>&gt; dst)
 {
-    <span class="p">assert</span>(slice_len(src) &gt;= CELLS &amp;&amp; slice_len(dst) &gt;= CELLS);
     <span class="k">for</span> (<span class="t">usize</span> y = <span class="n">1</span>; y &lt; H - <span class="n">1</span>; y += <span class="n">1</span>)
     {
         <span class="k">for</span> (<span class="t">usize</span> x = <span class="n">1</span>; x &lt; W - <span class="n">1</span>; x += <span class="n">1</span>)
@@ -11910,7 +11908,7 @@ and its declaration is an unchecked claim. Measure first.</p>
 <li>Index a struct's <code>Vec</code> field (<code>h.v[i]</code>) where the function only indexes it; where it also pushes to it or hands it on, loop with <code>foreach</code> or a helper.</li>
 <li>Give a function over a struct's vectors the struct as its only reference, and keep its uses of the vectors to indexing and the <code>Vec</code> calls listed above.</li>
 <li>In a function that takes references, use them only directly: loop over a slice in the function itself, and update plain state through one <code>exclusive</code> reference (or pass it by value).</li>
-<li>Where a loop's bounds do not come from the slice it indexes, <code>assert(slice_len(s) &gt;= n)</code> once before the loop, or take a <code>ref&lt;array&lt;T, N&gt;, …&gt;</code>.</li>
+<li>Give a hot loop over a slice bounds known before the run (literals, <code>const</code>s) or the slice's own length, so that its index checks can be proved.</li>
 <li>Make a <code>StringView</code> once, outside a hot loop; passing it on is free.</li>
 <li>Build text with <code>String::append</code>; <code>printf</code> per line is fine.</li>
 <li>Write a child process's input in large pieces (<code>ChildInput::write</code>, <code>Child::write_input</code>): each write goes straight to the pipe and wakes the child, so a write per line of 100,000 short lines cost 11 s of system time, and 64 KB at a time 0.06 s. Nothing is buffered, so a program that writes a line and then waits for the child's answer works as written.</li>
