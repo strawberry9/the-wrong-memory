@@ -166,7 +166,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.111302</div>
+<div class="sub">Specification edition 2026.111401</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -339,7 +339,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.111302</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.111401</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -472,7 +472,12 @@ with status 0 when the program runs to completion, and both print a rejected pro
 the same way and exit with status 1. <code>coby --check program.cb</code> (or <code>cobc --check</code>) runs only
 the checks made before a program starts, and prints the same diagnostic for a program they
 reject; nothing runs, so a program that reads input, writes files or serves the network can be
-checked without doing so. Given a directory, it checks every <code>.cb</code> file in it. A program's own
+checked without doing so. Given a directory, it checks every <code>.cb</code> file in it. A rejected program
+gets every error that stands on its own, one for each function or declaration, in source order, then
+a line counting them (D-0321): errors of the text's syntax first, then names, then types and
+references, each kind only when the one before found nothing, so that no error is reported that
+only follows from another. <code>coby --doc Vec::push</code> (or <code>cobc --doc</code>) shows an item of the standard
+library with its documentation; <code>--doc Vec</code> a type and its functions, <code>--doc std::text</code> a module. A program's own
 item takes precedence over an imported one of the same name (§17): a <code>struct Vec</code> or <code>fn min</code> beside
 <code>import std;</code> hides <code>std</code>'s silently; <code>--warn-shadow</code>, given first, makes either tool note each such
 name on standard error, with its file and line, and otherwise behave as before.</p>
@@ -931,6 +936,12 @@ prints for the first example above, a reference kept across a push:</p>
 <li><strong>The source line</strong>, with carets under the token the rule applies to.</li>
 <li><strong><code>= repair:</code></strong> is the registry's advice for this diagnostic.</li>
 </ul>
+<p>A habit from another language gets the CobaltC form in the message itself:
+<code>v.len()</code> is answered with <code>Vec::len(x, ...)</code>, <code>let x = 1;</code> with <code>i32 x = 1;</code> or <code>auto x = 1;</code>, <code>x as
+u64</code> with <code>widen&lt;T&gt;(x)</code>, <code>println!</code> with <code>printf</code>, and a misspelt name with the nearest one that exists
+(<code>Vec::psh</code> gets "did you mean <code>Vec::push</code>?"). <code>CARD.md</code>, at the top of the repository, lists the habits and their
+messages with the syntax, the tools, the diagnostics and every item of the standard library on one
+page.</p>
 <p><code>coby --explain tour.cb</code> (or <code>cobc --explain</code>) adds the registry's whole entry: the rule of
 the specification that rejected the program, the invariant it protects, what it required and what
 it observed, and the examples that show it. A compiled program shows its faults that way when it
@@ -5989,6 +6000,11 @@ no build in which assertions are left out. The message, and its arguments, are o
 the condition is false, so they cost nothing while it holds. Every example in this guide checks its
 own results with <code>assert</code>; a condition that is constant is checked with <code>static_assert</code> (below)
 before the program runs.</p>
+<p>A failed comparison of two numbers or <code>bool</code>s shows both values (D-0322): <code>assert(total == 10)</code>
+reports <code>assertion failed: 9 == 10</code>, and with a message, the message followed by <code>(9 == 10)</code>. Each
+side is evaluated once, the left first, as the comparison evaluates them. <code>assert(a &amp;&amp; b)</code> is tested
+term by term, so the failure is the first false term's, with its values when it is a comparison; <code>b</code>
+is evaluated only when <code>a</code> holds, as <code>&amp;&amp;</code> evaluates it.</p>
 <figure class="code"><div class="code-head"><span class="code-title">An assertion that fails, with its message</span><span class="badge bad">rejected: diag.assert-failed</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> average(<span class="t">ref</span>&lt;<span class="p">Vec</span>&lt;<span class="t">u32</span>&gt;, <span class="t">shared</span>&gt; v) : <span class="t">u32</span>
@@ -11792,7 +11808,8 @@ and faults at the first index out of range, as it always did.</p>
 </tbody>
 </table>
 <ul>
-<li>What the guard needs: the loops' bounds made from literals, <code>const</code>s, locals bound to such values that nothing assigns, and the variables of the loops around them, through tests such as <code>x &lt; B</code>, <code>x &lt;= B</code> and <code>x + 1 &lt; B</code>; indices made from those with <code>+</code>, <code>*</code>, and <code>-</code>, <code>/</code> and <code>%</code> of constants; slices the loop does not write, borrow or declare again. <code>simd_load</code> and <code>simd_store</code> count their lanes. <code>cobc --keep-c</code> shows the test before each loop it guarded.</li>
+<li>What the guard needs: the loops' bounds made from literals, <code>const</code>s, locals bound to such values that nothing assigns, and the variables of the loops around them, through tests such as <code>x &lt; B</code>, <code>x &lt;= B</code> and <code>x + 1 &lt; B</code>; indices made from those with <code>+</code>, <code>*</code>, and <code>-</code>, <code>/</code> and <code>%</code> of constants; slices the loop does not write, borrow or declare again. <code>simd_load</code> and <code>simd_store</code> count their lanes.</li>
+<li><code>cobc --report-guards prog.cb</code> lists each loop that indexes a slice: its guard, as <code>slice_len(s) &gt;= N</code> tests, or the index that has none and the name in it that is not kept below a value known before the run (<code>first_row</code>, where a loader stores rows <code>first_row + row</code> of a grid), and whether the guard is used (CHG-0449). A guard that asks for more than a slice has is never taken: <code>at &lt; WORDS</code> where the loop reads <code>now[at + 1]</code> asks for <code>WORDS + 1</code>. <code>cobc --keep-c</code> shows the test itself before each loop.</li>
 <li>A loop whose bounds are known only when the program runs is not guarded. Where its bound is the slice's own length, say so: in <code>foreach (i in 0..slice_len(s))</code> the C compiler proves <code>s[i]</code> from the loop alone.</li>
 <li>An <code>assert</code> of the length is no longer needed for speed; it stays the way to stop early with a message of your own (<code>assert(slice_len(s) &gt;= n, &quot;need %v cells&quot;, n)</code>). If you write one, write <code>&gt;=</code>: Clang draws nothing from <code>==</code> (28 instructions a cell against 16).</li>
 <li>The rest of the difference from the C is the overflow checks on the additions, which C does not make. They are what <code>+</code> means, so keep them unless wrapping is what you mean (§06). With <code>wrapping_add</code> in their place, the build ran the same instructions as the C under both compilers.</li>
