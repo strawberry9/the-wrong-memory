@@ -166,7 +166,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.111401</div>
+<div class="sub">Specification edition 2026.111501</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -339,7 +339,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.111401</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.111501</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -362,37 +362,31 @@ the language, or explicitly marked as trusted by you.</p>
 deterministic control over resources, raw storage, foreign functions, threads, and predictable
 data layout. What changes is that each of those capabilities comes with a precise account of what
 is checked, when it is checked, and what you are asserting when the language cannot check it.</p>
-<h3>The two implementations: <code>coby</code> and <code>cobc</code></h3>
-<p>CobaltC ships with two implementations, both written in Rust, and they share one
-front end — the same parser, name resolution and static checks — so they accept and reject exactly
-the same programs, with the same diagnostics.</p>
-<p><strong><code>coby</code></strong> is the reference interpreter. It runs a program straight
-from its source on the abstract machine the specification defines, performing every check the
-specification requires on every operation. It is the specification's meaning made executable:
-when this guide says a program prints something or stops with a diagnostic, that is what <code>coby</code>
-does. There is no build step, so it is the quickest way to run a program or try an idea.</p>
-<p><strong><code>cobc</code></strong> is the native compiler. After the shared front end has
-checked the program, it translates it to plain C and compiles that with the system's C compiler
-(GCC or Clang) against <code>cbrt</code>, its run-time library. A compiled program keeps every run-time check
-the specification requires <em>except</em> those the compiler proves can never fail — the rest
-becomes ordinary C — so it runs many times faster than the interpreter while behaving identically.
-<code>cobc --keep-c</code> leaves the generated C beside the executable if you want to read what your program
-became; <a href="#intro-generated-c">Reading the C that <code>cobc</code> generates</a>, below, says what is in
-it and what you can do with it.</p>
-<p>The two are kept honest against each other: the test suites require <code>cobc</code>'s
-executables to match <code>coby</code>'s output and diagnostics byte for byte on every program, under both
-GCC and Clang — including every complete example in this guide. Use <code>coby</code> to run a program at
-once; use <code>cobc</code> to build an executable, or to see how fast the program can be.</p>
-<p>A third program, <strong><code>cbc</code></strong>, is <code>cobc</code> written in CobaltC itself
-(the repository's <code>impl/selfhost/</code>, over a front end that is likewise <code>coby</code>'s written in CobaltC). It
-takes the same options and writes the same C, byte for byte, for every program; built by <code>cobc</code>, it
-compiles its own source to that same C again, so CobaltC's compiler can rebuild itself without the Rust
-one (D-0276).</p>
-<p>On Linux the two work side by side, and everything in this guide runs under
-either. On Windows, <code>coby</code> runs programs, the formatter <code>cobfmt</code> (below) runs there too, and
-<code>cobc</code> builds Windows programs with a MinGW-w64 GCC, there or from Linux with
-<code>--target x86_64-pc-windows-gnu</code> (D-0255; the repository's README says how).</p>
-<div class="callout note"><div class="callout-title">Toolchain</div>CobaltC's interpreter (<code>coby</code>) and compiler (<code>cobc</code>) are available
+<h3>The tools: <code>cobc</code> and <code>cobfmt</code></h3>
+<p><strong><code>cobc</code></strong> is the compiler, and the one command a program needs: it
+checks a program, runs it, runs its tests and shows the standard library's documentation (below,
+<a href="#intro-running">Running a program</a>). It checks the program against the specification's
+rules — the parser, name resolution and the static checks — then translates it to plain C and
+compiles that with the system's C compiler (GCC or Clang) against <code>cbrt</code>, its run-time library. A
+compiled program keeps every run-time check the specification requires <em>except</em> those the
+compiler proves can never fail — the rest becomes ordinary C — so it does what the specification
+says or stops with a named fault. <code>cobc --keep-c</code> leaves the
+generated C beside the executable if you want to read what your program became;
+<a href="#intro-generated-c">Reading the C that <code>cobc</code> generates</a>, below, says what is in it
+and what you can do with it.</p>
+<p><strong><code>cobfmt</code></strong> is the formatter: it lays out a source file in the style
+this guide uses and changes nothing else (below).</p>
+<p>The test suites hold <code>cobc</code> to the specification on every program, under both GCC
+and Clang: every conformance case, every showcase and every complete example in this guide.</p>
+<p><code>cobc</code> is written twice, in Rust and in CobaltC itself (the repository's
+<code>impl/selfhost/</code>, built as <code>cbc</code>). The two take the same options and write the same C, byte for
+byte, for every program; built by the Rust one, the CobaltC one compiles its own source to that same
+C again, so CobaltC's compiler can rebuild itself without the Rust one (D-0276). The Rust one is
+being retired (D-0326).</p>
+<p>Everything in this guide runs on x86-64 Linux. <code>cobc</code> also builds Windows programs
+with a MinGW-w64 GCC, on Windows itself or from Linux with <code>--target x86_64-pc-windows-gnu</code> (D-0255;
+the repository's README says how), and the formatter <code>cobfmt</code> runs there too.</p>
+<div class="callout note"><div class="callout-title">Toolchain</div>CobaltC's compiler (<code>cobc</code>) and formatter (<code>cobfmt</code>) are available
 <a href="https://github.com/strawberry9/CobaltC">here</a>; the repository's README says how to
 build them.</div>
 <h3>The objectives</h3>
@@ -451,8 +445,8 @@ A reader who wants the model behind the rules — the abstract state, how refere
 end, the one conflict check, what is decided before a program runs and what while it runs, threads
 and the trust boundary — can read <code>spec/OVERVIEW.md</code>, a prose account of the specification that
 cites, paragraph by paragraph, the rules it explains.</p>
-<p>Every code block that is a complete program has been run through both implementations,
-the reference interpreter <code>coby</code> and the native compiler <code>cobc</code>, which agree on every one. A green
+<p>Every code block that is a complete program has been compiled and run by <code>cobc</code>,
+under both GCC and Clang, and does what the guide says it does. A green
 <em>runs</em> badge means it executes to completion; a red badge names the
 diagnostic the language reports for that program. Diagnostics are labelled <em>static</em> (the
 program is rejected before it runs) or <em>dynamic</em> (a checked fault at run time); where a check
@@ -464,28 +458,33 @@ When a part is offered as stable it is first a <em>candidate</em> for thirty day
 <em>stable</em>, and after that a program written against it keeps compiling and keeps doing what it
 did, apart from a repair that closes a soundness hole or a change announced a release ahead
 (<code>spec/STABILITY.md</code>).</p>
-<h3>Running a program</h3>
-<p>Save a program as a <code>.cb</code> file. <code>coby program.cb</code> interprets it; <code>cobc --run
-program.cb</code> compiles it to native code and runs it, and <code>cobc -o program program.cb</code> keeps the
-executable. Both take the program's entry file (it may name other files as modules, §17), both exit
-with status 0 when the program runs to completion, and both print a rejected program's diagnostic
-the same way and exit with status 1. <code>coby --check program.cb</code> (or <code>cobc --check</code>) runs only
-the checks made before a program starts, and prints the same diagnostic for a program they
-reject; nothing runs, so a program that reads input, writes files or serves the network can be
+<h3 id="intro-running">Running a program</h3>
+<p>Save a program as a <code>.cb</code> file. <code>cobc --run program.cb</code> compiles it to native code
+in a temporary directory, runs it and deletes what it built; <code>cobc -o program program.cb</code> keeps the
+executable, <code>program</code>. <code>cobc</code> takes the program's entry file (it may name other files as modules,
+§17); its own options go before the file, and words after it are the program's arguments
+(<code>cobc --run program.cb a b</code>). Under <code>--run</code>, <code>cobc</code> exits with the program's own status, 0 when it
+runs to completion; a rejected program's diagnostic is printed and <code>cobc</code> exits with status 1.
+<code>cobc --check program.cb</code> runs only the checks made before a program starts, and prints the same
+diagnostic for a program it rejects; nothing is built or run, so a program that reads input, writes files or serves the network can be
 checked without doing so. Given a directory, it checks every <code>.cb</code> file in it. A rejected program
-gets every error that stands on its own, one for each function or declaration, in source order, then
-a line counting them (D-0321): errors of the text's syntax first, then names, then types and
-references, each kind only when the one before found nothing, so that no error is reported that
-only follows from another. <code>coby --doc Vec::push</code> (or <code>cobc --doc</code>) shows an item of the standard
-library with its documentation; <code>--doc Vec</code> a type and its functions, <code>--doc std::text</code> a module. A program's own
+gets every error that stands on its own, in source order, then a line counting them (D-0321,
+D-0323): errors of the text's syntax first, then names, then types and references, each kind only
+when the one before found nothing; within a function, one for each statement, except that a statement
+using a local that a failed statement declared without a written type, or left unknown, is not
+checked (a last line says so), so that no error is reported that only follows from another.
+<code>cobc --doc Vec::push</code> shows an item of the standard library with its
+documentation; <code>--doc Vec</code> a type and its functions, <code>--doc std::text</code> a module, <code>--doc widen</code> one of
+the language's own functions, and <code>--doc --find WORD…</code> the items whose name, signature or summary has
+every word. A program's own
 item takes precedence over an imported one of the same name (§17): a <code>struct Vec</code> or <code>fn min</code> beside
-<code>import std;</code> hides <code>std</code>'s silently; <code>--warn-shadow</code>, given first, makes either tool note each such
+<code>import std;</code> hides <code>std</code>'s silently; <code>--warn-shadow</code>, given first, makes <code>cobc</code> note each such
 name on standard error, with its file and line, and otherwise behave as before.</p>
 <p>There is no project file and no build step besides these commands. A program that
 spans several files names them itself: <code>module parser &quot;./parser.cb&quot;;</code> loads a file as a module, its
 path relative to the file that says so (§17), and <code>extern &quot;./fast.c&quot;;</code> or <code>extern &quot;z&quot;;</code> links C code
 of the program's own or an installed library (§20). <code>cobc main.cb</code> then builds the whole program
-from that one file, and <code>coby main.cb</code> runs it, with nothing else to keep in step (D-0231).</p>
+from that one file, and <code>cobc --run main.cb</code> runs it, with nothing else to keep in step (D-0231).</p>
 <h3 id="intro-testing">Testing a program</h3>
 <p>Tests live beside the code they test, in <code>unittest</code> blocks: a block at the top level of a
 file or a module, with an optional name. A test sees the module's private items, and is checked every
@@ -519,11 +518,11 @@ unittest
     <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, parse_port(<span class="s">&quot;8080&quot;</span>) == <span class="p">Some</span>(<span class="n">8080</span>));
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>true
 </pre></div></figure>
-<p><code>coby port.cb</code> runs the program as always. <code>coby --unittest port.cb</code> runs its tests instead
-of <code>main</code>, each in a thread of its own: a failed <code>assert</code>, or any other fault, is reported, and the
-next test still runs. <code>cobc --unittest --run port.cb</code> does the same with the compiled program, and
-reports it identically; <code>cobc --unittest -o port_tests port.cb</code> keeps the test program.</p>
-<figure class="code"><div class="code-head"><span class="code-title">coby --unittest port.cb</span></div><pre><code>test port.cb:12 parse_port: bounds ... ok
+<p><code>cobc --run port.cb</code> runs the program as always. <code>cobc --unittest --run port.cb</code> builds
+and runs its tests instead of <code>main</code>, each in a thread of its own: a failed <code>assert</code>, or any other
+fault, is reported, and the next test still runs. <code>cobc --unittest -o port_tests port.cb</code> keeps the
+test program.</p>
+<figure class="code"><div class="code-head"><span class="code-title">cobc --unittest --run port.cb</span></div><pre><code>test port.cb:12 parse_port: bounds ... ok
 test port.cb:19 ... ok
 2 tests: 2 passed, 0 failed
 </code></pre></figure>
@@ -543,7 +542,7 @@ in theirs. Before writing, it checks that the result is the same program token f
 formatting can never change what a program does. It keeps your line breaks — a short
 <code>if (n == 0) { return; }</code> stays on one line, though a function's body always opens on its own line — and it never breaks a line
 of its own accord: where a line ends is yours to decide. With <code>--width N</code> it breaks a line longer than <code>N</code> characters
-that holds a list of arguments, parameters or array elements, one item per line. <code>cobfmt --help</code> lists the rest. Like <code>coby</code>, <code>cobfmt</code> runs on Windows as well as
+that holds a list of arguments, parameters or array elements, one item per line. <code>cobfmt --help</code> lists the rest. <code>cobfmt</code> runs on Windows as well as
 Linux, and it keeps a file's Windows line endings (<code>\r\n</code>) as they are.</p>
 <h3 id="intro-generated-c">Reading the C that <code>cobc</code> generates</h3>
 <p><code>cobc</code> does not produce machine code itself. Once the shared front end has checked
@@ -596,7 +595,7 @@ leaves the directives out, for reading the C on its own terms.</p>
 the program's meaning. <code>-ffp-contract=off</code> stops the C compiler fusing <code>a * b + c</code> into one
 fused multiply-add with a single rounding, since the specification rounds each operation on its
 own (§06). <code>-fno-optimize-sibling-calls</code> keeps every call a real call, so a recursion too deep for
-the stack stops with the same diagnostic it gets from <code>coby</code>, instead of being turned into a loop
+the stack stops with the fault <code>diag.stack-exhausted</code>, instead of being turned into a loop
 that runs to completion. <code>-fpeel-loops</code> (Clang: <code>-mllvm -unroll-threshold=300</code>) only makes
 loops faster: a loop of a few iterations known before it runs, such as <code>foreach (c in 0..9)</code>, is
 unrolled whole, as GCC does at <code>-O3</code> and Rust's compiler at <code>-O</code>. A program that links its own C code (<code>extern &quot;./mine.c&quot;;</code>, §20) also
@@ -625,19 +624,19 @@ shared back end such as LLVM or GCC's. C as the target brings:</p>
 <li><strong>C's own rules come along.</strong> The generated C must avoid C's undefined behaviour, and it has to keep up as C compilers grow stricter: code an older compiler accepted with a warning, a newer one may reject outright.</li>
 <li><strong>Less control.</strong> Some things C cannot say directly (exact stack layout, particular calling conventions, precise debug information), so they are worked around with flags such as <code>-ffp-contract=off</code> above.</li>
 <li><strong>Slower builds.</strong> Every build includes a full C compilation.</li>
-<li><strong>Debuggers show C lines, not CobaltC lines.</strong> <code>cobc</code> emits no <code>#line</code> directives, so <code>gdb</code> steps through the C; the <code>cb_at(file, line)</code> calls lead back to your source.</li>
+<li><strong>A debugger sees C.</strong> The <code>#line</code> directives (above) let <code>gdb</code> step through your <code>.cb</code> lines, but the variables, types and functions it shows are the C's (<code>l_v_1</code>, <code>struct s_std__Vec_Li32_R</code>, <code>f_main</code>).</li>
 </ul>
-<p>For CobaltC the trade is a good one. Its central promise is that <code>coby</code> and <code>cobc</code>
-behave identically, and letting GCC and Clang do the machine-code work leaves <code>cobc</code> free to get
-the semantics and the checks exactly right.</p>
+<p>For CobaltC the trade is a good one. Its central promise is that a compiled program
+does exactly what the specification says, checks included, and letting GCC and Clang do the
+machine-code work leaves <code>cobc</code> free to get the semantics and the checks exactly right.</p>
 
 <nav class="pager"><a class="top" href="#top">Top</a><a class="next" href="#tour">A tour in one program &rarr;</a></nav></section>
 <section id="tour">
 <h2>A tour in one program</h2>
 <p class="blurb">A complete, runnable program that introduces the syntax and the main capabilities, and the mistakes the compiler stops, before the reference sections begin.</p>
 <p>Here is a complete program. Read it once for the shape of the syntax; every
-construct it uses has its own section later. It runs under both the interpreter and the compiler
-and prints the output shown below the code.</p>
+construct it uses has its own section later. <code>cobc --run tour.cb</code> runs it and prints the output
+shown below the code.</p>
 <figure class="code"><div class="code-head"><span class="code-title">tour.cb</span><span class="badge ok">runs</span></div><pre><code><span class="c">// ------------------------------------------------------------------</span>
 <span class="c">// A first CobaltC program: a temperature log.</span>
 <span class="c">//</span>
@@ -839,8 +838,8 @@ L4
 <h3>What the compiler stops</h3>
 <p>The program above is correct, so it shows what CobaltC lets you write. Just as much of
 the language is what it will not let through. Each of these mistakes, a one-line change to the
-same kind of code, is rejected <em>before the program runs</em>, by both the interpreter and the
-compiler, with a diagnostic that names the rule; what cannot be decided in advance is checked
+same kind of code, is rejected <em>before the program runs</em>, with a diagnostic that names the
+rule; what cannot be decided in advance is checked
 while the program runs, and stops it at the line where it happens (§08–§10).</p>
 <figure class="code"><div class="code-head"><span class="code-title">A reference kept across a push</span><span class="badge bad">rejected: diag.aliasing-conflict</span></div><pre><code><span class="k">import</span> std;
 
@@ -921,9 +920,9 @@ while the program runs, and stops it at the line where it happens (§08–§10).
     label(Fine);
 }</code></pre></figure>
 <h3 id="tour-diagnostic">Reading a diagnostic</h3>
-<p>Both tools report a mistake the same way, character for character. This is what either
-prints for the first example above, a reference kept across a push:</p>
-<figure class="code"><div class="code-head"><span class="code-title">coby tour.cb  (or cobc tour.cb)</span></div><pre><code>error[diag.aliasing-conflict]: `first` still borrows `entries`, so it cannot be written or borrowed `mut` here; end that borrow first
+<p>This is what <code>cobc</code> prints for the first example above, a reference kept across a
+push:</p>
+<figure class="code"><div class="code-head"><span class="code-title">cobc --check tour.cb</span></div><pre><code>error[diag.aliasing-conflict]: `first` still borrows `entries`, so it cannot be written or borrowed `mut` here; end that borrow first
   --&gt; tour.cb:14:15
    |
 14 |     Vec::push(&amp;mut entries, Reading { .tenths = 215, .sensor = 1 });
@@ -942,11 +941,11 @@ u64</code> with <code>widen&lt;T&gt;(x)</code>, <code>println!</code> with <code
 (<code>Vec::psh</code> gets "did you mean <code>Vec::push</code>?"). <code>CARD.md</code>, at the top of the repository, lists the habits and their
 messages with the syntax, the tools, the diagnostics and every item of the standard library on one
 page.</p>
-<p><code>coby --explain tour.cb</code> (or <code>cobc --explain</code>) adds the registry's whole entry: the rule of
-the specification that rejected the program, the invariant it protects, what it required and what
-it observed, and the examples that show it. A compiled program shows its faults that way when it
-runs with <code>COBALTC_EXPLAIN=1</code> in its environment.</p>
-<p>A line that begins <code>internal error in coby:</code> (or <code>cobc:</code>) is not about your program: it is a bug
+<p><code>cobc --explain --check tour.cb</code> adds the registry's whole entry: the rule of the
+specification that rejected the program, the invariant it protects, what it required and what it
+observed, and the examples that show it. <code>cobc --explain --run prog.cb</code> shows a fault during the run
+that way too, as does a compiled program run with <code>COBALTC_EXPLAIN=1</code> in its environment.</p>
+<p>A line that begins <code>internal error in cobc:</code> is not about your program: it is a bug
 in the tool, which exits with status 4 and names the place in its own source. Please report it with
 the program that caused it; <code>RUST_BACKTRACE=1</code> adds the tool's backtrace.</p>
 <h3>What you just saw</h3>
@@ -1555,8 +1554,8 @@ thread's fault always ends the program.</p>
 </table>
 <h3 id="cprog-build">Building and calling C</h3>
 <p>There is no header, no object file to manage and no Makefile. <code>cobc prog.cb</code> compiles the
-program and the files it names with <code>module m &quot;./m.cb&quot;;</code>, then links; <code>coby prog.cb</code> runs it directly;
-<code>cobc --check prog.cb</code> only checks. Calling C is a declaration and a file: <code>unsafe extern fn area(i32
+program and the files it names with <code>module m &quot;./m.cb&quot;;</code>, then links; <code>cobc --run prog.cb</code> builds it
+and runs it at once; <code>cobc --check prog.cb</code> only checks. Calling C is a declaration and a file: <code>unsafe extern fn area(i32
 w, i32 h) : i32;</code> promises the signature, <code>extern &quot;./shapes.c&quot;;</code> names the source (or <code>extern &quot;m&quot;;</code> a
 library), and every call sits in an <code>unsafe</code> block, because the compiler cannot see what the C does
 (§20). The types at the boundary are the C-compatible ones: sized integers, floats, <code>bool</code>,
@@ -1582,7 +1581,7 @@ goes through them: when a check happens, what a type says, how generic code is w
 threads share, how failure is reported, what <code>unsafe</code> means, and what the surface looks like. It
 takes no side. Each choice has a price and a payoff, and the point is to say what they are. Rust is
 a mature language with a large ecosystem; CobaltC is a small one with a complete written semantics
-and two implementations that share it. Which matters more depends on what you are doing.</p>
+and a compiler held to it. Which matters more depends on what you are doing.</p>
 <h3 id="rust-shared">What the two share</h3>
 <ul>
 <li><strong>Ownership and moves.</strong> A resource has one owner; assigning or passing it moves it, and the old name is unusable afterwards. In Rust every non-<code>Copy</code> type moves; in CobaltC a type is either plain (copied) or a resource (moved), decided by its declaration: <code>struct</code> or <code>resource struct</code>, and anything that holds a resource.</li>
@@ -1612,8 +1611,8 @@ that might reallocate: all rejected, because the proof is not in the text.</p>
 <p><strong>CobaltC decides at run time, against the actual state.</strong> A reference carries no
 lifetime; its validity is a fact about the running program: which object it reaches, whether that
 object still exists, which other references to it are live and in what mode. The language's rules
-are written over that state, and the interpreter and the compiled program check them at each
-access. The price is a run-time cost and a fault instead of a compile error: a mistake becomes a
+are written over that state, and the compiled program checks them at each access the compiler has
+not proved safe. The price is a run-time cost and a fault instead of a compile error: a mistake becomes a
 named diagnostic at the step that commits it, in the run that reaches it, and a path no test runs
 is a path no check has run. The payoff is that no lifetime annotation is needed (a function with
 several reference parameters names its result's sources with <code>from</code>) and no correct program is
@@ -1776,8 +1775,7 @@ compile-time constant only.</p>
 <p>Both have the same sized integer types and the same <code>wrapping_</code>, <code>saturating_</code> and
 <code>checked_</code> operations. They differ on what plain <code>+</code> does when it overflows. In Rust it panics in
 a debug build and wraps in a release build unless overflow checks are turned on; a shipped program
-usually wraps. In CobaltC it is a fault, always, in both the interpreter and the compiled program
-(<a href="#s06">§06</a>): there is no build in which an overflow is silent. The compiled cost of that
+usually wraps. In CobaltC it is a fault, always (<a href="#s06">§06</a>): there is no build in which an overflow is silent. The compiled cost of that
 choice is measurable and modest (<a href="#perf">P</a>): on the repository's benchmarks a CobaltC
 program compiled through C runs between about the same time as the Rust program and about twice
 it, and much of the gap is the arithmetic checks that a Rust release build leaves out.</p>
@@ -1801,8 +1799,8 @@ has both.</p>
 a bug, which stops the program. Rust's stop is a panic: it unwinds the thread, running destructors,
 can be caught with <code>catch_unwind</code>, and in a release build an overflow or an out-of-bounds index may
 be a panic or, for overflow, nothing at all. CobaltC's stop is a fault: every fault has a name in a
-registry (<a href="#appx">the appendix</a>) and a location, it unwinds running destructors, it is
-the same in the interpreter and the compiled program, and it is contained only at the two
+registry (<a href="#appx">the appendix</a>) and a location, it unwinds running destructors, and it
+is contained only at the two
 boundaries the language names, a supervised thread and a C-callable library entry
 (<a href="#s18">§18</a>). Rust's error enums are usually hand-written or generated by a library;
 CobaltC's are hand-written, with <code>map_err</code> and <code>ok_or</code> at the edges. <code>?</code> means the same thing.</p>
@@ -1813,9 +1811,8 @@ respected, a foreign function's contract holds; a wrong claim is undefined behav
 for what unsafe code may assume are still being settled (Stacked Borrows, Tree Borrows). In CobaltC
 the claims are stated as side-conditions of named trusted rules (<a href="#s20">§20</a>): a raw
 read or write, a reclaim of raw memory, a call across the boundary, each with what it asserts. The
-standard library's own <code>unsafe</code> blocks are listed with their claims. The interpreter simulates raw
-memory and checks even trusted operations against it, so a wrong claim is a fault there; the
-compiled program trusts the claim, as Rust does. Both languages hold that safe code cannot break
+standard library's own <code>unsafe</code> blocks are listed with their claims. The compiled program trusts
+the claim, as Rust does. Both languages hold that safe code cannot break
 the invariants; neither can promise anything once a trusted claim is false.</p>
 <h3 id="rust-surface">The surface</h3>
 <table>
@@ -1840,10 +1837,9 @@ the invariants; neither can promise anything once a trusted claim is false.</p>
 specification (Ferrocene) written after the fact and a model of unsafe code still in research. It
 has one compiler, <code>cargo</code>, <code>crates.io</code>, <code>rustdoc</code>, <code>rust-analyzer</code>, <code>clippy</code> and <code>Miri</code>, a stable
 release since 2015, and targets from microcontrollers to every major operating system. CobaltC's
-meaning is its specification, written as rules before either implementation; the interpreter runs
-those rules and the compiler must match it byte for byte on every conformance case, every showcase
-and every example in this guide; a model checker enumerates the small programs' outcomes. It has an
-interpreter, a compiler through C, a formatter, a standard library with no third-party code, and two
+meaning is its specification, written as rules before the implementation; the compiler is held to
+those rules on every conformance case, every showcase and every example in this guide, and a model
+checker enumerates the small programs' outcomes. It has a compiler through C, a formatter, a standard library with no third-party code, and two
 targets, x86-64 Linux and Windows. One is a production language with an ecosystem; the other is a
 language whose whole behaviour can be read, run and argued about.</p>
 <div class="callout note"><div class="callout-title">The trade, in one place</div>Neither approach is free. A static guarantee is paid for in annotations and in programs
@@ -3522,7 +3518,7 @@ be, so it stays usable afterwards.</p>
 <h3>Generics</h3>
 <p>Functions, structs and enums can take type parameters. Generics are <em>monomorphic</em>:
 each use with a different set of concrete types is a separate copy of the declaration, compiled
-(or, in the interpreter, run) as if you had written it out with those types: <code>identity(5)</code> and
+as if you had written it out with those types: <code>identity(5)</code> and
 <code>identity(2.5)</code> below call two functions, one for <code>i32</code> and one for <code>f64</code>. So there is no run-time type
 information, no boxing and no indirect call at call sites; the cost is one copy per combination
 of types used. Inside a generic body a value of a type parameter <code>T</code> can be stored, passed, returned,
@@ -4246,7 +4242,8 @@ time" in another. The boundary is fixed by the language, not left to the compile
 that every implementation accepts and rejects the same programs. A compiler may prove more than this
 checker does and leave out the run-time checks it has proved unnecessary (that is what <code>cobc</code> does; see
 the performance chapter), but it may not accept a program the language rejects or reject one it accepts:
-<code>coby --check</code> is the reference, and what it accepts is the language. Within one function body, the
+the checks made before the run are the language's, and <code>cobc --check</code> makes exactly those. Within one
+function body, the
 checker tracks a few facts about each variable: whether it has been moved from, whether it has been
 initialised, which references were visibly borrowed from it, and whether a reference to it has been
 handed somewhere the checker cannot follow (a call, a field, a thread). At each checked operation
@@ -4344,7 +4341,7 @@ that capture what they use, and the capture list is checked, not trusted.</p>
     <span class="p">assert</span>(fact(<span class="n">5</span>) == <span class="n">120</span>);
 }</code></pre></figure>
 <p>Recursion needs nothing special, and its depth is limited only by the stack. Every
-implementation allows at least 10 000 nested calls, and both tools allow far more: they run a
+implementation allows at least 10 000 nested calls, and <code>cobc</code> allows far more: it runs a
 program and each of its threads on a large stack. A call beyond the limit is not a crash but a
 fault at the call, <code>diag.stack-exhausted</code>, so a recursion that runs away ends with a diagnostic
 like any other failure.</p>
@@ -4504,7 +4501,7 @@ thread, as leaving any block does, so the status is reported only after all of t
 still ends the program with its diagnostic instead. The arguments the program was started with
 come from <code>arg_count()</code> and <code>arg(i)</code> (§21); argument 0 is the first one after the program, not the
 program's name.</p>
-<figure class="code"><div class="code-head"><span class="code-title">An exit status and an argument: <code>coby greet.cb Ada</code></span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+<figure class="code"><div class="code-head"><span class="code-title">An exit status and an argument: <code>cobc --run greet.cb Ada</code></span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> main() : <span class="t">u8</span>
 {
@@ -4860,8 +4857,8 @@ of it.</p>
 a 16-byte register, thirty-two <code>u8</code>s in a 32-byte one. Arithmetic on two vectors applies to every
 lane at once, so a loop that steps eight elements at a time does eight elements' work per step. The
 type is portable: <code>cobc</code> compiles it to the target's vector instructions (SSE, AVX or NEON, chosen by
-<code>-march</code>), or to pairs of narrower ones where the target has no register that wide, and <code>coby</code> runs it
-lane by lane with the same results.</p>
+<code>-march</code>), or to pairs of narrower ones where the target has no register that wide, with the same
+results either way.</p>
 <table>
 <thead><tr><th></th><th>Allowed</th></tr></thead>
 <tbody>
@@ -4877,8 +4874,8 @@ lane by lane with the same results.</p>
 <p>Integer lanes are checked as integers are everywhere: if any lane of <code>a + b</code> overflows, the
 program faults. Where wrapping is the intent, as in hashing or a sum that cannot overflow,
 <code>wrapping_add</code>, <code>wrapping_mul</code> and <code>saturating_add</code> take vectors too, and they are the fast path. Float
-lanes follow IEEE 754 with no fused multiply-add, and <code>simd_sum</code> adds left to right, so a result is the
-same bit for bit under both tools; it can differ from a scalar loop's, which adds in another order.</p>
+lanes follow IEEE 754 with no fused multiply-add, and <code>simd_sum</code> adds left to right, so a result is fixed
+bit for bit by the specification; it can differ from a scalar loop's, which adds in another order.</p>
 <figure class="code"><div class="code-head"><span class="code-title">A dot product</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="c">// Eight lanes at a time, then the few left over one at a time.</span>
@@ -4996,9 +4993,9 @@ that one decoder reads can live inside that decoder.</p>
     <span class="p">assert</span>(payload_len(<span class="n">0</span>xFFFF) == <span class="n">1023</span>);
 }</code></pre></figure>
 <h3>Enums and <code>match</code></h3>
-<p>An enum lists its variants; each may carry one payload type. Variant names are used
-bare (<code>Cold(3)</code>, <code>Fine</code>) or qualified (<code>Verdict::Fine</code>) when two visible enums share a name. A
-variant with no payload behaves as if it carried <code>()</code>.</p>
+<p>An enum lists its variants; each may carry one payload type, or named fields (below).
+Variant names are used bare (<code>Cold(3)</code>, <code>Fine</code>) or qualified (<code>Verdict::Fine</code>) when two visible
+enums share a name. A variant with no payload behaves as if it carried <code>()</code>.</p>
 <p><code>match (e) { … }</code> compares the discriminant and runs the arm for that variant. Each arm is
 <code>Variant(binder) : expression,</code> for a payload, <code>Variant : expression,</code> for none, or
 <code>_ : expression,</code> as a catch-all; every arm ends with a comma. The arms must cover every variant
@@ -5064,7 +5061,7 @@ for statements. Arms are tried in order and the first that fits is taken.</p>
 <p>Inside the parentheses, a pattern can say what the payload itself must be, as deep as
 needed: <code>Ok(Some(line))</code> matches an <code>Ok</code> whose payload is a <code>Some</code>, and binds the <code>Some</code>'s
 payload. A name there is a binder, unless it is a variant's name (<code>Some(None)</code>), and <code>_</code> ignores
-that level. Since a variant has one payload, an arm binds one name, the innermost payload it
+that level. Since a variant has one payload (one struct, for a variant with fields), an arm binds one name, the innermost payload it
 reaches, unless that payload is a struct taken apart by a struct pattern (below). Every value must reach some arm (the error names one that does not, such as
 <code>Ok(None)</code>), and every arm must be reachable: an arm whose values all go to earlier arms is
 rejected, since it could never run.</p>
@@ -5108,8 +5105,9 @@ binding <code>q</code>. The rules are destructuring's (§11): every field is nam
 rest; <code>end : e</code> binds a field to another name; and the fields are taken by value, so a <code>String</code>
 field moved out consumes the value matched, as any binder of a resource payload does. A struct
 pattern always fits, so it counts as a binder for exhaustiveness. It works in <code>match</code> arms and in
-<code>if</code> and <code>while</code> patterns. Through a reference (<code>match (&amp;o)</code>) it is rejected: bind the payload and
-read its fields through it.</p>
+<code>if</code> and <code>while</code> patterns. Through a reference (<code>match (&amp;o)</code>) each name is a reference to its
+field, shared or exclusive as the reference is, as every binder through a reference is (D-0324);
+nothing is moved out.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Struct patterns</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">struct</span> Question
@@ -5139,6 +5137,39 @@ read its fields through it.</p>
         <span class="p">None</span>                           : <span class="n">0</span>,
     };
     <span class="p">assert</span>(n == <span class="n">7</span>);
+}</code></pre></figure>
+<h4>Variants with fields</h4>
+<p>A variant that carries several values names them, as a struct names its fields (D-0324):
+<code>Bin { u8 op; Box&lt;Expr&gt; a; Box&lt;Expr&gt; b; }</code>. It is made by naming them, <code>Expr::Bin { .op = b&#x27;+&#x27;, .a =
+…, .b = … }</code>, and matched by naming them, <code>Expr::Bin { op, a, b }</code>, with <code>..</code> and renaming as in a
+struct pattern, always with the enum's name, so that it does not read as a struct of its own. Its
+payload is one struct the implementation adds beside the enum, which messages call <code>Expr::Bin</code>; a
+binder for the whole payload (<code>Expr::Bin(x)</code>) is refused, since its type could not be written.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Variants with fields</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">enum</span> Account
+{
+    Open { <span class="p">String</span> owner; <span class="t">i64</span> balance; },
+    Closed,
+}
+
+<span class="k">fn</span> deposit(<span class="t">ref</span>&lt;Account, <span class="t">exclusive</span>&gt; a, <span class="t">i64</span> amount)
+{
+    <span class="k">match</span> (a)
+    {
+        Account::Open { balance, .. } : { *balance += amount; },   <span class="c">// a reference to the field</span>
+        Account::Closed               : {},
+    }
+}
+
+<span class="k">fn</span> main()
+{
+    Account a = Account::Open { .owner = <span class="s">&quot;kim&quot;</span>, .balance = <span class="n">10</span> };
+    deposit(&amp;<span class="k">mut</span> a, <span class="n">5</span>);
+    <span class="k">if</span> (Account::Open { owner, balance } = a)
+    {
+        <span class="p">assert</span>(owner == <span class="s">&quot;kim&quot;</span> &amp;&amp; balance == <span class="n">15</span>);
+    }
 }</code></pre></figure>
 <h4>Literal patterns</h4>
 <p>A pattern can also be a literal: an integer (<code>3</code>, <code>-1</code>, <code>0x10</code>), a byte (<code>b&#x27;x&#x27;</code>), <code>true</code> or
@@ -5741,7 +5772,7 @@ location, and a library moves as a unit. Use forward slashes and stay inside the
 {
     <span class="n">1.0</span>
 }</code></pre></figure>
-<figure class="code"><div class="code-head"><span class="code-title">main.cb</span><span class="badge ok">runs</span></div><pre><code><span class="c">// main.cb -- run this one: `coby main.cb`</span>
+<figure class="code"><div class="code-head"><span class="code-title">main.cb</span><span class="badge ok">runs</span></div><pre><code><span class="c">// main.cb -- run this one: `cobc --run main.cb`</span>
 <span class="k">module</span> geo <span class="s">&quot;./geometry.cb&quot;</span>;           <span class="c">// module geo { … } with geometry.cb&#x27;s items as the body</span>
 
 <span class="k">import</span> geo::Rect;
@@ -5757,8 +5788,8 @@ location, and a library moves as a unit. Use forward slashes and stay inside the
 declarations (<code>diag.module-cycle</code>), and one file named by two declarations
 (<code>diag.module-file-duplicate</code> — it would be two distinct modules and two distinct <code>Rect</code> types).
 A <code>fn main</code> in a loaded file is just the item <code>geo::main</code>; the program's entry is the root file's
-<code>main</code>, and a program with none is <code>diag.no-main</code>. Both implementations report a diagnostic
-inside a loaded file against that file and its own line.</p>
+<code>main</code>, and a program with none is <code>diag.no-main</code>. A diagnostic inside a loaded file is reported
+against that file and its own line.</p>
 <h4>A library in several files</h4>
 <p>Files and re-export (above) together give a library that is split across files but used with
 one <code>import</code>. Its root file declares the parts, keeps its helpers in a private module, and passes on
@@ -5802,7 +5833,7 @@ reorganized later without changing any program that imports the root.</p>
 {
     v * v
 }</code></pre></figure>
-<figure class="code"><div class="code-head"><span class="code-title">main.cb</span><span class="badge ok">runs</span></div><pre><code><span class="c">// main.cb -- run this one: `coby main.cb`</span>
+<figure class="code"><div class="code-head"><span class="code-title">main.cb</span><span class="badge ok">runs</span></div><pre><code><span class="c">// main.cb -- run this one: `cobc --run main.cb`</span>
 <span class="k">import</span> std;
 
 <span class="k">module</span> geometry <span class="s">&quot;geometry.cb&quot;</span>;
@@ -6068,8 +6099,8 @@ parameters at the top of a body is a requirement; what a function believes of it
 through, and what a test expects, stays an <code>assert</code>. A requirement states a programming error: input
 from outside the program (a file, the network, C) is checked into a <code>Result</code>, never guarded by a
 requirement. It costs its condition once per call, and nothing where none is written.</p>
-<p>Faults are named <code>diag.…</code> and listed in the appendix. Both the interpreter and a compiled
-program print the name, the rule that fired, what was required and what was observed, and a repair
+<p>Faults are named <code>diag.…</code> and listed in the appendix. A program that faults prints the
+name, the rule that fired, what was required and what was observed, and a repair
 hint.</p>
 <h3>Static assertions</h3>
 <p><code>static_assert(c)</code> and <code>static_assert(c, &quot;why&quot;)</code> check a constant condition when the program
@@ -6785,11 +6816,11 @@ the thread ends, even before it has run a single step. Timing can still choose b
 outcomes: a thread that has already finished holds nothing, so an access that would have conflicted
 with it while it ran is fine afterwards. Use <code>join</code> (or a channel) to make the order part of the
 program. Deadlock is not ruled out, but it is reported rather than left to hang (below).</p>
-<p>How the guarantee is checked: beyond the tests of the two implementations, a separate program,
+<p>How the guarantee is checked: beyond the test suites, a separate program,
 <code>cobmodel</code> (<code>impl/model</code>), runs a fragment of the language straight from the rules, with every
 interleaving of its threads, and lists every outcome they allow. Tens of thousands of generated
 programs about references, threads, mutexes, channels and vectors of references have been compared
-with what <code>coby</code> and <code>cobc --explore</code> do. This is evidence, not a proof: it covers that fragment, up to
+with what <code>cobc --explore</code> does. This is evidence, not a proof: it covers that fragment, up to
 the program sizes it tried.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Caught, whatever the timing</span><span class="badge bad">rejected: diag.aliasing-conflict</span></div><pre><code><span class="k">import</span> std;
 
@@ -6963,19 +6994,17 @@ a server are reported and the server goes on. (The main thread waiting alone on 
 }</code></pre></figure>
 <h3>Exploring schedules: <code>--explore</code></h3>
 <p>A result that depends on timing is easy to miss: the timing you test is rarely the one that
-goes wrong. <code>coby --explore N prog.cb</code> runs the program N times, each under a different order of its
-threads chosen by a seed, and groups the runs by outcome (output and exit status). One outcome is
-what you want; more than one means the program's result depends on timing, and <code>coby</code> exits with 1.
-Each outcome comes with a seed, and <code>coby --schedule-seed S prog.cb</code> replays that run exactly, as
-often as you need to find out why. Under a schedule the threads take turns one at a time, so
+goes wrong. <code>cobc --explore N prog.cb</code> compiles the program once and runs it N times, each under a
+different order of its threads chosen by a seed, and groups the runs by outcome (output and exit
+status). One outcome is what you want; more than one means the program's result depends on timing,
+and <code>cobc</code> exits with 1. Each outcome comes with a seed, and <code>cobc --schedule-seed S prog.cb</code> replays
+that run exactly, as often as you need to find out why; so does setting <code>COBALTC_SCHEDULE_SEED=S</code> in
+a compiled program's environment. Under a schedule the threads take turns one at a time, so
 exploration needs no cores and finds orders a parallel run would rarely produce.</p>
-<p><code>cobc --explore N prog.cb</code> does the same for the compiled program: it compiles once and runs the
-executable N times. There a thread keeps its turn between the points where threads interact -- a
-<code>spawn</code>, a wait, a mutex released, a call outside the program -- and now and then between two of the
-program's checks, which is where a program whose checks all pass can end differently.
-<code>cobc --schedule-seed S prog.cb</code> replays one run, and so does setting <code>COBALTC_SCHEDULE_SEED=S</code> in a
-compiled program's environment. In either tool, a thread that is asleep or in a socket or input call
-leaves the schedule until the call returns, so a program that talks to the network explores only
+<p>A thread keeps its turn between the points where threads interact -- a <code>spawn</code>, a wait, a mutex
+released, a call outside the program -- and now and then between two of the program's checks, which
+is where a program whose checks all pass can end differently. A thread that is asleep or in a socket
+or input call leaves the schedule until the call returns, so a program that talks to the network explores only
 the orders around those calls.</p>
 <figure class="code"><div class="code-head"><span class="code-title">counter.cb: a lost update, in some orders</span></div><pre><code><span class="k">import</span> std;
 
@@ -6983,10 +7012,10 @@ the orders around those calls.</p>
 {
     <span class="t">i64</span> seen = <span class="n">0</span>;
     {
-        <span class="k">auto</span> g = <span class="p">lock</span>(m);
+        <span class="t">guard</span>&lt;<span class="t">i64</span>&gt; g = <span class="p">lock</span>(m);
         seen = *g;
     }
-    <span class="k">auto</span> g = <span class="p">lock</span>(m);
+    <span class="t">guard</span>&lt;<span class="t">i64</span>&gt; g = <span class="p">lock</span>(m);
     *g = seen + <span class="n">1</span>;                    <span class="c">// a lost update when the other thread ran in between</span>
 }
 
@@ -7001,14 +7030,14 @@ the orders around those calls.</p>
     <span class="p">printf</span>(&quot;total %v
 &quot;, *g);
 }</code></pre></figure>
-<figure class="code"><div class="code-head"><span class="code-title">Two outcomes: the result depends on timing</span></div><pre><code>$ coby --explore <span class="n">50</span> counter.cb
+<figure class="code"><div class="code-head"><span class="code-title">Two outcomes: the result depends on timing</span></div><pre><code>$ cobc --explore <span class="n">50</span> counter.cb
 explored <span class="n">50</span> schedules of counter.cb: <span class="n">2</span> distinct outcomes
 
-<span class="n">19</span> runs, <span class="p">exit</span> <span class="n">0</span> -- replay: coby --schedule-seed <span class="n">1</span> counter.cb
-  | total <span class="n">1</span>
+<span class="n">32</span> runs, <span class="p">exit</span> <span class="n">0</span> -- replay: cobc --schedule-seed <span class="n">1</span> counter.cb
+  | total <span class="n">2</span>
 
-<span class="n">31</span> runs, <span class="p">exit</span> <span class="n">0</span> -- replay: coby --schedule-seed <span class="n">2</span> counter.cb
-  | total <span class="n">2</span></code></pre></figure>
+<span class="n">18</span> runs, <span class="p">exit</span> <span class="n">0</span> -- replay: cobc --schedule-seed <span class="n">2</span> counter.cb
+  | total <span class="n">1</span></code></pre></figure>
 <h3>Data parallelism: <code>slice_parts</code></h3>
 <p><code>slice_parts(&amp;mut v, k)</code> splits a vector (or any exclusive slice) into <code>k</code> consecutive
 runs as nearly equal as they can be, each an exclusive slice of its own. Give each run to a thread
@@ -7054,11 +7083,12 @@ the granularity of single operations and every operation sees a consistent state
 <code>lock</code>, a <code>send</code> or a <code>recv</code> that cannot proceed simply waits. <code>Rc&lt;T&gt;</code> is not thread-safe: across
 threads, share a <code>mutex</code> by reference, pass values through a <code>Channel</code>, or own a share with an <code>Arc</code>.
 There is no read-write lock and no condition variable.</p>
-<div class="callout note"><div class="callout-title">Parallel or interleaved</div>The compiler <code>cobc</code> runs threads in parallel on separate cores (above); the interpreter <code>coby</code>
-runs them one at a time. A program that follows the rules gets the same result from both. Where the
-language leaves an outcome to timing — writing a variable while another thread may still be reading
-it through a reference is <code>diag.aliasing-conflict</code> if the thread is still running, and fine if it has
-finished — each is free to show either permitted outcome, and they may differ.</div>
+<div class="callout note"><div class="callout-title">Parallel or interleaved</div>A compiled program runs its threads in parallel on separate cores; under <code>--explore</code> or
+<code>--schedule-seed</code> (above) they take turns, one at a time. A program that follows the rules gets the
+same result either way. Where the language leaves an outcome to timing — writing a variable while
+another thread may still be reading it through a reference is <code>diag.aliasing-conflict</code> if the thread
+is still running, and fine if it has finished — each run is free to show either permitted outcome,
+and two runs may differ.</div>
 <div class="callout rule"><div class="callout-title">Rules of thumb</div><ul>
 <li>Every thread has an owner: the handle. Join it explicitly to get the result; let scope end join it if you do not care.</li>
 <li>Supervise threads that may fail: <code>try_join</code> takes the failure as a value; <code>cancel</code> the ones you no longer need.</li>
@@ -7141,9 +7171,7 @@ to reach memory is trusted.</p>
 <p>An address can also be an integer, and an integer an address: <code>rawptr_address(p)</code> gives a
 <code>usize</code>, to print, align or keep, and <code>rawptr_from_address&lt;T&gt;(a)</code> makes a pointer from one. The second is
 how a program names a device register or memory it mapped itself; nothing checks what lives at <code>a</code>, so
-both are written inside <code>unsafe</code>. With the volatile accesses below, that is memory-mapped I/O. The
-interpreter's memory is simulated: it makes a pointer only from an address it gave out, and refuses any
-other as <code>unsupported</code>.</p>
+both are written inside <code>unsafe</code>. With the volatile accesses below, that is memory-mapped I/O.</p>
 <figure class="code"><div class="code-head"><span class="code-title">A register at an address (not run: there is no device here)</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> main()
@@ -7230,11 +7258,9 @@ needs no <code>unsafe</code>, so the promise would have nowhere to be written.</
 <code>stdin_read</code>, which <code>read_line</code> reads through. Calling conventions and how code is linked are outside the language
 and documented by each implementation; a program names the C code it needs with <code>extern &quot;…&quot;;</code>
 (below).</p>
-<p>Both implementations call real C functions on x86-64 Linux, and <code>cobc</code> on Windows too: an
-<code>unsafe extern fn</code> names a function in the C library or the maths library by its declared name. The compiler passes any
-FfiType, pointers and structs included. The interpreter's memory is simulated, so it can pass only
-integers, <code>bool</code> and floats, and reports a call that needs a pointer or a struct as unsupported rather
-than guessing.</p>
+<p><code>cobc</code> calls real C functions, on x86-64 Linux and on Windows: an <code>unsafe extern fn</code> names a
+function in the C library or the maths library by its declared name, and any FfiType crosses, pointers
+and structs included.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Calling C functions</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">unsafe</span> <span class="k">extern</span> <span class="k">fn</span> <span class="p">sqrt</span>(<span class="t">f64</span> x) : <span class="t">f64</span>;          <span class="c">// from the maths library</span>
@@ -7293,9 +7319,6 @@ repeated; each piece of code is linked once. The program still builds with nothi
 file it is written in, exactly as in <code>module m &quot;./m.cb&quot;;</code>. So a module that wraps some C code can
 name it next to itself, and every program that uses the module gets it linked. Anything else is a
 library name. A missing file or library is reported at the line that names it.</p>
-<div class="callout warn"><div class="callout-title">Watch out</div>Only the compiler links C or assembly code. The interpreter accepts <code>extern &quot;…&quot;;</code> and ignores it;
-the first call into that code stops with <code>unsupported: no C function … which only cobc links</code>
-(exit status 3), and everything before it runs as usual.</div>
 <p>The usual shape is a module that keeps the <code>unsafe</code> calls to itself and exports safe
 functions. Two things make the wrappers below safe. First, <code>rect_area</code> takes <code>u8</code> sides, so the
 product always fits in the C function's <code>int32_t</code>. Second, <code>first_squares</code> lets the C function fill
@@ -7435,9 +7458,10 @@ program; a fault inside <code>divide_try(1, 0, &amp;q)</code> is contained: the 
 1 with <code>q</code> untouched, and <code>cobalt_last_fault</code> gives the report. The library may be called from any C
 thread, several at once. What it prints is written out as each call returns; a C program that buffers its
 own <code>stdout</code> flushes it before calling in (or switches buffering off) to keep the two in order.</p>
-<div class="callout note"><div class="callout-title">Note</div>The interpreter checks a library and runs its <code>unittest</code> blocks (<code>coby --unittest geo.cb</code>), but has
-nothing to run: <code>coby geo.cb</code> stops with <code>unsupported: this is a library</code>. Only <code>cobc --lib</code> builds it,
-for Linux or, with <code>--target x86_64-pc-windows-gnu</code>, for Windows.</div>
+<div class="callout note"><div class="callout-title">Note</div>A library has no <code>main</code>, so there is nothing to run: <code>cobc --check geo.cb</code> checks it,
+<code>cobc --unittest --run geo.cb</code> runs its <code>unittest</code> blocks, and <code>cobc --run geo.cb</code> stops with the
+command that builds it. <code>cobc --lib</code> builds it, for Linux or, with <code>--target x86_64-pc-windows-gnu</code>,
+for Windows.</div>
 <h3>Structs and text across the boundary</h3>
 <p>A struct crosses by value when it is plain: not a resource, at least one field, and every
 field an integer, a float, <code>bool</code>, a <code>rawptr</code>, another such struct, or an array of those. Every
@@ -7592,8 +7616,8 @@ readers and in the HTTP client's status line, both now an <code>Err</code>.</p>
 <p>Below is every module of <code>std</code> with every item it declares, generated from the
 reference implementation's source. Names <code class="priv">in faint red</code> are not exported: they are the
 module's own working parts, which a program cannot name or call, listed so that nothing in the source
-is left out. Everything else is exported. An item marked <sup class="nat">n</sup> has no CobaltC body: both
-tools build it in (<code>printf</code>, <code>sqrt</code>, <code>exit</code>, …), and its documentation is kept by hand in
+is left out. Everything else is exported. An item marked <sup class="nat">n</sup> has no CobaltC body: the
+compiler builds it in (<code>printf</code>, <code>sqrt</code>, <code>exit</code>, …), and its documentation is kept by hand in
 <code>impl/std/builtins.md</code>. A row headed <code>T::</code> lists <code>T</code>'s
 associated functions. A parent module also re-exports the submodules it lists, so their items are its
 own too. Each exported name links to its entry in <a href="#stdref">the std
@@ -7624,7 +7648,7 @@ reference</a>, which gives its declaration, its documentation and examples.</p>
 <tbody>
 <tr><td>Types</td><td><code class="priv">Drain</code>, <code class="priv">HashDrain</code>, <a href="#stdref-std-collections-HashMap"><code>HashMap</code></a>, <a href="#stdref-std-collections-HashSet"><code>HashSet</code></a>, <a href="#stdref-std-collections-PriorityQueue"><code>PriorityQueue</code></a>, <a href="#stdref-std-collections-Queue"><code>Queue</code></a>, <code class="priv">SetDrain</code>, <a href="#stdref-std-collections-Vec"><code>Vec</code></a></td></tr>
 <tr><td>Functions</td><td><code class="priv">key_before</code>, <a href="#stdref-std-collections-read_be"><code>read_be</code></a>, <a href="#stdref-std-collections-read_le"><code>read_le</code></a>, <a href="#stdref-std-collections-slice_eq"><code>slice_eq</code></a>, <a href="#stdref-std-collections-slice_parts"><code>slice_parts</code></a>, <a href="#stdref-std-collections-slice_swap"><code>slice_swap</code></a></td></tr>
-<tr><td><code>Vec::</code></td><td><a href="#stdref-std-collections-Vec-append"><code>append</code></a>, <code class="priv">apply_order</code>, <a href="#stdref-std-collections-Vec-binary_search"><code>binary_search</code></a>, <a href="#stdref-std-collections-Vec-binary_search_by"><code>binary_search_by</code></a>, <a href="#stdref-std-collections-Vec-clear"><code>clear</code></a>, <a href="#stdref-std-collections-Vec-clone"><code>clone</code></a>, <a href="#stdref-std-collections-Vec-clone_by"><code>clone_by</code></a>, <a href="#stdref-std-collections-Vec-contains"><code>contains</code></a>, <a href="#stdref-std-collections-Vec-dedup"><code>dedup</code></a>, <code class="priv">drain</code>, <a href="#stdref-std-collections-Vec-drop"><code>drop</code></a>, <a href="#stdref-std-collections-Vec-eq"><code>eq</code></a>, <a href="#stdref-std-collections-Vec-extend_from"><code>extend_from</code></a>, <a href="#stdref-std-collections-Vec-filled"><code>filled</code></a>, <a href="#stdref-std-collections-Vec-from_c_bytes"><code>from_c_bytes</code></a>, <a href="#stdref-std-collections-Vec-from_fn"><code>from_fn</code></a>, <a href="#stdref-std-collections-Vec-from_raw"><code>from_raw</code></a>, <a href="#stdref-std-collections-Vec-from_slice"><code>from_slice</code></a>, <code class="priv">grow</code>, <a href="#stdref-std-collections-Vec-index_exclusive"><code>index_exclusive</code></a>, <a href="#stdref-std-collections-Vec-index_of"><code>index_of</code></a>, <a href="#stdref-std-collections-Vec-index_shared"><code>index_shared</code></a>, <a href="#stdref-std-collections-Vec-insert"><code>insert</code></a>, <a href="#stdref-std-collections-Vec-len"><code>len</code></a>, <a href="#stdref-std-collections-Vec-new"><code>new</code></a>, <a href="#stdref-std-collections-Vec-pop"><code>pop</code></a>, <a href="#stdref-std-collections-Vec-position"><code>position</code></a>, <a href="#stdref-std-collections-Vec-push"><code>push</code></a>, <a href="#stdref-std-collections-Vec-push_be"><code>push_be</code></a>, <a href="#stdref-std-collections-Vec-push_le"><code>push_le</code></a>, <a href="#stdref-std-collections-Vec-remove"><code>remove</code></a>, <code class="priv">remove_at</code>, <code class="priv">replace</code>, <a href="#stdref-std-collections-Vec-reserve"><code>reserve</code></a>, <a href="#stdref-std-collections-Vec-retain"><code>retain</code></a>, <a href="#stdref-std-collections-Vec-reverse"><code>reverse</code></a>, <a href="#stdref-std-collections-Vec-sort"><code>sort</code></a>, <a href="#stdref-std-collections-Vec-sort_by"><code>sort_by</code></a>, <code class="priv">sorted_order</code>, <code class="priv">sorted_order_keys</code>, <a href="#stdref-std-collections-Vec-swap"><code>swap</code></a>, <a href="#stdref-std-collections-Vec-swap_remove"><code>swap_remove</code></a>, <code class="priv">take_raw</code>, <a href="#stdref-std-collections-Vec-truncate"><code>truncate</code></a></td></tr>
+<tr><td><code>Vec::</code></td><td><a href="#stdref-std-collections-Vec-all"><code>all</code></a>, <a href="#stdref-std-collections-Vec-any"><code>any</code></a>, <a href="#stdref-std-collections-Vec-append"><code>append</code></a>, <code class="priv">apply_order</code>, <a href="#stdref-std-collections-Vec-binary_search"><code>binary_search</code></a>, <a href="#stdref-std-collections-Vec-binary_search_by"><code>binary_search_by</code></a>, <a href="#stdref-std-collections-Vec-clear"><code>clear</code></a>, <a href="#stdref-std-collections-Vec-clone"><code>clone</code></a>, <a href="#stdref-std-collections-Vec-clone_by"><code>clone_by</code></a>, <a href="#stdref-std-collections-Vec-contains"><code>contains</code></a>, <a href="#stdref-std-collections-Vec-count"><code>count</code></a>, <a href="#stdref-std-collections-Vec-dedup"><code>dedup</code></a>, <code class="priv">drain</code>, <a href="#stdref-std-collections-Vec-drop"><code>drop</code></a>, <a href="#stdref-std-collections-Vec-eq"><code>eq</code></a>, <a href="#stdref-std-collections-Vec-extend_from"><code>extend_from</code></a>, <a href="#stdref-std-collections-Vec-filled"><code>filled</code></a>, <a href="#stdref-std-collections-Vec-from_c_bytes"><code>from_c_bytes</code></a>, <a href="#stdref-std-collections-Vec-from_fn"><code>from_fn</code></a>, <a href="#stdref-std-collections-Vec-from_raw"><code>from_raw</code></a>, <a href="#stdref-std-collections-Vec-from_slice"><code>from_slice</code></a>, <code class="priv">grow</code>, <a href="#stdref-std-collections-Vec-index_exclusive"><code>index_exclusive</code></a>, <a href="#stdref-std-collections-Vec-index_of"><code>index_of</code></a>, <a href="#stdref-std-collections-Vec-index_shared"><code>index_shared</code></a>, <a href="#stdref-std-collections-Vec-insert"><code>insert</code></a>, <a href="#stdref-std-collections-Vec-len"><code>len</code></a>, <a href="#stdref-std-collections-Vec-new"><code>new</code></a>, <a href="#stdref-std-collections-Vec-pop"><code>pop</code></a>, <a href="#stdref-std-collections-Vec-position"><code>position</code></a>, <a href="#stdref-std-collections-Vec-push"><code>push</code></a>, <a href="#stdref-std-collections-Vec-push_be"><code>push_be</code></a>, <a href="#stdref-std-collections-Vec-push_le"><code>push_le</code></a>, <a href="#stdref-std-collections-Vec-remove"><code>remove</code></a>, <code class="priv">remove_at</code>, <code class="priv">replace</code>, <a href="#stdref-std-collections-Vec-reserve"><code>reserve</code></a>, <a href="#stdref-std-collections-Vec-retain"><code>retain</code></a>, <a href="#stdref-std-collections-Vec-reverse"><code>reverse</code></a>, <a href="#stdref-std-collections-Vec-sort"><code>sort</code></a>, <a href="#stdref-std-collections-Vec-sort_by"><code>sort_by</code></a>, <code class="priv">sorted_order</code>, <code class="priv">sorted_order_keys</code>, <a href="#stdref-std-collections-Vec-swap"><code>swap</code></a>, <a href="#stdref-std-collections-Vec-swap_remove"><code>swap_remove</code></a>, <code class="priv">take_raw</code>, <a href="#stdref-std-collections-Vec-truncate"><code>truncate</code></a></td></tr>
 <tr><td><code>Drain::</code></td><td><code class="priv">drop</code>, <code class="priv">take</code>, <code class="priv">total</code></td></tr>
 <tr><td><code>HashMap::</code></td><td><a href="#stdref-std-collections-HashMap-clear"><code>clear</code></a>, <a href="#stdref-std-collections-HashMap-clone"><code>clone</code></a>, <a href="#stdref-std-collections-HashMap-contains"><code>contains</code></a>, <a href="#stdref-std-collections-HashMap-contains_str"><code>contains_str</code></a>, <code class="priv">drain</code>, <a href="#stdref-std-collections-HashMap-entry"><code>entry</code></a>, <code class="priv">find</code>, <a href="#stdref-std-collections-HashMap-get"><code>get</code></a>, <a href="#stdref-std-collections-HashMap-get_mut"><code>get_mut</code></a>, <a href="#stdref-std-collections-HashMap-get_mut_str"><code>get_mut_str</code></a>, <a href="#stdref-std-collections-HashMap-get_str"><code>get_str</code></a>, <code class="priv">has_key</code>, <code class="priv">index_of</code>, <a href="#stdref-std-collections-HashMap-insert"><code>insert</code></a>, <a href="#stdref-std-collections-HashMap-key_at"><code>key_at</code></a>, <a href="#stdref-std-collections-HashMap-len"><code>len</code></a>, <a href="#stdref-std-collections-HashMap-new"><code>new</code></a>, <a href="#stdref-std-collections-HashMap-remove"><code>remove</code></a>, <code class="priv">remove_slot</code>, <a href="#stdref-std-collections-HashMap-remove_str"><code>remove_str</code></a>, <code class="priv">reserve_one</code>, <code class="priv">reslot</code>, <code class="priv">seek</code>, <a href="#stdref-std-collections-HashMap-swap_remove"><code>swap_remove</code></a>, <code class="priv">unslot</code>, <a href="#stdref-std-collections-HashMap-value_at"><code>value_at</code></a></td></tr>
 <tr><td><code>HashDrain::</code></td><td><code class="priv">drop</code>, <code class="priv">take_key</code>, <code class="priv">take_value</code>, <code class="priv">total</code></td></tr>
@@ -8480,7 +8504,7 @@ pieces of §07 and §20 fit together.</div>
 <p><code>Rng</code> is a general-purpose pseudo-random generator — for simulations, games, sampling,
 randomised tests, shuffling — whose sequence the specification fixes (xoshiro256** seeded through
 splitmix64, <code>spec/21</code> <code>[Rng]</code>, so a test in another language can reproduce it), so a program that seeds it
-with a constant prints the same numbers under both tools and on every machine; seed it with
+with a constant prints the same numbers on every machine; seed it with
 <code>Rng::from_os()</code> for a fresh sequence each run. <code>below(&amp;mut r, n)</code> is unbiased, <code>unit_f64</code> is in <code>[0, 1)</code>.
 It is <strong>not suitable for cryptographic purposes</strong>: its output is predictable from a few values, so
 never use it for keys, tokens, nonces, passwords, or anything an adversary must not guess (D-0120).</p>
@@ -8511,7 +8535,7 @@ never use it for keys, tokens, nonces, passwords, or anything an adversary must 
 instead (<code>std::random</code>): <code>os_random_bytes(&amp;mut buf)</code> fills a slice, <code>os_random_u64()</code> gives one
 number. These are what keys, session tokens and nonces are made of. <code>Rng::from_os()</code> seeds an <code>Rng</code>
 from them, which makes its sequence differ between runs but not secret: the sequence is still
-<code>Rng</code>'s. Every system both tools run on has such a source; if one did not, the call would be the
+<code>Rng</code>'s. Every system <code>cobc</code> compiles for has such a source; if one did not, the call would be the
 fault <code>diag.entropy-unavailable</code>, never a quiet fall back to the clock.</p>
 <figure class="code"><div class="code-head"><span class="code-title">A session token</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
@@ -8985,7 +9009,7 @@ widget x 12 = 42.00
 {
     <span class="p">printf</span>(<span class="s">&quot;%d items\n&quot;</span>, <span class="s">&quot;twelve&quot;</span>);   <span class="c">// <span class="bad">✗</span> <span class="dg">diag.type-mismatch</span>: %d takes an integer</span>
 }</code></pre></figure>
-<figure class="code"><div class="code-head"><span class="code-title">Errors go to standard error: <code>coby greet.cb</code> with no argument</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+<figure class="code"><div class="code-head"><span class="code-title">Errors go to standard error: <code>cobc --run greet.cb</code> with no argument</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> main() : <span class="t">u8</span>
 {
@@ -9163,8 +9187,8 @@ passes a <code>FileError</code> up to the caller: the same error a file gives (D
 <code>Denied</code> never come from standard input, so a <code>match</code> that names <code>Io</code> and <code>Utf8</code> ends with <code>_</code>.
 Underneath is the <code>stdin_read</code> extern, the counterpart of <code>stdout_write</code>, which you can call
 yourself inside <code>unsafe</code> to read raw bytes.</p>
-<p>Both <code>coby</code> and <code>cobc</code> read standard input, from the terminal or from a pipe, for example
-<code>printf &#x27;ada\nlin\n&#x27; | coby greet.cb</code>. Standard output is flushed before each read, so a prompt
+<p>A program reads standard input from the terminal or from a pipe, for example
+<code>printf &#x27;ada\nlin\n&#x27; | cobc --run greet.cb</code>. Standard output is flushed before each read, so a prompt
 printed with <code>printf</code> appears before the program waits.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Reading lines</span></div><pre><code><span class="k">import</span> std;
 
@@ -9246,12 +9270,12 @@ line ends exactly as they came, and an empty result at the end of input.</p>
 <p><em>In <code>std::env</code>.</em></p>
 <p><code>arg_count()</code> is the number of arguments the program was started with, and <code>arg(i)</code>
 is argument <code>i</code> as a <code>Result&lt;String, Utf8Error&gt;</code>. Argument 0 is the first one after the program:
-<code>coby prog.cb a b</code> and <code>cobc --run prog.cb a b</code> both give <code>a</code> and <code>b</code>, and the program's own name
+<code>cobc --run prog.cb a b</code> and <code>./prog a b</code> both give <code>a</code> and <code>b</code>, and the program's own name
 is not an argument. Each argument is checked on its own, so one that is not UTF-8 is an <code>Err</code>
 without affecting the others. <code>arg(i)</code> with <code>i ≥ arg_count()</code> faults <code>diag.index-out-of-bounds</code>,
-as indexing a <code>Vec</code> does. Both tools pass arguments. Underneath is the <code>arg_bytes</code> extern, which
+as indexing a <code>Vec</code> does. Underneath is the <code>arg_bytes</code> extern, which
 you can call inside <code>unsafe</code> for an argument's raw bytes.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Listing the arguments: <code>coby args.cb one two</code></span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+<figure class="code"><div class="code-head"><span class="code-title">Listing the arguments: <code>cobc --run args.cb one two</code></span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> main()
 {
@@ -9337,9 +9361,9 @@ exponent (<code>2.5e-3</code>), or <code>inf</code> or <code>NaN</code>. No spac
 <code>\r\n</code> whole, so its lines parse, but a <code>\r</code> from any other source is <code>Invalid</code>. Floats are rounded correctly, and every float <code>%v</code> writes parses back to
 the same value. To take a line apart first, split, trim or search it as views (<code>StringView::split(&amp;s, …)</code>,
 <code>trim</code>, <code>find</code>, the <code>StringView</code> functions above) and parse a piece with <code>StringView::parse&lt;T&gt;</code>.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Parsing arguments, building a line: <code>coby sum.cb 1.5 2 0.25</code></span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+<figure class="code"><div class="code-head"><span class="code-title">Parsing arguments, building a line: <code>cobc --run sum.cb 1.5 2 0.25</code></span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
-<span class="c">// Adds up its arguments: `coby sum.cb 1.5 2 x` reports the `x`.</span>
+<span class="c">// Adds up its arguments: `cobc --run sum.cb 1.5 2 x` reports the `x`.</span>
 <span class="k">fn</span> main() : <span class="t">u8</span>
 {
     <span class="t">f64</span> total = <span class="n">0.0</span>;
@@ -9823,9 +9847,7 @@ an end outlives its <code>Child</code>.</p>
 a session cookie or a signed request is protected. Both come in a streaming form for a message that
 arrives in pieces: <code>Sha256::new()</code>, <code>Sha256::update(&amp;mut h, piece)</code> as often as needed,
 <code>Sha256::finish(h)</code>; <code>HmacSha256</code> the same. A <code>Sha256</code> is a plain value, so a copy of a half-done
-computation continues on its own. Everything is written in CobaltC (the spec lists it), so the two
-tools compute exactly the same bytes; for a message of a few kilobytes the interpreter's speed does
-not matter.</p>
+computation continues on its own. Everything is written in CobaltC (the spec lists it).</p>
 <p><strong>Check a MAC with <code>digest_eq</code>, never with <code>==</code>.</strong> <code>digest_eq(a, b)</code> compares every byte
 whatever the first difference, so how long the check takes says nothing about how many leading bytes
 a sender guessed right. A digest is shown with <code>to_hex</code> and read back with <code>from_hex</code>; bytes that
@@ -9943,7 +9965,7 @@ signature over the digest made with <code>hash</code>; the nonce is derived from
 RFC 6979 says, so it too is deterministic) and <code>ecdsa_verify(curve, public, digest, sig)</code>; the same
 keys do key agreement with <code>ecdh(curve, &amp;k, &amp;their_public)</code>, of which the <code>p256_*</code>
 functions are the P-256 case. <em>RSA</em>: <code>rsa_generate_key(2048)</code> makes an <code>RsaPrivateKey</code>
-(minutes under the interpreter, seconds compiled), or <code>RsaPrivateKey::new(n, e, d, p, q)</code> builds one
+(in seconds), or <code>RsaPrivateKey::new(n, e, d, p, q)</code> builds one
 from numbers read elsewhere (<code>None</code> if they do not fit together); <code>rsa_sign_pkcs1v15(&amp;key, kind,
 &amp;digest)</code> and <code>rsa_sign_pss(&amp;key, kind, &amp;digest)</code> sign the digest in the two standard
 encodings, <code>RsaPrivateKey::public_key(&amp;key)</code> gives the <code>RsaPublicKey</code> that <code>rsa_verify_pkcs1v15</code> and
@@ -9986,8 +10008,8 @@ verify, since each carries its own. Never store a plain <code>sha256</code> of a
 the formats that predate Argon2, <code>pbkdf2(kind, password, salt, iterations, len)</code> is PBKDF2 over
 HMAC, and <code>argon2id(password, salt, passes, memory_kib, lanes, len)</code> is the raw function.
 <code>blake2b(data, len)</code> (RFC 7693, up to 64 bytes, <code>Blake2b::new_keyed</code> for a keyed MAC) is the fast
-hash Argon2 is built on. Under the interpreter <code>hash_password</code> takes many minutes (19 MiB of
-memory touched twice, word by word); compiled, well under a second.</p>
+hash Argon2 is built on. <code>hash_password</code> touches 19 MiB of memory twice, word by word, in well
+under a second.</p>
 <p><strong>SHA-1</strong> is there too (<code>Sha1</code>, <code>sha1</code>, and <code>Sha1</code> as a <code>HashKind</code> for <code>hmac</code>,
 <code>pbkdf2</code> and <code>Hasher</code>, D-0181), because older protocols still require it: RFC 6238's one-time
 passwords default to HMAC-SHA-1, and git names its objects by it. It is legacy — collisions have been
@@ -10025,7 +10047,7 @@ as spreadsheets do), <code>minimum</code> and <code>maximum</code> each convert 
 <code>Option&lt;f64&gt;</code>: <code>None</code> for an empty slice, and for a sample statistic of fewer than two values, because
 no data is ordinary input rather than a bug. <code>describe(data)</code> gives the count, minimum, maximum, mean,
 standard deviation and median as one <code>Summary</code>. Sums go left to right and the variance takes two
-passes, so both tools give the same result for the same data. A NaN among the values makes a mean a
+passes, so the same data always gives the same result. A NaN among the values makes a mean a
 NaN, sorts last for the median, and is passed over by <code>minimum</code> and <code>maximum</code>.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Scores and sizes</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
@@ -10079,11 +10101,6 @@ TLS 1.3, with ChaCha20-Poly1305, AES-128-GCM or AES-256-GCM, X25519, P-256 or P-
 RSA-PSS or Ed25519 signatures: the set every TLS 1.3 server must support and the common additions; a
 failure is a <code>TlsError</code> saying whether it was the network, the certificate, the handshake or an
 alert. The example is shown, not run: it needs the network.</p>
-<div class="callout note"><div class="callout-title">Note</div>Run TLS clients compiled. Checking a server's certificate chain is several public-key
-signature checks, a few milliseconds compiled but tens of seconds in the interpreter (<code>TrustStore::system()</code>
-alone parses every root certificate). Many servers close a connection whose handshake stalls for
-about ten seconds, and the interpreter's client then fails with the network error <code>closed</code>; under
-<code>cobc</code> the same program completes in well under a second.</div>
 <figure class="code"><div class="code-head"><span class="code-title">Connecting to a DNS-over-TLS resolver (needs the network)</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> main() : <span class="t">u8</span>
@@ -10335,7 +10352,7 @@ tables, dotted keys, inline tables, the four string forms, integers in four base
 <code>Toml::set</code> and <code>Toml::push</code>. A document the format refuses — a key or table defined twice, a value
 added to a table a header or an inline table has closed, a bad escape — is <code>Err(Invalid(byte))</code>, with
 the byte of the offending key; an integer beyond <code>i64</code> is <code>Err(OutOfRange)</code>. The reader passes the
-public toml-test suite for TOML 1.0 under both tools.</p>
+public toml-test suite for TOML 1.0.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Reading a configuration file</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> main()
@@ -10739,7 +10756,7 @@ by its value (<code>HashMap::get(&amp;counts, 7)</code>), and a struct key by re
 </tbody>
 </table>
 <p>Entries are kept in the order they were added, so <code>foreach (k, v in &amp;m)</code> (§14) visits
-them in that order, the same in the interpreter and the compiler, whatever the keys hash to.
+them in that order, whatever the keys hash to.
 <code>key_at</code> and <code>value_at</code> reach entry <code>i</code> directly. <code>remove</code> keeps that order, so it moves every
 later entry down one; <code>swap_remove</code> is quick because it fills the gap with the last entry instead,
 for a map whose order does not matter.</p>
@@ -11424,7 +11441,7 @@ specification:</p>
 <ul>
 <li>no character literals (<code>b&#x27;x&#x27;</code> is a byte: a <code>u8</code>, or the unsigned type its context asks for), no indexing or slicing of a <code>str</code>; no <code>switch</code> (a <code>match</code> on an integer, §16, is the checked form); no <code>goto</code></li>
 <li>no <code>import … as</code> renaming; no method-call syntax (<code>v.push(x)</code> — final, <code>CHG-0132</code>); no operator overloading</li>
-<li>patterns in <code>match</code> are <code>_</code>, a name (a binder or a constant), a literal, a variant, a variant with a pattern for its payload, and a struct pattern (<code>P { a, .. }</code>, which takes the value apart, §16), nothing else (no ranges, alternatives or guards); destructuring takes a struct apart whole: every field named, or <code>..</code> for the rest (destroyed as usual), and <code>field : name</code> renames one</li>
+<li>patterns in <code>match</code> are <code>_</code>, a name (a binder or a constant), a literal, a variant, a variant with a pattern for its payload, a struct pattern (<code>P { a, .. }</code>, which takes the value apart, §16), and a variant with fields (<code>E::V { a, .. }</code>, D-0324), nothing else (no ranges, alternatives or guards); destructuring takes a struct apart whole: every field named, or <code>..</code> for the rest (destroyed as usual), and <code>field : name</code> renames one</li>
 <li>no partial initialisation of aggregates</li>
 <li>no lifetime annotations: a function returning a reference borrows from its one reference parameter, or, with several, from those its <code>from</code> clause names (§10); a result whose parts come from different arguments cannot be described</li>
 <li>no user-declared bounds on generic type parameters: only the six built-in ones (<code>eq</code>, <code>ordered</code>, <code>number</code>, <code>integer</code>, <code>clone</code>, <code>plain</code>), on a function's parameters; a struct or enum satisfies <code>clone</code> by its fields, and <code>eq</code> and <code>ordered</code> when it is a key type (D-0271), never <code>number</code> or <code>integer</code></li>
@@ -11447,16 +11464,12 @@ measured: a small program written two or more ways, each way built by <code>cobc
 under GCC and under Clang, and timed. The ratios quoted are from those runs, on the machine described
 in <code>bench/RESULTS.md</code>. They describe <code>cobc</code> as it is today. The compiler proves more with each
 release, so a gap measured here may close; where that is likely, the text says so.</p>
-<p>None of it applies to <code>coby</code>. The interpreter tracks every object, reference and access
-path and makes every check the specification leaves to run time, so it is many times slower than
-compiled code whatever you write, and its relative costs are not <code>cobc</code>'s. Use it to run a program
-at once and to check what it does, never to time it.</p>
 <h3 id="perf-workflow">A workflow by stage</h3>
 <table>
 <thead><tr><th>Stage</th><th>Command</th><th>What it costs and gives</th></tr></thead>
 <tbody>
-<tr><td>Writing</td><td><code>coby --check prog.cb</code> or <code>cobc --check src/</code></td><td>Every check made before a program starts: syntax, names, types, ownership, exhaustive matches. Nothing runs and no C is compiled, so it takes seconds even for a large program, and a program that reads input, writes files or serves the network is checked without doing so.</td></tr>
-<tr><td>Trying it</td><td><code>coby prog.cb</code>, or <code>cobc --run -O0 prog.cb</code></td><td><code>-O0</code> makes the C compiler's work short, at the price of a slow program: right while you only care whether it behaves correctly.</td></tr>
+<tr><td>Writing</td><td><code>cobc --check prog.cb</code> or <code>cobc --check src/</code></td><td>Every check made before a program starts: syntax, names, types, ownership, exhaustive matches. Nothing runs and no C is compiled, so it takes seconds even for a large program, and a program that reads input, writes files or serves the network is checked without doing so.</td></tr>
+<tr><td>Trying it</td><td><code>cobc --run -O0 prog.cb</code></td><td><code>-O0</code> makes the C compiler's work short, at the price of a slow program: right while you only care whether it behaves correctly.</td></tr>
 <tr><td>Measuring and shipping</td><td><code>cobc -o prog prog.cb</code> (<code>-O2</code>, the default)</td><td>What users run. Measure only this: <code>-O0</code> keeps exactly the work <code>-O2</code> removes, so a comparison made at <code>-O0</code> says nothing about the real build.</td></tr>
 </tbody>
 </table>
@@ -11920,7 +11933,7 @@ four separate programs. To keep a thread's work its own:</p>
 guarantee CobaltC makes: its memory safety, its aliasing and its arithmetic are yours to get right,
 and its declaration is an unchecked claim. Measure first.</p>
 <div class="callout rule"><div class="callout-title">Rules of thumb</div><ul>
-<li>Measure the <code>-O2</code> build, never <code>coby</code> or <code>-O0</code>.</li>
+<li>Measure the <code>-O2</code> build, never <code>-O0</code>.</li>
 <li>Keep a hot <code>Vec</code> a local (or a parameter it owns) that only its own name reaches; across a loop, hold shared element references only, never an exclusive one.</li>
 <li>Index a struct's <code>Vec</code> field (<code>h.v[i]</code>) where the function only indexes it; where it also pushes to it or hands it on, loop with <code>foreach</code> or a helper.</li>
 <li>Give a function over a struct's vectors the struct as its only reference, and keep its uses of the vectors to indexing and the <code>Vec</code> calls listed above.</li>
@@ -11942,11 +11955,11 @@ and its declaration is an unchecked claim. Measure first.</p>
 <p>Every item a program can use from <code>std</code>, module by module, with its declaration, what it does,
 and for some an example. The text is the <code>///</code> documentation in <code>impl/std</code> itself
 (<code>spec/22</code> §1), read by <code>impl/tools/cobdoc.py</code> when this page is built; each example is a <code>unittest</code>
-block of <code>std</code> (<code>coby --unittest-std</code>), run here as a program's <code>main</code> under both tools. The items both
-tools build in, which have no CobaltC body (<code>printf</code>, <code>sqrt</code>, <code>exit</code>, …), are documented by hand in
+block of <code>std</code> (<code>cobc --unittest-std --run prog.cb</code> runs them all), run here as a program's <code>main</code>.
+The items the compiler builds in, which have no CobaltC body (<code>printf</code>, <code>sqrt</code>, <code>exit</code>, …), are documented by hand in
 <code>impl/std/builtins.md</code> and shown here as <em>built in</em>. §21 says which module to look in;
 <code>spec/21</code> is the normative text.</p>
-<p>771 of the 805 items are documented so far.</p>
+<p>774 of the 808 items are documented so far.</p>
 <p class="std-nav"><a href="#stdref-std-core"><code>std::core</code></a>, <a href="#stdref-std-collections"><code>std::collections</code></a>, <a href="#stdref-std-text"><code>std::text</code></a>, <a href="#stdref-std-io"><code>std::io</code></a>, <a href="#stdref-std-fs"><code>std::fs</code></a>, <a href="#stdref-std-env"><code>std::env</code></a>, <a href="#stdref-std-memory"><code>std::memory</code></a>, <a href="#stdref-std-sync"><code>std::sync</code></a>, <a href="#stdref-std-random"><code>std::random</code></a>, <a href="#stdref-std-math"><code>std::math</code></a>, <a href="#stdref-std-stats"><code>std::stats</code></a>, <a href="#stdref-std-time"><code>std::time</code></a>, <a href="#stdref-std-process"><code>std::process</code></a>, <a href="#stdref-std-net"><code>std::net</code></a>, <a href="#stdref-std-crypto-digest"><code>std::crypto::digest</code></a>, <a href="#stdref-std-crypto-kdf"><code>std::crypto::kdf</code></a>, <a href="#stdref-std-crypto-aead"><code>std::crypto::aead</code></a>, <a href="#stdref-std-crypto-pk"><code>std::crypto::pk</code></a>, <a href="#stdref-std-x509"><code>std::x509</code></a>, <a href="#stdref-std-tls"><code>std::tls</code></a>, <a href="#stdref-std-http"><code>std::http</code></a>, <a href="#stdref-std-http-client"><code>std::http::client</code></a>, <a href="#stdref-std-http-server"><code>std::http::server</code></a>, <a href="#stdref-std-database"><code>std::database</code></a>, <a href="#stdref-std-database-postgres"><code>std::database::postgres</code></a>, <a href="#stdref-std-encoding-json"><code>std::encoding::json</code></a>, <a href="#stdref-std-encoding-hex"><code>std::encoding::hex</code></a>, <a href="#stdref-std-encoding-base64"><code>std::encoding::base64</code></a>, <a href="#stdref-std-encoding-toml"><code>std::encoding::toml</code></a>, <a href="#stdref-std-compress"><code>std::compress</code></a>, <a href="#stdref-std-ffi"><code>std::ffi</code></a></p>
 <h3 id="stdref-std-core"><code>std::core</code> <span class="std-file">impl/std/core.cb</span></h3>
 <div class="stdref-entry">
@@ -12296,6 +12309,35 @@ tools build in, which have no CobaltC body (<code>printf</code>, <code>sqrt</cod
 <span class="t">i32</span> six = <span class="n">6</span>;
 <span class="p">assert</span>(<span class="p">Option</span>::unwrap(<span class="p">Vec</span>::index_of(&amp;v, six)) == <span class="n">2</span>);
 <span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;<span class="p">Vec</span>::position(&amp;v, [](<span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt; x) : <span class="t">bool</span> { *x &gt; <span class="n">9</span> })));</code></pre></figure>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-collections-Vec-any" class="stdref-item"><code>Vec::any</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">Vec</span>::any&lt;T&gt;(<span class="t">ref</span>&lt;<span class="p">Vec</span>&lt;T&gt;, <span class="t">shared</span>&gt; v, <span class="k">fn</span>(<span class="t">ref</span>&lt;T, <span class="t">shared</span>&gt;) : <span class="t">bool</span> p) : <span class="t">bool</span></code></pre></figure>
+<p>Whether <code>p</code> returns true for some element; <code>false</code> for an empty <code>Vec</code>.</p>
+<p><code>p</code> is called in index order and not past the first element for which it returns true (D-0325).</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-collections-Vec-all" class="stdref-item"><code>Vec::all</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">Vec</span>::all&lt;T&gt;(<span class="t">ref</span>&lt;<span class="p">Vec</span>&lt;T&gt;, <span class="t">shared</span>&gt; v, <span class="k">fn</span>(<span class="t">ref</span>&lt;T, <span class="t">shared</span>&gt;) : <span class="t">bool</span> p) : <span class="t">bool</span></code></pre></figure>
+<p>Whether <code>p</code> returns true for every element; <code>true</code> for an empty <code>Vec</code>.</p>
+<p><code>p</code> is called in index order and not past the first element for which it returns false (D-0325).</p>
+</div>
+<div class="stdref-entry">
+<h4 id="stdref-std-collections-Vec-count" class="stdref-item"><code>Vec::count</code> <span class="std-file">fn</span></h4>
+<figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">Vec</span>::count&lt;T&gt;(<span class="t">ref</span>&lt;<span class="p">Vec</span>&lt;T&gt;, <span class="t">shared</span>&gt; v, <span class="k">fn</span>(<span class="t">ref</span>&lt;T, <span class="t">shared</span>&gt;) : <span class="t">bool</span> p) : <span class="t">usize</span></code></pre></figure>
+<p>The number of elements for which <code>p</code> returns true.</p>
+<p><code>p</code> is called once for each element, in index order (D-0325). <code>Vec::len</code> is the number of all of them.</p>
+<figure class="code"><div class="code-head"><span class="code-title">Example: <code>any</code>, <code>all</code> and <code>count</code> ask the same predicate three questions</span><span class="badge ok">runs</span></div><pre><code><span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v = <span class="p">Vec</span>::new();
+<span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">4</span>);
+<span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">9</span>);
+<span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">6</span>);
+<span class="p">assert</span>(<span class="p">Vec</span>::any(&amp;v, [](<span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt; x) : <span class="t">bool</span> { *x &gt; <span class="n">5</span> }));
+<span class="p">assert</span>(!<span class="p">Vec</span>::all(&amp;v, [](<span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt; x) : <span class="t">bool</span> { *x &gt; <span class="n">5</span> }));
+<span class="p">assert</span>(<span class="p">Vec</span>::count(&amp;v, [](<span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt; x) : <span class="t">bool</span> { *x &gt; <span class="n">5</span> }) == <span class="n">2</span>);
+<span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; none = <span class="p">Vec</span>::new();
+<span class="p">assert</span>(!<span class="p">Vec</span>::any(&amp;none, [](<span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt; x) : <span class="t">bool</span> { *x &gt; <span class="n">5</span> }));
+<span class="p">assert</span>(<span class="p">Vec</span>::all(&amp;none, [](<span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt; x) : <span class="t">bool</span> { *x &gt; <span class="n">5</span> }));
+<span class="p">assert</span>(<span class="p">Vec</span>::count(&amp;none, [](<span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt; x) : <span class="t">bool</span> { *x &gt; <span class="n">5</span> }) == <span class="n">0</span>);</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-collections-Vec-index_of" class="stdref-item"><code>Vec::index_of</code> <span class="std-file">fn</span></h4>
@@ -14890,7 +14932,7 @@ Rng::shuffle(&amp;<span class="k">mut</span> r, &amp;<span class="k">mut</span> 
 <div class="stdref-entry">
 <h4 id="stdref-std-math-ln" class="stdref-item"><code>ln</code> <span class="std-file">built in fn</span></h4>
 <figure class="code sig"><pre><code><span class="k">fn</span> ln(T x) : T</code></pre></figure>
-<p>The natural logarithm of <code>x</code>, within one unit in the last place of the mathematical value (<code>[Float-Transcendental]</code>, D-0101): the platform&#x27;s C library computes it, so <code>coby</code> and <code>cobc</code> agree on one platform and may differ in the last bit between platforms. A NaN for a negative <code>x</code>; negative infinity for <code>±0</code>.</p>
+<p>The natural logarithm of <code>x</code>, within one unit in the last place of the mathematical value (<code>[Float-Transcendental]</code>, D-0101): the platform&#x27;s C library computes it, so the result is the same on one platform and may differ in the last bit between platforms. A NaN for a negative <code>x</code>; negative infinity for <code>±0</code>.</p>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-math-exp" class="stdref-item"><code>exp</code> <span class="std-file">built in fn</span></h4>
@@ -16134,7 +16176,7 @@ Summary s = <span class="p">Option</span>::unwrap(describe(&amp;ms));
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">hash_password</span>(<span class="t">slice</span>&lt;<span class="t">u8</span>, <span class="t">shared</span>&gt; password) : <span class="p">String</span></code></pre></figure>
 <p><code>password</code> hashed for storage: an Argon2id PHC string with a fresh random salt.</p>
 <p>The text <code>$argon2id$v=19$m=19456,t=2,p=1$S$H</code>, S the unpadded base64 of 16 bytes of <code>os_random_bytes</code> and H that of <code>argon2id(password, salt, 2, 19456, 1, 32)</code>: 19 MiB, two passes and one lane, the OWASP recommendation. <code>verify_password</code> and every password library read it.</p>
-<p>Slow by design, so that guessing stays expensive: under <code>coby</code> it takes over half an hour.</p>
+<p>Slow by design, so that guessing stays expensive.</p>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-crypto-kdf-verify_password" class="stdref-item"><code>verify_password</code> <span class="std-file">fn</span></h4>
@@ -16393,7 +16435,7 @@ sealed[<span class="n">0</span>] = sealed[<span class="n">0</span>] ^ <span clas
 <h4 id="stdref-std-crypto-pk-rsa_generate_key" class="stdref-item"><code>rsa_generate_key</code> <span class="std-file">fn</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">rsa_generate_key</span>(<span class="t">usize</span> bits) : <span class="p">RsaPrivateKey</span></code></pre></figure>
 <p>A new RSA private key of <code>bits</code> bits, with the public exponent 65537.</p>
-<p>n = p·q has exactly <code>bits</code> bits; p and q are distinct primes of <code>bits</code>/2 bits from <code>os_random_bytes</code>, found by trial division by the primes below 1000 and five rounds of Miller–Rabin with random bases (FIPS 186-4 B.3.3), with p - 1 and q - 1 prime to e. Faults (<code>crypto_length</code>) when <code>bits</code> is below 1024, above 8192 or not a multiple of 64. Slow under an interpreter, as every key generation is.</p>
+<p>n = p·q has exactly <code>bits</code> bits; p and q are distinct primes of <code>bits</code>/2 bits from <code>os_random_bytes</code>, found by trial division by the primes below 1000 and five rounds of Miller–Rabin with random bases (FIPS 186-4 B.3.3), with p - 1 and q - 1 prime to e. Faults (<code>crypto_length</code>) when <code>bits</code> is below 1024, above 8192 or not a multiple of 64. Slow, as every key generation is: it searches for primes.</p>
 </div>
 <h3 id="stdref-std-x509"><code>std::x509</code> <span class="std-file">impl/std/x509.cb</span></h3>
 <div class="stdref-entry">
