@@ -166,7 +166,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.111502</div>
+<div class="sub">Specification edition 2026.111601</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -339,7 +339,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.111502</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.111601</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -378,11 +378,10 @@ and what you can do with it.</p>
 this guide uses and changes nothing else (below).</p>
 <p>The test suites hold <code>cobc</code> to the specification on every program, under both GCC
 and Clang: every conformance case, every showcase and every complete example in this guide.</p>
-<p><code>cobc</code> is written twice, in Rust and in CobaltC itself (the repository's
-<code>impl/selfhost/</code>, built as <code>cbc</code>). The two take the same options and write the same C, byte for
-byte, for every program; built by the Rust one, the CobaltC one compiles its own source to that same
-C again, so CobaltC's compiler can rebuild itself without the Rust one (D-0276). The Rust one is
-being retired (D-0326).</p>
+<p><code>cobc</code> is written in CobaltC and compiles itself; its runtime is C. A new
+machine builds it with a C compiler alone, from the C of its own source kept in the repository
+(<code>gcc impl/bootstrap/boot.c -o boot &amp;&amp; ./boot</code>), and the compiler so built proves itself by writing
+that C again, byte for byte (D-0326).</p>
 <p>Everything in this guide runs on x86-64 Linux. <code>cobc</code> also builds Windows programs
 with a MinGW-w64 GCC, on Windows itself or from Linux with <code>--target x86_64-pc-windows-gnu</code> (D-0255;
 the repository's README says how), and the formatter <code>cobfmt</code> runs there too.</p>
