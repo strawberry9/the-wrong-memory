@@ -199,6 +199,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <li><a href="#stdref"><span class="n">R</span>The std reference</a></li>
 <li class="group">Appendix</li>
 <li><a href="#appx"><span class="n">A</span>Appendix: diagnostics</a></li>
+<li><a href="#appb"><span class="n">B</span>Appendix: the runtime interface</a></li>
 </ol>
 </aside>
 <main>
@@ -17914,7 +17915,689 @@ rule is applied statically where the checker can see the problem and dynamically
 </tbody>
 </table>
 
-<nav class="pager"><a class="prev" href="#stdref">&larr; R The std reference</a><a class="top" href="#top">Top</a></nav></section>
+<nav class="pager"><a class="prev" href="#stdref">&larr; R The std reference</a><a class="top" href="#top">Top</a><a class="next" href="#appb">B Appendix: the runtime interface &rarr;</a></nav></section>
+<section id="appb">
+<h2><span class="secnum">B</span>Appendix: the runtime interface</h2>
+<p class="blurb">How compiled CobaltC uses <code>cbrt</code>, the runtime: what it holds, every call the generated C makes, and why.</p>
+<p>A compiled CobaltC program is two things linked together: the C that <code>cobc</code> wrote for the
+program, compiled by the system's C compiler, and <code>cbrt</code>, the CobaltC runtime, a static library
+(<code>libcbrt.a</code>). This appendix describes the line between them: what the runtime holds, what the
+generated C asks of it and when, and what the generated C does on its own. It is a reference for
+reading generated C (<code>cobc --keep-c</code>), for reading a profile that names a <code>cb_</code> function, and for
+working on the compiler or the runtime. Nothing in it is needed to write CobaltC programs, and
+nothing in it is a rule of the language: the interface belongs to this implementation and changes
+with it. The section on <a href="#perf-costs">where the time goes</a> gives the same picture from
+the side of a program's speed.</p>
+<h3 id="rt-why">Why there is a runtime</h3>
+<p>CobaltC's safety rules are checked in two places. The static pass proves what it can before
+the program runs. What depends on values, such as whether two indexes name the same element, whether
+a reference kept in a data structure is still alive when it is used, or whether a binding still owns
+its resource on this path, the specification leaves to the run, and says exactly which checks those
+are (the diagnostics marked <em>dynamic</em> or <em>both</em> in <a href="#appx">appendix A</a>).
+Those checks are made over state that only exists while the program runs: which objects are alive,
+which references reach them and in which mode, which frame owns what. Something has to hold that
+state and make the checks, and that is the runtime. A conforming compiler is native code for the
+program plus a runtime holding the dynamic part of the specification's state.</p>
+<p>The runtime also does what any language's runtime does: it starts the program, ends it, runs
+destructors when a fault unwinds the stack, starts threads, and carries the standard library's calls
+to the operating system (files, sockets, processes, clocks, random bytes).</p>
+<p>The runtime is written in C, not in CobaltC (D-0326). Every other tool is CobaltC. Three
+things a runtime needs are not in the language:</p>
+<ul>
+<li><strong>Code that calls no runtime.</strong> Compiled CobaltC asks the runtime to record its objects and check its accesses. A runtime written in CobaltC would ask itself: the function that checks a read would need its own reads checked. That takes a way of compiling with no runtime calls at all, which does not exist (D-0256 set a freestanding mode aside for the same reason).</li>
+<li><strong>Mutable statics.</strong> The runtime's state is global: its tables, its allocator's lists, its lock. CobaltC has static atomics, and no general mutable <code>static</code>.</li>
+<li><strong>Thread-local storage.</strong> Each thread has a stack of frames and scopes of its own, and the language has no way to declare one.</li>
+</ul>
+<p>C costs nothing extra here: C is what CobaltC compiles to, so a C compiler is already needed,
+and the runtime is not a second toolchain.</p>
+<h3 id="rt-shape">The shape of a compiled program</h3>
+<p><code>cobc prog.cb</code> checks the program, writes one C file, and runs the C compiler on it. <code>--keep-c</code>
+keeps that file beside the executable (<code>prog.c</code>), <code>--emit-c</code> writes it and compiles nothing,
+<code>--no-line-directives</code> leaves out the <code>#line</code> lines so that the C reads straight through, and <code>-v</code>
+prints the C compiler's command and which form the program was lowered in. The file has these parts,
+in this order:</p>
+<ol>
+<li><strong>The form's macros</strong>, when the program is lowered in a form that needs them: <code>CB_PATHLESS</code>, <code>CB_DECIDED</code>, <code>CB_QUIET_CELLS</code> (see <a href="#rt-forms">the forms</a>).</li>
+<li><strong>The whole text of <code>cbrt.h</code></strong>, copied in, so the file includes nothing but the C library's headers. Everything the generated C may say to the runtime is declared there, and nothing else is exported by the library.</li>
+<li><strong>The program's types</strong> as C structs, each with a <code>_Static_assert</code> on its size and alignment against the layout the specification gives.</li>
+<li><strong>String literals</strong> as byte arrays (<code>cb_s_…</code>).</li>
+<li><strong>Prototypes</strong>, then the <strong>call thunks</strong> for <code>fn</code> values and the thread bodies for each <code>spawn</code>.</li>
+<li><strong>The type descriptors</strong>: <code>cb_types[]</code>, one <code>cb_type</code> for each type the runtime may have to end or copy without seeing its source, and <code>cb_type_ids[]</code>, each one's 32-bit identifier. A call that names a type (<code>cb_new(addr, ty, …)</code>) passes that identifier.</li>
+<li><strong>One C function for each function</strong> the program reaches, generic ones once for each set of types (<code>f_name</code>, and for a function with reference parameters sometimes two bodies and a dispatcher: <code>f_name__dir</code>, <code>f_name__chk</code>).</li>
+<li><strong>The start-up text</strong>: two thread-locals the runtime reads through functions the program defines (<code>cb_at_pos</code>, the statement now executing, and <code>cb_stack_floor</code>), then <code>cb_program</code> and C's <code>main</code>.</li>
+</ol>
+<figure class="code"><div class="code-head"><span class="code-title">the end of every generated program</span></div><pre><code>static void cb_program(void)
+{
+    cb_init(cb_files, 1, cb_types, 4, cb_type_ids);
+    cb_frame_push();
+    void (*volatile cb_main_fn)(void) = f_main;
+    cb_main_fn();
+    cb_frame_pop();
+    cb_terminate_ok(0);
+}
+int main(int argc, char **argv)
+{
+    cb_set_args(argc, argv);
+    cb_run_main(cb_program);
+}
+</code></pre></figure>
+<p><code>cb_run_main</code> moves the program onto a large stack of its own, whose limit every function's
+<code>cb_stack_check</code> tests, and calls <code>cb_program</code>. <code>cb_init</code> hands the runtime the file names, for
+reports, and the type descriptors. <code>main</code> runs inside an outermost frame, and <code>cb_terminate_ok</code>
+writes out what is still buffered and ends the process with <code>main</code>'s value.</p>
+<p>The link line is <code>cc … prog.c -L DIR -lcbrt -lpthread -ldl -lm -Wl,--gc-sections</code>, where <code>DIR</code>
+is where <code>cobc</code> itself is. The library is one relocatable object whose only global names are the
+interface's (<code>impl/cbrt/tools/exports.txt</code>), so the runtime's own names never meet a program's C at
+link time; it is compiled with a section for each function, so a program links only the parts it
+reaches. <code>cobc</code> refuses a <code>libcbrt.a</code> built from other sources than the ones it was built with: the
+library carries a stamp, a hash of its sources, and the compiler knows its own.</p>
+<h3 id="rt-state">What the runtime holds</h3>
+<p>The runtime's state is the dynamic part of the state the specification describes, kept over
+real addresses. The generated C owns the storage: a local is a C local, a <code>Vec</code>'s buffer is a block
+the program allocated. The runtime never holds a value, only records about values.</p>
+<table>
+<thead><tr><th>Record</th><th>What it says</th><th>Made by</th><th>Ended by</th></tr></thead>
+<tbody>
+<tr><td><strong>Object</strong></td><td>A value at an address: its type, whether it is initialised, whether it is a resource, and what holds it: a frame (a binding), a statement scope (a temporary), nothing (in flight across a call, or lying over raw storage). Named by a 64-bit id.</td><td><code>cb_new</code>, <code>cb_new_uninit</code>, <code>cb_reclaim</code></td><td>its frame's or scope's end, <code>cb_destroy</code>, <code>cb_consume</code>, <code>cb_absorb</code>, <code>cb_release</code></td></tr>
+<tr><td><strong>Access path</strong></td><td>One way of reaching an object: the object, the steps from it (a field, an index, an enum's payload, a range), shared or exclusive, whether it is still valid, the paths it was formed from, and how many places hold it. A reference's identity. Named by a 64-bit <em>token</em>.</td><td><code>cb_bind</code> (an object's root path), <code>cb_borrow</code> and its relatives, <code>cb_lock</code></td><td>the end of what holds it; a conflicting access makes it invalid</td></tr>
+<tr><td><strong>Frame</strong></td><td>An entry on the thread's stack: the objects it owns, in the order they were bound, and the paths it holds.</td><td><code>cb_frame_push</code> and its relatives</td><td><code>cb_frame_pop</code>: its objects end last bound first, destructors run</td></tr>
+<tr><td><strong>Statement scope</strong></td><td>An entry on the same stack for one statement: its temporaries and the paths formed in it that nothing has taken.</td><td><code>cb_stmt_push</code></td><td><code>cb_stmt_pop</code></td></tr>
+<tr><td><strong>Reference slot</strong></td><td>For a memory cell that holds a reference: the token of the reference stored there. In memory a reference is its 8-byte address alone; the token is kept here, keyed by the cell's address.</td><td><code>cb_store_ref</code>, <code>cb_hold_ref</code>, <code>cb_copy_datum</code></td><td>the end of the object the cell lies in; <code>cb_deallocate</code></td></tr>
+<tr><td><strong>In flight</strong></td><td>A queue for each thread of what is between a caller and a callee: objects, references, values holding references, in argument order.</td><td><code>cb_send</code> and its relatives</td><td><code>cb_recv</code> and its relatives</td></tr>
+<tr><td><strong>Objects over raw cells</strong></td><td>Objects that lie in storage the program allocated (a <code>Vec</code>'s elements, a <code>Box</code>'s contents), found by address, with a count for each page so that the usual answer, none here, costs a load.</td><td><code>cb_reclaim</code>, <code>cb_elem_borrow</code></td><td><code>cb_release</code>, <code>cb_deallocate</code></td></tr>
+<tr><td><strong>Threads and locks</strong></td><td>Each thread's state and result, each mutex's holder, what a thread was lent, and under <code>--explore</code> whose turn it is.</td><td><code>cb_spawn</code>, <code>cb_lock</code></td><td><code>cb_join</code>, the guard's end</td></tr>
+<tr><td><strong>Noted locals</strong></td><td>For a function whose locals have no object: a table of their addresses and types, read only if a fault unwinds through the function, to run their destructors in order.</td><td><code>cb_notes_push</code></td><td><code>cb_notes_pop</code></td></tr>
+</tbody>
+</table>
+<p>Each running thread has a heap of records of its own, so two threads that share nothing do
+not wait for each other; an id carries its heap's number. A program's first thread, while no other
+has been started, takes none of the runtime's locks. Once threads run, every access to memory two
+threads can reach is checked under the runtime's lock before it is made.</p>
+<h4>References and tokens</h4>
+<p>A reference in a register, as a parameter, a result or a temporary, is a <code>cb_ref</code>: the address
+and the token of its path. Stored into memory it is the address alone, and <code>cb_store_ref</code> and
+<code>cb_load_ref</code> keep and find its token by the cell's address. That keeps a reference 8 bytes wide in
+every struct and array, as the specification's layout says, while every access still knows which
+path it is made through. A token is one of four things:</p>
+<table>
+<thead><tr><th>Token</th><th>Meaning</th><th>What a check through it costs</th></tr></thead>
+<tbody>
+<tr><td><code>0</code></td><td>No record. Every token of a program lowered without paths; also a reference the compiler proved needs none.</td><td>nothing: the entries are macros that expand to nothing</td></tr>
+<tr><td><code>CB_LIGHT | CB_ROOT | obj</code></td><td>The owner's own binding of object <code>obj</code>.</td><td>one byte read (<code>cb_marks</code>): no call while no recorded path is on the object</td></tr>
+<tr><td><code>CB_LIGHT | obj</code></td><td>A <em>light</em> reference: formed in a function the static pass decided, recorded nowhere.</td><td>a test of the token's bits, no call</td></tr>
+<tr><td>anything else</td><td>The id of a recorded path.</td><td>a call into the runtime</td></tr>
+</tbody>
+</table>
+<p>The test is <code>cb_vouched</code>, inline in the header: <code>cb_read</code>, <code>cb_write</code>, <code>cb_borrow</code> and their
+relatives are macros over inline functions (<code>cb_read_i</code>, …) that call the runtime only for a token
+that is not vouched for. A light reference becomes a recorded one where the record is needed: when
+it is stored into data (<code>cb_hold_ref</code>) or arrives in a function that left a conflict to the run
+(<code>cb_rec_ref</code>).</p>
+<h3 id="rt-inline">What the generated C does itself</h3>
+<p>Most of what a program does never reaches the runtime:</p>
+<ul>
+<li><strong>Loads and stores.</strong> <code>cb_read</code> and <code>cb_write</code> check that an access may be made; the C statement after them reads or writes the value. The runtime never touches the program's values on an access.</li>
+<li><strong>Arithmetic.</strong> A checked <code>+</code> is <code>__builtin_add_overflow</code> and a branch; division tests for zero and for <code>MIN / -1</code>; a shift tests its amount. Only the failing branch calls the runtime (<code>cb_fault</code>).</li>
+<li><strong>Bounds.</strong> An index is compared with the length in line (<code>cb_index_check</code>, or the comparison written out), so the C compiler can drop the test where a loop's condition already proves it.</li>
+<li><strong>Layout.</strong> Field offsets, enum tags, array elements and conversions are plain C.</li>
+<li><strong>The stack limit.</strong> <code>cb_stack_check</code> compares the frame's address with a thread-local.</li>
+<li><strong>Where the program is.</strong> <code>cb_at(file, line)</code> is a store to a thread-local, read by the runtime only when a fault needs a location that was not passed to it.</li>
+<li><strong>Small allocations.</strong> A block of up to 1,024 bytes is popped from, and pushed onto, a list for its size class in line (<code>cb_bins</code>), while the program has one thread.</li>
+<li><strong>Formatting and text helpers.</strong> A literal format's common specifiers, byte comparison, hashing, searching, bit counts and rotations are inline functions of the header.</li>
+</ul>
+<h3 id="rt-example">One function, three forms</h3>
+<p>The clearest way to see the interface is to read what <code>cobc</code> writes for a small program. This
+one makes a struct, passes an exclusive reference to it, and reads a field through a shared
+reference:</p>
+<figure class="code"><div class="code-head"><span class="code-title">point.cb</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">struct</span> Point
+{
+    <span class="t">i32</span> x;
+    <span class="t">i32</span> y;
+}
+
+<span class="k">fn</span> bump(<span class="t">ref</span>&lt;Point, <span class="t">exclusive</span>&gt; p)
+{
+    p.x = p.x + <span class="n">1</span>;
+}
+
+<span class="k">fn</span> main()
+{
+    Point pt = Point { .x = <span class="n">1</span>, .y = <span class="n">2</span> };
+    bump(&amp;<span class="k">mut</span> pt);
+    <span class="t">ref</span>&lt;Point, <span class="t">shared</span>&gt; r = &amp;pt;
+    <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, r.x);
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>2
+</pre></div></figure>
+<p><code>cobc --bootstrap-form</code> writes the general form, with every record made and every check
+asked for. It is what the rules say, statement by statement, and the other forms are this one with
+parts proved away. Here is <code>bump</code>, and the first three statements of <code>main</code>:</p>
+<figure class="code"><div class="code-head"><span class="code-title">cobc --bootstrap-form --keep-c --no-line-directives point.cb</span></div><pre><code>void f_bump(cb_ref p_p)
+{
+    cb_stack_check();
+    cb_frame_push_rec();
+    p_p.tok = cb_rec_ref(p_p.tok, p_p.p, 3936939825u, CB_EXCLUSIVE, 1u, CB_NOLOC, 0);
+    void *l_p_p = p_p.p;
+    uint64_t o1 = cb_new(&amp;l_p_p, 1886034091u, CB_NOLOC, 0);
+    cb_hold_ref(&amp;l_p_p, p_p.tok, p_p.p, 3936939825u, CB_EXCLUSIVE, CB_NOLOC, 0);
+    uint64_t root2 = cb_bind(o1);
+    cb_at(0u, 11u);
+    uint64_t tk3 = cb_load_ref(&amp;l_p_p);
+    uint64_t tk4 = cb_load_ref(&amp;l_p_p);
+    cb_read(tk4, (cb_proj[]){ { CB_FIELD, 0u } }, 1, 0u, 11u);
+    int32_t t5 = (*(struct s_Point *)l_p_p).x;
+    int32_t t6 = ((int32_t)1ULL);
+    int32_t t7 = ({ int32_t _r; if (__builtin_add_overflow(t5, t6, &amp;_r)) cb_fault(&quot;diag.arith-overflow&quot;, 0u, 11u); _r; });
+    cb_write(tk3, (cb_proj[]){ { CB_FIELD, 0u } }, 1, 0u, 0u, 11u);
+    (*(struct s_Point *)l_p_p).x = t7;
+    cb_frame_pop();
+    return;
+}
+
+void f_main(void)
+{
+    cb_stack_check();
+    cb_frame_push_rec();
+    cb_at(0u, 16u);
+    cb_stmt_push_at(0u, 16u);
+    int32_t t2 = ((int32_t)1ULL);
+    int32_t t3 = ((int32_t)2ULL);
+    struct s_Point st4;
+    st4.x = t2;
+    st4.y = t3;
+    struct s_Point l_pt_1;
+    l_pt_1 = st4;
+    uint64_t o5 = cb_new(&amp;l_pt_1, 3936939825u, 0u, 16u);
+    uint64_t root6 = cb_bind(o5);
+    cb_stmt_pop();
+    cb_at(0u, 17u);
+    cb_stmt_push_at(0u, 17u);
+    uint64_t tok7 = cb_borrow(root6, NULL, 0, CB_EXCLUSIVE, 0u, 17u);
+    cb_ref r8 = ((cb_ref){ (void *)&amp;(l_pt_1), tok7 });
+    f_bump(r8);
+    cb_stmt_pop();
+    cb_at(0u, 18u);
+    cb_stmt_push_at(0u, 18u);
+    uint64_t tok10 = cb_borrow(root6, NULL, 0, CB_SHARED, 0u, 18u);
+    cb_ref r11 = ((cb_ref){ (void *)&amp;(l_pt_1), tok10 });
+    void * l_r_9;
+    l_r_9 = (r11).p;
+    cb_hold_ref(&amp;l_r_9, (r11).tok, (r11).p, 3936939825u, CB_SHARED, CB_NOLOC, 0);
+    uint64_t o12 = cb_new(&amp;l_r_9, 3175594122u, 0u, 18u);
+    uint64_t root13 = cb_bind(o12);
+    cb_stmt_pop();
+    …
+    cb_frame_pop();
+    return;
+}
+</code></pre></figure>
+<p>Read with the table of records beside it:</p>
+<ul>
+<li><strong>Line 16, <code>Point pt = …</code>.</strong> The C builds the struct in a C local. <code>cb_new</code> tells the runtime an object of type <code>Point</code> now lies at <code>&amp;l_pt_1</code>, as a temporary of this statement; <code>cb_bind</code> makes the frame adopt it and returns its root path's token, <code>root6</code>, through which every later access to <code>pt</code> is made. <code>cb_stmt_pop</code> ends the statement's scope, which by then holds nothing.</li>
+<li><strong>Line 17, <code>bump(&amp;mut pt)</code>.</strong> <code>cb_borrow</code> checks that an exclusive reference may be formed from <code>pt</code> now (no other live path conflicts) and mints a path; the token and the address make the <code>cb_ref</code> passed to <code>f_bump</code>. The path is held by the statement, and <code>cb_stmt_pop</code> ends it when the call has returned.</li>
+<li><strong>Inside <code>bump</code>.</strong> <code>cb_frame_push_rec</code> opens a frame that records the references arriving in it, and <code>cb_rec_ref</code> records the parameter. The parameter is itself a local that holds a reference: an object (<code>cb_new</code>, <code>cb_bind</code>) whose one cell holds the token (<code>cb_hold_ref</code>). <code>p.x + 1</code> loads the token back (<code>cb_load_ref</code>), asks <code>cb_read</code> whether field 0 may be read through it, and then reads it with a C expression. The sum is checked in line. <code>cb_write</code> asks whether field 0 may be written, and a C assignment writes it. <code>cb_frame_pop</code> ends the parameter's object and what the frame held.</li>
+<li><strong>Line 18, <code>ref&lt;Point, shared&gt; r = &amp;pt</code>.</strong> A shared borrow, stored into the local <code>r</code>: the cell gets the address, the runtime gets the token for that cell, and <code>r</code> is an object the frame owns.</li>
+</ul>
+<p>Without the option, <code>cobc</code> first asks whether the static pass decided the program: whether
+every conflict between references that could arise was proved or refuted before the run. This
+program is decided, and <code>cobc -v</code> says "lowered pathless and decided". All of the above is then
+proved unnecessary, and the same two functions are:</p>
+<figure class="code"><div class="code-head"><span class="code-title">cobc --keep-c --no-line-directives point.cb</span></div><pre><code>CB_SMALL void f_bump__dir(cb_ref p_p)
+{
+    enum { cb_lf = 1 };
+    void *l_p_p = p_p.p;
+    int32_t t1 = (*(struct s_Point *)l_p_p).x;
+    int32_t t2 = ((int32_t)1ULL);
+    int32_t t3 = ({ int32_t _r; if (__builtin_add_overflow(t1, t2, &amp;_r)) cb_fault(&quot;diag.arith-overflow&quot;, 0u, 11u); _r; });
+    (*(struct s_Point *)l_p_p).x = t3;
+    return;
+}
+
+void f_main(void)
+{
+    enum { cb_lf = 1 };
+    int32_t t2 = ((int32_t)1ULL);
+    int32_t t3 = ((int32_t)2ULL);
+    struct s_Point st4;
+    st4.x = t2;
+    st4.y = t3;
+    struct s_Point l_pt_1;
+    l_pt_1 = st4;
+    cb_at(0u, 17u);
+    void *ad5 = (void *)&amp;(l_pt_1);
+    f_bump__dir(((cb_ref){ ad5, 0 }));
+    cb_at(0u, 18u);
+    cb_ref r7 = ((cb_ref){ (void *)&amp;(l_pt_1), 0 });
+    void * l_r_6;
+    cb_ref r8 = r7;
+    l_r_6 = (r8).p;
+    uint64_t tk9 = (r8).tok;
+    cb_frame_hold(tk9);
+    cb_at(0u, 19u);
+    cb_str t10 = ((cb_str){ cb_s_f788bc38, 3u });
+    uint64_t tk11 = tk9;
+    cb_read(tk11, (cb_proj[]){ { CB_FIELD, 0u } }, 1, 0u, 19u);
+    int32_t t12 = (*(struct s_Point *)l_r_6).x;
+    …
+    return;
+}
+</code></pre></figure>
+<p>No frame, no scope, no object, no path. Every token is <code>0</code>, and the three entries still
+written, <code>cb_frame_hold</code>, <code>cb_read</code> and (in other programs) <code>cb_write</code>, are macros that expand to
+nothing when <code>CB_PATHLESS</code> is defined, so the C compiler sees a function that reads a field, adds
+with an overflow test and writes the field. What is left of the runtime in this program is the
+start-up text, <code>cb_at</code>'s store before a call that may fault, the overflow test's <code>cb_fault</code>, and
+<code>cb_write_out</code> under <code>printf</code>. The executable is 54 KB; in the bootstrap form it is 225 KB, because
+it links the object and path machinery it calls.</p>
+<p>A program the static pass does not decide keeps its paths, but only where they are needed.
+This one stores a reference to a local through a parameter, so the local's end leaves a dead
+reference behind, which only the run can find:</p>
+<figure class="code"><div class="code-head"><span class="code-title">stash.cb</span><span class="badge bad">rejected: diag.stale-binding</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">struct</span> Holder
+{
+    <span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">shared</span>&gt; r;
+}
+
+<span class="k">fn</span> stash(<span class="t">ref</span>&lt;Holder, <span class="t">exclusive</span>&gt; h)
+{
+    <span class="t">i32</span> local = <span class="n">5</span>;
+    h.r = &amp;local;
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="t">i32</span> outer = <span class="n">0</span>;
+    <span class="k">auto</span> held = Holder { .r = &amp;outer };
+    stash(&amp;<span class="k">mut</span> held);
+    <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, *held.r);          <span class="c">// <span class="bad">✗</span> <span class="dg">diag.stale-binding</span> (dynamic)</span>
+}</code></pre></figure>
+<p><code>cobc -v</code> says why the record is kept: "kept paths: <code>stash</code>, stash.cb:11: a reference is
+stored where this frame does not hold it (D-0290); lowered with holders (D-0292)". The function
+that left the conflict, and the statement of <code>main</code> that reads the reference back:</p>
+<figure class="code"><div class="code-head"><span class="code-title">cobc --keep-c --no-line-directives stash.cb</span></div><pre><code>static void f_stash(cb_ref p_h)
+{
+    cb_frame_push_rec();
+    void *l_p_h = p_h.p;
+    p_h.tok = cb_rec_ref(p_h.tok, p_h.p, 458631599u, CB_EXCLUSIVE, 1u, CB_NOLOC, 0);
+    cb_at(0u, 10u);
+    cb_stmt_push_at(0u, 10u);
+    int32_t l_local_1;
+    l_local_1 = ((int32_t)5ULL);
+    uint64_t o2 = cb_new(&amp;l_local_1, 3400004773u, 0u, 10u);
+    uint64_t root3 = cb_bind(o2);
+    cb_stmt_pop();
+    cb_at(0u, 11u);
+    cb_stmt_push_at(0u, 11u);
+    uint64_t tk4 = p_h.tok;
+    uint64_t tok5 = cb_borrow(root3, NULL, 0, CB_SHARED, 0u, 11u);
+    cb_ref r6 = ((cb_ref){ (void *)&amp;(l_local_1), tok5 });
+    cb_write(tk4, (cb_proj[]){ { CB_FIELD, 0u } }, 1, 0u, 0u, 11u);
+    (*(struct s_Holder *)l_p_h).r = (r6).p;
+    cb_hold_ref(&amp;(*(struct s_Holder *)l_p_h).r, (r6).tok, (r6).p, 3400004773u, CB_SHARED, CB_NOLOC, 0);
+    cb_stmt_pop();
+    cb_frame_pop();
+    return;
+}
+
+    /* in f_main, line 19 */
+    cb_read(root10, (cb_proj[]){ { CB_FIELD, 0u } }, 1, 0u, 19u);
+    cb_ref r14 = ((cb_ref){ l_held_4.r, cb_load_ref(&amp;l_held_4.r) });
+    cb_read(r14.tok, NULL, 0, 0u, 19u);
+    int32_t t15 = (*(int32_t *)r14.p);
+</code></pre></figure>
+<p><code>cb_hold_ref</code> records that the cell <code>held.r</code> now holds the path to <code>local</code>. <code>cb_frame_pop</code>
+ends <code>local</code>, and with it every path to it: the path is marked invalid, and the token in the cell
+stays. Back in <code>main</code>, <code>cb_load_ref</code> finds that token, and <code>cb_read</code> finds its path invalid and
+calls <code>cb_fault</code>. The address in the cell is never followed:</p>
+<figure class="code"><div class="code-head"><span class="code-title">standard error; exit status 1</span></div><pre><code>fault[diag.stale-binding]: this value is no longer valid
+  --&gt; stash.cb:19:5
+   |
+19 |     printf(&quot;%v\n&quot;, *held.r);          // ✗ diag.stale-binding (dynamic)
+   |     ^^^^^^
+   = repair: use the current holder after a move, or give the binding a new value first (`x = e`, `spec/11` `[Assign-Reestablish]`); do not keep a reference past its referent&#x27;s or its holder&#x27;s scope; re-index after a `Vec` reallocation
+</code></pre></figure>
+<p><code>cobc --report-tracking stash.cb</code> lists these calls by source line without compiling, which is
+the quick way to see what a program of your own still asks of the runtime.</p>
+<h3 id="rt-forms">The forms a program is lowered in</h3>
+<p>The same program can be written as C in five ways. All of them behave the same: the same
+output, the same fault at the same place. They differ in how much the runtime is asked, and the
+project's tests run the suites in several of them and compare.</p>
+<table>
+<thead><tr><th>Form</th><th>Chosen when</th><th><code>cobc -v</code> says</th><th>What reaches the runtime</th></tr></thead>
+<tbody>
+<tr><td><strong>Pathless and decided</strong></td><td>the static pass left no conflict to the run (the default for such a program)</td><td>lowered pathless and decided</td><td><code>CB_PATHLESS</code> and <code>CB_DECIDED</code> are defined: the path entries are constants, a value holding references is plain data, most locals have no object, and a function has a frame or a table of noted locals only where an unwind would need one. Bounds, arithmetic and the other value checks stay.</td></tr>
+<tr><td><strong>Pathless</strong></td><td>the same program with <code>COBALTC_DECIDED=0</code> in the compiler's environment</td><td>lowered pathless</td><td><code>CB_PATHLESS</code> alone: no paths, but objects, frames, statement scopes and values in flight as in the general form.</td></tr>
+<tr><td><strong>Kept paths, with holders</strong></td><td>some function left a conflict to the run (the default for such a program)</td><td>kept paths: <em>the first conflict, with its file and line</em>; lowered with holders</td><td>A function the static pass decided opens <code>cb_frame_push_fn</code> and forms light references (<code>enum { cb_lf = 1 };</code> at its start says so to the header's inline tests). A function that left a conflict opens <code>cb_frame_push_rec</code> and records what arrives (<code>cb_rec_ref</code>). A reference stored into data is recorded where it is stored (<code>cb_hold_ref</code>).</td></tr>
+<tr><td><strong>Every check</strong></td><td><code>cobc --all-checks</code></td><td>kept paths: every check was asked for</td><td>No proof about a function's reference parameters is used: every function records, and every access through a parameter is checked where it is made.</td></tr>
+<tr><td><strong>Bootstrap form</strong></td><td><code>cobc --bootstrap-form</code></td><td>kept paths: every check was asked for</td><td>The general form with no elision: every local an object, every stored reference a slot, a stack check in every function. The reference the code generator is held to; much slower.</td></tr>
+</tbody>
+</table>
+<p><code>CB_QUIET_CELLS</code> is defined as well, in any form, when no call in the program can put an
+object over raw storage or start a second thread: the tests for an object over a <code>Vec</code>'s elements
+are then constants.</p>
+<p>The header is how the forms differ without the generated C differing much. Under
+<code>CB_PATHLESS</code> the entries <code>cb_borrow</code>, <code>cb_read</code>, <code>cb_valid</code>, <code>cb_store_ref</code>, <code>cb_load_ref</code>,
+<code>cb_frame_hold</code> and their relatives are redefined as macros that evaluate their token argument and
+give <code>0</code> or nothing; <code>cb_write</code> becomes <code>cb_write_pathless</code>, which keeps the one check a decided
+program still needs at a write through a reference (the target is a resource that still owns
+something: <code>diag.overwrite-of-live-resource</code>). Under <code>CB_DECIDED</code> the entries for references and
+reference data in flight are nothing too, and <code>cb_init</code> first calls <code>cb_set_decided</code>. The C
+compiler then deletes the calls and whatever was computed only for them.</p>
+<p>A function with reference parameters is sometimes written twice, when whether its checks
+are needed depends on its arguments: <code>f__dir</code>, the direct body, with no check on its parameters, and
+<code>f__chk</code>, the checked one. A small dispatcher chooses: the direct body when the program has one
+thread, or the tokens are <code>0</code>, or <code>cb_direct_ok</code> vouches for the paths (valid, and over fresh storage). <code>cb_paths_disjoint</code>, <code>cb_paths_arrive</code> and <code>cb_frozen_ok</code> are the same kind of
+question for other shapes of parameter.</p>
+<h3 id="rt-calls">The interface, name by name</h3>
+<p>Every name <code>cbrt.h</code> declares is below, grouped by what it is for. "The runtime" in the third
+column means code in <code>libcbrt.a</code>; a name marked <em>inline</em> is defined in the header and compiled
+into the program, and calls the library only where its row says so. The words in square brackets
+are the specification's rules, as the header's own comments cite them. Arguments named <code>file</code> and
+<code>line</code> are the source location a fault there is reported at (<code>CB_NOLOC</code> for none); <code>ty</code> is a type's
+identifier; <code>obj</code> an object's id; <code>tok</code>, <code>root</code> and <code>base</code> are tokens.</p>
+<h4>Types, constants and shared variables</h4>
+<table>
+<thead><tr><th>Name</th><th>What it is</th></tr></thead>
+<tbody>
+<tr><td><code>cb_str</code></td><td>A <code>str</code>: a pointer and a length, 16 bytes.</td></tr>
+<tr><td><code>cb_unit</code></td><td>The empty value <code>()</code>: an empty struct.</td></tr>
+<tr><td><code>cb_i128</code>, <code>cb_u128</code></td><td>The 128-bit integers, as the C compiler's <code>__int128</code>.</td></tr>
+<tr><td><code>cb_ref</code></td><td>A reference outside memory: <code>{ void *p; uint64_t tok; }</code>.</td></tr>
+<tr><td><code>cb_proj</code></td><td>One step of a place from its base: <code>CB_FIELD</code> i, <code>CB_INDEX</code> i or <code>CB_PAYLOAD</code>. <code>&amp;s.f[i]</code> passes an array of two.</td></tr>
+<tr><td><code>cb_type</code>, <code>cb_field</code></td><td>A type descriptor and one of its fields: name, size, kind (<code>CB_K_SCALAR</code>, <code>CB_K_STRUCT</code>, <code>CB_K_ENUM</code>, <code>CB_K_ARRAY</code>, <code>CB_K_REF</code>, <code>CB_K_FN</code>, <code>CB_K_HANDLE</code>, <code>CB_K_GUARD</code>, <code>CB_K_OTHER</code>), whether it is a resource, whether it holds references, its destructor's address, its fields or variants or element.</td></tr>
+<tr><td><code>cb_fnbox</code></td><td>What a <code>fn</code> value's 8-byte handle points at: the code, and for a closure the object holding its captures.</td></tr>
+<tr><td><code>cb_fmt_arg</code></td><td>One argument of a <code>printf</code>-family call that the general formatter (<code>cb_format</code>) handles.</td></tr>
+<tr><td><code>struct cb_pos</code>, <code>cb_at_pos</code></td><td>The statement now executing, a thread-local the generated program defines.</td></tr>
+<tr><td><code>struct cb_note</code></td><td>One entry of a function's table of noted locals: address, moved flag, type, whether bound now.</td></tr>
+<tr><td><code>CB_SHARED</code>, <code>CB_EXCLUSIVE</code></td><td>A borrow's mode.</td></tr>
+<tr><td><code>CB_LIGHT</code>, <code>CB_ROOT</code>, <code>cb_lf</code></td><td>A token's kind bits; <code>cb_lf</code> is 0 in the header and shadowed by 1 at the start of a decided body, where a borrow from a vouched token is light.</td></tr>
+<tr><td><code>cb_marks</code>, <code>cb_inline_off</code></td><td>For each heap one byte for each object, nonzero while a recorded path is on it; and a flag that sends every entry to the runtime (set under <code>COBALTC_RECORD</code>).</td></tr>
+<tr><td><code>cb_live_threads</code>, <code>cb_threaded</code>, <code>cb_sched_flag</code></td><td>How many threads run (1: this one is alone); whether a thread was ever started; whether a schedule runs the threads (<code>--explore</code>).</td></tr>
+<tr><td><code>cb_reclaimed_entries</code>, <code>cb_reclaimed_pages</code></td><td>The count of objects over raw cells, in all and by page: the gates of the element fast paths.</td></tr>
+<tr><td><code>cb_slots_used</code></td><td>1 once any reference was stored into data: until then no cell holds one, and a copy or a deallocation has no slot to look for.</td></tr>
+<tr><td><code>cb_bins</code>, <code>cb_alloc_gate</code>, <code>cb_alloc_traced</code></td><td>The free lists of small blocks by size class; the flag that closes the inline allocation paths (a thread was started, an over-aligned block was made, a sanitizer is on, a trace records allocations); whether the replay trace records each allocation.</td></tr>
+<tr><td><code>cb_stack_floor</code></td><td>This thread's stack limit, a thread-local the generated program defines.</td></tr>
+<tr><td><code>CB_SMALL</code>, <code>CB_NOTYPE</code>, <code>CB_NOLOC</code>, <code>CB_OWN_STACK</code>, <code>CB_SANITIZED</code></td><td>A small function's linkage; no type; no location; whether the program runs on a stack of its own (not under a sanitizer); whether the C is compiled under a sanitizer, in which case every block is <code>malloc</code>'s so that the sanitizer sees it.</td></tr>
+</tbody>
+</table>
+<h4>Starting, ending, faulting</h4>
+<table>
+<thead><tr><th>Name</th><th>When the generated C uses it</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>cb_set_args</code></td><td>first thing in C's <code>main</code></td><td>keeps <code>argc</code> and <code>argv</code> for <code>arg</code>, <code>arg_count</code> and <code>Args</code></td></tr>
+<tr><td><code>cb_run_main</code> (inline), <code>cb_run_program</code></td><td>C's <code>main</code></td><td>runs <code>cb_program</code> on a large stack of its own, or on a thread under a sanitizer; does not return</td></tr>
+<tr><td><code>cb_init</code>, <code>cb_set_decided</code></td><td>start of <code>cb_program</code></td><td>[Program]: takes the file names and type descriptors and sets up the state; <code>cb_set_decided</code> first, in a decided program</td></tr>
+<tr><td><code>cb_terminate_ok</code></td><td>end of <code>cb_program</code></td><td>writes out buffered output and ends the process with <code>main</code>'s value</td></tr>
+<tr><td><code>cb_exit</code></td><td><code>std::exit</code></td><td>unwinds this thread as a fault does, reports nothing, ends with the status</td></tr>
+<tr><td><code>cb_fault</code>, <code>cb_fault_msg</code></td><td>a check written in line has failed (overflow, bounds, <code>unwrap</code>, <code>assert</code>)</td><td>[Fault-Unwind]: see <a href="#rt-fault">a fault from call to exit</a>; <code>cb_fault_msg</code> carries <code>assert</code>'s formatted message</td></tr>
+<tr><td><code>cb_at</code> (inline)</td><td>before a statement that may fault without a location of its own</td><td>stores the file and line in <code>cb_at_pos</code></td></tr>
+<tr><td><code>cb_where</code>, <code>cb_set_where</code>, <code>cb_set_stack_floor</code></td><td>defined by the generated program, called by the runtime</td><td>read and set the two thread-locals, which live in the program so that its stores to them are plain</td></tr>
+<tr><td><code>cb_stack_check</code> (inline), <code>cb_stack_exhausted</code></td><td>a function's entry</td><td>[Call]'s stack limit: below the floor is <code>diag.stack-exhausted</code>, raised as a fault</td></tr>
+<tr><td><code>cb_index_check</code> (inline)</td><td>an index into an array, slice or <code>Vec</code></td><td>the comparison, and <code>cb_fault(&quot;diag.index-out-of-bounds&quot;)</code></td></tr>
+</tbody>
+</table>
+<h4>Frames and statement scopes</h4>
+<table>
+<thead><tr><th>Name</th><th>When the generated C uses it</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>cb_frame_push</code>, <code>cb_frame_push_at</code></td><td>a block or a function body begins</td><td>[Block-Enter], [Call]: pushes a frame; <code>_at</code> keeps the block's location for a fault in a destructor at its end</td></tr>
+<tr><td><code>cb_frame_push_fn</code></td><td>a decided function's body, in a program that keeps paths</td><td>a frame whose references are light</td></tr>
+<tr><td><code>cb_frame_push_rec</code></td><td>a body the static pass left a conflict in</td><td>a frame that records every reference formed or arriving in it</td></tr>
+<tr><td><code>cb_frame_pop</code></td><td>the block or body ends, on every way out</td><td>[Block-Exit]: ends the frame's objects last bound first ([Destroy] for a resource: its destructor, then its parts; [Object-End] for the rest) and drops the paths it held</td></tr>
+<tr><td><code>cb_stmt_push</code>, <code>cb_stmt_push_at</code></td><td>a statement that makes temporaries or paths begins</td><td>[Stmt-Enter]: a scope for them</td></tr>
+<tr><td><code>cb_stmt_pop</code></td><td>the statement ends</td><td>[Stmt-Exit]: ends the scope's temporaries and the paths nothing took</td></tr>
+<tr><td><code>cb_frame_here</code></td><td>a binding that may be given a new value after a move</td><td>the current frame's id, kept for <code>cb_rebind</code></td></tr>
+<tr><td><code>cb_frame_hold</code>, <code>cb_frame_unhold</code></td><td>a reference local that has no object of its own is bound, or ends early at its last use</td><td>the frame holds the path until [Block-Exit], or stops holding it ([Ref-Binding-Last-Use])</td></tr>
+</tbody>
+</table>
+<h4>Objects</h4>
+<table>
+<thead><tr><th>Name</th><th>When the generated C uses it</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>cb_new</code></td><td>a value now lies in a C local or temporary</td><td>[Object-Establish]: an initialised object at that address, a temporary of this statement; returns its id</td></tr>
+<tr><td><code>cb_new_uninit</code></td><td><code>T x;</code> with no value</td><td>[Let-Uninit]: the same, not yet initialised</td></tr>
+<tr><td><code>cb_bind</code></td><td>a temporary becomes a binding</td><td>[Binding-Form]: the current frame adopts it; returns the root path's token</td></tr>
+<tr><td><code>cb_rebind</code></td><td><code>x = e</code> after <code>x</code> was moved from</td><td>a new object at the address, bound in the binding's own frame</td></tr>
+<tr><td><code>cb_move_to</code></td><td>the C copied a value's bytes to another local</td><td>the record follows: the same object, now at the new address</td></tr>
+<tr><td><code>cb_temp_path</code></td><td>a temporary closure is called</td><td>[Temp-Root]: an owner's path to a temporary</td></tr>
+<tr><td><code>cb_take</code></td><td>a binding is moved from</td><td>[Authority-Transfer]: checks that nothing else reaches it and that the binding still owns it; the root path ends and the object is in flight</td></tr>
+<tr><td><code>cb_absorb</code>, <code>cb_absorb_refs</code></td><td>a value is moved into a struct, an enum or a container</td><td>[Relocate-In]: its record ends without destruction, since it is now part of the container; <code>_refs</code> for plain data holding references, whose slots stay</td></tr>
+<tr><td><code>cb_result</code></td><td>a block's or statement's value leaves it</td><td>[Stmt-Exit]'s re-stamp: the object now belongs to the enclosing scope</td></tr>
+<tr><td><code>cb_destroy</code>, <code>cb_destroy_via</code></td><td><code>drop(x)</code>, <code>drop(*r)</code></td><td>[Destroy]: valid, nothing else reaching it, authority held; then the destructor, the parts, the object's end</td></tr>
+<tr><td><code>cb_consume</code></td><td>a temporary is destroyed now, not at the statement's end</td><td>[Destroy] of the temporary</td></tr>
+<tr><td><code>cb_end_moved_out</code></td><td>a value was taken apart by a pattern</td><td>[Relocate-Out]: the container ends without destroying the parts that moved out</td></tr>
+<tr><td><code>cb_end_binding</code></td><td>a reference binding's last use</td><td>[Ref-Binding-Last-Use]: its object and path end there</td></tr>
+<tr><td><code>cb_forget_obj</code></td><td>a callee keeps a received value in a local with no object</td><td>the record ends, the value stays with the C</td></tr>
+<tr><td><code>cb_drop_local</code>, <code>cb_drop_value</code></td><td>a local with no object ends; a plain temporary holding <code>fn</code> values ends</td><td>destroys the value there as its binding's end would, from its type descriptor</td></tr>
+<tr><td><code>cb_owns</code></td><td>an assignment over a place whose type may own something</td><td>whether the value at the address owns a resource now, for [Write]'s test</td></tr>
+</tbody>
+</table>
+<h4>Access paths and checked accesses</h4>
+<table>
+<thead><tr><th>Name</th><th>When the generated C uses it</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>cb_borrow</code></td><td><code>&amp;x</code>, <code>&amp;mut x</code>, <code>&amp;s.f</code>, <code>&amp;a[i]</code></td><td>[Borrow]: the source is valid, the mode is no stronger than the source's, no live path conflicts, the thread may reach it; mints a path held by this statement and returns its token</td></tr>
+<tr><td><code>cb_borrow_range</code></td><td><code>&amp;a[lo..hi]</code></td><td>[Slice-Form]: a borrow whose last step is a range</td></tr>
+<tr><td><code>cb_borrow_unstamped</code>, <code>cb_call_self</code>, <code>cb_call_done</code></td><td>a call through a closure</td><td>a borrow in no statement scope: the closure's <code>self</code> for the call, ended by <code>cb_call_done</code> when nothing took it</td></tr>
+<tr><td><code>cb_borrow_unminted</code>, <code>cb_borrow_range_unminted</code>, <code>cb_borrow_check</code></td><td>a reference passed straight to a parameter the callee only uses directly, or <code>&amp;v</code> straight into <code>Vec::index</code></td><td>[Borrow]'s checks without minting a path</td></tr>
+<tr><td><code>cb_read</code></td><td>before a load from a place that a path reaches</td><td>[Read]'s premises: valid, no conflicting exclusive path, the thread may reach it. The C does the load.</td></tr>
+<tr><td><code>cb_write</code></td><td>before a store to such a place</td><td>[Write]'s premises: valid, exclusive, no conflicting path, and no live resource overwritten when the target is one. The C does the store.</td></tr>
+<tr><td><code>cb_write_quiet</code></td><td>a store over a value whose end only frees memory</td><td>[Write-Quiet-Replace]: destroys the old value, then allows the write</td></tr>
+<tr><td><code>cb_point_check</code></td><td>a call whose callee is known to access something the caller also lent</td><td>the access the callee's summary declares, checked at the call, with the call's argument paths counted as held</td></tr>
+<tr><td><code>cb_valid</code></td><td><code>swap</code> of two places</td><td>[Swap-Places]: valid, with no conflict check</td></tr>
+<tr><td><code>cb_vouched</code>, <code>cb_read_i</code>, <code>cb_write_i</code>, <code>cb_borrow_i</code>, <code>cb_borrow_unstamped_i</code>, <code>cb_borrow_check_i</code>, <code>cb_borrow_unminted_i</code>, <code>cb_borrow_range_unminted_i</code> (all inline)</td><td>every use of the entries above, which are macros over these</td><td>the token's kind tested in line; the runtime is called only for a recorded path, a marked owner, or under <code>COBALTC_RECORD</code></td></tr>
+<tr><td><code>cb_write_pathless</code> (inline)</td><td><code>cb_write</code> in a pathless program</td><td>the live-resource test alone</td></tr>
+<tr><td><code>cb_direct_ok</code>, <code>cb_paths_disjoint</code>, <code>cb_paths_arrive</code>, <code>cb_frozen_ok</code>, <code>cb_peek_datum_tok</code></td><td>a dispatcher choosing between a function's direct and checked bodies</td><td>whether the arguments' paths are valid, pairwise disjoint and free of conflict as they arrive, so that the direct body may run; <code>cb_peek_datum_tok</code> reads the token of a value in flight without taking it</td></tr>
+</tbody>
+</table>
+<h4>References kept in memory</h4>
+<table>
+<thead><tr><th>Name</th><th>When the generated C uses it</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>cb_store_ref</code></td><td>a reference is stored into a cell</td><td>[Write] of a reference value: the cell's slot gets the token, and the path gains a holder</td></tr>
+<tr><td><code>cb_hold_ref</code></td><td>the same, where the compiler knows the referent's place</td><td>a light reference becomes a recorded path as it is stored; a recorded one is stored as <code>cb_store_ref</code> stores it</td></tr>
+<tr><td><code>cb_rec_ref</code></td><td>a reference arrives in a recording function, as a parameter or a call's result</td><td>a light token becomes a recorded path, held by the frame or the statement; a recorded one is returned as it is</td></tr>
+<tr><td><code>cb_load_ref</code></td><td>a reference is read out of a cell</td><td>the token the cell's slot holds</td></tr>
+<tr><td><code>cb_copy_datum</code></td><td>a value that holds references is copied</td><td>copies each slot's hold with the bytes</td></tr>
+<tr><td><code>cb_lend</code>, <code>cb_lend_fn</code></td><td><code>spawn</code> with reference arguments, or a closure with reference captures</td><td>[Thread-Lend]: every exclusive path in the argument block is lent to the thread that receives it</td></tr>
+</tbody>
+</table>
+<h4>Across a call</h4>
+<p>A C call passes the bytes. The records of what is passed travel beside them, in the thread's
+queue of what is in flight, in argument order: the caller sends, the callee receives, and the same
+for a result on the way back.</p>
+<table>
+<thead><tr><th>Name</th><th>When the generated C uses it</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>cb_send</code>, <code>cb_recv</code></td><td>a resource or other object passed or returned by value</td><td>[Call]: the object is in flight; the receiver gets it, now at its own address, and binds it</td></tr>
+<tr><td><code>cb_send_ref</code>, <code>cb_recv_ref</code></td><td>a reference argument</td><td>the path is pending until the callee binds it, so it is not ended by the caller's statement</td></tr>
+<tr><td><code>cb_result_ref</code></td><td>a statement's or call's reference result</td><td>re-stamps the path into the enclosing scope</td></tr>
+<tr><td><code>cb_send_datum</code>, <code>cb_recv_datum</code></td><td>a value holding references (a view, an <code>Option</code> of a reference, a struct of them)</td><td>its slots' holds move with it</td></tr>
+<tr><td><code>cb_recv_datum_tok</code>, <code>cb_send_tok_datum</code>, <code>cb_send_datum_none</code></td><td>a native body that returns one reference as data, or <code>None</code>, and its caller</td><td>the token of such a value, taken or sent without a slot</td></tr>
+</tbody>
+</table>
+<h4><code>fn</code> values and closures</h4>
+<table>
+<thead><tr><th>Name</th><th>When the generated C uses it</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>cb_fn_item</code>, <code>cb_fn_item_pure</code></td><td>a function's name used as a value</td><td>the one box kept for that function; <code>_pure</code> when its reference parameters are only used directly</td></tr>
+<tr><td><code>cb_fn_box</code></td><td>a closure expression</td><td>a heap box that owns the closure's object of captures</td></tr>
+<tr><td><code>cb_fn_pure</code>, <code>cb_fn_mark_pure</code></td><td>a native body deciding whether it may pass element references with no path</td><td>whether the <code>fn</code> value keeps nothing of its arguments; marks a closure's code as such</td></tr>
+<tr><td><code>cb_fn_copy</code>, <code>cb_fn_read</code>, <code>cb_fn_split</code></td><td>a <code>fn</code> value is read from a place</td><td>[Read]: copies the handle, cloning a closure's box; or moves it out when the closure owns a resource, for one slot or for each <code>fn</code> slot of a value</td></tr>
+<tr><td><code>cb_fn_moved</code></td><td>a call through a slot that was emptied</td><td>the fault for it</td></tr>
+<tr><td><code>cb_fn_shared</code>, <code>cb_fn_shared_value</code></td><td>a <code>fn</code> value read through a shared reference</td><td>checks that it holds no exclusive capture</td></tr>
+<tr><td><code>cb_drop_fn</code></td><td>a <code>fn</code> value ends</td><td>[Destroy] of a closure's box and the object it owns</td></tr>
+</tbody>
+</table>
+<h4>Raw storage, allocation and container elements</h4>
+<p><code>Vec</code>, <code>Box</code>, <code>String</code> and the other containers are written in CobaltC, in <code>std</code>, over raw
+storage (§20). Their elements are not objects while nobody refers to them: an element becomes an
+object when it is reclaimed, usually because a reference to it is formed, and stops being one when
+it is released. So the common case, an element read or written at once, is checked with a load of
+a counter and nothing more. The specification lets an implementation realise a library function
+natively (<code>spec/21</code> §0), and for some <code>std</code> functions that hot loops call (<code>Vec</code>'s element access,
+its length and its end, sorts and searches over slices) the compiler writes the body directly as C
+in place of compiling the CobaltC one: a <em>native body</em>. It makes only the checks that can
+fail there, and takes the general path when an object lies over the cells it would touch.</p>
+<table>
+<thead><tr><th>Name</th><th>When the generated C uses it</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>cb_allocate</code>, <code>cb_allocate_at_once</code> (inline)</td><td><code>allocate</code>, a container growing</td><td>[Allocate]: a small block from its class's list in line, else the runtime; 0 on failure</td></tr>
+<tr><td><code>cb_deallocate</code>, <code>cb_deallocate_at_once</code> (inline), <code>cb_deallocate_plain</code>, <code>cb_deallocate_plain_at_once</code> (inline)</td><td><code>deallocate</code>, a container's end</td><td>[Deallocate]: releases the objects over the cells and their slots, then frees the block; <code>_plain</code> for cells that never held a reference; in line when there is nothing to release</td></tr>
+<tr><td><code>cb_reallocate_plain</code>, <code>cb_reallocate_plain_fast</code> (inline)</td><td>a <code>Vec</code> of plain elements grows</td><td>allocate, copy, deallocate as one step: <code>realloc</code>, or nothing when both sizes are of one class</td></tr>
+<tr><td><code>cb_free_block</code>, <code>cb_block_free</code> (inline)</td><td>the last step of a deallocation</td><td>hands the block back, to its class's list in line when small</td></tr>
+<tr><td><code>cb_drop_plain_buf</code> (inline)</td><td>a <code>String</code> or <code>Vec</code> of plain elements with no object ends</td><td>frees its buffer at once when no object lies over it, else <code>cb_drop_local</code></td></tr>
+<tr><td><code>cb_vec_drop_plain</code></td><td><code>Vec::drop</code> for plain elements</td><td>ends every element object still over the buffer</td></tr>
+<tr><td><code>cb_copy_raw</code>, <code>cb_copy_raw_at_once</code> (inline)</td><td><code>copy_raw</code></td><td>[Copy-Raw]: <code>memmove</code>, and the slots of any references among the bytes move with them</td></tr>
+<tr><td><code>cb_reclaim</code></td><td><code>reclaim</code></td><td>[Reclaim]: an object over the raw cells at an address; its root token</td></tr>
+<tr><td><code>cb_release</code>, <code>cb_release_plain</code></td><td><code>release</code></td><td>[Release]: ends the reclaimed objects that start in the range</td></tr>
+<tr><td><code>cb_raw_move_in</code>, <code>cb_raw_move_out</code></td><td><code>*p = v</code> and a read of <code>*p</code> where the value is a resource</td><td>[Rawptr-Move-In], [Rawptr-Move-Out]: the object's record goes into, or comes out of, raw storage</td></tr>
+<tr><td><code>cb_elem_borrow</code>, <code>cb_elem_borrow_here</code>, <code>cb_elem_borrow_datum</code></td><td><code>Vec::index</code> and its relatives return a reference to an element</td><td>[Reclaim] and [Borrow] together: an object over the element and a path to it, in flight, recorded in the current scope, or sent as reference data</td></tr>
+<tr><td><code>cb_elem_access</code> (inline), <code>cb_elem_access_if</code> (inline), <code>cb_elem_access_slow</code></td><td><code>v[i]</code> read or written at once</td><td>nothing while no object lies near the element (<code>cb_reclaimed_any</code>, <code>cb_reclaimed_near</code>); otherwise [Read]'s or [Write]'s premises on the object there</td></tr>
+<tr><td><code>cb_reclaimed_any</code>, <code>cb_reclaimed_near</code>, <code>cb_cells_busy</code> (all inline), <code>cb_cells_held</code></td><td>the gates of the paths above</td><td>whether any object lies over raw cells at all, on these pages, over exactly these cells</td></tr>
+<tr><td><code>cb_live_at</code>, <code>cb_live_in</code>, <code>cb_live_in2</code>, <code>cb_live_in_q</code> (inline), <code>cb_live_in2_q</code> (inline)</td><td>the entry of a native body</td><td>whether a live object lies over the cells: if so the body takes its general, checked path</td></tr>
+<tr><td><code>cb_gate</code>, <code>cb_slots</code>, <code>cb_blocks_from_malloc</code></td><td>inside the inline paths above</td><td>read <code>cb_alloc_gate</code> and <code>cb_slots_used</code> (atomically under a sanitizer); <code>cb_blocks_from_malloc</code> is a constructor that closes the gate in a sanitized build</td></tr>
+</tbody>
+</table>
+<h4>Locals with no object</h4>
+<p>In a decided program most locals have no object, so <code>cb_frame_pop</code> has nothing to end, and
+the generated C ends each local itself where its scope ends. If a fault unwinds through the
+function, those C statements never run, so a function whose locals have destructors, or are freed,
+notes them in a table on its C stack.</p>
+<table>
+<thead><tr><th>Name</th><th>When the generated C uses it</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>cb_notes_push</code></td><td>such a function is entered, or binds such a local</td><td>registers the table for the unwind</td></tr>
+<tr><td><code>cb_notes_pop</code>, <code>cb_notes_drop</code></td><td>the function returns; one temporary with a destructor ends</td><td>the table, or the one entry, leaves</td></tr>
+</tbody>
+</table>
+<h4>Threads, mutexes and atomics</h4>
+<table>
+<thead><tr><th>Name</th><th>When the generated C uses it</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>cb_env_alloc</code>, <code>cb_hold</code></td><td><code>spawn(f, a, b)</code>: the arguments are put in a block</td><td>storage for the block, outside every object; a resource argument waits in it until the new thread binds it</td></tr>
+<tr><td><code>cb_spawn</code></td><td><code>spawn</code></td><td>[Spawn]: starts a thread on the body the compiler wrote for this <code>spawn</code>; the thread's id, which is the <code>handle</code>'s value</td></tr>
+<tr><td><code>cb_thread_jmp</code>, <code>cb_thread_start</code>, <code>cb_thread_done</code>, <code>cb_env_forget</code></td><td>that body, in the new thread</td><td>sets where a contained fault's unwind ends; registers the thread and binds its parameters from the block; [Thread-Body-Done]: the result is in the block; the block's reference cells stop counting as holders</td></tr>
+<tr><td><code>cb_thread_failed</code>, <code>cb_thread_lent</code></td><td>the body after a contained fault; a thread lent an exclusive reference</td><td>records the failure ([Fault-Contain]); marks the thread as one whose fault is never contained</td></tr>
+<tr><td><code>cb_join</code>, <code>cb_join_plain</code></td><td><code>join(h)</code></td><td>[Join]: waits, copies the result out, and returns its object (<code>_plain</code>: a result with no object)</td></tr>
+<tr><td><code>cb_join_status</code>, <code>cb_cancel</code>, <code>cb_task_op</code></td><td><code>std::try_join</code>, <code>is_finished</code>, <code>cancel</code>, a failure's text</td><td>the supervision operations of §19</td></tr>
+<tr><td><code>cb_lock</code>, <code>cb_lock_pathless</code></td><td><code>lock(&amp;m)</code></td><td>[Lock]: waits for the mutex (<code>diag.mutex-reentrant-lock</code> if this thread holds it) and returns the lock path's token, which the guard holds; <code>_pathless</code> in a program with no paths</td></tr>
+<tr><td><code>cb_lock_bare</code>, <code>cb_unlock_bare</code>, <code>cb_unlock_signal</code></td><td><code>std</code>'s own bodies, which lock with no guard object</td><td>lock and unlock; <code>_signal</code> wakes waiters and unlocks in one step</td></tr>
+<tr><td><code>cb_event_op</code></td><td><code>Channel</code>'s waits and wake-ups</td><td>an event's count: read, wait for a change, signal</td></tr>
+<tr><td><code>cb_atomic_wait</code>, <code>cb_atomic_point</code>, <code>cb_spin_hint</code></td><td><code>Atomic</code>'s wait and notify; any atomic operation under a schedule; a spin loop</td><td>[Atomic-Wait], [Atomic-Notify]; a point where <code>--explore</code> may pass the turn; the processor's pause</td></tr>
+</tbody>
+</table>
+<h4>Library mode</h4>
+<p><code>cobc --lib</code> builds the program's <code>extern fn</code> definitions as a C library (§20). There is no
+<code>main</code>: each entry point is a stub that makes sure the runtime is running and that the calling C
+thread is known to it.</p>
+<table>
+<thead><tr><th>Name</th><th>When the generated C uses it</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>cb_lib_enter</code>, <code>cb_lib_leave</code></td><td>each entry point's stub</td><td>starts the runtime once and registers the calling thread; writes out what the call printed</td></tr>
+<tr><td><code>cb_lib_jmp</code>, <code>cb_lib_fault_code</code>, <code>cb_lib_last_fault</code></td><td>an entry point's <code>_try</code> form</td><td>[Fault-Contain]: a fault inside the call unwinds to the stub, which returns its status; the report is kept for <code>cobalt_last_fault</code></td></tr>
+<tr><td><code>cb_lib_shutdown</code></td><td><code>cobalt_shutdown</code></td><td>ends the runtime</td></tr>
+</tbody>
+</table>
+<h4>The standard library's way out</h4>
+<p><code>std</code> is CobaltC. Where it needs the operating system or a routine better written in C, it
+declares an <code>unsafe extern fn</code> (<code>stdout_write</code>, <code>sleep_ns</code>, …), and the compiler calls the runtime's
+function for it. None of these touches the records above: they take addresses and lengths and
+return a count or an error code.</p>
+<table>
+<thead><tr><th>Name</th><th>When the generated C uses it</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>cb_write_out</code>, <code>cb_write_err</code>, <code>cb_flush_out</code></td><td><code>printf</code>, <code>print</code>, <code>eprintf</code>, <code>flush_stdout</code></td><td>buffered standard output, standard error</td></tr>
+<tr><td><code>cb_read_in</code>, <code>cb_read_line_in</code>, <code>cb_arg_bytes</code></td><td><code>read</code>, <code>read_line</code>, <code>arg</code></td><td>standard input; the program's arguments</td></tr>
+<tr><td><code>cb_print_int</code>, <code>cb_print_f64</code>, <code>cb_print_f32</code>, <code>cb_print_bool</code></td><td><code>print</code> of a number or a <code>bool</code></td><td>writes its text</td></tr>
+<tr><td><code>cb_text_int</code>, <code>cb_text_f64</code>, <code>cb_text_f32</code>, <code>cb_text_bool</code></td><td><code>String::append</code> of a number</td><td>its text into a buffer</td></tr>
+<tr><td><code>cb_parse_int</code>, <code>cb_parse_int_q</code> (inline), <code>cb_parse_float</code>, <code>cb_parse_bool</code></td><td><code>parse</code></td><td>the value, or which byte stopped it; an integer of up to 64 bits and 19 digits is parsed in line</td></tr>
+<tr><td><code>cb_format</code>, <code>cb_fmt_space</code>, <code>cb_fmt_u64</code>, <code>cb_fmt_i64</code>, <code>cb_fmt_hex</code>, <code>cb_fmt_pad</code> (the last four inline)</td><td><code>printf</code>, <code>sprintf</code></td><td>a literal format of the common specifiers is written in place by the generated C into <code>cb_fmt_space</code>'s buffer; anything else goes to <code>cb_format</code></td></tr>
+<tr><td><code>cb_file_read</code>, <code>cb_file_write</code>, <code>cb_file_op</code>, <code>cb_file_at</code></td><td><code>read_file</code>, <code>write_file</code>, <code>File</code></td><td>whole files; an open file's read, write, close, seek and length</td></tr>
+<tr><td><code>cb_fs_op</code>, <code>cb_fs_query</code>, <code>cb_path_op</code></td><td>the filesystem and path functions (<code>make_dir</code>, <code>list_dir</code>, <code>path_canonical</code>, …)</td><td>the filesystem</td></tr>
+<tr><td><code>cb_proc_op</code>, <code>cb_net_op</code></td><td><code>Command</code>, <code>TcpStream</code>, <code>UdpSocket</code>, <code>resolve</code></td><td>processes and sockets</td></tr>
+<tr><td><code>cb_clock_read</code>, <code>cb_tz_offset</code>, <code>cb_sleep_ns</code>, <code>cb_os_random</code></td><td><code>monotonic_ns</code>, <code>unix_ms</code>, local time, <code>sleep_ms</code>, <code>os_random_bytes</code></td><td>clocks, the time zone, sleeping, the system's random bytes</td></tr>
+<tr><td><code>cb_sort_plain</code>, <code>cb_sort_text</code>, <code>cb_bytes_less</code></td><td><code>Vec::sort</code> of integers, bools or text</td><td>a native sort; text in byte order</td></tr>
+</tbody>
+</table>
+<h4>Inline helpers with no state</h4>
+<table>
+<thead><tr><th>Name</th><th>What it computes</th></tr></thead>
+<tbody>
+<tr><td><code>cb_popcount64</code>, <code>cb_popcount128</code>, <code>cb_clz</code>, <code>cb_clz128</code>, <code>cb_ctz</code>, <code>cb_ctz128</code></td><td>the bit-counting built-ins, at a given width</td></tr>
+<tr><td><code>cb_rotl</code>, <code>cb_rotr</code>, <code>cb_rotl128</code>, <code>cb_rotr128</code>, and <code>cb_rotl8</code> to <code>cb_rotr64</code></td><td>rotations: at a width passed as an argument, and at each fixed width in the form a C compiler turns into one instruction</td></tr>
+<tr><td><code>cb_round</code>, <code>cb_roundf</code></td><td><code>round</code>, half away from zero, computed from <code>trunc</code> so that it is the same on every C library</td></tr>
+<tr><td><code>cb_str_eq</code>, <code>cb_bytes_eq</code>, <code>cb_bytes_cmp</code>, <code>cb_bytes_lt</code></td><td>equality and byte order of text</td></tr>
+<tr><td><code>cb_hash_bytes</code>, <code>cb_fnv_more</code></td><td><code>HashMap</code>'s hash of a key's bytes (FNV-1a), and its continuation over more bytes</td></tr>
+<tr><td><code>cb_find_bytes</code>, <code>cb_char_boundary</code></td><td><code>StringView::find</code>; whether a position is on a UTF-8 character's first byte</td></tr>
+</tbody>
+</table>
+<h3 id="rt-fault">A fault, from call to exit</h3>
+<p>Every failed check ends in <code>cb_fault(diag, file, line)</code>, whether the generated C found it
+(an overflow, an index) or the runtime did (a stale path inside <code>cb_read</code>). The generated C never
+<code>longjmp</code>s and has no cleanup code of its own for this: the runtime holds the stack of frames and
+scopes, so it can do what the rules say.</p>
+<ol>
+<li>The location is the one passed, or the one <code>cb_at</code> last stored when none was (a fault found while a frame was ending, or in a destructor).</li>
+<li>[Fault-Unwind]: every open statement scope and frame of this thread is ended, innermost first, exactly as <code>cb_stmt_pop</code> and <code>cb_frame_pop</code> would end them. Destructors run: the runtime calls back into the program through each type descriptor's <code>drop</code>. Noted locals are ended from their tables at the depth they were registered.</li>
+<li>The report is written to standard error: <code>fault[diag.name]: message</code>, the file, line and column, the source line, and the registry's repair advice. With <code>COBALTC_EXPLAIN=1</code> in the environment the registry's whole entry follows.</li>
+<li>Buffered output is written out and the process ends with status 1.</li>
+</ol>
+<p>Three things change the last step. In a thread started with the supervision operations, the
+unwind ends at the <code>setjmp</code> in the thread's body (<code>cb_thread_jmp</code>), the thread is recorded as
+failed, and <code>try_join</code> gives the failure to whoever joins it. In a library entry point's <code>_try</code>
+form it ends at the stub's <code>setjmp</code> and the stub returns the status to its C caller. And a
+thread that was lent an exclusive reference is never contained: its fault ends the program.</p>
+<p>A state the runtime's own tables should never reach is not a fault of the program: the
+runtime prints <code>cbrt: internal: …</code> and exits with status 4, as <code>cobc</code> does for an error of its
+own.</p>
+<h3 id="rt-callbacks">What the runtime calls in the program</h3>
+<p>The calls go the other way in four places only:</p>
+<ul>
+<li><strong>Destructors.</strong> A <code>cb_type</code> with a user <code>drop</code>, or generated drop glue, carries its address. <code>cb_frame_pop</code>, <code>cb_stmt_pop</code>, <code>cb_destroy</code>, <code>cb_drop_local</code> and the unwind call it with a <code>cb_ref</code> to the value.</li>
+<li><strong>Thread bodies.</strong> <code>cb_spawn</code> is given the function the compiler wrote for that <code>spawn</code>, which unpacks the argument block and calls the program's function.</li>
+<li><strong><code>cb_program</code>.</strong> Given to <code>cb_run_main</code>, or the initialiser given to <code>cb_lib_enter</code>.</li>
+<li><strong><code>cb_where</code>, <code>cb_set_where</code>, <code>cb_set_stack_floor</code>.</strong> The accessors of the two thread-locals the program defines.</li>
+</ul>
+<p>The runtime never reads the program's source, its names or its values except through these
+and through the type descriptors: what it knows about a type is its size, its fields' offsets and
+types, where its references are, and how to end it.</p>
+<h3 id="rt-env">What the runtime reads from the environment</h3>
+<p>A compiled program checks these variables when it starts. They change how the run is
+observed, never what the program computes.</p>
+<table>
+<thead><tr><th>Variable</th><th>Effect</th></tr></thead>
+<tbody>
+<tr><td><code>COBALTC_EXPLAIN=1</code></td><td>A fault's report is followed by the diagnostic's whole registry entry, as <code>cobc --explain --run</code> shows it.</td></tr>
+<tr><td><code>COBALTC_SCHEDULE_SEED=S</code></td><td>The threads run one at a time, in the order seed <code>S</code> gives, as <code>cobc --explore</code> ran them: a run that ended differently can be replayed.</td></tr>
+<tr><td><code>COBALTC_VERIFY=1</code> (or <code>=N</code>)</td><td>At every statement's end (or every Nth), the runtime re-derives that its object and path tables agree with each other, and stops naming the defect if they do not. A violation is a defect of the tool, never of the program.</td></tr>
+<tr><td><code>COBALTC_TRACE_EVENTS=1</code></td><td>One <code>EV</code> line on standard error for each event the compiler's elisions must not disturb: each user destructor run, the fault, an <code>exit</code>, the end.</td></tr>
+<tr><td><code>COBALTC_RECORD=full</code> or <code>check</code></td><td>Every entry goes to the runtime (<code>cb_inline_off</code>): <code>full</code> keeps the full record of references, for comparison with the light one; <code>check</code> stops where a light reference reaches something that should have recorded it.</td></tr>
+<tr><td><code>COBALTC_REPLAY_TRACE=FILE</code></td><td>Writes the run's steps in the format of the proved machine in <code>proofs/</code>, for replaying against it.</td></tr>
+<tr><td><code>COBALTC_RT_STATS=1</code></td><td>A test hook: counts of what the runtime recorded, and what it still holds when the program ends.</td></tr>
+</tbody>
+</table>
+<h3 id="rt-read">Where to read further</h3>
+<table>
+<thead><tr><th>File</th><th>What is there</th></tr></thead>
+<tbody>
+<tr><td><code>impl/cbrt/include/cbrt.h</code></td><td>the interface itself; each declaration's comment names the rule it implements</td></tr>
+<tr><td><code>impl/cbrt/src/rt.h</code></td><td>the runtime's data structures, with the design in its first comment</td></tr>
+<tr><td><code>impl/cbrt/src/rt_objs.c</code></td><td>objects, frames and statement scopes, destruction</td></tr>
+<tr><td><code>impl/cbrt/src/rt_refs.c</code></td><td>borrows, checked reads and writes, reference slots, values in flight, <code>fn</code> values, raw storage, noted locals</td></tr>
+<tr><td><code>impl/cbrt/src/rt_tables.c</code></td><td>the tables: slots by address, an object's paths, projections and their comparison, the marks, objects over raw cells</td></tr>
+<tr><td><code>impl/cbrt/src/rt_threads.c</code>, <code>rt_lock.c</code></td><td>threads, the schedule, mutexes and the runtime's lock</td></tr>
+<tr><td><code>impl/cbrt/src/rt_init.c</code>, <code>rt_alloc.c</code>, <code>diagnostics.c</code></td><td>start-up, ending and faults; the allocator; the reports</td></tr>
+<tr><td><code>impl/cbrt/src/plat_posix.c</code>, <code>plat_win.c</code></td><td>everything that differs between Linux and Windows</td></tr>
+<tr><td><code>impl/COBC-PLAN.md</code></td><td>the compiler's plan and its history: why the interface has the shape it has, and each step that made it cheaper, with measurements</td></tr>
+<tr><td><code>spec/04</code>, <code>spec/08</code>, <code>spec/10</code>, <code>spec/14</code></td><td>the state, aliasing, temporal validity and the scopes the records above implement</td></tr>
+<tr><td><code>spec/ASSURANCE.md</code></td><td>what is proved, checked and tested about the runtime</td></tr>
+</tbody>
+</table>
+
+<nav class="pager"><a class="prev" href="#appx">&larr; A Appendix: diagnostics</a><a class="top" href="#top">Top</a></nav></section>
 
 
 <div class="book-navigation">
