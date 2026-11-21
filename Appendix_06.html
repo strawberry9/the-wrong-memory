@@ -166,7 +166,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.112103</div>
+<div class="sub">Specification edition 2026.112104</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -340,7 +340,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.112103</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.112104</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -3713,7 +3713,16 @@ chain does, so ten million links copy as well as ten. A tree, a struct with two 
 (<code>left</code> and <code>right</code>) or an enum variant with fields that holds them (<code>Add { Box&lt;Expr&gt; a; Box&lt;Expr&gt; b; }</code>),
 goes on past a thousand levels with a loop over a stack of its own. The fields are still copied in
 the order the rule gives. A type that links to itself only through another type
-(<code>Node(Box&lt;Pair&gt;)</code>, <code>Pair</code> holding the links) still takes a call for each level.</p>
+(<code>Node(Box&lt;Pair&gt;)</code>, <code>Pair</code> holding the links) still takes a call for each level: its <code>clone</code> and
+<code>Pair</code>'s are two functions, each made from its own type's declaration.</p>
+<p>Destroying a list or a tree takes no call for each level either, in every form, where nothing
+observable follows a link's destruction: the link is the last field destroyed (fields go last
+declared first), or the fields destroyed after it only free memory, as a <code>String</code> does. A list whose
+nodes hold a <code>String</code> beside the link, a tree whose nodes hold one beside two links, and an enum
+list are destroyed at two million levels as at ten. A field declared before the link that runs
+another destructor (a type with a <code>drop</code> of its own, a <code>Vec&lt;String&gt;</code>) is destroyed after the whole rest of
+the list, so that list's destruction takes a call for each node; declare such a field after the link
+when the list may be deep.</p>
 <p>Inference is <em>local and downward</em>. A type parameter is found from, in order: an
 explicit type argument (<code>identity&lt;i64&gt;(5)</code>), the type of an argument in the same call, or the
 <em>expected type</em> where the call appears (a declared variable type, a parameter type, a field
