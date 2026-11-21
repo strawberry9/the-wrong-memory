@@ -166,7 +166,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.112001</div>
+<div class="sub">Specification edition 2026.112101</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -340,7 +340,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.112001</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.112101</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -534,7 +534,7 @@ that function's example in the generated documentation (D-0230).</p>
 line) and four-space indentation. That is a documentation convention: CobaltC ignores whitespace
 between tokens, so any brace placement is equally valid.</p>
 <p><code>cobfmt</code>, the formatter, writes that style for you: <code>cobfmt program.cb</code> rewrites the
-file in place, <code>cobfmt --backup src/</code> does every <code>.cb</code> file under <code>src/</code> and keeps each changed
+file in place (through a link, keeping its permissions; a read-only file is left as it is), <code>cobfmt --backup src/</code> does every <code>.cb</code> file under <code>src/</code> and keeps each changed
 file's previous contents as <code>NAME.cb.format.bak</code>, and <code>cobfmt --check src/</code> only lists the files it
 would change (for a test or a commit hook). It changes layout and nothing else: indentation, braces,
 spacing, blank lines, the <code>:</code> of a <code>match</code>'s arms and of a <code>bitstruct</code>'s fields aligned in one column, and trailing comments kept
@@ -1716,7 +1716,7 @@ in four places.</p>
 <tr><td>A reference</td><td><code>&amp;&#x27;a T</code>, <code>&amp;&#x27;a mut T</code>: a lifetime (usually elided) bounds every use</td><td><code>ref&lt;T, shared&gt;</code>, <code>ref&lt;T, exclusive&gt;</code>: no lifetime; validity is checked at each use (<a href="#s09">§09</a>)</td></tr>
 <tr><td>A struct holding a reference</td><td><code>struct Holder&lt;&#x27;a&gt; { r: &amp;&#x27;a i32 }</code>: the lifetime is a parameter of the type</td><td><code>struct Holder { ref&lt;i32, shared&gt; r; }</code>: the reference is tied to the storage holding it and the object it reaches, at run time (<a href="#s10">§10</a>)</td></tr>
 <tr><td>A function returning a reference</td><td>the result's lifetime is related to a parameter's by elision or by writing <code>&#x27;a</code>; any relation can be stated</td><td>elided when exactly one parameter is a reference; with two or more, a <code>from</code> clause names the ones it may come from (<code>from a</code>, <code>from a, b</code>), the call borrows each of them, and the rest may only be probed, never kept (<a href="#from-clause">§10</a>); without the clause it is refused (<code>diag.lifetime-elision-ambiguous</code>). One set of sources covers the whole result: parts from different sources are not expressible</td></tr>
-<tr><td>What may cross to another thread</td><td><code>Send</code> and <code>Sync</code> marker traits, checked at compile time; <code>spawn</code> wants <code>&#x27;static</code> data, scoped threads borrow</td><td>any value moves; a reference may be lent for the thread's life and is checked at run time (<a href="#s19">§19</a>)</td></tr>
+<tr><td>What may cross to another thread</td><td><code>Send</code> and <code>Sync</code> marker traits, checked at compile time; <code>spawn</code> wants <code>&#x27;static</code> data, scoped threads borrow</td><td>any value moves but an <code>Rc</code> or what holds one (<code>diag.not-thread-safe</code>); a reference may be lent for the thread's life and is checked at run time (<a href="#s19">§19</a>)</td></tr>
 </tbody>
 </table>
 <figure class="code"><div class="code-head"><span class="code-title">Rust: a lifetime relates two parameters to the result</span></div><pre><code><span class="k">fn</span> longest&lt;&#x27;a&gt;(a: &amp;&#x27;a <span class="t">str</span>, b: &amp;&#x27;a <span class="t">str</span>) -&gt; &amp;&#x27;a <span class="t">str</span> {
@@ -4197,12 +4197,14 @@ that loop runs, <code>arr</code> is borrowed by it, so reach the elements throug
 <p><code>foreach (x in lo..hi)</code> counts from <code>lo</code> up to, <em>not including</em>, <code>hi</code>, the same way
 <code>&amp;a[lo..hi]</code> takes elements <code>lo</code> up to <code>hi</code>. So <code>0..n</code> runs exactly <code>n</code> times, and <code>1..10</code> stops at
 9. A second name gives the position, counted from 0: <code>foreach (i, x in lo..hi)</code>. Both bounds are
-evaluated once, <code>lo</code> first. If <code>hi</code> is not above <code>lo</code>, the body never runs.</p>
+evaluated once, <code>lo</code> first. If <code>hi</code> is not above <code>lo</code>, the body never runs.
+<code>foreach (x in lo..=hi)</code> includes <code>hi</code>, and so reaches a type's largest value without an overflow:
+<code>foreach (b in 0..=255: u8)</code> visits all 256 bytes, and when <code>hi</code> is below <code>lo</code> it runs no turn.</p>
 <p><code>x</code> has the bounds' integer type. A plain number takes the other bound's type, so with
 <code>u8 top</code>, <code>0..top</code> counts in <code>u8</code>. Two plain numbers are <code>usize</code>, so the counter can index an
 array or a <code>Vec</code> directly; for a negative range, give one bound a type: <code>-3..0: i32</code>. Bounds of two different types are
-rejected rather than converted. A range can end at its type's largest value without overflowing,
-because the counter never passes <code>hi</code>.</p>
+rejected rather than converted. Neither form overflows at its type's largest value: <code>lo..hi</code> stops
+before <code>hi</code>, and <code>lo..=hi</code> stops at it.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Ranges</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> main()
@@ -4231,9 +4233,39 @@ because the counter never passes <code>hi</code>.</p>
 step 0 is 253
 step 1 is 254
 </pre></div></figure>
+<h3>Counting up to and including the end</h3>
+<p><code>lo..=hi</code> is the range that includes <code>hi</code>. It is the one to use when the last value is the
+type's largest, which <code>lo..hi</code> cannot reach (<code>0..256</code> is not a <code>u8</code>), and it reads as what it does:
+<code>1..=10</code> is one to ten (<code>spec/14</code> <code>[Foreach-Range-Inclusive]</code>).</p>
+<figure class="code"><div class="code-head"><span class="code-title">An inclusive range</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    <span class="c">// 1 + 2 + ... + 10: the last number is counted.</span>
+    <span class="t">u32</span> sum = <span class="n">0</span>;
+    <span class="k">foreach</span> (k in <span class="n">1</span>..=<span class="n">10</span>: <span class="t">u32</span>)
+    {
+        sum += k;
+    }
+    <span class="p">printf</span>(<span class="s">&quot;sum %v\n&quot;</span>, sum);
+    <span class="c">// Every i8, the largest included; the counter never overflows.</span>
+    <span class="t">i32</span> n = <span class="n">0</span>;
+    <span class="k">foreach</span> (x in <span class="p">min_value</span>&lt;<span class="t">i8</span>&gt;()..=<span class="p">max_value</span>&lt;<span class="t">i8</span>&gt;())
+    {
+        n += <span class="n">1</span>;
+    }
+    <span class="p">printf</span>(<span class="s">&quot;%v values of i8\n&quot;</span>, n);
+    <span class="c">// A top below the bottom runs no turn.</span>
+    <span class="k">foreach</span> (x in <span class="n">3</span>..=<span class="n">1</span>: <span class="t">i32</span>)
+    {
+        <span class="p">printf</span>(<span class="s">&quot;never %v\n&quot;</span>, x);
+    }
+}</code></pre><div class="code-output"><span class="out-label">output</span><pre>sum 55
+256 values of i8
+</pre></div></figure>
 <p>A range to count over is written only in a <code>foreach</code> (a slice's <code>lo..hi</code>, §16, is the same
-notation for elements). It is not a value you can store, and it has no
-inclusive form or step. To count down or in steps, use a <code>for</code> loop.</p>
+notation for elements). It is not a value you can store, and it has no step; <code>lo..=hi</code>
+is its inclusive form, which a slice does not have. To count down or in steps, use a <code>for</code> loop.</p>
 <h3>Early exit and unwinding</h3>
 <p><code>return</code>, <code>break</code>, <code>continue</code>, and a run-time fault all leave scopes the same way: every
 statement scope and block between here and the target is exited in order, destroying what each one
@@ -4347,7 +4379,8 @@ that capture what they use, and the capture list is checked, not trusted.</p>
 implementation allows at least 10 000 nested calls, and <code>cobc</code> allows far more: it runs a
 program and each of its threads on a large stack. A call beyond the limit is not a crash but a
 fault at the call, <code>diag.stack-exhausted</code>, so a recursion that runs away ends with a diagnostic
-like any other failure.</p>
+like any other failure; so does a call whose own locals (a large array) are more than the stack
+has left.</p>
 <p>A parameter list and an argument list may end with a comma, as array and struct literals
 may: handy when a long call is split one argument per line. A comma is never the whole list:
 <code>f(,)</code> is a syntax error.</p>
@@ -5001,8 +5034,8 @@ Variant names are used bare (<code>Cold(3)</code>, <code>Fine</code>) or qualifi
 enums share a name. A variant with no payload behaves as if it carried <code>()</code>.</p>
 <p><code>match (e) { … }</code> compares the discriminant and runs the arm for that variant. Each arm is
 <code>Variant(binder) : expression,</code> for a payload, <code>Variant : expression,</code> for none, or
-<code>_ : expression,</code> as a catch-all; every arm ends with a comma. The arms must cover every variant
-or include <code>_</code>. Arms are expressions, so a <code>match</code> produces a value; use a block as the arm body
+<code>_ : expression,</code> as a catch-all; every arm ends with a comma. There is at least one arm, and the
+arms must cover every variant or include <code>_</code>. Arms are expressions, so a <code>match</code> produces a value; use a block as the arm body
 for statements. Arms are tried in order and the first that fits is taken.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Enums</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
@@ -6403,6 +6436,23 @@ serialises access.</p>
     <span class="k">auto</span> g1 = <span class="p">lock</span>(&amp;m);
     <span class="k">auto</span> g2 = <span class="p">lock</span>(&amp;m);               <span class="c">// <span class="bad">✗</span> <span class="dg">diag.mutex-reentrant-lock</span>: this thread already holds it</span>
 }</code></pre></figure>
+<p>A reference taken through a guard ends with the guard. <code>&amp;*lock(&amp;m)</code> is a reference for the
+statement it is written in, since the guard is a temporary; a reference through a bound guard lasts
+until <code>drop(g)</code> or the guard's block. A reference kept longer would reach the value while another
+thread holds the lock, and is refused (<code>diag.destroy-while-aliased</code>): bind the guard for as long as the
+reference is needed, or copy what you need out.</p>
+<figure class="code"><div class="code-head"><span class="code-title">A reference outliving its guard</span><span class="badge bad">rejected: diag.destroy-while-aliased</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> main()
+{
+    <span class="t">mutex</span>&lt;<span class="p">String</span>&gt; m = <span class="p">Mutex</span>::new(<span class="s">&quot;hello&quot;</span>);
+    <span class="t">ref</span>&lt;<span class="p">String</span>, <span class="t">shared</span>&gt; r = &amp;*<span class="p">lock</span>(&amp;m);   <span class="c">// the guard ends at this semicolon</span>
+    {
+        <span class="t">guard</span>&lt;<span class="p">String</span>&gt; g = <span class="p">lock</span>(&amp;m);
+        <span class="p">String</span>::append(&amp;<span class="k">mut</span> *g, <span class="s">&quot;, world&quot;</span>);
+    }
+    <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, <span class="p">StringView</span>::len(r));  <span class="c">// <span class="bad">✗</span> <span class="dg">diag.destroy-while-aliased</span>: r outlived its guard</span>
+}</code></pre></figure>
 <p>Through a guard, a field or element of the locked value is reached directly, as through a
 reference: <code>g.count</code>, <code>g.items[0]</code>, <code>Vec::push(&amp;mut g.items, x)</code> mean <code>(*g).count</code> and so on. <code>*g</code>
 is how you name the whole value.</p>
@@ -6755,9 +6805,23 @@ value, as <code>Weak</code> does for <code>Rc</code>.</p>
 }</code></pre><div class="code-output"><span class="out-label">output</span><pre>sum 55, logged 10 entries
 </pre></div></figure>
 <div class="callout note"><div class="callout-title">Nothing special inside</div><code>Arc</code> carries no special bound on its value: whatever is inside is subject to the same
-checks as anything reached through a shared reference. Two threads that clone an <code>Rc</code> they reach
-through one <code>Arc</code> meet in <code>Rc::clone</code>'s exclusive borrow of its count, <code>diag.aliasing-conflict</code>, exactly
-as they would through <code>&amp;rc</code>.</div>
+checks as anything reached through a shared reference. The one thing it cannot hold is an <code>Rc</code>: an <code>Arc</code>
+whose value holds one is refused by <code>spawn</code> (<code>diag.not-thread-safe</code>), since two threads would update one
+count that is not synchronised.</div>
+<figure class="code"><div class="code-head"><span class="code-title">An Rc stays in its thread</span><span class="badge bad">rejected: diag.not-thread-safe</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> churn(<span class="p">Rc</span>&lt;<span class="p">String</span>&gt; r) : <span class="t">usize</span>
+{
+    <span class="p">Rc</span>&lt;<span class="p">String</span>&gt; c = <span class="p">Rc</span>::clone(&amp;r);
+    <span class="p">StringView</span>::len(<span class="p">Rc</span>::get(&amp;c))
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="p">Rc</span>&lt;<span class="p">String</span>&gt; a = <span class="p">Rc</span>::new(<span class="s">&quot;shared across threads&quot;</span>);
+    <span class="t">handle</span>&lt;<span class="t">usize</span>&gt; h = <span class="p">spawn</span>(churn, <span class="p">Rc</span>::clone(&amp;a));   <span class="c">// <span class="bad">✗</span> <span class="dg">diag.not-thread-safe</span>: an Rc&#x27;s count is not atomic</span>
+    <span class="p">printf</span>(<span class="s">&quot;%v %v\n&quot;</span>, <span class="p">join</span>(h), <span class="p">StringView</span>::len(<span class="p">Rc</span>::get(&amp;a)));
+}</code></pre></figure>
 <h3 id="s19-how-threads-run">How threads run</h3>
 <p>Every CobaltC thread is a thread of the operating system. In a program built by <code>cobc</code>
 they run at once, on as many cores as the machine has. The checks of §08 and §10 still run as the
@@ -7083,8 +7147,10 @@ goes to one thread, and one closure cannot run in several threads at once.</p>
 <p>No memory orderings weaker than sequential consistency (an <code>Atomic</code> is the one lock-free
 tool, above), no condition variables, no thread-local storage. Steps of different threads interleave at
 the granularity of single operations and every operation sees a consistent state; a <code>join</code>, a
-<code>lock</code>, a <code>send</code> or a <code>recv</code> that cannot proceed simply waits. <code>Rc&lt;T&gt;</code> is not thread-safe: across
-threads, share a <code>mutex</code> by reference, pass values through a <code>Channel</code>, or own a share with an <code>Arc</code>.
+<code>lock</code>, a <code>send</code> or a <code>recv</code> that cannot proceed simply waits. <code>Rc&lt;T&gt;</code> is not thread-safe, and the
+checker keeps it in its thread: <code>spawn</code> refuses an <code>Rc</code> or a <code>Weak</code>, or any value that holds or reaches
+one, as an argument, a result or a capture (<code>diag.not-thread-safe</code>, <code>spec/19</code> <code>[Thread-Confined]</code>). Across threads, share a <code>mutex</code> by
+reference, pass values through a <code>Channel</code>, or own a share with an <code>Arc</code>.
 There is no read-write lock and no condition variable.</p>
 <div class="callout note"><div class="callout-title">Parallel or interleaved</div>A compiled program runs its threads in parallel on separate cores; under <code>--explore</code> or
 <code>--schedule-seed</code> (above) they take turns, one at a time. A program that follows the rules gets the
@@ -7407,8 +7473,11 @@ int64_t squares(int64_t *out, int64_t n)
 <p>The boundary runs the other way too. An <code>extern fn</code> **with a body** is a function C calls by that
 name, with C's calling convention; inside the program it is an ordinary function. Its parameters and
 result are the types that cross to C (integers, floats, <code>bool</code>, raw pointers, plain structs of those),
-it is not generic, and its name is its C symbol, so two such functions cannot share one and <code>cb_…</code> and
-<code>cobalt_…</code> are the runtime's. A file of such functions with no <code>main</code> is a library.</p>
+it is not generic, and its name is its C symbol, so two such functions cannot share one, <code>cb_…</code> and
+<code>cobalt_…</code> are the runtime's, and a name of C or its library (<code>write</code>, <code>index</code>, <code>time</code>, a C keyword, or one
+that begins with <code>_</code>) is refused: it would take the library function's place for the whole program. A
+program's own C (<code>extern &quot;x.c&quot;;</code>) may call these functions too. A file of such functions with no <code>main</code> is
+a library.</p>
 <figure class="code"><div class="code-head"><span class="code-title">geo.cb: a library (not run: it has no main)</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">struct</span> Point
@@ -7649,11 +7718,11 @@ reference</a>, which gives its declaration, its documentation and examples.</p>
 <table class="std-inv">
 <thead><tr><th>Kind</th><th>Items</th></tr></thead>
 <tbody>
-<tr><td>Types</td><td><code class="priv">Drain</code>, <code class="priv">HashDrain</code>, <a href="#stdref-std-collections-HashMap"><code>HashMap</code></a>, <a href="#stdref-std-collections-HashSet"><code>HashSet</code></a>, <a href="#stdref-std-collections-PriorityQueue"><code>PriorityQueue</code></a>, <a href="#stdref-std-collections-Queue"><code>Queue</code></a>, <code class="priv">SetDrain</code>, <a href="#stdref-std-collections-Vec"><code>Vec</code></a></td></tr>
+<tr><td>Types</td><td><code class="priv">Drain</code>, <code class="priv">HashDrain</code>, <code class="priv">HashEntry</code>, <a href="#stdref-std-collections-HashMap"><code>HashMap</code></a>, <a href="#stdref-std-collections-HashSet"><code>HashSet</code></a>, <a href="#stdref-std-collections-PriorityQueue"><code>PriorityQueue</code></a>, <a href="#stdref-std-collections-Queue"><code>Queue</code></a>, <code class="priv">SetDrain</code>, <a href="#stdref-std-collections-Vec"><code>Vec</code></a></td></tr>
 <tr><td>Functions</td><td><code class="priv">cell_names_home</code>, <code class="priv">key_before</code>, <a href="#stdref-std-collections-read_be"><code>read_be</code></a>, <a href="#stdref-std-collections-read_le"><code>read_le</code></a>, <a href="#stdref-std-collections-slice_eq"><code>slice_eq</code></a>, <a href="#stdref-std-collections-slice_parts"><code>slice_parts</code></a>, <a href="#stdref-std-collections-slice_swap"><code>slice_swap</code></a>, <code class="priv">slot_shift</code></td></tr>
-<tr><td><code>Vec::</code></td><td><a href="#stdref-std-collections-Vec-all"><code>all</code></a>, <a href="#stdref-std-collections-Vec-any"><code>any</code></a>, <a href="#stdref-std-collections-Vec-append"><code>append</code></a>, <code class="priv">apply_order</code>, <a href="#stdref-std-collections-Vec-binary_search"><code>binary_search</code></a>, <a href="#stdref-std-collections-Vec-binary_search_by"><code>binary_search_by</code></a>, <a href="#stdref-std-collections-Vec-clear"><code>clear</code></a>, <a href="#stdref-std-collections-Vec-clone"><code>clone</code></a>, <a href="#stdref-std-collections-Vec-clone_by"><code>clone_by</code></a>, <a href="#stdref-std-collections-Vec-contains"><code>contains</code></a>, <a href="#stdref-std-collections-Vec-count"><code>count</code></a>, <a href="#stdref-std-collections-Vec-dedup"><code>dedup</code></a>, <code class="priv">drain</code>, <a href="#stdref-std-collections-Vec-drop"><code>drop</code></a>, <a href="#stdref-std-collections-Vec-eq"><code>eq</code></a>, <a href="#stdref-std-collections-Vec-extend_from"><code>extend_from</code></a>, <a href="#stdref-std-collections-Vec-filled"><code>filled</code></a>, <a href="#stdref-std-collections-Vec-from_c_bytes"><code>from_c_bytes</code></a>, <a href="#stdref-std-collections-Vec-from_fn"><code>from_fn</code></a>, <a href="#stdref-std-collections-Vec-from_raw"><code>from_raw</code></a>, <a href="#stdref-std-collections-Vec-from_slice"><code>from_slice</code></a>, <code class="priv">grow</code>, <a href="#stdref-std-collections-Vec-index_exclusive"><code>index_exclusive</code></a>, <a href="#stdref-std-collections-Vec-index_of"><code>index_of</code></a>, <a href="#stdref-std-collections-Vec-index_shared"><code>index_shared</code></a>, <a href="#stdref-std-collections-Vec-insert"><code>insert</code></a>, <a href="#stdref-std-collections-Vec-len"><code>len</code></a>, <a href="#stdref-std-collections-Vec-new"><code>new</code></a>, <a href="#stdref-std-collections-Vec-pop"><code>pop</code></a>, <a href="#stdref-std-collections-Vec-position"><code>position</code></a>, <a href="#stdref-std-collections-Vec-push"><code>push</code></a>, <a href="#stdref-std-collections-Vec-push_be"><code>push_be</code></a>, <a href="#stdref-std-collections-Vec-push_le"><code>push_le</code></a>, <a href="#stdref-std-collections-Vec-remove"><code>remove</code></a>, <code class="priv">remove_at</code>, <code class="priv">replace</code>, <a href="#stdref-std-collections-Vec-reserve"><code>reserve</code></a>, <a href="#stdref-std-collections-Vec-retain"><code>retain</code></a>, <a href="#stdref-std-collections-Vec-reverse"><code>reverse</code></a>, <a href="#stdref-std-collections-Vec-sort"><code>sort</code></a>, <a href="#stdref-std-collections-Vec-sort_by"><code>sort_by</code></a>, <code class="priv">sorted_order</code>, <code class="priv">sorted_order_keys</code>, <a href="#stdref-std-collections-Vec-swap"><code>swap</code></a>, <a href="#stdref-std-collections-Vec-swap_remove"><code>swap_remove</code></a>, <code class="priv">take_raw</code>, <a href="#stdref-std-collections-Vec-truncate"><code>truncate</code></a></td></tr>
+<tr><td><code>Vec::</code></td><td><a href="#stdref-std-collections-Vec-all"><code>all</code></a>, <a href="#stdref-std-collections-Vec-any"><code>any</code></a>, <a href="#stdref-std-collections-Vec-append"><code>append</code></a>, <code class="priv">apply_order</code>, <a href="#stdref-std-collections-Vec-binary_search"><code>binary_search</code></a>, <a href="#stdref-std-collections-Vec-binary_search_by"><code>binary_search_by</code></a>, <a href="#stdref-std-collections-Vec-clear"><code>clear</code></a>, <a href="#stdref-std-collections-Vec-clone"><code>clone</code></a>, <a href="#stdref-std-collections-Vec-clone_by"><code>clone_by</code></a>, <a href="#stdref-std-collections-Vec-contains"><code>contains</code></a>, <a href="#stdref-std-collections-Vec-count"><code>count</code></a>, <a href="#stdref-std-collections-Vec-dedup"><code>dedup</code></a>, <code class="priv">drain</code>, <a href="#stdref-std-collections-Vec-drop"><code>drop</code></a>, <a href="#stdref-std-collections-Vec-eq"><code>eq</code></a>, <a href="#stdref-std-collections-Vec-extend_from"><code>extend_from</code></a>, <a href="#stdref-std-collections-Vec-filled"><code>filled</code></a>, <a href="#stdref-std-collections-Vec-from_c_bytes"><code>from_c_bytes</code></a>, <a href="#stdref-std-collections-Vec-from_fn"><code>from_fn</code></a>, <a href="#stdref-std-collections-Vec-from_raw"><code>from_raw</code></a>, <a href="#stdref-std-collections-Vec-from_slice"><code>from_slice</code></a>, <code class="priv">grow</code>, <a href="#stdref-std-collections-Vec-index_exclusive"><code>index_exclusive</code></a>, <a href="#stdref-std-collections-Vec-index_of"><code>index_of</code></a>, <a href="#stdref-std-collections-Vec-index_shared"><code>index_shared</code></a>, <a href="#stdref-std-collections-Vec-insert"><code>insert</code></a>, <a href="#stdref-std-collections-Vec-len"><code>len</code></a>, <a href="#stdref-std-collections-Vec-new"><code>new</code></a>, <a href="#stdref-std-collections-Vec-pop"><code>pop</code></a>, <a href="#stdref-std-collections-Vec-position"><code>position</code></a>, <a href="#stdref-std-collections-Vec-push"><code>push</code></a>, <a href="#stdref-std-collections-Vec-push_be"><code>push_be</code></a>, <a href="#stdref-std-collections-Vec-push_le"><code>push_le</code></a>, <a href="#stdref-std-collections-Vec-remove"><code>remove</code></a>, <a href="#stdref-std-collections-Vec-reserve"><code>reserve</code></a>, <a href="#stdref-std-collections-Vec-retain"><code>retain</code></a>, <a href="#stdref-std-collections-Vec-reverse"><code>reverse</code></a>, <a href="#stdref-std-collections-Vec-sort"><code>sort</code></a>, <a href="#stdref-std-collections-Vec-sort_by"><code>sort_by</code></a>, <code class="priv">sorted_order</code>, <code class="priv">sorted_order_keys</code>, <a href="#stdref-std-collections-Vec-swap"><code>swap</code></a>, <a href="#stdref-std-collections-Vec-swap_remove"><code>swap_remove</code></a>, <code class="priv">take_raw</code>, <a href="#stdref-std-collections-Vec-truncate"><code>truncate</code></a></td></tr>
 <tr><td><code>Drain::</code></td><td><code class="priv">drop</code>, <code class="priv">take</code>, <code class="priv">total</code></td></tr>
-<tr><td><code>HashMap::</code></td><td><a href="#stdref-std-collections-HashMap-clear"><code>clear</code></a>, <a href="#stdref-std-collections-HashMap-clone"><code>clone</code></a>, <a href="#stdref-std-collections-HashMap-contains"><code>contains</code></a>, <a href="#stdref-std-collections-HashMap-contains_str"><code>contains_str</code></a>, <code class="priv">drain</code>, <a href="#stdref-std-collections-HashMap-entry"><code>entry</code></a>, <code class="priv">entry_in</code>, <code class="priv">find</code>, <a href="#stdref-std-collections-HashMap-get"><code>get</code></a>, <a href="#stdref-std-collections-HashMap-get_mut"><code>get_mut</code></a>, <a href="#stdref-std-collections-HashMap-get_mut_str"><code>get_mut_str</code></a>, <a href="#stdref-std-collections-HashMap-get_str"><code>get_str</code></a>, <code class="priv">has_key</code>, <code class="priv">index_of</code>, <a href="#stdref-std-collections-HashMap-insert"><code>insert</code></a>, <a href="#stdref-std-collections-HashMap-key_at"><code>key_at</code></a>, <a href="#stdref-std-collections-HashMap-len"><code>len</code></a>, <a href="#stdref-std-collections-HashMap-new"><code>new</code></a>, <a href="#stdref-std-collections-HashMap-remove"><code>remove</code></a>, <code class="priv">remove_slot</code>, <a href="#stdref-std-collections-HashMap-remove_str"><code>remove_str</code></a>, <code class="priv">reserve_one</code>, <code class="priv">reslot</code>, <code class="priv">seek</code>, <a href="#stdref-std-collections-HashMap-swap_remove"><code>swap_remove</code></a>, <code class="priv">unslot</code>, <a href="#stdref-std-collections-HashMap-value_at"><code>value_at</code></a></td></tr>
+<tr><td><code>HashMap::</code></td><td><a href="#stdref-std-collections-HashMap-clear"><code>clear</code></a>, <a href="#stdref-std-collections-HashMap-clone"><code>clone</code></a>, <a href="#stdref-std-collections-HashMap-contains"><code>contains</code></a>, <a href="#stdref-std-collections-HashMap-contains_str"><code>contains_str</code></a>, <code class="priv">drain</code>, <a href="#stdref-std-collections-HashMap-entry"><code>entry</code></a>, <code class="priv">entry_in</code>, <code class="priv">find</code>, <a href="#stdref-std-collections-HashMap-get"><code>get</code></a>, <a href="#stdref-std-collections-HashMap-get_mut"><code>get_mut</code></a>, <a href="#stdref-std-collections-HashMap-get_mut_str"><code>get_mut_str</code></a>, <a href="#stdref-std-collections-HashMap-get_str"><code>get_str</code></a>, <code class="priv">has_key</code>, <code class="priv">index_of</code>, <a href="#stdref-std-collections-HashMap-insert"><code>insert</code></a>, <a href="#stdref-std-collections-HashMap-key_at"><code>key_at</code></a>, <a href="#stdref-std-collections-HashMap-len"><code>len</code></a>, <a href="#stdref-std-collections-HashMap-new"><code>new</code></a>, <code class="priv">put_value</code>, <a href="#stdref-std-collections-HashMap-remove"><code>remove</code></a>, <code class="priv">remove_slot</code>, <a href="#stdref-std-collections-HashMap-remove_str"><code>remove_str</code></a>, <code class="priv">reserve_one</code>, <code class="priv">reslot</code>, <code class="priv">seek</code>, <a href="#stdref-std-collections-HashMap-swap_remove"><code>swap_remove</code></a>, <code class="priv">unslot</code>, <a href="#stdref-std-collections-HashMap-value_at"><code>value_at</code></a></td></tr>
 <tr><td><code>HashDrain::</code></td><td><code class="priv">drop</code>, <code class="priv">take_key</code>, <code class="priv">take_value</code>, <code class="priv">total</code></td></tr>
 <tr><td><code>HashSet::</code></td><td><a href="#stdref-std-collections-HashSet-clear"><code>clear</code></a>, <a href="#stdref-std-collections-HashSet-clone"><code>clone</code></a>, <a href="#stdref-std-collections-HashSet-contains"><code>contains</code></a>, <a href="#stdref-std-collections-HashSet-contains_str"><code>contains_str</code></a>, <a href="#stdref-std-collections-HashSet-difference"><code>difference</code></a>, <code class="priv">drain</code>, <a href="#stdref-std-collections-HashSet-insert"><code>insert</code></a>, <a href="#stdref-std-collections-HashSet-intersection"><code>intersection</code></a>, <a href="#stdref-std-collections-HashSet-key_at"><code>key_at</code></a>, <a href="#stdref-std-collections-HashSet-len"><code>len</code></a>, <a href="#stdref-std-collections-HashSet-new"><code>new</code></a>, <a href="#stdref-std-collections-HashSet-remove"><code>remove</code></a>, <a href="#stdref-std-collections-HashSet-remove_str"><code>remove_str</code></a>, <a href="#stdref-std-collections-HashSet-swap_remove"><code>swap_remove</code></a>, <a href="#stdref-std-collections-HashSet-union"><code>union</code></a></td></tr>
 <tr><td><code>SetDrain::</code></td><td><code class="priv">take</code>, <code class="priv">total</code></td></tr>
@@ -7879,7 +7948,7 @@ reference</a>, which gives its declaration, its documentation and examples.</p>
 <tbody>
 <tr><td>Submodules</td><td><a href="#stdmod-std-http-client"><code>client</code></a>, <a href="#stdmod-std-http-server"><code>server</code></a></td></tr>
 <tr><td>Types</td><td><code class="priv">BodyLength</code>, <code class="priv">Conn</code>, <a href="#stdref-std-http-Header"><code>Header</code></a>, <a href="#stdref-std-http-HttpError"><code>HttpError</code></a>, <a href="#stdref-std-http-Param"><code>Param</code></a>, <code class="priv">Reader</code>, <a href="#stdref-std-http-Request"><code>Request</code></a>, <a href="#stdref-std-http-Response"><code>Response</code></a>, <a href="#stdref-std-http-Url"><code>Url</code></a></td></tr>
-<tr><td>Functions</td><td><code class="priv">ascii_ieq</code>, <code class="priv">ascii_ieq_str</code>, <code class="priv">available</code>, <code class="priv">body_length</code>, <code class="priv">conn_close</code>, <code class="priv">conn_read</code>, <code class="priv">conn_write</code>, <code class="priv">default_port</code>, <code class="priv">fill_buffer</code>, <a href="#stdref-std-http-find_header"><code>find_header</code></a>, <a href="#stdref-std-http-find_param"><code>find_param</code></a>, <a href="#stdref-std-http-form_decode"><code>form_decode</code></a>, <a href="#stdref-std-http-form_encode"><code>form_encode</code></a>, <code class="priv">form_encode_part</code>, <code class="priv">form_part</code>, <code class="priv">has_header</code>, <code class="priv">hex_digit</code>, <code class="priv">host_text</code>, <code class="priv">http_line</code>, <code class="priv">http_newline_from</code>, <code class="priv">is_unreserved</code>, <code class="priv">name_eq</code>, <code class="priv">names_eq</code>, <a href="#stdref-std-http-percent_decode"><code>percent_decode</code></a>, <a href="#stdref-std-http-percent_encode"><code>percent_encode</code></a>, <code class="priv">read_body</code>, <code class="priv">read_headers</code>, <code class="priv">read_n</code>, <code class="priv">read_to_end</code>, <a href="#stdref-std-http-reason_phrase"><code>reason_phrase</code></a></td></tr>
+<tr><td>Functions</td><td><code class="priv">ascii_ieq</code>, <code class="priv">ascii_ieq_str</code>, <code class="priv">available</code>, <code class="priv">body_length</code>, <code class="priv">conn_close</code>, <code class="priv">conn_read</code>, <code class="priv">conn_write</code>, <code class="priv">count_header</code>, <code class="priv">default_port</code>, <code class="priv">fill_buffer</code>, <a href="#stdref-std-http-find_header"><code>find_header</code></a>, <a href="#stdref-std-http-find_param"><code>find_param</code></a>, <a href="#stdref-std-http-form_decode"><code>form_decode</code></a>, <a href="#stdref-std-http-form_encode"><code>form_encode</code></a>, <code class="priv">form_encode_part</code>, <code class="priv">form_part</code>, <code class="priv">has_header</code>, <code class="priv">hex_digit</code>, <code class="priv">host_text</code>, <code class="priv">http_line</code>, <code class="priv">http_newline_from</code>, <code class="priv">is_token</code>, <code class="priv">is_unreserved</code>, <code class="priv">name_eq</code>, <code class="priv">names_eq</code>, <a href="#stdref-std-http-percent_decode"><code>percent_decode</code></a>, <a href="#stdref-std-http-percent_encode"><code>percent_encode</code></a>, <code class="priv">read_body</code>, <code class="priv">read_headers</code>, <code class="priv">read_n</code>, <code class="priv">read_to_end</code>, <a href="#stdref-std-http-reason_phrase"><code>reason_phrase</code></a></td></tr>
 <tr><td><code>HttpError::</code></td><td><a href="#stdref-std-http-HttpError-text"><code>text</code></a></td></tr>
 <tr><td><code>Url::</code></td><td><a href="#stdref-std-http-Url-parse"><code>parse</code></a>, <a href="#stdref-std-http-Url-query_pairs"><code>query_pairs</code></a>, <a href="#stdref-std-http-Url-target"><code>target</code></a>, <a href="#stdref-std-http-Url-text"><code>text</code></a></td></tr>
 <tr><td><code>Param::</code></td><td><a href="#stdref-std-http-Param-new"><code>new</code></a></td></tr>
@@ -8042,7 +8111,11 @@ tables do: the intrinsics first, then <code>std</code> at a glance, then each pa
     NotFound,
     Denied,
     Io,
-    Utf8(<span class="p">Utf8Error</span>)
+    Utf8(<span class="p">Utf8Error</span>),
+    IsDirectory,                      <span class="c">// a directory where a file is needed</span>
+    NotDirectory,                     <span class="c">// a part of the path that must be a directory is not</span>
+    NoSpace,                          <span class="c">// the device, or the quota on it, is full</span>
+    TooManyOpen                       <span class="c">// as many files open as the program or the system may have</span>
 }
 
 <span class="k">export</span> <span class="k">enum</span> <span class="p">ParseError</span>                <span class="c">// why parse failed</span>
@@ -8959,6 +9032,10 @@ program's end, however it ends. On a terminal each line also appears as soon as 
 the two streams keep the program's order, and a prompt is shown before the program waits for the
 answer. Call <code>flush_stdout()</code> only when standard output goes to a pipe or a file and someone watches
 it while the program runs: a progress line, a log.</p>
+<p>A write to standard output that the system refuses (a full disk, a closed pipe) does not stop
+the program, but it is not lost silently either: a program that would end with status 0 ends with 1, and
+says on standard error that its output was not all written. When the reader closed the pipe, as
+<code>prog | head</code> does, nothing is said, and the status is still 1 (<code>[Print-Failure]</code>).</p>
 <table>
 <thead><tr><th>Specifier</th><th>Takes</th><th>Prints</th></tr></thead>
 <tbody>
@@ -10190,7 +10267,9 @@ gives each client's <code>HttpConnection</code>, on which <code>HttpConnection::
 request (<code>Ok(None)</code> once the client is done) and <code>HttpConnection::respond(&amp;mut c, status, &amp;headers,
 body)</code> writes the answer with the right <code>Content-Length</code>, reason phrase and <code>Connection</code> header,
 keeping the connection open when the client asked for that. A malformed request is an <code>Err</code> the
-program answers with 400 (or 413 for one over <code>max_body</code>); the connection then closes. Handle each
+program answers with 400: among them one whose length is ambiguous (two <code>Content-Length</code> fields that
+differ, one that is not digits, two <code>Transfer-Encoding</code> fields), one with two <code>Host</code> fields, and one
+with a control byte in its target or a field, the forms a proxy and a server could read two ways (or 413 for one over <code>max_body</code>); the connection then closes. Handle each
 connection in its own thread with <code>spawn</code>, as the example does; the server speaks plain HTTP (a TLS
 server is a later decision). The example is hermetic: its client and server are the same program.</p>
 <figure class="code"><div class="code-head"><span class="code-title">A health check and an echo, served and fetched</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
@@ -11278,6 +11357,7 @@ for looking things up; the semantics are in the earlier sections.</p>
 <h3>Lexical structure</h3>
 <ul>
 <li><strong>Comments:</strong> <code>// to end of line</code> and <code>/* block */</code> (block comments do not nest).</li>
+<li><strong>Source text</strong> is UTF-8. The characters that reorder how text is displayed (U+202A–U+202E, U+2066–U+2069) are refused anywhere in it, so the order a reader sees is the order the compiler reads; in a string literal write them as <code>\u{202E}</code> (<code>spec/22</code> <code>[Bidi-Controls]</code>).</li>
 <li><strong>Identifiers:</strong> ASCII letters, digits and <code>_</code>, not starting with a digit.</li>
 <li><strong>Integer literals:</strong> decimal digits, or hexadecimal, octal or binary after <code>0x</code>, <code>0o</code>, <code>0b</code>, optionally <code>: type</code> (<code>255: u8</code>, <code>0xFF: u8</code>). No sign: <code>-</code> is an operator. <strong>Float literals:</strong> <code>1.5</code>, <code>0.25: f32</code>, <code>1.0e-7</code>. <strong>Digit separators:</strong> a <code>_</code> between two digits is ignored (<code>1_000_000</code>, <code>0xFFFF_0000</code>). <strong>Booleans:</strong> <code>true</code>, <code>false</code>. <strong>Unit value:</strong> <code>()</code>.</li>
 <li><strong>String literals:</strong> <code>&quot;…&quot;</code>, type <code>str</code>. Escapes <code>\n \r \t \0 \\ \&quot;</code> and <code>\u{hex}</code>; any other source character stands for itself. A literal must close on its own line. <strong>Byte literals:</strong> <code>b&quot;…&quot;</code>, type <code>array&lt;u8, N&gt;</code> (a slice of static bytes where a <code>slice&lt;u8, shared&gt;</code> is declared); the same escapes except <code>\xNN</code> in place of <code>\u{…}</code>, ASCII characters only, at least one byte. <strong>Byte character literals:</strong> <code>b&#x27;a&#x27;</code>, one ASCII character or escape: an unsigned integer literal, <code>u8</code> unless its context gives another unsigned type. <strong>No character literals</strong> (a <code>char</code> type).</li>
@@ -12165,7 +12245,7 @@ The items the compiler builds in, which have no CobaltC body (<code>printf</code
 <h4 id="stdref-std-collections-Vec-sort" class="stdref-item"><code>Vec::sort</code> <span class="std-file">fn</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">Vec</span>::sort&lt;T&gt;(<span class="t">ref</span>&lt;<span class="p">Vec</span>&lt;T&gt;, <span class="t">exclusive</span>&gt; v)</code></pre></figure>
 <p>Sorts <code>v</code> in its elements&#x27; own order, keeping equal elements in their order.</p>
-<p><code>T</code> must be a key type: integers by value, <code>false</code> before <code>true</code>, <code>str</code> and <code>String</code> by their bytes (a prefix first), a struct field by field, an enum by the order its variants are declared in, then by payload. Any other <code>T</code> is rejected at compile time; use <code>Vec::sort_by</code> for those.</p>
+<p><code>T</code> must be a key type: integers by value, <code>false</code> before <code>true</code>, <code>str</code> and <code>String</code> by their bytes (a prefix first), a struct field by field, an enum by the order its variants are declared in, then by payload. <code>f32</code> and <code>f64</code> sort too (<code>[Sort-Float]</code>): by value, <code>-0.0</code> and <code>0.0</code> as equal, every NaN after every other value. Any other <code>T</code> is rejected at compile time; use <code>Vec::sort_by</code> for those.</p>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-collections-Vec-binary_search_by" class="stdref-item"><code>Vec::binary_search_by</code> <span class="std-file">fn</span></h4>
@@ -12177,7 +12257,7 @@ The items the compiler builds in, which have no CobaltC body (<code>printf</code
 <h4 id="stdref-std-collections-Vec-binary_search" class="stdref-item"><code>Vec::binary_search</code> <span class="std-file">fn</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">Vec</span>::binary_search&lt;T&gt;(<span class="t">ref</span>&lt;<span class="p">Vec</span>&lt;T&gt;, <span class="t">shared</span>&gt; v, probe&lt;T&gt; key) : <span class="p">Result</span>&lt;<span class="t">usize</span>, <span class="t">usize</span>&gt;</code></pre></figure>
 <p>Searches <code>v</code>, sorted in its elements&#x27; own order, for <code>key</code>.</p>
-<p><code>T</code> a key type, as for <code>Vec::sort</code>. <code>Ok(i)</code> for the first position holding an element equal to <code>key</code>, otherwise <code>Err(i)</code>, the position where <code>key</code> would go.</p>
+<p><code>T</code> a key type or a float, as for <code>Vec::sort</code>. <code>Ok(i)</code> for the first position holding an element equal to <code>key</code>, otherwise <code>Err(i)</code>, the position where <code>key</code> would go.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: <code>Ok</code> gives the first equal element, <code>Err</code> the place a missing key would go</span><span class="badge ok">runs</span></div><pre><code><span class="p">Vec</span>&lt;<span class="t">i32</span>&gt; v = <span class="p">Vec</span>::new();
 <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">10</span>);
 <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> v, <span class="n">20</span>);
@@ -12427,7 +12507,7 @@ The items the compiler builds in, which have no CobaltC body (<code>printf</code
 <div class="stdref-entry">
 <h4 id="stdref-std-collections-HashMap-clear" class="stdref-item"><code>HashMap::clear</code> <span class="std-file">fn</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">HashMap</span>::clear&lt;K, V&gt;(<span class="t">ref</span>&lt;<span class="p">HashMap</span>&lt;K, V&gt;, <span class="t">exclusive</span>&gt; m)</code></pre></figure>
-<p>Removes every entry of <code>m</code>, destroying its values and then its keys, each first to last.</p>
+<p>Removes every entry of <code>m</code>, destroying them first to last, each entry&#x27;s key and then its value.</p>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-collections-HashMap-len" class="stdref-item"><code>HashMap::len</code> <span class="std-file">fn</span></h4>
@@ -12500,7 +12580,7 @@ The items the compiler builds in, which have no CobaltC body (<code>printf</code
 <h4 id="stdref-std-collections-HashMap-remove" class="stdref-item"><code>HashMap::remove</code> <span class="std-file">fn</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">HashMap</span>::remove&lt;K, V&gt;(<span class="t">ref</span>&lt;<span class="p">HashMap</span>&lt;K, V&gt;, <span class="t">exclusive</span>&gt; m, probe&lt;K&gt; k) : <span class="p">Option</span>&lt;V&gt;</code></pre></figure>
 <p>Removes <code>k</code> and returns its value; <code>None</code> when <code>k</code> is absent.</p>
-<p>The other entries keep their order. Takes time in proportion to the size of the map; <code>HashMap::swap_remove</code> takes constant time but does not keep the order. The removed key is destroyed.</p>
+<p>The other entries keep their order: every later entry moves down one place, so it takes time in proportion to the size of the map (constant time when <code>k</code> is the last entry), and emptying a large map one key at a time, other than from the last entry back, takes time in proportion to the square of its size. <code>HashMap::swap_remove</code> takes constant time but does not keep the order. The removed key is destroyed.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: <code>remove</code> keeps the insertion order; <code>swap_remove</code> moves the last entry</span><span class="badge ok">runs</span></div><pre><code><span class="p">HashMap</span>&lt;<span class="t">i32</span>, <span class="t">bool</span>&gt; a = <span class="p">HashMap</span>::new();
 <span class="p">HashMap</span>::insert(&amp;<span class="k">mut</span> a, <span class="n">1</span>, <span class="k">true</span>);
 <span class="p">HashMap</span>::insert(&amp;<span class="k">mut</span> a, <span class="n">2</span>, <span class="k">true</span>);
@@ -12709,7 +12789,7 @@ The items the compiler builds in, which have no CobaltC body (<code>printf</code
 <h4 id="stdref-std-collections-PriorityQueue-new" class="stdref-item"><code>PriorityQueue::new</code> <span class="std-file">fn</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">PriorityQueue</span>::new&lt;T&gt;() : <span class="p">PriorityQueue</span>&lt;T&gt;</code></pre></figure>
 <p>A new, empty priority queue in the key types&#x27; own order, smallest first (as <code>Vec::sort</code> orders).</p>
-<p><code>T</code> must be a key type; for any other <code>T</code> use <code>PriorityQueue::new_by</code>.</p>
+<p><code>T</code> must be a key type or a float (in <code>Vec::sort</code>&#x27;s order, a NaN last); for any other <code>T</code> use <code>PriorityQueue::new_by</code>.</p>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-collections-PriorityQueue-new_by" class="stdref-item"><code>PriorityQueue::new_by</code> <span class="std-file">fn</span></h4>
@@ -13451,7 +13531,11 @@ n = <span class="n">0</span>;
 <ul>
 <li><code>NotFound</code>: no such file, or a directory on the path does not exist.</li>
 <li><code>Denied</code>: the environment refuses the operation.</li>
-<li><code>Io</code>: any other failure (the path names a directory, a device error, …).</li>
+<li><code>IsDirectory</code>: the path names a directory where a file is needed.</li>
+<li><code>NotDirectory</code>: a part of the path that must be a directory is not one.</li>
+<li><code>NoSpace</code>: the device (or the user&#x27;s quota on it) is full.</li>
+<li><code>TooManyOpen</code>: the program, or the system, has as many files open as it may.</li>
+<li><code>Io</code>: any other failure (a device error, …).</li>
 <li><code>Utf8(e)</code>: the bytes read are not UTF-8; <code>e</code> gives the offset of the first byte that is not.</li>
 </ul>
 </div>
@@ -13473,7 +13557,7 @@ n = <span class="n">0</span>;
 <h4 id="stdref-std-fs-File-open" class="stdref-item"><code>File::open</code> <span class="std-file">fn</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">File</span>::open(<span class="p">StringView</span> path) : <span class="p">Result</span>&lt;<span class="p">File</span>, <span class="p">FileError</span>&gt;</code></pre></figure>
 <p>Opens the existing file at <code>path</code> for reading, at position 0.</p>
-<p><code>Err(NotFound)</code> when there is no such file; <code>Err(Denied)</code> when the environment refuses; <code>Err(Io)</code> for any other failure (the path names a directory).</p>
+<p><code>Err(NotFound)</code> when there is no such file; <code>Err(Denied)</code> when the environment refuses; <code>Err(IsDirectory)</code> when the path names a directory; the other variants of <code>FileError</code> for the failures they name.</p>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-fs-File-create" class="stdref-item"><code>File::create</code> <span class="std-file">fn</span></h4>
@@ -13587,7 +13671,7 @@ n = <span class="n">0</span>;
 <h4 id="stdref-std-fs-read_file" class="stdref-item"><code>read_file</code> <span class="std-file">fn</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">read_file</span>(<span class="p">StringView</span> path) : <span class="p">Result</span>&lt;<span class="p">String</span>, <span class="p">FileError</span>&gt;</code></pre></figure>
 <p>The whole contents of the file at <code>path</code>, as text.</p>
-<p>A relative path is resolved against the working directory. <code>Err(Utf8(e))</code> when the bytes are not UTF-8, <code>e</code> giving the offset of the first that is not; <code>Err(NotFound)</code> when no such file exists; <code>Err(Denied)</code> when the environment refuses; <code>Err(Io)</code> for any other failure (a directory, a device error). Use <code>read_bytes</code> for bytes that need not be text, and <code>File</code> for a file too large to hold.</p>
+<p>A relative path is resolved against the working directory. <code>Err(Utf8(e))</code> when the bytes are not UTF-8, <code>e</code> giving the offset of the first that is not; <code>Err(NotFound)</code> when no such file exists; <code>Err(Denied)</code> when the environment refuses; <code>Err(IsDirectory)</code> for a directory; <code>Err(Io)</code> for another failure. Use <code>read_bytes</code> for bytes that need not be text, and <code>File</code> for a file too large to hold.</p>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-fs-write_file" class="stdref-item"><code>write_file</code> <span class="std-file">fn</span></h4>
@@ -13888,8 +13972,8 @@ _ = <span class="p">remove_dir_all</span>(&amp;dir);</code></pre></figure>
 <div class="stdref-entry">
 <h4 id="stdref-std-memory-Rc" class="stdref-item"><code>Rc</code> <span class="std-file">struct</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">resource</span> <span class="k">struct</span> <span class="p">Rc</span>&lt;T&gt;</code></pre></figure>
-<p>A reference-counted handle to a value on the heap that several owners share.</p>
-<p>Each <code>Rc</code> is one strong handle; the value is destroyed when the last strong handle is, and the memory is freed once no <code>Weak</code> handle remains either. The value is reached only as a shared reference (<code>Rc::get</code>), so changing it needs a <code>mutex</code> inside. A cycle of <code>Rc</code>s is never freed: a parent pointer, a cache or an observer list holds a <code>Weak</code> instead. <code>Rc</code> is not thread-safe (the count is not synchronised); share across threads with <code>ref&lt;mutex&lt;T&gt;, shared&gt;</code>.</p>
+<p>A reference-counted handle to a value on the heap that several owners in one thread share.</p>
+<p>Each <code>Rc</code> is one strong handle; the value is destroyed when the last strong handle is, and the memory is freed once no <code>Weak</code> handle remains either. The value is reached only as a shared reference (<code>Rc::get</code>), so changing it needs a <code>mutex</code> inside. A cycle of <code>Rc</code>s is never freed: a parent pointer, a cache or an observer list holds a <code>Weak</code> instead. <code>Rc</code> is not thread-safe (the count is not synchronised), so <code>spawn</code> refuses one, or a value holding or referring to one (<code>diag.not-thread-safe</code>); share across threads with <code>Arc&lt;T&gt;</code> or <code>ref&lt;mutex&lt;T&gt;, shared&gt;</code>.</p>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-memory-Rc-new" class="stdref-item"><code>Rc::new</code> <span class="std-file">fn</span></h4>
@@ -14061,6 +14145,7 @@ ArcWeak&lt;<span class="p">String</span>&gt; w2 = clone(&amp;w);
 <h4 id="stdref-std-memory-Box-clone" class="stdref-item"><code>Box::clone</code> <span class="std-file">fn</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">Box</span>::clone&lt;T: clone&gt;(<span class="t">ref</span>&lt;<span class="p">Box</span>&lt;T&gt;, <span class="t">shared</span>&gt; b) : <span class="p">Box</span>&lt;T&gt;</code></pre></figure>
 <p>A new <code>Box</code> holding a copy of the value in <code>b</code>; what <code>clone(&amp;b)</code> calls for a <code>Box</code>.</p>
+<p>The copy recurses: a chain of boxes (<code>Branch(Box&lt;Tree&gt;)</code>, a list of <code>Option&lt;Box&lt;Node&gt;&gt;</code>) takes a call of the derived <code>clone</code> for each link, so a chain of several million links can exhaust the stack (<code>diag.stack-exhausted</code>), where destroying it does not; copy such a chain with a loop.</p>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-memory-Box-into_inner" class="stdref-item"><code>Box::into_inner</code> <span class="std-file">fn</span></h4>
@@ -15588,6 +15673,8 @@ Summary s = <span class="p">Option</span>::unwrap(describe(&amp;ms));
 <li><code>UnknownHost</code>: the name resolves to nothing or cannot be resolved.</li>
 <li><code>NotPermitted</code>: the system denied permission.</li>
 <li><code>Closed</code>: the peer has gone while writing, or a <code>read_exact</code> was cut short.</li>
+<li><code>NoDescriptors</code>: the program, or the system, has as many files and sockets open as it may.</li>
+<li><code>MessageTooLong</code>: a datagram is larger than the socket can send.</li>
 <li><code>Failed</code>: any other failure.</li>
 <li><code>NotUtf8(e)</code>: a line <code>read_line</code> read is not UTF-8.</li>
 </ul>
@@ -17076,7 +17163,7 @@ c.max_body = <span class="n">1</span>_048_576;</code></pre></figure>
 <ul>
 <li><code>Ok(Some(r))</code>: <code>r.url</code> is the target as sent (<code>/path?query</code>); the body is read by <code>Content-Length</code> or chunked encoding, and there is none without them. When the request expects <code>100-continue</code>, the <code>HTTP/1.1 100 Continue</code> is sent before the body is read.</li>
 <li><code>Ok(None)</code>: the client closed before a request, or the last response ended the connection.</li>
-<li><code>Err(BadMessage)</code>: a malformed request line, header or body, or an HTTP/1.1 request without <code>Host</code>; <code>Err(TooLarge)</code>: a head over 65536 bytes or a body over <code>max_body</code>. The caller answers 400 or 413 if it wishes, and the connection then closes.</li>
+<li><code>Err(BadMessage)</code>: a malformed request line (a control byte in the target), header or body, an HTTP/1.1 request without <code>Host</code>, a request with two <code>Host</code> fields, or <code>Content-Length</code> fields that disagree; <code>Err(TooLarge)</code>: a head over 65536 bytes or a body over <code>max_body</code>. The caller answers 400 or 413 if it wishes, and the connection then closes.</li>
 </ul>
 </div>
 <div class="stdref-entry">
@@ -17859,7 +17946,8 @@ rule is applied statically where the checker can see the problem and dynamically
 <tr><td><code>diag.const-not-constant</code></td><td>static</td><td>a <code>const</code>'s initializer is not a constant expression, or a constant depends on itself</td><td>use only constants in it (a local <code>const</code> helps), or compute the value in a function</td></tr>
 <tr><td><code>diag.static-assert-failed</code></td><td>static</td><td>a <code>static_assert</code> condition is false, for the program or for one instantiation</td><td>fix what the assertion guards, or the assertion</td></tr>
 <tr><td><code>diag.static-assert-not-constant</code></td><td>static</td><td>a <code>static_assert</code> condition (or message argument) is not a <code>bool</code> constant expression</td><td>check run-time values with <code>assert</code>; name compile-time values with <code>const</code></td></tr>
-<tr><td><code>diag.duplicate-item</code></td><td>static</td><td>two declarations add the same qualified name</td><td>rename one, or move it into a module</td></tr>
+<tr><td><code>diag.duplicate-item</code></td><td>static</td><td>two declarations add the same qualified name, or an entry point (<code>extern fn</code> with a body) takes a name C, its library or the runtime has</td><td>rename one, or move it into a module; rename the entry point (a module does not change its C name)</td></tr>
+<tr><td><code>diag.instantiation-unbounded</code></td><td>static</td><td>a generic function's instantiations do not end: a type argument nested over 64 deep or of over 4,096 parts, or a generic type whose fields hold it at a larger argument (<code>spec/16</code> <code>[Type-Recursion-Expanding]</code>)</td><td>pass the larger value as a type the function already has (a <code>Vec</code>, a <code>Box</code> of one type)</td></tr>
 <tr><td><code>diag.duplicate-local</code></td><td>static</td><td>a name declared twice in one block (a function's parameters and a loop's or pattern's names count as declared in the block they govern)</td><td>assign to the existing variable, or choose another name; an inner block may shadow it</td></tr>
 <tr><td><code>diag.foreign-associated-fn</code></td><td>static</td><td><code>fn T::name</code> in a module that does not declare <code>T</code> (for example <code>fn Vec::first_or</code> outside <code>std</code>)</td><td>declare a plain function, or put it in <code>T</code>'s module</td></tr>
 <tr><td><code>diag.no-main</code></td><td>static</td><td>no <code>fn main()</code> at the root module (a <code>main</code> inside a module is just <code>m::main</code>)</td><td>declare <code>fn main()</code> at the root, or run the file that has one</td></tr>
@@ -17876,10 +17964,10 @@ rule is applied statically where the checker can see the problem and dynamically
 <tr><td><code>diag.lifetime-elision-ambiguous</code></td><td>static</td><td>a reference or view returned from a function with no reference parameter; or a reference, a view or a value holding them (<code>Option&lt;ref&lt;T, shared&gt;&gt;</code>, <code>Vec&lt;StringView&gt;</code>) returned from one with two or more and no <code>from</code> clause</td><td>with several, name the parameters it may come from (<code>from a</code>, <code>from a, b</code>) or take the others by value; with none, return an owned value</td></tr>
 <tr><td><code>diag.result-source-invalid</code></td><td>static</td><td>a <code>from</code> clause naming something other than a reference parameter, or one twice, or on a result holding no reference</td><td>name once each reference parameter the result may come from, or drop the clause</td></tr>
 <tr><td><code>diag.result-source-kept</code></td><td>static</td><td>a reference parameter the <code>from</code> clause does not name, kept rather than probed</td><td>only compare, measure or search it; or name it in the clause</td></tr>
-<tr><td><code>diag.aliasing-conflict</code></td><td>both</td><td>a read or write while a conflicting reference is live</td><td>end the earlier borrow first</td></tr>
+<tr><td><code>diag.aliasing-conflict</code></td><td>both</td><td>a read or write while a conflicting reference is live; a closure argument that captures what another argument writes</td><td>end the earlier borrow first; pass the captured value as the closure's parameter</td></tr>
 <tr><td><code>diag.borrow-exceeds-source</code></td><td>static</td><td><code>&amp;mut</code> taken through a shared reference</td><td>take <code>ref&lt;T, exclusive&gt;</code></td></tr>
 <tr><td><code>diag.write-through-shared</code></td><td>static</td><td>assignment through a shared reference</td><td>as above</td></tr>
-<tr><td><code>diag.destroy-while-aliased</code></td><td>both</td><td><code>drop</code> or scope exit while a reference or guard is live</td><td>let the reference's holder end first</td></tr>
+<tr><td><code>diag.destroy-while-aliased</code></td><td>both</td><td><code>drop</code> or scope exit while a reference or guard is live; a reference through a guard kept past the guard</td><td>let the reference's holder end first; bind the guard as long as the reference is needed</td></tr>
 <tr><td><code>diag.move-while-aliased</code></td><td>both</td><td>a move while a reference is live</td><td>end the reference before moving</td></tr>
 <tr><td><code>diag.move-out-of-field</code></td><td>static</td><td>moving a resource out of a live struct's field or through a reference</td><td>move the whole container, or match a reference (<code>match (&amp;e)</code>)</td></tr>
 <tr><td><code>diag.borrow-of-non-place</code>, <code>diag.borrow-of-temporary</code></td><td>static</td><td><code>&amp;</code> applied to a value or temporary</td><td>bind it first</td></tr>
@@ -17905,6 +17993,7 @@ rule is applied statically where the checker can see the problem and dynamically
 <tr><td><code>diag.propagate-outside-fallible-context</code></td><td>static</td><td><code>?</code> in a function whose return type is not <code>Result&lt;_, E&gt;</code> with the same <code>E</code></td><td>change the return type or <code>map_err</code></td></tr>
 <tr><td><code>diag.format-invalid</code></td><td>static</td><td>a <code>printf</code>-family format that is not a string literal, or a malformed <code>%</code> specifier</td><td>fix the specifier; write <code>%%</code> for a literal <code>%</code></td></tr>
 <tr><td><code>diag.spawn-borrow-closure</code></td><td>static</td><td><code>spawn</code> given a closure that borrows</td><td>add <code>move</code></td></tr>
+<tr><td><code>diag.not-thread-safe</code></td><td>static</td><td><code>spawn</code> given an <code>Rc</code> or <code>Weak</code>, or a value that holds or reaches one</td><td>share an <code>Arc</code>, or make the <code>Rc</code> inside the thread</td></tr>
 <tr><td><code>diag.mutex-reentrant-lock</code></td><td>dynamic</td><td>locking a mutex this thread already holds</td><td>release the guard first</td></tr>
 <tr><td><code>diag.channel-zero-capacity</code></td><td>dynamic</td><td><code>Channel::new</code> given a capacity of 0</td><td>give the number of values it may hold; 1 for a hand-over</td></tr>
 <tr><td><code>diag.channel-deadlock</code></td><td>dynamic</td><td>the program's only running thread waits on a full or empty channel that is not closed</td><td>send or receive from another thread, or <code>close</code> the channel first</td></tr>
@@ -17912,6 +18001,24 @@ rule is applied statically where the checker can see the problem and dynamically
 <tr><td><code>diag.trusted-outside-unsafe</code></td><td>static</td><td>a raw or extern operation outside <code>unsafe</code></td><td>wrap it in <code>unsafe</code> after checking the precondition</td></tr>
 <tr><td><code>diag.extern-non-ffi-type</code></td><td>static</td><td>an <code>unsafe extern fn</code> with a non-FFI parameter or result</td><td>pass scalars or <code>rawptr</code></td></tr>
 <tr><td><code>diag.alloc-failure</code></td><td>dynamic</td><td><code>Vec</code> or <code>Rc</code> could not allocate</td><td>call <code>allocate</code> yourself if you need to recover</td></tr>
+<tr><td><code>diag.slice-of-whole</code></td><td>warning</td><td>a warning of <code>--check</code>: <code>&amp;x[0..$]</code> (or <code>&amp;mut x[0..$]</code>) at a position whose declared type is a slice or a <code>StringView</code>, where <code>[Coerce-Slice]</code> or <code>[Coerce-Text]</code> makes the plain borrow, the view, the slice or the reference the same thing</td><td>write <code>&amp;x</code> (<code>&amp;mut x</code>); a view, a slice, a <code>str</code> or a reference as it is</td></tr>
+<tr><td><code>diag.text-copy-literal</code></td><td>warning</td><td>a warning of <code>--check</code>: <code>String::copy(&quot;…&quot;)</code> where a <code>String</code> is declared</td><td>write the literal</td></tr>
+<tr><td><code>diag.text-copy-whole</code></td><td>warning</td><td>a warning of <code>--check</code>: <code>String::copy(&amp;s)</code> of a whole <code>String</code></td><td>write <code>String::clone(&amp;s)</code>, which says a whole <code>String</code> is copied</td></tr>
+<tr><td><code>diag.deprecated-use</code></td><td>static</td><td>this item is deprecated</td><td>write what the message says instead; meanwhile <code>--allow-deprecated</code> accepts the program and reports each use as a warning</td></tr>
+<tr><td><code>diag.removed-use</code></td><td>static</td><td>this item was removed</td><td>write what the message says instead; no flag accepts a removed name</td></tr>
+<tr><td><code>diag.unittest-name</code></td><td>static</td><td>this test's name cannot be used</td><td>name each test of a module differently, say what it checks, or leave the name out</td></tr>
+<tr><td><code>diag.precondition-failed</code></td><td>both</td><td>a requirement of the called function does not hold</td><td>establish the condition before the call, or test it and take another path</td></tr>
+<tr><td><code>diag.requires-misplaced</code></td><td>static</td><td>this function cannot have a <code>requires</code> block</td><td>check the condition in the body with <code>assert</code>, or in the caller</td></tr>
+<tr><td><code>diag.invalid-datetime</code></td><td>dynamic</td><td>this date and time do not exist</td><td>make it with <code>DateTime::new</code>, which returns <code>None</code> for such fields, or with <code>DateTime::from_unix</code>/<code>from_iso</code></td></tr>
+<tr><td><code>diag.entropy-unavailable</code></td><td>dynamic</td><td>the operating system gave no secure random bytes</td><td>run where the system provides secure randomness; never substitute a clock or a fixed seed for keys</td></tr>
+<tr><td><code>diag.hkdf-length</code></td><td>dynamic</td><td>HKDF cannot produce more than 8160 bytes</td><td>derive at most 8160 bytes from one pseudorandom key; derive more keys with different <code>info</code></td></tr>
+<tr><td><code>diag.crypto-length</code></td><td>dynamic</td><td>a key, nonce or digest of the wrong length</td><td>pass keys and nonces of the algorithm's sizes (a key from <code>hkdf_expand</code> with <code>len</code> 32, a nonce of 12 bytes, a digest from <code>hash</code> of the <code>HashKind</code> named)</td></tr>
+<tr><td><code>diag.kdf-parameters</code></td><td>dynamic</td><td>the key-derivation parameters are out of range</td><td>pass the parameters the standard allows; <code>hash_password</code> chooses them itself</td></tr>
+<tr><td><code>diag.null-pointer</code></td><td>dynamic</td><td>C's <code>NULL</code> where text was expected</td><td>test with <code>is_null</code> first; C functions return <code>NULL</code> for "none"</td></tr>
+<tr><td><code>diag.barrier-zero-parties</code></td><td>dynamic</td><td>a barrier needs at least one party</td><td>give the number of threads that meet at the barrier</td></tr>
+<tr><td><code>diag.thread-cancelled</code></td><td>dynamic</td><td>this thread was cancelled</td><td>none is needed when the stop was meant: the thread's failure is contained, and its joiner or handle sees it; to let a thread finish, do not cancel it</td></tr>
+<tr><td><code>diag.mutex-poisoned</code></td><td>dynamic</td><td>a thread failed while holding this lock</td><td>find that fault (<code>try_join</code> gives it); keep a lock's block short, so that little can fail inside it</td></tr>
+<tr><td><code>diag.deadlock</code></td><td>dynamic</td><td>these threads would wait for each other forever</td><td>take locks in one order; send before waiting to receive; store and notify before waiting on an atomic another thread waits to see change; join a thread only after giving it what it waits for</td></tr>
 </tbody>
 </table>
 
@@ -17951,8 +18058,10 @@ things a runtime needs are not in the language:</p>
 <p>C costs nothing extra here: C is what CobaltC compiles to, so a C compiler is already needed,
 and the runtime is not a second toolchain.</p>
 <h3 id="rt-shape">The shape of a compiled program</h3>
-<p><code>cobc prog.cb</code> checks the program, writes one C file, and runs the C compiler on it. <code>--keep-c</code>
-keeps that file beside the executable (<code>prog.c</code>), <code>--emit-c</code> writes it and compiles nothing,
+<p><code>cobc prog.cb</code> checks the program, writes one C file in a directory of its own, and runs the C
+compiler on it. <code>--keep-c</code> keeps that file beside the executable (<code>prog.c</code>), writing over a file there
+only when <code>cobc</code> wrote it, and no output ever replaces one of the program's own files (its source, its
+modules, a C file it names with <code>extern</code>); <code>--emit-c</code> writes it and compiles nothing,
 <code>--no-line-directives</code> leaves out the <code>#line</code> lines so that the C reads straight through, and <code>-v</code>
 prints the C compiler's command and which form the program was lowered in. The file has these parts,
 in this order:</p>
@@ -18545,7 +18654,8 @@ a program computes; it keeps someone who chooses a program's keys from choosing 
 <tbody>
 <tr><td><code>cb_hash_bytes</code></td><td>The hash of an integer, <code>bool</code>, <code>str</code> or <code>String</code> key: the seed, the key's length, then its bytes eight at a time (<code>cb_hash_more</code>). Inline; one multiplication for a <code>u64</code> key.</td></tr>
 <tr><td><code>cb_hash_more</code></td><td>The hash so far, taken over more bytes: the parts of a struct or enum key go through it one after another, in the function the compiler writes for that key type.</td></tr>
-<tr><td><code>cb_hash_start</code></td><td>The seed, where a struct or enum key's hash starts. Inline: it loads <code>cb_hash_seed_cell</code>, and calls <code>cb_hash_seed_make</code> only while that is still zero.</td></tr>
+<tr><td><code>cb_hash_bytes_drawn</code></td><td><code>cb_hash_bytes</code> with the seed as it stands, with no test of it: the hash in the bodies the compiler writes itself for <code>HashMap</code>'s lookups, insertions and removals with integer, <code>bool</code> and <code>String</code> keys. The ones that place an entry (<code>insert</code>, <code>entry</code>) call <code>cb_hash_start</code> first; a lookup or a removal does not, because until the seed is drawn no map in the program has an entry, and an empty table gives the same answer for any hash.</td></tr>
+<tr><td><code>cb_hash_start</code></td><td>The seed, where a struct or enum key's hash starts, and what a compiler-written <code>insert</code> or <code>entry</code> calls before it hashes. Inline: it loads <code>cb_hash_seed_cell</code>, and calls <code>cb_hash_seed_make</code> only while that is still zero.</td></tr>
 <tr><td><code>cb_hash_seed_cell</code></td><td>The seed: zero until the first hash of the run.</td></tr>
 <tr><td><code>cb_hash_seed_make</code></td><td>Draws the seed and stores it, once for all threads: from <code>COBALTC_HASH_SEED</code> when that is set, else eight bytes from the system (as <code>os_random_bytes</code> gets them), else, on a system with none, from the clock and an address.</td></tr>
 </tbody>
