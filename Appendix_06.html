@@ -166,7 +166,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.112102</div>
+<div class="sub">Specification edition 2026.112103</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -340,7 +340,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.112102</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.112103</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -3706,12 +3706,14 @@ the bound:</p>
     <span class="p">Vec</span>&lt;Ticket&gt; tickets = <span class="p">Vec</span>::filled(<span class="n">2</span>, clone(&amp;t));    <span class="c">// Ticket::clone, three times</span>
     <span class="p">assert</span>(<span class="p">Vec</span>::len(&amp;people) == <span class="n">2</span> &amp;&amp; <span class="p">Vec</span>::len(&amp;copy) == <span class="n">2</span> &amp;&amp; tickets[<span class="n">1</span>].id == <span class="n">2001</span>);
 }</code></pre></figure>
-<p>A derived <code>clone</code> copies a list or a one-child tree at any length. A type that links to one more
+<p>A derived <code>clone</code> copies a list or a tree at any depth. A type that links to one more
 of itself through <code>Box&lt;T&gt;</code> or <code>Option&lt;Box&lt;T&gt;&gt;</code> (a list's <code>Option&lt;Box&lt;Node&gt;&gt;</code>, a <code>Branch(Box&lt;Tree&gt;)</code>)
 is a chain, and its derived <code>clone</code> goes on past a thousand links with a loop, as destroying the
-chain does, so ten million links copy as well as ten. The fields are still copied in the order the
-rule gives. A tree with two children per node still takes a call for each level, and so does a
-struct that owns something on both sides of its link.</p>
+chain does, so ten million links copy as well as ten. A tree, a struct with two such links
+(<code>left</code> and <code>right</code>) or an enum variant with fields that holds them (<code>Add { Box&lt;Expr&gt; a; Box&lt;Expr&gt; b; }</code>),
+goes on past a thousand levels with a loop over a stack of its own. The fields are still copied in
+the order the rule gives. A type that links to itself only through another type
+(<code>Node(Box&lt;Pair&gt;)</code>, <code>Pair</code> holding the links) still takes a call for each level.</p>
 <p>Inference is <em>local and downward</em>. A type parameter is found from, in order: an
 explicit type argument (<code>identity&lt;i64&gt;(5)</code>), the type of an argument in the same call, or the
 <em>expected type</em> where the call appears (a declared variable type, a parameter type, a field
@@ -4669,7 +4671,7 @@ bitstruct Flags : <span class="t">u8</span> { carry : <span class="n">1</span>; 
     Flags f = Flags { .carry = <span class="n">2</span>, .zero = <span class="n">0</span>, .pad = <span class="n">0</span> };  <span class="c">// <span class="bad">✗</span> 2 does not fit 1 bit: <span class="dg">diag.narrowing-overflow</span></span>
 }</code></pre></figure>
 <h3>Arrays</h3>
-<p><code>array&lt;T, N&gt;</code> holds exactly <code>N</code> elements; <code>N</code> is a constant expression — a literal, a <code>const</code> name (<code>m::N</code> too), or <code>+ - * / % &amp; | ^ &lt;&lt; &gt;&gt; ~ ( )</code> over them, or <code>sizeof&lt;u32&gt;()</code>, <code>min_value</code>, <code>max_value</code>, <code>widen</code>, <code>narrow</code> of an integer type (<code>const usize S = sizeof&lt;u32&gt;();</code> then <code>array&lt;u8, S&gt;</code>), folded before the program runs (D-0126); outside parentheses <code>&gt;</code> ends it, so <code>Vec&lt;array&lt;u8, N * 2&gt;&gt;</code> reads as expected. The literal form is <code>[a, b,
+<p><code>array&lt;T, N&gt;</code> holds exactly <code>N</code> elements; <code>N</code> is a constant expression — a literal, a <code>const</code> name (<code>m::N</code> too), or <code>+ - * / % &amp; | ^ &lt;&lt; &gt;&gt; ~ ( )</code> over them, or <code>min_value</code>, <code>max_value</code>, <code>widen</code>, <code>narrow</code> of an integer type, or <code>sizeof</code> and <code>alignof</code> of any type the program lays out (<code>const usize S = sizeof&lt;u32&gt;();</code> then <code>array&lt;u8, S&gt;</code>; <code>array&lt;u8, sizeof&lt;Vec&lt;u8&gt;&gt;()&gt;</code>; not a type parameter), computed before the program runs (D-0126); outside parentheses <code>&gt;</code> ends it, so <code>Vec&lt;array&lt;u8, N * 2&gt;&gt;</code> reads as expected. The literal form is <code>[a, b,
 c]</code>. Indexing takes a <code>usize</code> and is bounds-checked: a literal index out of range is rejected
 statically, a computed one faults at run time with <code>diag.index-out-of-bounds</code>. Arrays of plain
 elements are plain (copied on assignment); an array of resources is a resource.</p>
@@ -14216,7 +14218,7 @@ ArcWeak&lt;<span class="p">String</span>&gt; w2 = clone(&amp;w);
 <h4 id="stdref-std-memory-Box-clone" class="stdref-item"><code>Box::clone</code> <span class="std-file">fn</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">Box</span>::clone&lt;T: clone&gt;(<span class="t">ref</span>&lt;<span class="p">Box</span>&lt;T&gt;, <span class="t">shared</span>&gt; b) : <span class="p">Box</span>&lt;T&gt;</code></pre></figure>
 <p>A new <code>Box</code> holding a copy of the value in <code>b</code>; what <code>clone(&amp;b)</code> calls for a <code>Box</code>.</p>
-<p>A chain of boxes, whose type links to one more of itself (<code>Branch(Box&lt;Tree&gt;)</code>, a list of <code>Option&lt;Box&lt;Node&gt;&gt;</code>), is copied by its derived <code>clone</code> at any length: past a thousand links it copies the rest with a loop. A value with two such links (a binary tree), or a type with a <code>clone</code> of its own, takes a call for each level, so millions of levels can exhaust the stack (<code>diag.stack-exhausted</code>).</p>
+<p>A chain of boxes, whose type links to one more of itself (<code>Branch(Box&lt;Tree&gt;)</code>, a list of <code>Option&lt;Box&lt;Node&gt;&gt;</code>), is copied by its derived <code>clone</code> at any length: past a thousand links it copies the rest with a loop. So is a tree whose values have two or more such links (a struct&#x27;s <code>left</code> and <code>right</code>, a variant&#x27;s <code>Add { Box&lt;Expr&gt; a; Box&lt;Expr&gt; b; }</code>): past a thousand levels it copies the rest with a loop over a stack of its own. A type that links to itself only through another type (<code>Node(Box&lt;Pair&gt;)</code>), or one with a <code>clone</code> of its own, takes a call for each level, so millions of levels can exhaust the stack (<code>diag.stack-exhausted</code>).</p>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-memory-Box-into_inner" class="stdref-item"><code>Box::into_inner</code> <span class="std-file">fn</span></h4>
