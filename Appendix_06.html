@@ -166,7 +166,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.112301</div>
+<div class="sub">Specification edition 2026.112401</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -340,7 +340,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.112301</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.112401</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -377,6 +377,11 @@ generated C beside the executable if you want to read what your program became;
 and what you can do with it.</p>
 <p><strong><code>cobfmt</code></strong> is the formatter: it lays out a source file in the style
 this guide uses and changes nothing else (below).</p>
+<p>A third program, <strong><code>cobmodel</code></strong>, is not needed to write programs: it is an
+executable model of the rules about references and threads, written from the specification alone,
+that lists every outcome the rules allow a small program over every schedule of its threads. The
+project checks the compiler against it, and you can ask it about a result that surprised you
+(§19, <a href="#s19-cobmodel">Every schedule, from the rules</a>).</p>
 <p>The test suites hold <code>cobc</code> to the specification on every program, under both GCC
 and Clang: every conformance case, every showcase and every complete example in this guide.</p>
 <p><code>cobc</code> is written in CobaltC and compiles itself; its runtime is C. A new
@@ -485,6 +490,35 @@ spans several files names them itself: <code>module parser &quot;./parser.cb&quo
 path relative to the file that says so (§17), and <code>extern &quot;./fast.c&quot;;</code> or <code>extern &quot;z&quot;;</code> links C code
 of the program's own or an installed library (§20). <code>cobc main.cb</code> then builds the whole program
 from that one file, and <code>cobc --run main.cb</code> runs it, with nothing else to keep in step (D-0231).</p>
+<h4>How long a build takes, and <code>--lto</code></h4>
+<p><code>cobc</code> writes the program's C, the <code>std</code> it reaches included, as one file, and the
+C compiler compiles it as one file with no link-time optimisation. A program that uses little of <code>std</code>
+builds in a second or two. One that reaches much of it takes longer: <code>http_get</code> brings in the HTTP
+client, TLS, X.509 and compression, some 94,000 lines of C, and a nine-line program calling it builds in
+about 28 s at the default <code>-O 2</code> and 19 s at <code>-O 0</code> on a four-core machine (measured with other builds
+running), of which about 5 s is <code>cobc</code>'s own work and the rest the C compiler. <code>cobc</code> keeps the
+executables it builds (<code>COBALTC_CACHE=off</code> turns that off), so building an unchanged program again costs
+only those 5 s; an edit changes the C, and the next build costs the whole time again.</p>
+<p><code>cobc --lto</code> compiles a large program's C in parts instead, at most eight, all at
+once on the machine's cores, and links them with link-time optimisation where the C compiler has it
+(GCC's <code>-flto</code>; Clang's ThinLTO, through Clang's own <code>lld</code> or through <code>gold</code>); a program of under a
+megabyte of C stays one part. Measured once each in both forms under the same load:</p>
+<table>
+<thead><tr><th>Program</th><th>one file (default)</th><th><code>--lto</code></th></tr></thead>
+<tbody>
+<tr><td>the <code>http_get</code> program, GCC, <code>-O 2</code> / <code>-O 0</code></td><td>27.7 s / 19.4 s</td><td>22.3 s / 14.5 s</td></tr>
+<tr><td><code>showcase/tier12/dns_over_http.cb</code>, GCC / Clang</td><td>48.1 s / 53.6 s</td><td>44.0 s / 36.5 s</td></tr>
+<tr><td><code>showcase/tier11/token_gate.cb</code>, GCC / Clang</td><td>49.4 s / 57.2 s</td><td>47.9 s / 39.8 s</td></tr>
+<tr><td>the compiler itself (<code>impl/cobc/main.cb</code>), GCC</td><td>880 s</td><td>488 s (the one-file build ran under twice the load)</td></tr>
+</tbody>
+</table>
+<p>The programs it builds are a few per cent larger and run about as fast. On the
+benchmark workloads (<code>bench/</code>), each one part in either form, the instruction counts are within 4%:
+GCC's <code>-flto</code> on one file changes its inlining, and <code>hashcount</code> then runs 4% more instructions. The
+compiler built with <code>--lto</code> is 9% larger and runs 4% more instructions, 7–9% slower (writing a large program's C, or checking itself), which is why <code>impl/build.sh</code> builds every tool as one file. So
+<code>--lto</code> is worth it for the edit-and-build loop of a large program on a machine with cores to spare,
+most of all with Clang; for the build you keep, and for a small program, the default is as good or
+better. Either way the program behaves the same.</p>
 <h3 id="intro-testing">Testing a program</h3>
 <p>Tests live beside the code they test, in <code>unittest</code> blocks: a block at the top level of a
 file or a module, with an optional name. A test sees the module's private items, and is checked every
@@ -2807,8 +2841,10 @@ semicolon and take the reference with it.</p>
 <code>printf(&quot;%v&quot;, &amp;sprintf(…))</code>. The value lives until the end of the statement, and the call is over
 before then. This works when the call's own result is not a reference, since such a result could
 carry the borrow out. An operator's result, the value <code>?</code> gives, and a number or <code>bool</code> literal
-may be borrowed there too: <code>is_three(&amp;(k + 1))</code>, <code>Vec::len(&amp;names()?)</code>, <code>is_three(&amp;3)</code>. A
-literal takes the type the parameter refers to, so <code>&amp;3</code> passed where a <code>ref&lt;u64, shared&gt;</code> is
+may be borrowed there too: <code>is_three(&amp;(k + 1))</code>, <code>Vec::len(&amp;names()?)</code>, <code>is_three(&amp;3)</code>; so may
+a block's value, the usual form after C hands over memory: <code>Vec::len(&amp;unsafe { Vec::from_c_bytes(p)
+})</code>, or <code>f(&amp;{ String::copy(name) })</code> where <code>f</code> takes a <code>StringView</code>. An <code>if</code> or a
+<code>match</code> is not borrowed in place even there: bind its value first. A literal takes the type the parameter refers to, so <code>&amp;3</code> passed where a <code>ref&lt;u64, shared&gt;</code> is
 expected is a reference to a <code>u64</code>.</p>
 <figure class="code"><div class="code-head"><span class="code-title">A temporary as an argument</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
@@ -4441,7 +4477,8 @@ does. A closure can be stored like any value: in a variable, a field, a <code>Ve
 <code>Box</code>, and called from there. A closure without <code>move</code> stored in a container declared outside the
 block of a variable it captures (<code>Vec::push(&amp;mut fs, [i]() : usize { i * 10 })</code> in a loop over <code>i</code>)
 is refused, <code>diag.destroy-while-aliased</code>: the container would keep a borrow of <code>i</code> past its block;
-write <code>move [i]</code>.</p>
+write <code>move [i]</code>. So is such a closure given a name first (<code>auto c = [i]() …; Vec::push(&amp;mut fs,
+c);</code>), or assigned to an element or a field of the container (<code>fs[0] = [i]() …</code>).</p>
 <p>A function value owns the closure it holds and destroys it when it ends. Copying the value
 (<code>g = f</code>, passing it by value) copies the closure with its captures, so each copy keeps its own
 state. The one exception is a closure that owns a resource, such as a <code>move</code> closure that captured a
@@ -6889,7 +6926,7 @@ other thread. Where threads do meet:</p>
 <ul>
 <li><strong>Data reached through a reference to another thread's</strong> (<code>spawn(f, &amp;v)</code>) stays the owner's, and each access through it is checked against the owner's records too. It works, and costs a little more on every access than data the thread owns.</li>
 <li><strong>Waiting</strong> — on <code>join</code>, on a <code>lock</code> someone else holds, on a full or empty <code>Channel</code> — stops only the waiting thread, which spins briefly before it sleeps: most waits for a lock are short. Locking, sending and receiving involve no other thread's checks.</li>
-<li><strong>A block that only reads and writes through its guard</strong> (<code>{ auto g = lock(&amp;m); *g += 1; }</code>, plain data inside, no early <code>return</code>) costs a lock and an unlock and no guard object: <code>cobc</code> makes none for it. The runtime's lock still keeps the record that finds deadlocks and poisons a failed thread's mutexes, so an uncontended lock costs tens of nanoseconds, several times C's <code>pthread_mutex_lock</code>.</li>
+<li><strong>A block that only reads and writes through its guard</strong> (<code>{ auto g = lock(&amp;m); *g += 1; }</code>, plain data inside, no early <code>return</code>) costs a lock and an unlock and no guard object: <code>cobc</code> makes none for it. The lock lives in the mutex's own state cells (its holder, whether a thread waits, whether it is poisoned): an uncontended lock and its unlock are one compare-and-swap each plus the thread's note of what it holds, which is what finds deadlocks and poisons a failed thread's mutexes; about 30 ns a lock, against 11 ns for C's <code>pthread_mutex_lock</code> and unlock.</li>
 <li><strong>Running code of the program on a value's end</strong> — a destructor you wrote, a <code>fn</code> value, a <code>Box</code> — briefly pauses the other threads' checks. Everything else the runtime does at a block's end stays within the threads involved.</li>
 </ul>
 <p>So the program that runs fastest in parallel gives each thread its work: move a chunk of the
@@ -6943,8 +6980,10 @@ program. Deadlock is not ruled out, but it is reported rather than left to hang 
 <code>cobmodel</code> (<code>impl/model</code>), runs a fragment of the language straight from the rules, with every
 interleaving of its threads, and lists every outcome they allow. Tens of thousands of generated
 programs about references, threads, mutexes, channels and vectors of references have been compared
-with what <code>cobc --explore</code> does. This is evidence, not a proof: it covers that fragment, up to
-the program sizes it tried.</p>
+with what <code>cobc --explore</code> does, and the project's gate compares a sample of them on every change.
+This is evidence, not a proof: it covers that fragment, up to the program sizes it tried. You can run
+it on your own small programs too: <a href="#s19-cobmodel">Every schedule, from the rules:
+<code>cobmodel</code></a>, below.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Caught, whatever the timing</span><span class="badge bad">rejected: diag.aliasing-conflict</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> bump(<span class="t">ref</span>&lt;<span class="t">i64</span>, <span class="t">exclusive</span>&gt; x, <span class="t">ref</span>&lt;<span class="p">Channel</span>&lt;<span class="t">u8</span>&gt;, <span class="t">shared</span>&gt; go)
@@ -7157,8 +7196,7 @@ the orders around those calls.</p>
         <span class="k">auto</span> b = <span class="p">spawn</span>(bump, &amp;m);
     }
     <span class="k">auto</span> g = <span class="p">lock</span>(&amp;m);
-    <span class="p">printf</span>(&quot;total %v
-&quot;, *g);
+    <span class="p">printf</span>(<span class="s">&quot;total %v\n&quot;</span>, *g);
 }</code></pre></figure>
 <figure class="code"><div class="code-head"><span class="code-title">Two outcomes: the result depends on timing</span></div><pre><code>$ cobc --explore <span class="n">50</span> counter.cb
 explored <span class="n">50</span> schedules of counter.cb: <span class="n">2</span> distinct outcomes
@@ -7168,6 +7206,148 @@ explored <span class="n">50</span> schedules of counter.cb: <span class="n">2</s
 
 <span class="n">18</span> runs, <span class="p">exit</span> <span class="n">0</span> -- replay: cobc --schedule-seed <span class="n">2</span> counter.cb
   | total <span class="n">1</span></code></pre></figure>
+<h3 id="s19-cobmodel">Every schedule, from the rules: <code>cobmodel</code></h3>
+<p><code>cobc --run</code> shows what one run did, and <code>cobc --explore N</code> what N schedules did. Neither
+can tell you that there is no other outcome: <code>--explore</code> samples, and an order that happens once in a
+few hundred schedules is easy to miss with a few dozen. And both are the implementation answering for
+itself: the static pass that accepted the program and the runtime that checked it are the ones being
+asked. <code>cobmodel</code> answers a different question: <em>what do the specification's rules allow this
+program to do, over every schedule?</em></p>
+<p>It is an executable model of the rules this section and §08, §10 and §14 describe, for a
+fragment of the language (D-0219). It was written from the specification alone, in CobaltC,
+importing <code>std</code> and nothing of the compiler or its runtime (D-0326), so where it and <code>cobc</code> agree,
+two readings of the text agree, not one program with itself. It applies the static rules as the
+text tabulates them (the flow analysis of <code>spec/14</code> §6, the escape and last-use rules); for a
+program they accept, it runs every interleaving of the threads, one step at a time, by the dynamic
+rules (<code>spec/04</code>'s state, <code>[Read]</code>, <code>[Write]</code>, <code>[Borrow]</code>, the lending to threads, locks, channels,
+atomics and deadlock), merging states it has seen; and it lists every outcome it reached. So it is
+also a second implementation of the rules, though not of the language, and the conformance suite's
+complement: a conformance case fixes the expected outcome of one program somebody wrote down; the
+model computes the outcome set of any program in its fragment, including ones nobody wrote, which
+<code>cobmodel enum</code> generates by the thousand. That is how it found gaps in the text, among them a
+reference that was proven free of conflicts while a closure still held it (D-0219, D-0243), and bugs
+in the tools that the test suites had not.</p>
+<table>
+<thead><tr><th>The question</th><th>The command</th></tr></thead>
+<tbody>
+<tr><td>Is the program accepted?</td><td><code>cobc --check prog.cb</code></td></tr>
+<tr><td>What does one run do?</td><td><code>cobc --run prog.cb</code></td></tr>
+<tr><td>What do N schedules do, each with a seed to replay?</td><td><code>cobc --explore N prog.cb</code></td></tr>
+<tr><td>Does the build with every check kept behave the same?</td><td><code>cobc --all-checks --run prog.cb</code></td></tr>
+<tr><td>What do the rules allow, over every schedule?</td><td><code>cobmodel check prog.cb</code> (the fragment only)</td></tr>
+<tr><td>Does the compiler's static decision hold in every schedule?</td><td><code>cobmodel certify cert.txt prog.cb</code> (the fragment only)</td></tr>
+</tbody>
+</table>
+<p>Here is a program whose result depends on timing in a way a short exploration does not
+show. It lends <code>x</code> to a thread through a channel and then writes <code>x</code>: a conflict while the thread
+holds the reference, and fine once the thread has finished, since a finished thread holds nothing
+(<a href="#s19-guarantee">The guarantee</a>, above).</p>
+<figure class="code"><div class="code-head"><span class="code-title">lend.cb: lent through a channel, then written</span></div><pre><code><span class="k">import</span> std;
+
+<span class="k">fn</span> add_hundred(<span class="t">ref</span>&lt;<span class="p">Channel</span>&lt;<span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">exclusive</span>&gt;&gt;, <span class="t">shared</span>&gt; ch)
+{
+    <span class="k">match</span> (<span class="p">Channel</span>::recv(ch))
+    {
+        <span class="p">Some</span>(r) : { *r = *r + <span class="n">100</span>; },
+        <span class="p">None</span>    : {},
+    }
+}
+
+<span class="k">fn</span> main()
+{
+    <span class="t">i32</span> x = <span class="n">1</span>;
+    <span class="p">Channel</span>&lt;<span class="t">ref</span>&lt;<span class="t">i32</span>, <span class="t">exclusive</span>&gt;&gt; c = <span class="p">Channel</span>::new(<span class="n">1</span>);
+    <span class="k">auto</span> t = <span class="p">spawn</span>(add_hundred, &amp;c);
+    _ = <span class="p">Channel</span>::send(&amp;c, &amp;<span class="k">mut</span> x);    <span class="c">// x is lent to the thread</span>
+    x = <span class="n">5</span>;                            <span class="c">// ...which may still hold it</span>
+    <span class="p">join</span>(t);
+    <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, x);
+}</code></pre></figure>
+<figure class="code"><div class="code-head"><span class="code-title">Eight schedules show one outcome; the model shows both</span></div><pre><code>$ cobc --explore <span class="n">8</span> lend.cb
+explored <span class="n">8</span> schedules of lend.cb: <span class="n">1</span> distinct outcome
+
+<span class="n">8</span> runs, <span class="p">exit</span> <span class="n">1</span> -- replay: cobc --schedule-seed <span class="n">1</span> lend.cb
+  ! <span class="p">fault</span>[diag.aliasing-conflict]: this access conflicts with a live reference
+  !   --&gt; lend.cb:<span class="n">18</span>:<span class="n">5</span>
+  !    |
+  ! ... <span class="n">3</span> more lines
+
+$ cobmodel check lend.cb
+lend.cb: <span class="n">2</span> outcome(s), <span class="n">442</span> states
+  diag.aliasing-conflict (dynamic) line <span class="n">18</span>
+  [<span class="n">5</span>] ok</code></pre></figure>
+<p>Each outcome is one line: the lines the program printed, in brackets and joined by spaces
+(none here for the fault), then how it ended: <code>ok</code>, or the diagnostic, <code>(static)</code> for one found
+before the run and <code>(dynamic)</code> for a fault, and its line. <code>cobc --explore 300 lend.cb</code> does find the
+second outcome, in 5 of its 300 schedules (<code>--schedule-seed 46</code> replays one). The model's two
+outcomes say the program is wrong whichever you saw: the result depends on timing. Moving
+<code>join(t);</code> before the write makes it one outcome, and <code>cobmodel check</code> then says
+<code>1 outcome(s), 376 states</code> and <code>[106] ok</code> for <code>x = x + 5;</code> after the <code>join</code>.</p>
+<p><code>--witness</code> prints, under each outcome, one schedule that reaches it, as the steps of the
+model's machine: the thread (<code>t0</code> is <code>main</code>), the function and step, the source line and the step's
+action. Read it for the order in which the threads' source lines ran. Cut to the lines that matter,
+the schedule for <code>[5] ok</code> is the thread running to its end between the <code>send</code> on line 17 and the
+write on line 18:</p>
+<figure class="code"><div class="code-head"><span class="code-title">One schedule for each outcome</span></div><pre><code>$ cobmodel check --witness lend.cb
+  …
+  [<span class="n">5</span>] ok
+      …
+      t0 main:<span class="n">29</span> line <span class="n">17</span> ChanSend
+      t12 add_hundred:<span class="n">4</span> line <span class="n">5</span> ChanRecv
+      …
+      t12 add_hundred:<span class="n">19</span> line <span class="n">7</span> Assign
+      …
+      t12 add_hundred:<span class="n">33</span> line <span class="n">10</span> Ret
+      t0 main:<span class="n">30</span> line <span class="n">17</span> Read
+      …
+      t0 main:<span class="n">37</span> line <span class="n">18</span> Assign
+      …</code></pre></figure>
+<h4>When to use it, and when not</h4>
+<ul>
+<li><strong>A threaded result that surprised you</strong>, or one you want to be sure is the only one. Cut the program down to the fragment around the threads and references involved and ask the model for the whole set; <code>--witness</code> shows how each outcome comes about, and <code>cobc --schedule-seed</code> replays a run of it that <code>--explore</code> found.</li>
+<li><strong>Is it the compiler or the rules?</strong> Every outcome <code>cobc</code> shows, with any C compiler and with <code>--all-checks</code>, must be in the model's set. One outside it is a bug in <code>cobc</code> or in the model, worth a report with both outputs; one inside it is what the rules allow, and its witness shows the schedule that leads to it.</li>
+<li><strong>Learning the rules.</strong> A small program and its witnesses show exactly when a reference starts and stops conflicting, when a lent place comes back, and where a wait can never end.</li>
+<li><strong>Not for running programs.</strong> The fragment is small: <code>i32</code> values with <code>+</code> and <code>&gt;</code>, references to them, two structs with fixed names (<code>Hold</code>, holding an exclusive reference, and <code>Job</code>, holding a handle), <code>Vec</code>s of <code>i32</code>, of exclusive references and of handles, two-element arrays, slices, closures, <code>mutex&lt;i32&gt;</code>, channels of exclusive references, <code>Atomic&lt;i32&gt;</code> and atomic statics, <code>if</code>, <code>while</code>, <code>match</code> on an <code>Option</code> and <code>printf(&quot;%v\n&quot;, e)</code>, and functions of your own over those types. <code>impl/model/README.md</code> lists it exactly. A program outside it is refused, with exit status 2 and a message naming the line where the model stopped reading: for a parameter <code>u8 b</code>, that the type <code>u8</code> is outside the fragment; for a local <code>i64 x = 1;</code> or a <code>for</code> loop, only the token it did not expect.</li>
+<li><strong>Not for large programs.</strong> Every interleaving is explored, so the work grows quickly with threads and steps: the 315 programs of the project's sample take about five seconds together, but three threads that each lock a mutex and add to it reach the model's limit of 3,000,000 states in about 45 seconds, and the set then includes the outcome <code>too-big</code>: incomplete, not wrong.</li>
+<li><strong>Not a proof.</strong> It covers the program you give it, in the fragment. What it establishes beside the proofs, the certificate and the test suites is in <code>spec/ASSURANCE.md</code>.</li>
+</ul>
+<h4>Using it on a directory, in tests and in CI</h4>
+<p><code>cobmodel compare DIR</code> runs every <code>.cb</code> file of a directory under <code>cobc</code> and under the model
+and reports each program a tool gave an outcome outside the model's set (<code>OUTSIDE</code>, exit status 1),
+each program with a model outcome no tool showed (<code>unobserved</code>: advisory, since the tools try a few
+schedules and the model all of them), and each program whose set was cut short at the state limit
+and a tool went beyond it (<code>truncated</code>: advisory). <code>--cobc PATH</code> names the compiler (by default
+<code>cobc</code> from <code>PATH</code>), <code>--explore N</code> runs each program under N schedules rather than once, <code>--cc CC</code>
+(repeated) picks the C compilers (by default GCC and Clang), <code>--jobs J</code> runs J programs at once (by
+default 2) and <code>--report FILE</code> writes the report there instead of to standard output:</p>
+<figure class="code"><div class="code-head"><span class="code-title">lend.cb, its fixed form and two more, compared</span></div><pre><code>$ cobmodel compare progs --explore <span class="n">8</span>
+unobserved progs/lend.cb: [<span class="n">5</span>] ok
+compare: <span class="n">4</span> programs, <span class="n">0</span> with an outcome outside the model&#x27;s set, <span class="n">0</span> beyond a set cut short at the state limit, <span class="n">1</span> with a model outcome no tool showed</code></pre></figure>
+<p>A program can carry its expected set in its header, one <code>// MODEL: outcome</code> line per outcome
+as <code>cobmodel check</code> prints them; <code>compare</code> then also reports <code>header-stale</code> for a program whose
+lines no longer match the model's set (advisory: the exit status stays 0, so a CI step that wants it
+to fail greps the report for it). That makes a directory of small programs with their headers a test
+of both directions: a change to <code>cobc</code> that gives an outcome the rules do not allow fails, and a change
+to the rules that changes a set shows in the headers.</p>
+<p><code>cobmodel statics prog.cb</code> gives the static verdict alone, without running anything
+(<code>alias.cb: diag.aliasing-conflict (static) line 12</code>, or <code>ok</code>), to set beside <code>cobc --check</code>'s.
+And <code>cobc --certificate cert.txt prog.cb</code> followed by <code>cobmodel certify cert.txt prog.cb</code> checks the
+compiler's decision about which function bodies need no record of their references
+(<a href="#perf">Performance</a>): it runs every interleaving with those bodies kept unrecorded, as
+the compiled program keeps them, and reports a fault there as <code>model.decided-but-false</code>, or a
+different static verdict, with exit status 1; otherwise it says, for instance, <code>certified: the whole
+program decided, 2 outcome(s), 5747 states</code>. <code>cobmodel check</code> itself exits with 0 whatever outcomes
+it lists, 2 when a file cannot be read or is outside the fragment.</p>
+<p>The project runs all of this whenever the compiler, the runtime, <code>std</code> or the model
+changes: the gate's <code>model</code> unit compares <code>impl/model/sample</code> (the hand-written cases, every program
+that ever disagreed, and a selection of the enumeration) with <code>cobc --explore 8</code> under GCC and Clang,
+checks each sample program's certificate (<code>impl/tools/certify_model.py</code>), runs <code>cobmodel check
+--as-licensed</code> (which also models what the flow table lets a compiler leave out, D-0241), and
+replays the model's runs through the mechanised rules in <code>proofs/</code> (<code>cobmodel trace</code>,
+<code>impl/tools/replay_model.py</code>). For a wider sweep, <code>cobmodel enum --size 3 --out DIR --max 3000</code>
+writes every program of up to three statements over its alphabet, with its <code>// MODEL:</code> lines, and
+<code>--random M --len L --seed S</code> adds M random ones of L statements; <code>impl/model/README.md</code> gives the
+commands.</p>
 <h3>Data parallelism: <code>slice_parts</code></h3>
 <p><code>slice_parts(&amp;mut v, k)</code> splits a vector (or any exclusive slice) into <code>k</code> consecutive
 runs as nearly equal as they can be, each an exclusive slice of its own. Give each run to a thread
@@ -7387,10 +7567,20 @@ is a <em>claim</em>: a genuine value of its declared type, but one whose relatio
 else (that a returned length is right, that a pointer is valid) is not established until your code
 checks it. An <code>extern fn</code> is only ever called, never passed as a function value: calling a value
 needs no <code>unsafe</code>, so the promise would have nowhere to be written.
-A C library function with a variable argument list (<code>snprintf</code>, <code>open</code>, <code>fcntl</code>, <code>ioctl</code>, …) is declared
-with its fixed parameters and then those a call passes (<code>f64</code> for a float, at least <code>i32</code> for an
-integer): cobc declares it to C with <code>...</code>, as the platform's calling convention needs. A variadic
-function of your own C code is called through a small C function with a fixed signature.</p>
+A C function with a variable argument list is declared as C declares it, with <code>...</code> after its fixed
+parameters: <code>unsafe extern fn snprintf(rawptr&lt;u8&gt; buf, usize n, rawptr&lt;u8&gt; fmt, ...) : i32;</code>. cobc
+declares it to C with <code>...</code>, so every call follows the platform's convention for a variable argument
+list (on x86-64 a <code>double</code> travels in a vector register, and the callee is told how many), whether
+the function is the C library's (<code>printf</code>, <code>strfmon</code>, <code>open</code>, <code>ioctl</code>, …) or your own C code's. A call
+passes the fixed arguments, of their declared types, and then any number of others, each of the type
+its own text gives it (a literal's own, <code>i32</code> or <code>f64</code>; <code>widen&lt;i64&gt;(n)</code> for a <code>long</code>) and each of the
+types a parameter may have (a plain struct passes by value), which C promotes as it promotes any
+variable argument (<code>float</code> to <code>double</code>, <code>bool</code> and integers narrower than <code>int</code> to <code>int</code>); anything
+else is <code>diag.extern-non-ffi-type</code> (<code>[Extern-Call-Variadic]</code>, <code>[Extern-Call-Variadic-Arg]</code>). The type of each argument must be the one the format or the function
+expects, as in C: nothing checks it. A declaration without <code>...</code> is a fixed prototype, which is the
+wrong call for a variadic function; for the C library's variadic functions cobc knows (the <code>printf</code>
+and <code>scanf</code> families, <code>open</code>, <code>fcntl</code>, <code>ioctl</code>, <code>strfmon</code>, <code>error</code>, <code>syscall</code>, …) an older form that
+lists the arguments a call passes after the fixed parameters is still called correctly.</p>
 <p><code>std</code> declares two externs: <code>stdout_write(rawptr&lt;u8&gt; buf, usize len) : isize</code>, which
 <code>printf</code> (§21) writes through, with the <code>unsafe</code> block inside <code>std</code>, and its counterpart
 <code>stdin_read</code>, which <code>read_line</code> reads through. Calling conventions and how code is linked are outside the language
@@ -11761,12 +11951,15 @@ either. A worker pool is decided too: a local <code>Vec</code> of handles holds 
 it was lent (<code>Vec::push(&amp;mut hs, spawn(work, &amp;shared))</code>), and a handle taken out of it by <code>foreach</code>
 or <code>Vec::pop</code> holds it as well, until it is joined (CHG-0384). A handle passed around while it lends,
 a <code>Vec</code> of handles given to another function, or a thread that runs a <code>fn</code> value, leaves the program
-to the run. So do two ranges of one slice lent at once whose bounds are not constants (<code>spawn(work,
-&amp;mut s[0..mid], …)</code> and <code>spawn(work, &amp;mut s[mid..n], …)</code>): the compiler cannot tell them apart, the
-function's accesses to <code>s</code> are checked as it runs, and with threads each check is shared between them,
-which made a recursive split far slower than no threads at all (report 311). <code>slice_parts(s, 2)</code> gives
-the disjoint halves as two slices of their own, which the compiler can tell apart; <code>--report-tracking</code>
-names such an access ("an access to <code>s</code> that only values decide").</p>
+to the run. Two ranges of one slice lent at once are told apart when their bounds are literals, or
+when one range ends where the other starts at the same local (<code>spawn(work, &amp;mut s[0..mid], …)</code> and
+<code>spawn(work, &amp;mut s[mid..n], …)</code>), a local declared once in the function, outside every loop and
+closure, that nothing assigns, borrows or captures without <code>move</code>: it has one value in the frame, so
+the two ranges share no element (report 311). Other computed bounds (<code>[0..mid]</code> beside <code>[mid + 1..n]</code>,
+or a <code>mid</code> the function writes) cannot be told apart: the function's accesses to <code>s</code> are checked as it
+runs, and with threads each check is shared between them, which can make a recursive split far slower
+than no threads at all. <code>slice_parts(s, 2)</code> gives disjoint parts as slices of their own in any case;
+<code>--report-tracking</code> names such an access ("an access to <code>s</code> that only values decide").</p>
 <p>A local that keeps references in data, such as the <code>Vec&lt;StringView&gt;</code> that <code>StringView::split</code> gives or
 a struct of views built and read in one function, is checked the same way (D-0290): it holds what
 was stored into it, and a view read out of it holds that, so writing the text while the <code>Vec</code> still
@@ -12173,7 +12366,7 @@ four separate programs. To keep a thread's work its own:</p>
 <li>Move what a thread works on into it (<code>spawn(count, chunk)</code> with <code>chunk</code> a <code>Vec</code> you no longer need): it then belongs to the thread. A thread that reads the spawner's data through a reference shares it. Read it through a shared reference *parameter* the function never rebinds or borrows (<code>fn band(ref&lt;Vec&lt;Row&gt;, shared&gt; rows, …)</code>), and hand its fields and elements on only to functions that keep nothing of them: <code>cobc</code> then reads through it with bounds checks alone, since nothing can change what it reaches while the call runs, and several threads read one structure at once (four threads aggregating 20,000 rows: 30 ms, against 48 ms for one). A reference kept past the call, or stored in a struct, is tracked as usual, and threads that form such references into one structure take turns on its records.</li>
 <li>Hand results back as the thread's result, through <code>join</code>, or through a <code>Channel</code>, rather than writing into a structure every thread locks.</li>
 <li>Keep large shared data out of atomics: an <code>Atomic</code> per cell of a 200 × 200 board made four threads barely faster than one, while private rows per thread with the edge rows exchanged under a mutex ran 13 times faster and scaled. Atomics are for counters and flags.</li>
-<li>Keep a lock's block to reads and writes through its guard (<code>{ auto g = lock(&amp;m); *g += 1; }</code>): such a block is a lock and an unlock and no guard object (an uncontended lock and unlock, with the runtime's record of who holds what, is about 60 ns). Four threads each taking one shared mutex 200,000 times, with a little work between, took 0.6 s; giving the guard to a function, or returning from inside the block, makes each lock cost about ten times as much.</li>
+<li>Keep a lock's block to reads and writes through its guard (<code>{ auto g = lock(&amp;m); *g += 1; }</code>): such a block is a lock and an unlock and no guard object. The lock is in the mutex itself: an uncontended lock and unlock are one atomic compare-and-swap each, about 30 ns with the thread's note of what it holds (C's <code>pthread_mutex_lock</code> and unlock, 11 ns on the same machine). Four threads counting keys in one <code>HashMap</code> behind a mutex, a million updates in all, took about 0.1 s; giving the guard to a function, or returning from inside the block, makes the guard an object, about 45 ns a lock.</li>
 <li>A thread per connection is a sound design for a server. Each thread is an operating-system thread with a reserved, mostly uncommitted stack, and a finished thread is reused by the next <code>spawn</code>. A test server held 10,000 connections at once, each its own supervised thread answering two queries, in 250 MB, about 25 kB per idle connection, with no failures, and a round trip cost the same 0.13–0.16 ms with 1,000 connections open as with 10,000. An idle connection costs nothing while it waits: on Linux its thread sleeps in the kernel until data arrives or it is cancelled.</li>
 </ul>
 <h3 id="perf-arith">Arithmetic and plain values</h3>
@@ -12863,10 +13056,6 @@ i = <span class="n">0</span>;
     i += <span class="n">1</span>;
 }
 <span class="p">assert</span>(<span class="p">HashMap</span>::len(&amp;m) == <span class="n">57</span> &amp;&amp; *<span class="p">HashMap</span>::key_at(&amp;m, <span class="n">7</span>) == <span class="n">150</span> &amp;&amp; *<span class="p">HashMap</span>::key_at(&amp;m, <span class="n">56</span>) == <span class="n">199</span>);</code></pre></figure>
-<figure class="code"><div class="code-head"><span class="code-title">Example: A <code>String</code>-keyed map looked up by a literal, its probe a view (D-0312)</span><span class="badge ok">runs</span></div><pre><code><span class="p">HashMap</span>&lt;<span class="p">String</span>, <span class="t">i32</span>&gt; m = <span class="p">HashMap</span>::new();
-<span class="p">HashMap</span>::insert(&amp;<span class="k">mut</span> m, <span class="s">&quot;apple&quot;</span>, <span class="n">3</span>);
-<span class="p">assert</span>(*<span class="p">Option</span>::unwrap(<span class="p">HashMap</span>::get(&amp;m, <span class="s">&quot;apple&quot;</span>)) == <span class="n">3</span>);
-<span class="p">assert</span>(!<span class="p">HashMap</span>::contains(&amp;m, <span class="s">&quot;pear&quot;</span>));</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-collections-HashMap-get_str" class="stdref-item"><code>HashMap::get_str</code> <span class="std-file">fn</span></h4>
@@ -13306,27 +13495,6 @@ i = <span class="n">0</span>;
 <span class="p">String</span>::push_code_point(&amp;<span class="k">mut</span> s, <span class="n">0</span>x41);
 <span class="p">String</span>::push_code_point(&amp;<span class="k">mut</span> s, <span class="n">0</span>xD800);
 <span class="p">assert</span>(s == <span class="s">&quot;A\u{fffd}&quot;</span>);</code></pre></figure>
-<figure class="code"><div class="code-head"><span class="code-title">Example: A <code>foreach</code> over the parts finds each when it takes it; the parts are the <code>Vec</code>'s</span><span class="badge ok">runs</span></div><pre><code><span class="p">StringView</span> text = <span class="s">&quot;one\r\ntwo\n\nthree\n&quot;</span>;
-<span class="p">Vec</span>&lt;<span class="p">StringView</span>&gt; ls = <span class="p">StringView</span>::lines(text);
-<span class="t">usize</span> n = <span class="n">0</span>;
-<span class="k">foreach</span> (i, l in <span class="p">StringView</span>::lines(text))
-{
-    <span class="p">assert</span>(l == ls[i]);
-    n += <span class="n">1</span>;
-}
-<span class="p">assert</span>(n == <span class="n">4</span>);
-n = <span class="n">0</span>;
-<span class="k">foreach</span> (w in <span class="p">StringView</span>::split_whitespace(<span class="s">&quot;  to  be\tor &quot;</span>))
-{
-    n += <span class="p">StringView</span>::len(w);
-}
-<span class="p">assert</span>(n == <span class="n">6</span>);
-n = <span class="n">0</span>;
-<span class="k">foreach</span> (f in <span class="p">StringView</span>::split(<span class="s">&quot;a,,b&quot;</span>, <span class="s">&quot;,&quot;</span>))
-{
-    n += <span class="n">1</span>;
-}
-<span class="p">assert</span>(n == <span class="n">3</span>);</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-text-String-append" class="stdref-item"><code>String::append</code> <span class="std-file">fn</span></h4>
@@ -13338,14 +13506,6 @@ n = <span class="n">0</span>;
 <span class="p">String</span>::append(&amp;<span class="k">mut</span> s, <span class="s">&quot;, n = &quot;</span>);
 <span class="p">String</span>::append(&amp;<span class="k">mut</span> s, <span class="n">42</span>: <span class="t">u8</span>);
 <span class="p">assert</span>(s == <span class="s">&quot;x = 1.0, n = 42&quot;</span>);</code></pre></figure>
-<figure class="code"><div class="code-head"><span class="code-title">Example: Each error, and a success</span><span class="badge ok">runs</span></div><pre><code><span class="p">String</span> a = <span class="s">&quot;12x4&quot;</span>;
-<span class="p">assert</span>(<span class="p">StringView</span>::<span class="p">parse</span>&lt;<span class="t">i32</span>&gt;(&amp;a) == <span class="p">Err</span>(Invalid(<span class="n">2</span>)));
-<span class="p">String</span> b = <span class="s">&quot;300&quot;</span>;
-<span class="p">assert</span>(<span class="p">StringView</span>::<span class="p">parse</span>&lt;<span class="t">u8</span>&gt;(&amp;b) == <span class="p">Err</span>(OutOfRange));
-<span class="p">String</span> c = <span class="s">&quot;&quot;</span>;
-<span class="p">assert</span>(<span class="p">StringView</span>::<span class="p">parse</span>&lt;<span class="t">i32</span>&gt;(&amp;c) == <span class="p">Err</span>(Empty));
-<span class="p">String</span> d = <span class="s">&quot;-17&quot;</span>;
-<span class="p">assert</span>(<span class="p">StringView</span>::<span class="p">parse</span>&lt;<span class="t">i32</span>&gt;(&amp;d) == <span class="p">Ok</span>(-<span class="n">17</span>));</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-text-String-from_view" class="stdref-item"><code>String::from_view</code> <span class="std-file">fn</span></h4>
@@ -13527,9 +13687,6 @@ n = <span class="n">0</span>;
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">StringView</span>::len(<span class="p">StringView</span> v) : <span class="t">usize</span></code></pre></figure>
 <p>The length of <code>v</code> in bytes.</p>
 <p><code>StringView::char_count</code> counts characters.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Example: Text is ordered by its bytes: a prefix comes first, and upper-case ASCII before lower-case</span><span class="badge ok">runs</span></div><pre><code><span class="p">assert</span>(<span class="s">&quot;ab&quot;</span> &lt; <span class="s">&quot;abc&quot;</span>);
-<span class="p">assert</span>(<span class="s">&quot;B&quot;</span> &lt; <span class="s">&quot;a&quot;</span>);
-<span class="p">assert</span>(!(<span class="s">&quot;b&quot;</span> &lt; <span class="s">&quot;b&quot;</span>));</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-text-StringView-as_bytes" class="stdref-item"><code>StringView::as_bytes</code> <span class="std-file">fn</span></h4>
@@ -14262,33 +14419,6 @@ _ = <span class="p">remove_dir_all</span>(&amp;dir);</code></pre></figure>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">Args</span>::finish(<span class="t">ref</span>&lt;<span class="p">Args</span>, <span class="t">exclusive</span>&gt; a) : <span class="p">Result</span>&lt;<span class="p">Vec</span>&lt;<span class="p">String</span>&gt;, <span class="p">String</span>&gt;</code></pre></figure>
 <p>The arguments no declaration took, in order, every argument after <code>--</code> among them.</p>
 <p><code>Err(message)</code> for the first argument before <code>--</code> that starts with <code>-</code> and is not a lone <code>-</code>: <code>unknown option --x</code>; <code>missing a value for --x</code> for a declared option given without its value; and for a declared option written in a form that is not read, the form to write: <code>-I takes its value as a separate argument: -I inc</code> for <code>-Iinc</code>, <code>short options are written one at a time: -v -o</code> for <code>-vo</code>, <code>--verbose takes no value</code> for <code>--verbose=yes</code>. The message is for the program to print, usually followed by <code>Args::help</code>.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Example: A declared option written in a form <code>Args</code> does not read is named as declared, with the form to write</span><span class="badge ok">runs</span></div><pre><code><span class="p">Vec</span>&lt;<span class="p">String</span>&gt; items = <span class="p">Vec</span>::new();
-<span class="p">Vec</span>::push(&amp;<span class="k">mut</span> items, <span class="s">&quot;-Iinc&quot;</span>);
-<span class="p">Args</span> a = <span class="p">Args</span>::from(items, <span class="s">&quot;prog&quot;</span>);
-<span class="p">Vec</span>&lt;<span class="p">String</span>&gt; incs = <span class="p">Args</span>::options(&amp;<span class="k">mut</span> a, <span class="s">&quot;include&quot;</span>, <span class="s">&quot;I&quot;</span>, <span class="s">&quot;DIR&quot;</span>, <span class="s">&quot;a directory&quot;</span>);
-<span class="p">assert</span>(<span class="p">Vec</span>::len(&amp;incs) == <span class="n">0</span>);
-<span class="k">match</span> (<span class="p">Args</span>::finish(&amp;<span class="k">mut</span> a))
-{
-    <span class="p">Err</span>(m) : <span class="p">assert</span>(m == <span class="s">&quot;-I takes its value as a separate argument: -I inc&quot;</span>),
-    <span class="p">Ok</span>(_)  : <span class="p">assert</span>(<span class="k">false</span>),
-}
-<span class="p">Vec</span>&lt;<span class="p">String</span>&gt; more = <span class="p">Vec</span>::new();
-<span class="p">Vec</span>::push(&amp;<span class="k">mut</span> more, <span class="s">&quot;--verbose=yes&quot;</span>);
-<span class="p">Args</span> b = <span class="p">Args</span>::from(more, <span class="s">&quot;prog&quot;</span>);
-<span class="p">assert</span>(!<span class="p">Args</span>::flag(&amp;<span class="k">mut</span> b, <span class="s">&quot;verbose&quot;</span>, <span class="s">&quot;v&quot;</span>, <span class="s">&quot;say more&quot;</span>));
-<span class="k">match</span> (<span class="p">Args</span>::finish(&amp;<span class="k">mut</span> b))
-{
-    <span class="p">Err</span>(m) : <span class="p">assert</span>(m == <span class="s">&quot;--verbose takes no value&quot;</span>),
-    <span class="p">Ok</span>(_)  : <span class="p">assert</span>(<span class="k">false</span>),
-}</code></pre></figure>
-<figure class="code"><div class="code-head"><span class="code-title">Example: An option nobody declared is refused with a message naming it</span><span class="badge ok">runs</span></div><pre><code><span class="p">Vec</span>&lt;<span class="p">String</span>&gt; items = <span class="p">Vec</span>::new();
-<span class="p">Vec</span>::push(&amp;<span class="k">mut</span> items, <span class="s">&quot;--colour&quot;</span>);
-<span class="p">Args</span> a = <span class="p">Args</span>::from(items, <span class="s">&quot;prog&quot;</span>);
-<span class="k">match</span> (<span class="p">Args</span>::finish(&amp;<span class="k">mut</span> a))
-{
-    <span class="p">Err</span>(m) : <span class="p">assert</span>(m == <span class="s">&quot;unknown option --colour&quot;</span>),
-    <span class="p">Ok</span>(_)  : <span class="p">assert</span>(<span class="k">false</span>),
-}</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-env-Args-help" class="stdref-item"><code>Args::help</code> <span class="std-file">fn</span></h4>
@@ -14455,24 +14585,6 @@ Weak&lt;<span class="p">String</span>&gt; w = <span class="p">Rc</span>::downgra
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Arc::<span class="p">drop</span>&lt;T&gt;(<span class="t">ref</span>&lt;Arc&lt;T&gt;, <span class="t">exclusive</span>&gt; self)</code></pre></figure>
 <p>Ends one strong handle; run when an <code>Arc</code> is destroyed, so programs write <code>drop(a)</code> or let it go.</p>
 <p>When this was the last strong handle, on whichever thread, the value is destroyed now, and with no <code>ArcWeak</code> handle left the memory is freed too.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Example: Handles cloned into four threads, each changing the value through the <code>mutex</code> inside; the last handle to
-end destroys the value, once, on whichever thread holds it</span><span class="badge ok">runs</span></div><pre><code>Arc&lt;<span class="t">mutex</span>&lt;<span class="t">u32</span>&gt;&gt; a = Arc::new(<span class="p">Mutex</span>::new(<span class="n">0</span>: <span class="t">u32</span>));
-<span class="p">Vec</span>&lt;<span class="t">handle</span>&lt;<span class="k">void</span>&gt;&gt; hs = <span class="p">Vec</span>::new();
-<span class="k">for</span> (<span class="t">u32</span> i = <span class="n">0</span>; i &lt; <span class="n">4</span>; i += <span class="n">1</span>)
-{
-    <span class="p">Vec</span>::push(&amp;<span class="k">mut</span> hs, <span class="p">spawn</span>(<span class="k">move</span> [](Arc&lt;<span class="t">mutex</span>&lt;<span class="t">u32</span>&gt;&gt; h)
-    {
-        <span class="k">auto</span> g = <span class="p">lock</span>(Arc::get(&amp;h));
-        *g += <span class="n">1</span>;
-    }, Arc::clone(&amp;a)));
-}
-ArcWeak&lt;<span class="t">mutex</span>&lt;<span class="t">u32</span>&gt;&gt; w = Arc::downgrade(&amp;a);
-<span class="p">drop</span>(a);                                  <span class="c">// the workers&#x27; handles keep the value</span>
-<span class="k">foreach</span> (h in hs)
-{
-    <span class="p">join</span>(h);
-}
-<span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;ArcWeak::upgrade(&amp;w)));   <span class="c">// the last worker&#x27;s drop ended it</span></code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-memory-Arc-downgrade" class="stdref-item"><code>Arc::downgrade</code> <span class="std-file">fn</span></h4>
@@ -15325,15 +15437,6 @@ Rng::shuffle(&amp;<span class="k">mut</span> r, &amp;<span class="k">mut</span> 
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">BigUint</span>::<span class="p">parse</span>(<span class="p">StringView</span> text) : <span class="p">Result</span>&lt;<span class="p">BigUint</span>, <span class="p">ParseError</span>&gt;</code></pre></figure>
 <p>The number written in decimal digits in <code>text</code>.</p>
 <p><code>Err(Empty)</code> when <code>text</code> is empty; <code>Err(Invalid(i))</code> at the first byte <code>i</code> that is not a digit (a sign is not accepted).</p>
-<figure class="code"><div class="code-head"><span class="code-title">Example: <code>Invalid</code> carries the position of the first byte that is not a digit</span><span class="badge ok">runs</span></div><pre><code><span class="k">match</span> (<span class="p">BigUint</span>::<span class="p">parse</span>(<span class="s">&quot;12x&quot;</span>))
-{
-    <span class="p">Ok</span>(_) : <span class="p">assert</span>(<span class="k">false</span>),
-    <span class="p">Err</span>(e) : <span class="k">match</span> (e)
-    {
-        Invalid(i) : <span class="p">assert</span>(i == <span class="n">2</span>),
-        _          : <span class="p">assert</span>(<span class="k">false</span>),
-    },
-}</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-math-BigDivision" class="stdref-item"><code>BigDivision</code> <span class="std-file">struct</span></h4>
@@ -16705,11 +16808,6 @@ z = <span class="p">DateTime</span>::to_iso(&amp;<span class="p">Result</span>::
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">verify_password</span>(<span class="p">StringView</span> stored, <span class="t">slice</span>&lt;<span class="t">u8</span>, <span class="t">shared</span>&gt; password) : <span class="t">bool</span></code></pre></figure>
 <p>Whether <code>password</code> is the one the Argon2id PHC string <code>stored</code> was made from.</p>
 <p><code>stored</code> is a hash written by <code>hash_password</code> or by any Argon2id implementation (<code>$argon2id$v=19$m=M,t=T,p=P$salt$hash</code>); its parameters are taken from it, and the result is compared with <code>digest_eq</code>. <code>false</code> when <code>stored</code> does not have that shape, its parameters are outside the bounds <code>argon2id</code> accepts (so it never faults on them), or its memory <code>m</code> is above 1,048,576 KiB (1 GiB, libsodium&#x27;s largest preset), so a hostile stored hash cannot make one call allocate more. Cost: one <code>argon2id</code> with the stored parameters.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Example: A string that is not an Argon2id hash, or has parameters out of bounds, verifies nothing</span><span class="badge ok">runs</span></div><pre><code><span class="p">assert</span>(!<span class="p">verify_password</span>(<span class="s">&quot;not a password hash&quot;</span>, <span class="s">b&quot;secret&quot;</span>));
-<span class="p">StringView</span> no_memory = <span class="s">&quot;$argon2id$v=19$m=0,t=1,p=1$c2FsdHNhbHQ$AAAAAA&quot;</span>;
-<span class="p">assert</span>(!<span class="p">verify_password</span>(no_memory, <span class="s">b&quot;secret&quot;</span>));
-<span class="p">assert</span>(!<span class="p">verify_password</span>(<span class="s">&quot;$argon2id$v=19$m=8,t=4294967296,p=1$c2FsdHNhbHQ$AAAAAA&quot;</span>, <span class="s">b&quot;secret&quot;</span>));
-<span class="p">assert</span>(!<span class="p">verify_password</span>(<span class="s">&quot;$argon2id$v=19$m=4000000000,t=1,p=1$c2FsdHNhbHQ$AAAAAA&quot;</span>, <span class="s">b&quot;secret&quot;</span>));</code></pre></figure>
 </div>
 <h3 id="stdref-std-crypto-aead"><code>std::crypto::aead</code> <span class="std-file">impl/std/crypto/aead.cb</span></h3>
 <div class="stdref-entry">
@@ -17083,10 +17181,6 @@ sealed[<span class="n">0</span>] = sealed[<span class="n">0</span>] ^ <span clas
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">Certificate</span>::matches_host(<span class="t">ref</span>&lt;<span class="p">Certificate</span>, <span class="t">shared</span>&gt; c, <span class="p">StringView</span> host) : <span class="t">bool</span></code></pre></figure>
 <p>Whether <code>c</code> is for <code>host</code> (RFC 6125 §6.4).</p>
 <p>An IP address literal is compared with the certificate&#x27;s IP addresses. A name is compared with its DNS names, ignoring ASCII case and one final dot on <code>host</code>; a leading <code>*.</code> in a DNS name stands for exactly one whole label, and only where at least two labels follow it (so <code>*.com</code> matches nothing). The common name is not consulted.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Example: A subtree holds its name and the names below it; a wildcard name is read as written</span><span class="badge ok">runs</span></div><pre><code><span class="p">assert</span>(dns_within(<span class="s">&quot;good.test&quot;</span>, <span class="s">&quot;good.test&quot;</span>) &amp;&amp; dns_within(<span class="s">&quot;a.Good.Test&quot;</span>, <span class="s">&quot;good.test&quot;</span>));
-<span class="p">assert</span>(!dns_within(<span class="s">&quot;evil.example&quot;</span>, <span class="s">&quot;good.test&quot;</span>) &amp;&amp; !dns_within(<span class="s">&quot;notgood.test&quot;</span>, <span class="s">&quot;good.test&quot;</span>));
-<span class="p">assert</span>(!dns_within(<span class="s">&quot;good.test&quot;</span>, <span class="s">&quot;.good.test&quot;</span>) &amp;&amp; dns_within(<span class="s">&quot;a.good.test&quot;</span>, <span class="s">&quot;.good.test&quot;</span>));
-<span class="p">assert</span>(dns_within(<span class="s">&quot;*.good.test&quot;</span>, <span class="s">&quot;good.test&quot;</span>) &amp;&amp; !dns_within(<span class="s">&quot;*.test&quot;</span>, <span class="s">&quot;good.test&quot;</span>));</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-x509-TrustStore" class="stdref-item"><code>TrustStore</code> <span class="std-file">struct</span></h4>
@@ -17360,10 +17454,6 @@ sealed[<span class="n">0</span>] = sealed[<span class="n">0</span>] ^ <span clas
 <li><code>query</code>: the text after <code>?</code>, without it; empty when there is none.</li>
 </ul>
 <p>The fragment (<code>#…</code>), which never reaches a server, is dropped.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Example: A host and an optional port, or nothing; never a path, a space or user information</span><span class="badge ok">runs</span></div><pre><code><span class="p">assert</span>(host_field_ok(<span class="s">&quot;&quot;</span>) &amp;&amp; host_field_ok(<span class="s">&quot;example.com&quot;</span>) &amp;&amp; host_field_ok(<span class="s">&quot;h:8080&quot;</span>));
-<span class="p">assert</span>(host_field_ok(<span class="s">&quot;[::1]:443&quot;</span>) &amp;&amp; host_field_ok(<span class="s">&quot;127.0.0.1&quot;</span>));
-<span class="p">assert</span>(!host_field_ok(<span class="s">&quot;evil.com/x?y@z w&quot;</span>) &amp;&amp; !host_field_ok(<span class="s">&quot;a@b&quot;</span>) &amp;&amp; !host_field_ok(<span class="s">&quot;h:80:80&quot;</span>));
-<span class="p">assert</span>(!host_field_ok(<span class="s">&quot;[::1&quot;</span>) &amp;&amp; !host_field_ok(<span class="s">&quot;h:8x&quot;</span>));</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-http-Url-parse" class="stdref-item"><code>Url::parse</code> <span class="std-file">fn</span></h4>
@@ -17523,21 +17613,6 @@ sealed[<span class="n">0</span>] = sealed[<span class="n">0</span>] ^ <span clas
 <p>&quot;&quot; for a status it does not list here.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: A listed code has its phrase, and any other the empty string</span><span class="badge ok">runs</span></div><pre><code><span class="p">assert</span>(<span class="p">reason_phrase</span>(<span class="n">404</span>) == <span class="s">&quot;Not Found&quot;</span>);
 <span class="p">assert</span>(<span class="p">reason_phrase</span>(<span class="n">299</span>) == <span class="s">&quot;&quot;</span>);</code></pre></figure>
-<figure class="code"><div class="code-head"><span class="code-title">Example: <code>close</code> anywhere in any <code>Connection</code> field counts</span><span class="badge ok">runs</span></div><pre><code><span class="p">Vec</span>&lt;<span class="p">Header</span>&gt; hs = <span class="p">Vec</span>::new();
-<span class="p">Vec</span>::push(&amp;<span class="k">mut</span> hs, <span class="p">Header</span>::new(<span class="s">&quot;Connection&quot;</span>, <span class="s">&quot;keep-alive, Close&quot;</span>));
-<span class="p">assert</span>(connection_has(&amp;hs, <span class="s">&quot;close&quot;</span>) &amp;&amp; connection_has(&amp;hs, <span class="s">&quot;keep-alive&quot;</span>));
-<span class="p">assert</span>(!connection_has(&amp;hs, <span class="s">&quot;upgrade&quot;</span>));
-<span class="p">assert</span>(!field_ok(&amp;<span class="p">Header</span>::new(<span class="s">&quot;X&quot;</span>, <span class="s">&quot;a\r\nSet-Cookie: x&quot;</span>)));
-<span class="p">assert</span>(!field_ok(&amp;<span class="p">Header</span>::new(<span class="s">&quot;X Y&quot;</span>, <span class="s">&quot;a&quot;</span>)));
-<span class="p">assert</span>(field_ok(&amp;<span class="p">Header</span>::new(<span class="s">&quot;X&quot;</span>, <span class="s">&quot;a\tb&quot;</span>)));</code></pre></figure>
-<figure class="code"><div class="code-head"><span class="code-title">Example: A size is hex digits from the first byte; an extension holds no control byte</span><span class="badge ok">runs</span></div><pre><code><span class="p">assert</span>(<span class="p">Option</span>::unwrap(chunk_size(<span class="s">&quot;1f&quot;</span>)) == <span class="n">31</span>);
-<span class="p">assert</span>(<span class="p">Option</span>::unwrap(chunk_size(<span class="s">&quot;3 ;name=\&quot;v\&quot;&quot;</span>)) == <span class="n">3</span>);
-<span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;chunk_size(<span class="s">&quot; 3&quot;</span>)));
-<span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;chunk_size(<span class="s">&quot;3 x&quot;</span>)));
-<span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;chunk_size(<span class="s">&quot;+3&quot;</span>)));
-<span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;chunk_size(<span class="s">&quot;2;a\u{1}&quot;</span>)));
-<span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;chunk_size(<span class="s">&quot;&quot;</span>)));
-<span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;chunk_size(<span class="s">&quot;123456789&quot;</span>)));</code></pre></figure>
 </div>
 <h3 id="stdref-std-http-client"><code>std::http::client</code> <span class="std-file">impl/std/http/client.cb</span></h3>
 <div class="stdref-entry">
@@ -17564,19 +17639,6 @@ sealed[<span class="n">0</span>] = sealed[<span class="n">0</span>] ^ <span clas
 <span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;c.roots));
 <span class="p">assert</span>(<span class="p">Option</span>::is_some(&amp;<span class="p">find_header</span>(&amp;c.headers, <span class="s">&quot;user-agent&quot;</span>)));
 c.max_body = <span class="n">1</span>_048_576;</code></pre></figure>
-<figure class="code"><div class="code-head"><span class="code-title">Example: RFC 3986 §5.4's normal examples, on the base <code>http://a/b/c/d;p?q</code>, and a <code>://</code> inside a query</span><span class="badge ok">runs</span></div><pre><code><span class="p">Url</span> base = <span class="p">Result</span>::unwrap(<span class="p">Url</span>::<span class="p">parse</span>(<span class="s">&quot;http://a/b/c/d;p?q&quot;</span>));
-<span class="p">assert</span>(<span class="p">Url</span>::text(&amp;<span class="p">Result</span>::unwrap(redirect_target(&amp;base, <span class="s">&quot;g&quot;</span>))) == <span class="s">&quot;http://a/b/c/g&quot;</span>);
-<span class="p">assert</span>(<span class="p">Url</span>::text(&amp;<span class="p">Result</span>::unwrap(redirect_target(&amp;base, <span class="s">&quot;./g/&quot;</span>))) == <span class="s">&quot;http://a/b/c/g/&quot;</span>);
-<span class="p">assert</span>(<span class="p">Url</span>::text(&amp;<span class="p">Result</span>::unwrap(redirect_target(&amp;base, <span class="s">&quot;/g&quot;</span>))) == <span class="s">&quot;http://a/g&quot;</span>);
-<span class="p">assert</span>(<span class="p">Url</span>::text(&amp;<span class="p">Result</span>::unwrap(redirect_target(&amp;base, <span class="s">&quot;//g&quot;</span>))) == <span class="s">&quot;http://g/&quot;</span>);
-<span class="p">assert</span>(<span class="p">Url</span>::text(&amp;<span class="p">Result</span>::unwrap(redirect_target(&amp;base, <span class="s">&quot;?y&quot;</span>))) == <span class="s">&quot;http://a/b/c/d;p?y&quot;</span>);
-<span class="p">assert</span>(<span class="p">Url</span>::text(&amp;<span class="p">Result</span>::unwrap(redirect_target(&amp;base, <span class="s">&quot;g?y&quot;</span>))) == <span class="s">&quot;http://a/b/c/g?y&quot;</span>);
-<span class="p">assert</span>(<span class="p">Url</span>::text(&amp;<span class="p">Result</span>::unwrap(redirect_target(&amp;base, <span class="s">&quot;#s&quot;</span>))) == <span class="s">&quot;http://a/b/c/d;p?q&quot;</span>);
-<span class="p">assert</span>(<span class="p">Url</span>::text(&amp;<span class="p">Result</span>::unwrap(redirect_target(&amp;base, <span class="s">&quot;..&quot;</span>))) == <span class="s">&quot;http://a/b/&quot;</span>);
-<span class="p">assert</span>(<span class="p">Url</span>::text(&amp;<span class="p">Result</span>::unwrap(redirect_target(&amp;base, <span class="s">&quot;../../../g&quot;</span>))) == <span class="s">&quot;http://a/g&quot;</span>);
-<span class="p">assert</span>(<span class="p">Url</span>::text(&amp;<span class="p">Result</span>::unwrap(redirect_target(&amp;base, <span class="s">&quot;/./g/..&quot;</span>))) == <span class="s">&quot;http://a/&quot;</span>);
-<span class="p">assert</span>(<span class="p">Url</span>::text(&amp;<span class="p">Result</span>::unwrap(redirect_target(&amp;base, <span class="s">&quot;/login?next=http://e.com/&quot;</span>))) == <span class="s">&quot;http://a/login?next=http://e.com/&quot;</span>);
-<span class="p">assert</span>(<span class="p">Url</span>::text(&amp;<span class="p">Result</span>::unwrap(redirect_target(&amp;base, <span class="s">&quot;https://x:8443/y&quot;</span>))) == <span class="s">&quot;https://x:8443/y&quot;</span>);</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-http-client-HttpClient-send" class="stdref-item"><code>HttpClient::send</code> <span class="std-file">fn</span></h4>
@@ -17720,19 +17782,27 @@ c.max_body = <span class="n">1</span>_048_576;</code></pre></figure>
 <div class="stdref-entry">
 <h4 id="stdref-std-database-saslprep" class="stdref-item"><code>saslprep</code> <span class="std-file">fn</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> saslprep(<span class="p">StringView</span> text) : <span class="p">Option</span>&lt;<span class="p">String</span>&gt;</code></pre></figure>
-<p><code>text</code> prepared by SASLprep (RFC 4013), as SCRAM prepares a password and PostgreSQL the passwords it stores; <code>None</code> when the result is prohibited.</p>
-<p>The steps of stringprep (RFC 3454) with the SASLprep profile, over Unicode 3.2 as the RFCs define them: the characters of table B.1 (soft hyphen, zero-width joiners, variation selectors) are removed and the non-ASCII spaces of table C.1.2 (no-break space and the others) become U+0020; the text is normalised to NFKC; then <code>None</code> when it holds a character of the prohibited tables (C.1.2, C.2.1, C.2.2, C.3 to C.9: controls, private use, non-characters, surrogates, tagging and the bidirectional controls) or breaks the bidirectional rule (text with a right-to-left character holds no left-to-right one and begins and ends with a right-to-left one) or holds a code point Unicode 3.2 leaves unassigned (table A.1, the rule for stored strings, which PostgreSQL applies to passwords). ASCII text without controls comes back unchanged. A client that gets <code>None</code> uses the password as given, as libpq does.</p>
+<p><code>text</code> prepared by SASLprep (RFC 4013), as PostgreSQL prepares the passwords it stores and libpq the password it sends; <code>None</code> when the result is prohibited.</p>
+<p>The steps of stringprep (RFC 3454) with the SASLprep profile, over Unicode 3.2, in the order and on the text PostgreSQL&#x27;s own SASLprep uses: ASCII text comes back unchanged, controls included; otherwise the non-ASCII spaces of table C.1.2 (no-break space, U+200B zero width space and the others) become U+0020 and the characters of table B.1 (soft hyphen, zero-width joiners, variation selectors) are removed; <code>None</code> when nothing is left; then <code>None</code> when the mapped text holds a character of the prohibited tables (C.1.2, C.2.1, C.2.2, C.3 to C.9: controls, private use, non-characters, surrogates, tagging and the bidirectional controls) or a code point Unicode 3.2 leaves unassigned (table A.1, the rule for stored strings), or breaks the bidirectional rule (text with a right-to-left character holds no left-to-right one and begins and ends with a right-to-left one); these checks read the mapped text before normalisation, as PostgreSQL&#x27;s do. The result is the mapped text normalised to NFKC (with Corrigendum #4, as every Unicode version after 3.2). A client that gets <code>None</code> uses the password as given, as libpq does.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: RFC 4013 §3's examples, a Hangul syllable kept composed, and a decomposed accent composed</span><span class="badge ok">runs</span></div><pre><code><span class="p">assert</span>(<span class="p">Option</span>::unwrap(saslprep(<span class="s">&quot;I\u{AD}X&quot;</span>)) == <span class="s">&quot;IX&quot;</span>);
 <span class="p">assert</span>(<span class="p">Option</span>::unwrap(saslprep(<span class="s">&quot;user&quot;</span>)) == <span class="s">&quot;user&quot;</span>);
 <span class="p">assert</span>(<span class="p">Option</span>::unwrap(saslprep(<span class="s">&quot;USER&quot;</span>)) == <span class="s">&quot;USER&quot;</span>);
 <span class="p">assert</span>(<span class="p">Option</span>::unwrap(saslprep(<span class="s">&quot;\u{AA}&quot;</span>)) == <span class="s">&quot;a&quot;</span>);
 <span class="p">assert</span>(<span class="p">Option</span>::unwrap(saslprep(<span class="s">&quot;\u{2168}&quot;</span>)) == <span class="s">&quot;IX&quot;</span>);
-<span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;saslprep(<span class="s">&quot;\u{7}&quot;</span>)));
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(saslprep(<span class="s">&quot;\u{7}&quot;</span>)) == <span class="s">&quot;\u{7}&quot;</span>);
 <span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;saslprep(<span class="s">&quot;\u{627}1&quot;</span>)));
 <span class="p">assert</span>(<span class="p">Option</span>::unwrap(saslprep(<span class="s">&quot;a\u{A0}b&quot;</span>)) == <span class="s">&quot;a b&quot;</span>);
 <span class="p">assert</span>(<span class="p">Option</span>::unwrap(saslprep(<span class="s">&quot;\u{D55C}&quot;</span>)) == <span class="s">&quot;\u{D55C}&quot;</span>);
 <span class="p">assert</span>(<span class="p">Option</span>::unwrap(saslprep(<span class="s">&quot;e\u{301}&quot;</span>)) == <span class="s">&quot;\u{E9}&quot;</span>);
 <span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;saslprep(<span class="s">&quot;\u{221}\u{A0}x&quot;</span>)));</code></pre></figure>
+<figure class="code"><div class="code-head"><span class="code-title">Example: Where PostgreSQL's SASLprep reads the RFCs its own way: U+200B (in both C.1.2 and B.1) becomes a space,
+a text of mapped-to-nothing characters only is refused, the checks read the text before NFKC (U+0340
+is refused though it normalises to U+0300; U+2122 is not left-to-right though "TM" is), and the
+decompositions are Corrigendum #4's</span><span class="badge ok">runs</span></div><pre><code><span class="p">assert</span>(<span class="p">Option</span>::unwrap(saslprep(<span class="s">&quot;x\u{200B}z&quot;</span>)) == <span class="s">&quot;x z&quot;</span>);
+<span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;saslprep(<span class="s">&quot;\u{AD}\u{200D}&quot;</span>)));
+<span class="p">assert</span>(<span class="p">Option</span>::is_none(&amp;saslprep(<span class="s">&quot;e\u{340}&quot;</span>)));
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(saslprep(<span class="s">&quot;\u{5D0}\u{2122}\u{5D0}&quot;</span>)) == <span class="s">&quot;\u{5D0}TM\u{5D0}&quot;</span>);
+<span class="p">assert</span>(<span class="p">Option</span>::unwrap(saslprep(<span class="s">&quot;\u{2F868}&quot;</span>)) == <span class="s">&quot;\u{36FC}&quot;</span>);</code></pre></figure>
 </div>
 <h3 id="stdref-std-database-postgres"><code>std::database::postgres</code> <span class="std-file">impl/std/database/postgres.cb</span></h3>
 <div class="stdref-entry">
@@ -18198,47 +18268,6 @@ c.max_body = <span class="n">1</span>_048_576;</code></pre></figure>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> Toml::describe_error(<span class="t">ref</span>&lt;<span class="p">ParseError</span>, <span class="t">shared</span>&gt; e, <span class="p">StringView</span> text) : <span class="p">String</span></code></pre></figure>
 <p>The error <code>Toml::parse(text)</code> gave, as a message for a person: <code>ParseError::describe</code>&#x27;s, with TOML&#x27;s reason.</p>
 <p><code>line 3, column 1: name is defined twice</code> for a key or a table defined twice (or added to a table the format has closed); <code>line 1, column 7: 2026-13-01 is not a date or time (a field beyond its range)</code> for a month 13; otherwise <code>ParseError::describe(e, text)</code>. <code>e</code> is the error <code>Toml::parse</code> gave for <code>text</code>.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Example: A document with tables, an array of tables, dotted and quoted keys, and every kind of value</span><span class="badge ok">runs</span></div><pre><code>Toml doc = <span class="p">Result</span>::unwrap(Toml::<span class="p">parse</span>(<span class="s">&quot;title = \&quot;Example\&quot;\n[owner]\nname = \&quot;Tom\&quot;\ndob = 1979-05-27T07:32:00-08:00\n[database]\nports = [ 8001, 8001, 8002 ]\nenabled = true\ntemp_targets = { cpu = 79.5, case = 72.0 }\n[[servers]]\nip = \&quot;10.0.0.1\&quot;\n[[servers]]\nip = \&quot;10.0.0.2\&quot;\n&quot;</span>));
-<span class="p">assert</span>(<span class="p">Option</span>::unwrap(Toml::as_text(<span class="p">Option</span>::unwrap(Toml::lookup(&amp;doc, <span class="s">&quot;owner.name&quot;</span>)))) == <span class="s">&quot;Tom&quot;</span>);
-<span class="p">assert</span>(Toml::as_i64(<span class="p">Option</span>::unwrap(Toml::lookup(&amp;doc, <span class="s">&quot;database.ports.2&quot;</span>))) == <span class="p">Some</span>(<span class="n">8002</span>: <span class="t">i64</span>));
-<span class="p">assert</span>(Toml::as_f64(<span class="p">Option</span>::unwrap(Toml::lookup(&amp;doc, <span class="s">&quot;database.temp_targets.cpu&quot;</span>))) == <span class="p">Some</span>(<span class="n">79.5</span>));
-<span class="p">assert</span>(<span class="p">Option</span>::unwrap(Toml::as_text(<span class="p">Option</span>::unwrap(Toml::lookup(&amp;doc, <span class="s">&quot;servers.1.ip&quot;</span>)))) == <span class="s">&quot;10.0.0.2&quot;</span>);
-TomlDateTime dob = <span class="p">Option</span>::unwrap(Toml::as_datetime(<span class="p">Option</span>::unwrap(Toml::lookup(&amp;doc, <span class="s">&quot;owner.dob&quot;</span>))));
-<span class="p">assert</span>(dob.year == <span class="n">1979</span> &amp;&amp; dob.hour == <span class="n">7</span> &amp;&amp; dob.offset_minutes == -<span class="n">480</span>);</code></pre></figure>
-<figure class="code"><div class="code-head"><span class="code-title">Example: The error names the byte where the text stops fitting, or the key that is defined twice</span><span class="badge ok">runs</span></div><pre><code><span class="k">match</span> (Toml::<span class="p">parse</span>(<span class="s">&quot;a = 1\nb = \n&quot;</span>))
-{
-    <span class="p">Err</span>(Invalid(i)) : <span class="p">assert</span>(i == <span class="n">10</span>),
-    _               : <span class="p">assert</span>(<span class="k">false</span>),
-}
-<span class="k">match</span> (Toml::<span class="p">parse</span>(<span class="s">&quot;a = 1\na = 2\n&quot;</span>))
-{
-    <span class="p">Err</span>(Invalid(i)) : <span class="p">assert</span>(i == <span class="n">6</span>),
-    _               : <span class="p">assert</span>(<span class="k">false</span>),
-}
-<span class="c">// Report 328: `describe_error` names the duplicate, and a date beyond its range.</span>
-<span class="t">str</span> twice = <span class="s">&quot;[server]\nport = 80\n\n[server]\nhost = \&quot;h\&quot;\n&quot;</span>;
-<span class="k">match</span> (Toml::<span class="p">parse</span>(twice))
-{
-    <span class="p">Err</span>(e) : <span class="p">assert</span>(Toml::describe_error(&amp;e, twice) == <span class="s">&quot;line 4, column 2: server is defined twice&quot;</span>),
-    <span class="p">Ok</span>(_)  : <span class="p">assert</span>(<span class="k">false</span>),
-}
-<span class="t">str</span> day = <span class="s">&quot;day = 2026-13-01\n&quot;</span>;
-<span class="k">match</span> (Toml::<span class="p">parse</span>(day))
-{
-    <span class="p">Err</span>(e) : <span class="p">assert</span>(Toml::describe_error(&amp;e, day) == <span class="s">&quot;line 1, column 7: 2026-13-01 is not a date or time (a field beyond its range)&quot;</span>),
-    <span class="p">Ok</span>(_)  : <span class="p">assert</span>(<span class="k">false</span>),
-}
-<span class="t">str</span> bad = <span class="s">&quot;a = \n&quot;</span>;
-<span class="k">match</span> (Toml::<span class="p">parse</span>(bad))
-{
-    <span class="p">Err</span>(e) : <span class="p">assert</span>(Toml::describe_error(&amp;e, bad) == <span class="p">ParseError</span>::describe(&amp;e, bad)),
-    <span class="p">Ok</span>(_)  : <span class="p">assert</span>(<span class="k">false</span>),
-}
-<span class="k">match</span> (Toml::<span class="p">parse</span>(<span class="s">&quot;n = 9223372036854775808&quot;</span>))
-{
-    <span class="p">Err</span>(OutOfRange) : {},
-    _               : <span class="p">assert</span>(<span class="k">false</span>),
-}</code></pre></figure>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-encoding-toml-Toml-text" class="stdref-item"><code>Toml::text</code> <span class="std-file">fn</span></h4>
@@ -19028,7 +19057,7 @@ identifier; <code>obj</code> an object's id; <code>tok</code>, <code>root</code>
 <tr><td><code>cb_init</code>, <code>cb_set_decided</code></td><td>start of <code>cb_program</code></td><td>[Program]: takes the file names and type descriptors and sets up the state; <code>cb_set_decided</code> first, in a decided program</td></tr>
 <tr><td><code>cb_terminate_ok</code></td><td>end of <code>cb_program</code></td><td>writes out buffered output and ends the process with <code>main</code>'s value</td></tr>
 <tr><td><code>cb_exit</code></td><td><code>std::exit</code></td><td>unwinds this thread as a fault does, reports nothing, ends with the status</td></tr>
-<tr><td><code>cb_fault</code>, <code>cb_fault_msg</code>, <code>cb_fault_index</code>, <code>cb_fault_range</code>, <code>cb_fault_arith</code>, <code>cb_fault_arith_r</code>, <code>cb_fault_arith_c</code>, <code>cb_fault_narrow</code>, <code>cb_fault_to_int</code></td><td>a check written in line has failed (overflow, bounds, <code>unwrap</code>, <code>assert</code>)</td><td>[Fault-Unwind]: see <a href="#rt-fault">a fault from call to exit</a>; <code>cb_fault_msg</code> carries <code>assert</code>'s formatted message; the others the values the check compared: the index and the length, the range and the length, the operands and the type, the value and the type it does not fit</td></tr>
+<tr><td><code>cb_fault</code>, <code>cb_fault_msg</code>, <code>cb_fault_index</code>, <code>cb_fault_range</code>, <code>cb_fault_arith</code>, <code>cb_fault_arith_r</code>, <code>cb_fault_arith_c</code>, <code>cb_fault_op</code>, <code>cb_fault_narrow</code>, <code>cb_fault_to_int</code></td><td>a check written in line has failed (overflow, bounds, <code>unwrap</code>, <code>assert</code>)</td><td>[Fault-Unwind]: see <a href="#rt-fault">a fault from call to exit</a>; <code>cb_fault_msg</code> carries <code>assert</code>'s formatted message; the others the values the check compared: the index and the length, the range and the length, the operands and the type (of <code>+ - *</code>, of <code>-a</code>, of a division and of a shift), the value and the type it does not fit</td></tr>
 <tr><td><code>cb_at</code> (inline)</td><td>before a statement that may fault without a location of its own</td><td>stores the file and line in <code>cb_at_pos</code></td></tr>
 <tr><td><code>cb_where</code>, <code>cb_set_where</code>, <code>cb_set_stack_floor</code></td><td>defined by the generated program, called by the runtime</td><td>read and set the two thread-locals, which live in the program so that its stores to them are plain</td></tr>
 <tr><td><code>cb_stack_check</code> (inline), <code>cb_stack_exhausted</code></td><td>a function's entry</td><td>[Call]'s stack limit: below the floor is <code>diag.stack-exhausted</code>, raised as a fault</td></tr>
