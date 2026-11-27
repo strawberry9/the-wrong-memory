@@ -166,7 +166,7 @@ figure.code pre { margin: 0; padding: 12px 16px; overflow-x: auto; font-size: 0.
 <aside class="sidebar">
 <div class="brand">Cobalt<span>C</span></div>
 <div class="sub">Language guide &amp; reference</div>
-<div class="sub">Specification edition 2026.112401</div>
+<div class="sub">Specification edition 2026.112701</div>
 <ol>
 <li><a href="#preface">Preface</a></li>
 <li class="group">Start here</li>
@@ -340,7 +340,7 @@ are disjoint, and the underlying storage remains owned by <code>values</code>.
 
 </section>
 
-<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.112401</strong>.</p>
+<p class="edition">This guide describes the CobaltC specification, edition <strong>2026.112701</strong>.</p>
 <section id="intro">
 <h2>Introduction</h2>
 <p class="blurb">Why CobaltC exists, what it promises, and which features were chosen to keep those promises.</p>
@@ -468,7 +468,9 @@ did, apart from a repair that closes a soundness hole or a change announced a re
 in a temporary directory, runs it and deletes what it built; <code>cobc -o program program.cb</code> keeps the
 executable, <code>program</code>. <code>cobc</code> takes the program's entry file (it may name other files as modules,
 §17); its own options go before the file, and words after it are the program's arguments
-(<code>cobc --run program.cb a b</code>). Under <code>--run</code>, <code>cobc</code> exits with the program's own status, 0 when it
+(<code>cobc --run program.cb a b</code>). A program can also be a script: a first line
+<code>#!/usr/bin/env -S cobc --run</code> is read as a comment (D-0337, spec/22), so after <code>chmod +x program.cb</code>
+the file runs as <code>./program.cb a b</code>; only the first line may start with <code>#!</code>. Under <code>--run</code>, <code>cobc</code> exits with the program's own status, 0 when it
 runs to completion; a rejected program's diagnostic is printed and <code>cobc</code> exits with status 1.
 <code>cobc --check program.cb</code> runs only the checks made before a program starts, and prints the same
 diagnostic for a program it rejects; nothing is built or run, so a program that reads input, writes files or serves the network can be
@@ -496,9 +498,9 @@ C compiler compiles it as one file with no link-time optimisation. A program tha
 builds in a second or two. One that reaches much of it takes longer: <code>http_get</code> brings in the HTTP
 client, TLS, X.509 and compression, some 94,000 lines of C, and a nine-line program calling it builds in
 about 28 s at the default <code>-O 2</code> and 19 s at <code>-O 0</code> on a four-core machine (measured with other builds
-running), of which about 5 s is <code>cobc</code>'s own work and the rest the C compiler. <code>cobc</code> keeps the
-executables it builds (<code>COBALTC_CACHE=off</code> turns that off), so building an unchanged program again costs
-only those 5 s; an edit changes the C, and the next build costs the whole time again.</p>
+running), of which about 5 s is <code>cobc</code>'s own work and the rest the C compiler. Every build is an honest
+compile: <code>cobc</code> keeps no cache of earlier builds, so building a program again costs the whole time
+again.</p>
 <p><code>cobc --lto</code> compiles a large program's C in parts instead, at most eight, all at
 once on the machine's cores, and links them with link-time optimisation where the C compiler has it
 (GCC's <code>-flto</code>; Clang's ThinLTO, through Clang's own <code>lld</code> or through <code>gold</code>); a program of under a
@@ -1676,7 +1678,7 @@ the indices as the borrows are made. Run it with <code>j = 1</code> and the seco
 <code>diag.aliasing-conflict</code>, at that line, in that run. Rust's answer is the same in both cases and
 arrives before the program exists; CobaltC's is different in the two cases and arrives when it
 runs.</p>
-<figure class="code"><div class="code-head"><span class="code-title">Caught at run time here, at compile time in Rust</span><span class="badge bad">rejected: diag.stale-binding</span></div><pre><code><span class="k">import</span> std;
+<figure class="code"><div class="code-head"><span class="code-title">Caught at compile time, as in Rust</span><span class="badge bad">rejected: diag.destroy-while-aliased</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">struct</span> Holder
 {
@@ -1697,13 +1699,15 @@ runs.</p>
         stash(&amp;<span class="k">mut</span> h, &amp;inner);     <span class="c">// a reference to inner, stored by a function</span>
         <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, *h.r);      <span class="c">// fine: inner is alive</span>
     }
-    <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, *h.r);          <span class="c">// <span class="bad">✗</span> <span class="dg">diag.stale-binding</span>: inner ended with its block</span>
-}</code></pre></figure>
+    <span class="p">printf</span>(<span class="s">&quot;%v\n&quot;</span>, *h.r);          <span class="c">// h may still refer to inner, which ended with its block</span>
+}                                  <span class="c">// <span class="bad">✗</span> <span class="dg">diag.destroy-while-aliased</span>, at the check</span></code></pre></figure>
 <p>In Rust, <code>Holder</code> would be <code>Holder&lt;&#x27;a&gt;</code>, <code>stash</code> would take <code>&amp;mut Holder&lt;&#x27;a&gt;</code> and <code>&amp;&#x27;a i32</code>,
 and the call would not compile, because <code>h</code> outlives <code>inner</code>. A CobaltC signature says what a
 function's <em>result</em> may refer to (its one reference parameter, or those its <code>from</code> clause
-names), but not what it stores through one parameter into another, so the escape through <code>stash</code>
-is left to the run, and the program runs until the read, which faults. A function that returns the
+names), but not what it stores through one parameter into another. The checker's facts still show
+that <code>h</code> may refer to <code>inner</code> when <code>inner</code>'s block ends, and <code>h</code> is read after it: a fault certain
+on that path, so it is refused when the program is checked (<code>[Certain-Fault-Refused]</code>, D-0340),
+not left to the run. A function that returns the
 reference, or a struct holding it (<code>h = keep(&amp;inner)</code> with <code>fn keep(ref&lt;i32, shared&gt; r) : Holder</code>),
 is tied to its argument by its signature and is rejected before the run. So is the same escape
 written in one function, with no call between:</p>
@@ -1963,8 +1967,10 @@ declares a <code>slice&lt;u8, shared&gt;</code>, where it is a slice of bytes th
 type's range. <code>/</code> and <code>%</code> truncate toward zero (the remainder takes the sign of the dividend);
 dividing by zero is <code>diag.div-by-zero</code>, and the one overflowing division, the minimum value of a
 signed type divided by <code>-1</code>, is <code>diag.div-overflow</code>. Negating the minimum signed value is an
-overflow too. When both operands are literals the fault is detected statically and the program is
-rejected; otherwise it is a run-time fault that terminates the program (see §18). A local
+overflow too. When the operands are known — literals, constants, or operations on them nested to
+any depth, <code>100 * 99999 * 100000 / 2</code> in a <code>printf</code> argument as much as in a declaration — the fault
+is detected statically and the program is rejected (<code>[Literal-Expression-Folded]</code>, D-0340);
+otherwise it is a run-time fault that terminates the program (see §18). A local
 initialized with a literal counts as that literal until something writes it, borrows it or
 captures it in a closure, so <code>u8 x = 200; u8 y = x + 100;</code> is rejected too. After such a write,
 or after an <code>if</code> that writes it on only one branch, the check happens at run time.</p>
@@ -2595,6 +2601,9 @@ closure.</p>
     <span class="p">assert</span>(<span class="p">Option</span>::is_some(&amp;hit));    <span class="c">// the last use of hit</span>
     <span class="p">HashMap</span>::insert(&amp;<span class="k">mut</span> m, <span class="s">&quot;b&quot;</span>, <span class="n">2</span>);  <span class="c">// <span class="ok">✓</span> hit no longer borrows m</span>
 }</code></pre></figure>
+<p>Assigning a reference a new referent is no use of the one it had (<code>[Ref-Reassign-Releases]</code>,
+D-0341): a cursor <code>cur = &amp;steps[i];</code> reassigned at the end of a loop's round holds no loan between
+its last read and the assignment, so <code>steps[i].visited = true;</code> there is accepted, in both builds.</p>
 <figure class="code"><div class="code-head"><span class="code-title">A use in a loop keeps the reference for the whole loop</span><span class="badge bad">rejected: diag.aliasing-conflict</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> main()
@@ -3506,7 +3515,7 @@ arguments.</p>
 <tr><td><code>handle&lt;T&gt;</code>, <code>mutex&lt;T&gt;</code>, <code>guard&lt;T&gt;</code></td><td>threads and locks (§19)</td><td>yes</td></tr>
 <tr><td><code>struct</code>, <code>enum</code></td><td>user-declared aggregates (§16)</td><td>if marked <code>resource</code> or any part is</td></tr>
 <tr><td><code>bitstruct</code></td><td>named runs of bits packed into one unsigned integer, <code>u8</code> to <code>u128</code> (§16)</td><td>no</td></tr>
-<tr><td><code>never</code></td><td>the type of <code>return</code>, <code>break</code> and <code>continue</code>: an expression that never yields a value, accepted wherever any type is expected</td><td>n/a</td></tr>
+<tr><td><code>never</code></td><td>the type of <code>return</code>, <code>break</code> and <code>continue</code>: an expression that never yields a value, accepted wherever any type is expected; written only as a function's result, <code>fn die(…) : never</code> (D-0340)</td><td>n/a</td></tr>
 </tbody>
 </table>
 <h3>Nominal, exact, two coercions</h3>
@@ -6345,7 +6354,14 @@ same way a <code>match</code> would, and the early <code>return</code> runs dest
 <p>A <code>Result</code> is never dropped silently: an expression statement whose value is a
 <code>Result</code>, such as a bare call <code>write_all(&amp;f, &amp;data);</code>, is <code>diag.result-discarded</code>, since the error it
 may carry would vanish. Handle it (<code>?</code>, <code>match</code>, <code>unwrap</code>), or say that you mean to ignore it with
-<code>_ = e;</code>, which evaluates <code>e</code> and destroys the value at once. <code>_ = e;</code> works for any value.</p>
+<code>_ = e;</code>, which evaluates <code>e</code> and destroys the value at once. <code>_ = e;</code> works for any value.
+A thread's <code>Result</code> is no different (<code>[Handle-Result-Lost]</code>, D-0340): a <code>handle&lt;Result&lt;…&gt;&gt;</code> that may
+end without <code>join</code> is refused, and one kept in a <code>Vec</code> that ends unjoined after its thread gave
+<code>Err</code> stops the program with <code>diag.result-discarded</code>.
+
+The rule behind both, and behind most of what follows (<code>[Certain-Fault-Refused]</code>, D-0340): a fault
+that is certain once a path is taken is refused when the program is checked, even when whether
+that path runs depends on input. The run-time checks are for what the checker cannot know.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Ignoring a Result on purpose</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> check(<span class="t">i32</span> n) : <span class="p">Result</span>&lt;<span class="t">i32</span>, <span class="t">str</span>&gt;
@@ -6832,7 +6848,9 @@ jobs, closes the channel, and joins the workers, each of which stops at <code>No
 }</code></pre></figure>
 <p>A wait that can never end because no other thread exists — the main thread receiving
 from an empty channel, or sending to a full one, with no spawned thread running — is a fault,
-<code>diag.channel-deadlock</code>. Other deadlocks are not detected.</p>
+<code>diag.channel-deadlock</code>. A wait among several threads that none of them can end (two threads each
+receiving from the other's channel, locks taken in opposite orders) is <code>diag.deadlock</code> (§19's
+Deadlock section).</p>
 <figure class="code"><div class="code-head"><span class="code-title">Waiting alone</span><span class="badge bad">rejected: diag.channel-deadlock</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">fn</span> main()
@@ -6848,8 +6866,9 @@ senders are done". <code>Channel::recv_timeout_ms(&amp;ch, ms)</code> waits at m
 three answers. <code>cpu_count()</code> is how many threads the machine runs at once, the size to give a pool.</p>
 <h3>Owning a share: <code>Arc</code></h3>
 <p>Everything above shares by reference, and a reference does not outlive its frame: a function that
-spawns a worker over a local counter and returns the handle faults when the frame ends with the thread
-still holding the reference. When a thread must outlive the frame that made what it shares — a pool of
+spawns a worker over a local counter and returns the handle is refused (<code>diag.reference-escapes-scope</code>,
+<code>[Ref-Escape-Through-Facts]</code>, D-0340): the thread may still hold the reference when the frame ends,
+as a reference returned through a binding (<code>StringView w = &amp;local; w</code>) would. When a thread must outlive the frame that made what it shares — a pool of
 workers, a server that hands its handle back — each thread owns a share instead: <code>Arc&lt;T&gt;</code> from
 <code>std::memory</code> (D-0259) is <code>Rc</code> with atomic counts. <code>Arc::clone(&amp;a)</code> (or <code>clone(&amp;a)</code>) makes another handle
 to the same value; handles move into threads and are dropped there, and the value is destroyed once, by
@@ -7579,8 +7598,9 @@ variable argument (<code>float</code> to <code>double</code>, <code>bool</code> 
 else is <code>diag.extern-non-ffi-type</code> (<code>[Extern-Call-Variadic]</code>, <code>[Extern-Call-Variadic-Arg]</code>). The type of each argument must be the one the format or the function
 expects, as in C: nothing checks it. A declaration without <code>...</code> is a fixed prototype, which is the
 wrong call for a variadic function; for the C library's variadic functions cobc knows (the <code>printf</code>
-and <code>scanf</code> families, <code>open</code>, <code>fcntl</code>, <code>ioctl</code>, <code>strfmon</code>, <code>error</code>, <code>syscall</code>, …) an older form that
-lists the arguments a call passes after the fixed parameters is still called correctly.</p>
+and <code>scanf</code> families, <code>open</code>, <code>fcntl</code>, <code>ioctl</code>, <code>strfmon</code>, <code>error</code>, <code>syscall</code>, …) a declaration without
+<code>...</code> is refused, <code>diag.extern-variadic-without-ellipsis</code>, and the message says to add <code>...</code>
+(<code>[Extern-Variadic-Without-Ellipsis]</code>, D-0339).</p>
 <p><code>std</code> declares two externs: <code>stdout_write(rawptr&lt;u8&gt; buf, usize len) : isize</code>, which
 <code>printf</code> (§21) writes through, with the <code>unsafe</code> block inside <code>std</code>, and its counterpart
 <code>stdin_read</code>, which <code>read_line</code> reads through. Calling conventions and how code is linked are outside the language
@@ -8221,7 +8241,7 @@ reference</a>, which gives its declaration, its documentation and examples.</p>
 <tbody>
 <tr><td>Submodules</td><td><a href="#stdmod-std-http-client"><code>client</code></a>, <a href="#stdmod-std-http-server"><code>server</code></a></td></tr>
 <tr><td>Types</td><td><code class="priv">BodyLength</code>, <code class="priv">Conn</code>, <a href="#stdref-std-http-Header"><code>Header</code></a>, <a href="#stdref-std-http-HttpError"><code>HttpError</code></a>, <a href="#stdref-std-http-Param"><code>Param</code></a>, <code class="priv">Reader</code>, <a href="#stdref-std-http-Request"><code>Request</code></a>, <a href="#stdref-std-http-Response"><code>Response</code></a>, <a href="#stdref-std-http-Url"><code>Url</code></a></td></tr>
-<tr><td>Functions</td><td><code class="priv">ascii_ieq</code>, <code class="priv">ascii_ieq_str</code>, <code class="priv">available</code>, <code class="priv">body_length</code>, <code class="priv">chunk_size</code>, <code class="priv">conn_close</code>, <code class="priv">conn_read</code>, <code class="priv">conn_write</code>, <code class="priv">connection_has</code>, <code class="priv">count_header</code>, <code class="priv">default_port</code>, <code class="priv">field_ok</code>, <code class="priv">fill_buffer</code>, <a href="#stdref-std-http-find_header"><code>find_header</code></a>, <a href="#stdref-std-http-find_param"><code>find_param</code></a>, <a href="#stdref-std-http-form_decode"><code>form_decode</code></a>, <a href="#stdref-std-http-form_encode"><code>form_encode</code></a>, <code class="priv">form_encode_part</code>, <code class="priv">form_part</code>, <code class="priv">has_cr</code>, <code class="priv">has_header</code>, <code class="priv">hex_digit</code>, <code class="priv">host_field_ok</code>, <code class="priv">host_ok</code>, <code class="priv">host_text</code>, <code class="priv">http_line</code>, <code class="priv">http_line_crlf</code>, <code class="priv">http_line_mode</code>, <code class="priv">http_newline_from</code>, <code class="priv">is_token</code>, <code class="priv">is_unreserved</code>, <code class="priv">name_eq</code>, <code class="priv">names_eq</code>, <a href="#stdref-std-http-percent_decode"><code>percent_decode</code></a>, <a href="#stdref-std-http-percent_encode"><code>percent_encode</code></a>, <code class="priv">port_digits</code>, <code class="priv">read_body</code>, <code class="priv">read_headers</code>, <code class="priv">read_n</code>, <code class="priv">read_to_end</code>, <a href="#stdref-std-http-reason_phrase"><code>reason_phrase</code></a>, <code class="priv">write_field</code></td></tr>
+<tr><td>Functions</td><td><code class="priv">ascii_ieq</code>, <code class="priv">ascii_ieq_str</code>, <code class="priv">available</code>, <code class="priv">body_length</code>, <code class="priv">chunk_size</code>, <code class="priv">conn_close</code>, <code class="priv">conn_read</code>, <code class="priv">conn_write</code>, <code class="priv">connection_has</code>, <code class="priv">count_header</code>, <code class="priv">default_port</code>, <code class="priv">drain_input</code>, <code class="priv">field_ok</code>, <code class="priv">fill_buffer</code>, <a href="#stdref-std-http-find_header"><code>find_header</code></a>, <a href="#stdref-std-http-find_param"><code>find_param</code></a>, <a href="#stdref-std-http-form_decode"><code>form_decode</code></a>, <a href="#stdref-std-http-form_encode"><code>form_encode</code></a>, <code class="priv">form_encode_part</code>, <code class="priv">form_part</code>, <code class="priv">has_cr</code>, <code class="priv">has_header</code>, <code class="priv">hex_digit</code>, <code class="priv">host_field_ok</code>, <code class="priv">host_ok</code>, <code class="priv">host_text</code>, <code class="priv">http_line</code>, <code class="priv">http_line_crlf</code>, <code class="priv">http_line_mode</code>, <code class="priv">http_newline_from</code>, <code class="priv">is_token</code>, <code class="priv">is_unreserved</code>, <code class="priv">latin1_to_utf8</code>, <code class="priv">name_eq</code>, <code class="priv">names_eq</code>, <a href="#stdref-std-http-percent_decode"><code>percent_decode</code></a>, <a href="#stdref-std-http-percent_encode"><code>percent_encode</code></a>, <code class="priv">port_digits</code>, <code class="priv">read_body</code>, <code class="priv">read_headers</code>, <code class="priv">read_n</code>, <code class="priv">read_to_end</code>, <a href="#stdref-std-http-reason_phrase"><code>reason_phrase</code></a>, <code class="priv">utf8_valid</code>, <code class="priv">write_field</code></td></tr>
 <tr><td><code>HttpError::</code></td><td><a href="#stdref-std-http-HttpError-text"><code>text</code></a></td></tr>
 <tr><td><code>Url::</code></td><td><a href="#stdref-std-http-Url-parse"><code>parse</code></a>, <a href="#stdref-std-http-Url-query_pairs"><code>query_pairs</code></a>, <a href="#stdref-std-http-Url-target"><code>target</code></a>, <a href="#stdref-std-http-Url-text"><code>text</code></a></td></tr>
 <tr><td><code>Param::</code></td><td><a href="#stdref-std-http-Param-new"><code>new</code></a></td></tr>
@@ -8246,8 +8266,10 @@ reference</a>, which gives its declaration, its documentation and examples.</p>
 <thead><tr><th>Kind</th><th>Items</th></tr></thead>
 <tbody>
 <tr><td>Types</td><td><a href="#stdref-std-http-server-HttpConnection"><code>HttpConnection</code></a>, <a href="#stdref-std-http-server-HttpServer"><code>HttpServer</code></a>, <code class="priv">PendingTls</code></td></tr>
+<tr><td>Functions</td><td><code class="priv">request_line</code></td></tr>
 <tr><td><code>HttpServer::</code></td><td><a href="#stdref-std-http-server-HttpServer-accept"><code>accept</code></a>, <a href="#stdref-std-http-server-HttpServer-bind"><code>bind</code></a>, <a href="#stdref-std-http-server-HttpServer-bind_tls"><code>bind_tls</code></a>, <a href="#stdref-std-http-server-HttpServer-local_addr"><code>local_addr</code></a></td></tr>
-<tr><td><code>HttpConnection::</code></td><td><a href="#stdref-std-http-server-HttpConnection-close"><code>close</code></a>, <code class="priv">handshake</code>, <code class="priv">next_arrives</code>, <a href="#stdref-std-http-server-HttpConnection-peer_addr"><code>peer_addr</code></a>, <a href="#stdref-std-http-server-HttpConnection-request"><code>request</code></a>, <a href="#stdref-std-http-server-HttpConnection-respond"><code>respond</code></a></td></tr>
+<tr><td><code>HttpConnection::</code></td><td><a href="#stdref-std-http-server-HttpConnection-close"><code>close</code></a>, <code class="priv">handshake</code>, <code class="priv">next_arrives</code>, <a href="#stdref-std-http-server-HttpConnection-peer_addr"><code>peer_addr</code></a>, <code class="priv">read_request</code>, <a href="#stdref-std-http-server-HttpConnection-request"><code>request</code></a>, <a href="#stdref-std-http-server-HttpConnection-respond"><code>respond</code></a></td></tr>
+<tr><td>Constants</td><td><code class="priv">DRAIN_MAX</code></td></tr>
 </tbody>
 </table>
 <h4 id="stdmod-std-database"><code>std::database</code> <span class="std-file">impl/std/database.cb</span></h4>
@@ -10175,7 +10197,11 @@ frames are unwound and every destructor runs, as they do when a fault ends the p
 output is flushed, and the process ends with <code>status</code>, with no diagnostic. Other threads take no
 further steps. <code>exit</code> has type <code>never</code>, so it can stand in for any value: <code>None : exit(2)</code> in a
 <code>match</code> arm, or <code>exit(1)</code> as a statement after an error message. Returning from <code>main</code> is still the
-ordinary way to end; <code>exit</code> is for the place that knows the program is over and is not <code>main</code>.</p>
+ordinary way to end; <code>exit</code> is for the place that knows the program is over and is not <code>main</code>.
+A helper that prints a message and ends the program declares its result <code>: never</code> (D-0340):
+<code>fn die(StringView msg) : never { eprintf(&quot;%s\n&quot;, msg); exit(1) }</code>. Every path of its body must end
+in <code>exit</code>, another <code>: never</code> call or a loop without <code>break</code>, or it is <code>diag.never-returns</code>; a call of
+it fits any arm, as <code>exit</code> does: <code>Err(_) : die(&quot;bad input&quot;)</code> in a <code>match</code> that gives a <code>String</code>.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Ending the program with its destructors run</span><span class="badge ok">runs</span></div><pre><code><span class="k">import</span> std;
 
 <span class="k">resource</span> <span class="k">struct</span> Lock
@@ -13957,7 +13983,7 @@ i = <span class="n">0</span>;
 <div class="stdref-entry">
 <h4 id="stdref-std-io-printf" class="stdref-item"><code>printf</code> <span class="std-file">built in fn</span></h4>
 <figure class="code sig"><pre><code><span class="k">fn</span> <span class="p">printf</span>(<span class="t">str</span> f, a1, …, an)</code></pre></figure>
-<p>Writes the arguments to standard output as the format <code>f</code> says (<code>spec/21</code> §2f, <code>rule.stdlib.format</code>). <code>f</code> is a string literal, so the format and the arguments are checked when the program is compiled and nothing about it can fail at run time. The conversions are C&#x27;s: <code>%d</code> for any integer type (there is no <code>%ld</code>), <code>%u</code>, <code>%x</code>, <code>%X</code>, <code>%o</code>, <code>%b</code> (binary) for an integer&#x27;s bits in its own width, <code>%f</code>, <code>%e</code>, <code>%g</code> for <code>f32</code> and <code>f64</code>, <code>%s</code> for a <code>str</code>, a <code>ref&lt;String, shared&gt;</code> or a <code>bool</code>, and <code>%v</code> for any printable value or enum &quot;as CobaltC writes it&quot; (an enum&#x27;s variant name; a float that reads back as the same value). Width and precision may be <code>*</code>, taking the next argument (a <code>usize</code>). A reference to a number, a <code>bool</code> or a <code>str</code> prints as what it refers to, so <code>foreach (x in &amp;v) { printf(&quot;%d\n&quot;, x); }</code> prints the elements. Output is buffered (D-0178) and written out when the buffer fills, at <code>flush_stdout()</code>, and when the program ends.</p>
+<p>Writes the arguments to standard output as the format <code>f</code> says (<code>spec/21</code> §2f, <code>rule.stdlib.format</code>). <code>f</code> is a string literal, so the format and the arguments are checked when the program is compiled and nothing about it can fail at run time. The conversions are C&#x27;s: <code>%d</code> for any integer type (there is no <code>%ld</code>), <code>%u</code>, <code>%x</code>, <code>%X</code>, <code>%o</code>, <code>%b</code> (binary) for an integer&#x27;s bits in its own width, <code>%f</code>, <code>%e</code>, <code>%g</code> for <code>f32</code> and <code>f64</code>, <code>%s</code> for a <code>str</code>, a <code>StringView</code>, a <code>ref&lt;String, shared&gt;</code> or a <code>bool</code>, and <code>%v</code> for any printable value or enum &quot;as CobaltC writes it&quot; (an enum&#x27;s variant name; a float that reads back as the same value). Width and precision may be <code>*</code>, taking the next argument (a <code>usize</code>). A reference to a number, a <code>bool</code> or a <code>str</code> prints as what it refers to, so <code>foreach (x in &amp;v) { printf(&quot;%d\n&quot;, x); }</code> prints the elements. Output is buffered (D-0178) and written out when the buffer fills, at <code>flush_stdout()</code>, and when the program ends.</p>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-io-eprintf" class="stdref-item"><code>eprintf</code> <span class="std-file">built in fn</span></h4>
@@ -17431,7 +17457,7 @@ sealed[<span class="n">0</span>] = sealed[<span class="n">0</span>] ^ <span clas
 <li><code>BadUrl</code>: the URL is malformed (<code>Url::parse</code>).</li>
 <li><code>UnsupportedScheme</code>: the URL&#x27;s scheme is neither <code>http</code> nor <code>https</code>.</li>
 <li><code>NoRoots</code>: an https request needed the system&#x27;s trusted roots and <code>TrustStore::system</code> failed.</li>
-<li><code>BadMessage</code>: an HTTP message received is malformed; or one to be sent would be: a header whose name is not a token or whose value holds a control byte other than the tab (a CR or LF would start a header or a body of its own), a method that is not a token, or a status outside 100 to 599.</li>
+<li><code>BadMessage</code>: an HTTP message received is malformed; or one to be sent would be: a header whose name is not a token or whose value holds a control byte other than the tab (a CR or LF would start a header or a body of its own), a method that is not a token, or a status outside 100 to 599; or a server&#x27;s response with no request waiting for one (<code>HttpConnection::respond</code> called twice).</li>
 <li><code>TooLarge</code>: a message&#x27;s head is over 65536 bytes, or its body over the limit.</li>
 <li><code>TooManyRedirects</code>: a response asked for one redirect more than the client&#x27;s <code>max_redirects</code>.</li>
 <li><code>ConnectionClosed</code>: the connection ended inside a message.</li>
@@ -17612,6 +17638,8 @@ sealed[<span class="n">0</span>] = sealed[<span class="n">0</span>] ^ <span clas
 <p>The reason phrase RFC 9110 gives a status code, such as &quot;Not Found&quot; for 404.</p>
 <p>&quot;&quot; for a status it does not list here.</p>
 <figure class="code"><div class="code-head"><span class="code-title">Example: A listed code has its phrase, and any other the empty string</span><span class="badge ok">runs</span></div><pre><code><span class="p">assert</span>(<span class="p">reason_phrase</span>(<span class="n">404</span>) == <span class="s">&quot;Not Found&quot;</span>);
+<span class="p">assert</span>(<span class="p">reason_phrase</span>(<span class="n">422</span>) == <span class="s">&quot;Unprocessable Content&quot;</span>);
+<span class="p">assert</span>(<span class="p">reason_phrase</span>(<span class="n">410</span>) == <span class="s">&quot;Gone&quot;</span>);
 <span class="p">assert</span>(<span class="p">reason_phrase</span>(<span class="n">299</span>) == <span class="s">&quot;&quot;</span>);</code></pre></figure>
 </div>
 <h3 id="stdref-std-http-client"><code>std::http::client</code> <span class="std-file">impl/std/http/client.cb</span></h3>
@@ -17673,7 +17701,7 @@ c.max_body = <span class="n">1</span>_048_576;</code></pre></figure>
 <p>A listening HTTP/1.1 server: <code>accept</code> gives each client&#x27;s connection.</p>
 <ul>
 <li><code>max_body</code>: the most bytes a request body may have (<code>TooLarge</code> beyond); 16 MiB from <code>bind</code>.</li>
-<li><code>timeout_ms</code>: the timeout for each read and write on the connections it accepts, in milliseconds; 30 s from <code>bind</code>.</li>
+<li><code>timeout_ms</code>: the timeout for each read and write on the connections it accepts, in milliseconds; 30 s from <code>bind</code>. A request&#x27;s head (its request line and headers) must also arrive whole within it, from its first byte: a client that sends it a byte at a time cannot hold a connection longer.</li>
 </ul>
 <p>The limits apply to every connection accepted after they are set. A server program handles each connection in a thread of its own (<code>spawn</code>). Dropping the server closes its listening socket.</p>
 </div>
@@ -17726,8 +17754,8 @@ c.max_body = <span class="n">1</span>_048_576;</code></pre></figure>
 <h4 id="stdref-std-http-server-HttpConnection-respond" class="stdref-item"><code>HttpConnection::respond</code> <span class="std-file">fn</span></h4>
 <figure class="code sig"><pre><code><span class="k">export</span> <span class="k">fn</span> <span class="p">HttpConnection</span>::respond(<span class="t">ref</span>&lt;<span class="p">HttpConnection</span>, <span class="t">exclusive</span>&gt; c, <span class="t">u16</span> status, <span class="t">slice</span>&lt;<span class="p">Header</span>, <span class="t">shared</span>&gt; headers, <span class="t">slice</span>&lt;<span class="t">u8</span>, <span class="t">shared</span>&gt; body) : <span class="p">Result</span>&lt;<span class="k">void</span>, <span class="p">HttpError</span>&gt;</code></pre></figure>
 <p>Writes a response with <code>status</code>, <code>headers</code> and <code>body</code>.</p>
-<p>The status line carries <code>reason_phrase(status)</code>. <code>Content-Length</code>, <code>Transfer-Encoding</code> and <code>Connection</code> among <code>headers</code> are dropped, since <code>respond</code> frames the body itself: <code>Content-Length</code> is written from <code>body</code> (not for 1xx, 204 or 304), and <code>Connection</code> as negotiated. The body is left out after a HEAD request and for a status that has none. After a response that ends the connection, the connection is closed and <code>request</code> gives <code>None</code>.</p>
-<p><code>Err(BadMessage)</code>, with nothing written, for a status outside 100 to 599, or a header whose name is not a token or whose value holds a control byte other than the tab: a CR or LF in a value taken from the request (a redirect&#x27;s <code>Location</code>, a file name) would otherwise end the header and let the client write headers and a body of its own (response splitting).</p>
+<p>The status line carries <code>reason_phrase(status)</code>. <code>Content-Length</code>, <code>Transfer-Encoding</code> and <code>Connection</code> among <code>headers</code> are dropped, since <code>respond</code> frames the body itself: <code>Content-Length</code> is written from <code>body</code> (not for 1xx, 204 or 304), <code>Connection</code> as negotiated, and <code>Date</code> (the time now) unless <code>headers</code> has one. The body is left out after a HEAD request and for a status that has none. After a response that ends the connection, the connection is closed and <code>request</code> gives <code>None</code>.</p>
+<p><code>Err(BadMessage)</code>, with nothing written, for a status outside 100 to 599, or a header whose name is not a token or whose value holds a control byte other than the tab: a CR or LF in a value taken from the request (a redirect&#x27;s <code>Location</code>, a file name) would otherwise end the header and let the client write headers and a body of its own (response splitting). <code>Err(BadMessage)</code> too, with nothing written, when no request is waiting for a response: <code>respond</code> answers what the last <code>request</code> read (a request, or one it found malformed), once.</p>
 </div>
 <div class="stdref-entry">
 <h4 id="stdref-std-http-server-HttpConnection-close" class="stdref-item"><code>HttpConnection::close</code> <span class="std-file">fn</span></h4>
@@ -18594,7 +18622,7 @@ rule is applied statically where the checker can see the problem and dynamically
 <tr><td><code>diag.div-by-zero</code>, <code>diag.div-overflow</code></td><td>both</td><td>division by zero; <code>MIN / -1</code></td><td>test first or <code>checked_div</code></td></tr>
 <tr><td><code>diag.shift-amount-out-of-range</code></td><td>both</td><td>shift by the bit width or more</td><td>mask the amount</td></tr>
 <tr><td><code>diag.narrowing-overflow</code></td><td>both</td><td><code>narrow</code> or <code>to_int</code> of a value that does not fit, or a value too wide for a <code>bitstruct</code> field</td><td><code>checked_narrow</code> or <code>narrow_wrapping</code>, or a wider target, for an integer; for a float (<code>to_int</code>), test its range first</td></tr>
-<tr><td><code>diag.result-discarded</code></td><td>static</td><td>an expression statement whose value is a <code>Result</code>, so its error would vanish</td><td>handle it (<code>?</code>, <code>match</code>, <code>unwrap</code>), or write <code>_ = e;</code> to ignore it on purpose</td></tr>
+<tr><td><code>diag.result-discarded</code></td><td>both</td><td>an expression statement whose value is a <code>Result</code>, so its error would vanish; a <code>handle&lt;Result&lt;…&gt;&gt;</code> that may end unjoined; at run time, one in a container that ended unjoined after <code>Err</code></td><td>handle it (<code>?</code>, <code>match</code>, <code>unwrap</code>), or write <code>_ = e;</code> to ignore it on purpose</td></tr>
 <tr><td><code>diag.literal-out-of-range</code></td><td>static</td><td>a literal that does not fit its type</td><td>fix the literal or its type</td></tr>
 <tr><td><code>diag.recursive-type</code></td><td>static</td><td>a struct or enum contains itself by value</td><td>put the recursive part behind <code>Box&lt;T&gt;</code>, <code>Rc&lt;T&gt;</code> or <code>Vec&lt;T&gt;</code></td></tr>
 <tr><td><code>diag.index-out-of-bounds</code></td><td>both</td><td>array or <code>Vec</code> index, or <code>str_byte</code> position, at or past the length</td><td>check the index first</td></tr>
@@ -18616,7 +18644,12 @@ rule is applied statically where the checker can see the problem and dynamically
 <tr><td><code>diag.slice-of-whole</code></td><td>warning</td><td>a warning of <code>--check</code>: <code>&amp;x[0..$]</code> (or <code>&amp;mut x[0..$]</code>) at a position whose declared type is a slice or a <code>StringView</code>, where <code>[Coerce-Slice]</code> or <code>[Coerce-Text]</code> makes the plain borrow, the view, the slice or the reference the same thing</td><td>write <code>&amp;x</code> (<code>&amp;mut x</code>); a view, a slice, a <code>str</code> or a reference as it is</td></tr>
 <tr><td><code>diag.text-copy-literal</code></td><td>warning</td><td>a warning of <code>--check</code>: <code>String::copy(&quot;…&quot;)</code> where a <code>String</code> is declared</td><td>write the literal</td></tr>
 <tr><td><code>diag.text-copy-whole</code></td><td>warning</td><td>a warning of <code>--check</code>: <code>String::copy(&amp;s)</code> of a whole <code>String</code></td><td>write <code>String::clone(&amp;s)</code>, which says a whole <code>String</code> is copied</td></tr>
-<tr><td><code>diag.handle-discarded</code></td><td>warning</td><td>a warning: <code>_ = spawn(…);</code>, whose handle ends at once and so waits for the thread on that line</td><td>keep the handle (or push it onto a <code>Vec</code> of handles) and <code>join</code> it later</td></tr>
+<tr><td><code>diag.handle-discarded</code></td><td>warning</td><td>a warning: <code>_ = spawn(…);</code> or a <code>spawn(…);</code> statement, whose handle ends at once and so waits for the thread on that line</td><td>keep the handle (or push it onto a <code>Vec</code> of handles) and <code>join</code> it later</td></tr>
+<tr><td><code>diag.extern-variadic-without-ellipsis</code></td><td>static</td><td>a C library function that takes a variable argument list (<code>snprintf</code>, <code>open</code>, <code>ioctl</code>, …) declared without <code>...</code> (<code>[Extern-Variadic-Without-Ellipsis]</code>)</td><td>declare its fixed parameters and then <code>...</code>, as C does</td></tr>
+<tr><td><code>diag.static-assigned</code></td><td>static</td><td>a <code>static</code> assigned (<code>S = …</code>) or destroyed (<code>drop(S)</code>); it lives as long as the program (<code>[Static-Not-Assigned]</code>)</td><td>change it through what it holds: <code>Atomic::store(&amp;S, x)</code></td></tr>
+<tr><td><code>diag.type-annotation-needed</code></td><td>static</td><td><code>cobc</code> cannot take a generic call's or variant's type arguments from what is written (<code>u8 x = Result::unwrap_or(Ok(5), 7);</code>: nothing fixes the error type, <code>[Lower-Uninferable]</code>)</td><td>write the type where the value is declared, or on the call or variant (<code>Ok&lt;u8, str&gt;(…)</code>)</td></tr>
+<tr><td><code>diag.thread-affine-moved</code></td><td>static</td><td>a guard passed to <code>spawn</code> or captured by a spawned closure (<code>[Thread-Confined]</code>, D-0340)</td><td>pass <code>&amp;m</code> and call <code>lock(m)</code> in the thread</td></tr>
+<tr><td><code>diag.never-returns</code></td><td>static</td><td>a function declared <code>: never</code> that can return (<code>[T-Never-Fn]</code>, D-0340)</td><td>end every path with <code>exit(…)</code> or another <code>: never</code> call</td></tr>
 <tr><td><code>diag.no-effect</code></td><td>warning</td><td>a warning: a statement whose value is its only effect, such as <code>count == count + 1;</code> or <code>x;</code></td><td>assign with <code>=</code>, or discard a value on purpose with <code>_ = …;</code></td></tr>
 <tr><td><code>diag.reference-identity</code></td><td>warning</td><td>a warning: <code>x == v</code> of two references to a <code>T: eq</code> compares where they refer, not the values</td><td><code>*x == *v</code> for the values</td></tr>
 <tr><td><code>diag.comparison-constant</code></td><td>warning</td><td>a warning: an unsigned value compared with <code>0</code> so that the result is always the same (<code>i &gt;= 0</code>)</td><td>count down with <code>while (i &gt; 0) { i -= 1; … }</code></td></tr>
@@ -19057,6 +19090,7 @@ identifier; <code>obj</code> an object's id; <code>tok</code>, <code>root</code>
 <tr><td><code>cb_init</code>, <code>cb_set_decided</code></td><td>start of <code>cb_program</code></td><td>[Program]: takes the file names and type descriptors and sets up the state; <code>cb_set_decided</code> first, in a decided program</td></tr>
 <tr><td><code>cb_terminate_ok</code></td><td>end of <code>cb_program</code></td><td>writes out buffered output and ends the process with <code>main</code>'s value</td></tr>
 <tr><td><code>cb_exit</code></td><td><code>std::exit</code></td><td>unwinds this thread as a fault does, reports nothing, ends with the status</td></tr>
+<tr><td><code>cb_unittest_runner</code></td><td><code>cobc --unittest</code>'s runner, before its first test</td><td>an <code>exit</code> reached during a test then reports the test FAILED and ends the run with status 1 (report 374)</td></tr>
 <tr><td><code>cb_fault</code>, <code>cb_fault_msg</code>, <code>cb_fault_index</code>, <code>cb_fault_range</code>, <code>cb_fault_arith</code>, <code>cb_fault_arith_r</code>, <code>cb_fault_arith_c</code>, <code>cb_fault_op</code>, <code>cb_fault_narrow</code>, <code>cb_fault_to_int</code></td><td>a check written in line has failed (overflow, bounds, <code>unwrap</code>, <code>assert</code>)</td><td>[Fault-Unwind]: see <a href="#rt-fault">a fault from call to exit</a>; <code>cb_fault_msg</code> carries <code>assert</code>'s formatted message; the others the values the check compared: the index and the length, the range and the length, the operands and the type (of <code>+ - *</code>, of <code>-a</code>, of a division and of a shift), the value and the type it does not fit</td></tr>
 <tr><td><code>cb_at</code> (inline)</td><td>before a statement that may fault without a location of its own</td><td>stores the file and line in <code>cb_at_pos</code></td></tr>
 <tr><td><code>cb_where</code>, <code>cb_set_where</code>, <code>cb_set_stack_floor</code></td><td>defined by the generated program, called by the runtime</td><td>read and set the two thread-locals, which live in the program so that its stores to them are plain</td></tr>
